@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/mikejsmith1985/devsmith-modular-platform/blob/main/ARCHITECTURE.md
+    about: Read the architecture documentation
+  - name: Requirements
+    url: https://github.com/mikejsmith1985/devsmith-modular-platform/blob/main/Requirements.md
+    about: Review platform requirements and features
