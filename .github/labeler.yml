@@ -1,0 +1,65 @@
+# Auto-labeling configuration for PRs based on files changed
+
+# Apps
+'app:portal':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/platform-*/**'
+
+'app:review':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/review-*/**'
+
+'app:logs':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/logs-*/**'
+
+'app:analytics':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/analytics-*/**'
+
+'app:build':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/build-*/**'
+
+# Tech stack
+'tech:frontend':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/*-frontend/**'
+
+'tech:backend':
+  - changed-files:
+    - any-glob-to-any-file: 'apps/*-backend/**'
+
+'tech:docker':
+  - changed-files:
+    - any-glob-to-any-file: ['**/Dockerfile', '**/docker-compose.yml']
+
+'tech:database':
+  - changed-files:
+    - any-glob-to-any-file: ['**/alembic/**', '**/models/**']
+
+# Type
+'type:tests':
+  - changed-files:
+    - any-glob-to-any-file: ['**/*.test.*', '**/*.spec.*', '**/tests/**']
+
+'type:docs':
+  - changed-files:
+    - any-glob-to-any-file: ['**/*.md', 'docs/**']
+
+'type:config':
+  - changed-files:
+    - any-glob-to-any-file: ['**/.github/**', '**/*.yml', '**/*.yaml', '**/*.json']
+
+'type:dependencies':
+  - changed-files:
+    - any-glob-to-any-file: ['**/package.json', '**/package-lock.json', '**/requirements.txt']
+
+# Infrastructure
+'infra:gateway':
+  - changed-files:
+    - any-glob-to-any-file: 'gateway/**'
+
+'infra:ci-cd':
+  - changed-files:
+    - any-glob-to-any-file: '.github/workflows/**'
