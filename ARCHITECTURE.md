@@ -96,6 +96,383 @@ The DevSmith Modular Platform is a comprehensive learning and development platfo
 
 ---
 
+## Mental Models for Understanding This Platform
+
+### Overview: Cognitive Load and Code Comprehension
+
+This platform is designed around **managing cognitive load** - the mental effort required to understand and work with code. Our architecture, tooling, and workflows all aim to:
+
+1. **Minimize unnecessary complexity** (reduce wasted mental effort)
+2. **Simplify inherent complexity** (make hard things approachable)
+3. **Build strong mental frameworks** (enable reasoning and transfer of learning)
+
+### The Three Types of Mental Effort
+
+#### Intrinsic Complexity
+The unavoidable difficulty inherent in a task itself.
+
+**Example:** Understanding how GitHub OAuth works has inherent complexity - it's not simple by nature.
+
+**Our Strategy:**
+- Use Go's explicit error handling (clearer than exceptions)
+- Templ's compile-time checks (catch errors early)
+- Clear naming conventions
+- Modular services (tackle one problem at a time)
+
+#### Wasted Effort
+Mental energy spent on confusion, poor documentation, or unclear architecture.
+
+**Example:** Debugging why a variable is undefined because scope wasn't clear.
+
+**Our Strategy:**
+- Configuration over hardcoding (single source of truth)
+- Gateway-first design (no mysterious port conflicts)
+- Crash recovery hooks (reduce stress of work loss)
+- Clear bounded contexts (avoid mixing concerns)
+
+#### Framework-Building Effort
+Mental work that helps you build transferable understanding.
+
+**Example:** Learning layered architecture once, then applying it everywhere.
+
+**Our Strategy:**
+- Consistent patterns across all services
+- Explicit documentation of mental models (this section!)
+- Rich context in specs for OpenHands
+- Architecture documents that explain "why" not just "how"
+
+---
+
+### Core Mental Models
+
+These four frameworks are essential for understanding any part of this platform:
+
+#### 1. Bounded Contexts (Horizontal Separation)
+
+**Concept:** The same word can mean different things in different business domains.
+
+**Real-World Example:**
+- "Customer" in Sales = someone with a territory and sales pipeline
+- "Customer" in Support = someone with support tickets and assigned agents
+- Same word, completely different data and behaviors
+
+**In Our Platform:**
+
+```
+Portal Service:
+├── User (authentication context)
+│   ├── github_id, github_username
+│   ├── login(), logout()
+│   └── Concerns: Identity, sessions
+
+Review Service:
+├── User (code review context)
+│   ├── reviews_created, reviews_participated
+│   ├── submitReview(), requestReview()
+│   └── Concerns: Review ownership, permissions
+
+Logging Service:
+├── User (audit context)
+│   ├── log_entries_created
+│   ├── logAction(), queryLogs()
+│   └── Concerns: Audit trail, activity tracking
+```
+
+**Why This Matters:**
+- Prevents "God objects" that try to be everything to everyone
+- Enables independent service development
+- Reduces coupling between services
+- Makes code easier to reason about within its context
+
+**When Reading Code:**
+Always ask: "Which bounded context am I in?" The answer changes what entities mean and what behaviors are valid.
+
+---
+
+#### 2. Layered Architecture (Vertical Separation)
+
+**Concept:** Software is organized in layers, each responsible for different concerns.
+
+**The Three Layers:**
+
+```
+┌─────────────────────────────────────┐
+│   CONTROLLER LAYER (handlers/)     │  ← User interaction
+│   - HTTP handlers                  │  ← Request/response
+│   - Templ templates                │  ← UI rendering
+│   - Input validation               │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│   ORCHESTRATION LAYER (services/)  │  ← Business logic
+│   - Business rules                 │  ← Service coordination
+│   - Data transformation            │  ← Error handling
+│   - External API calls             │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│   DATA LAYER (db/)                 │  ← Persistence
+│   - Database queries               │  ← Transaction management
+│   - Schema definitions             │  ← Data integrity
+│   - Migrations                     │
+└─────────────────────────────────────┘
+```
+
+**Same Entity, Different Concerns:**
+
+The "Review" entity exists in all three layers:
+
+```go
+// CONTROLLER LAYER (handlers/review_handler.go)
+// Concern: HTTP request/response, user input
+type ReviewRequest struct {
+    CodeContent string `json:"code_content" binding:"required"`
+    ReadingMode string `json:"reading_mode" binding:"required,oneof=preview skim scan detailed critical"`
+}
+
+// ORCHESTRATION LAYER (services/review_service.go)
+// Concern: Business logic, AI interaction
+func (s *ReviewService) AnalyzeCode(ctx context.Context, review *models.Review) error {
+    // Call Ollama API
+    // Parse results
+    // Apply business rules
+}
+
+// DATA LAYER (db/reviews.go)
+// Concern: Database persistence
+func (r *ReviewRepository) Save(ctx context.Context, review *models.Review) error {
+    query := `INSERT INTO reviews.reviews (user_id, code_content, status) VALUES ($1, $2, $3)`
+    // Database interaction
+}
+```
+
+**Why This Matters:**
+- Each layer has ONE responsibility
+- Teams can specialize in layers
+- Changes in one layer don't break others
+- Testing becomes easier (test each layer independently)
+
+**When Reading Code:**
+Always ask: "Which layer am I in?" This tells you what concerns are appropriate and what dependencies you can expect.
+
+---
+
+#### 3. Abstraction vs Implementation
+
+**Concept:** Understand the "what" before diving into the "how."
+
+**Real-World Example:**
+- Abstraction: A car has an "accelerate" function
+- Implementation: Internal combustion engine with fuel injection, spark plugs, etc.
+- You can drive without knowing engine internals
+
+**In Our Platform:**
+
+```go
+// ABSTRACTION (interfaces/auth_provider.go)
+// The "contract" - what behavior exists
+type AuthProvider interface {
+    // Authenticate user and return token
+    Authenticate(ctx context.Context, code string) (*User, error)
+
+    // Validate token is still valid
+    ValidateToken(ctx context.Context, token string) (bool, error)
+}
+
+// IMPLEMENTATION (services/github_auth.go)
+// The "how" - actual OAuth dance with GitHub
+type GitHubAuthProvider struct {
+    clientID     string
+    clientSecret string
+    httpClient   *http.Client
+}
+
+func (g *GitHubAuthProvider) Authenticate(ctx context.Context, code string) (*User, error) {
+    // Step 1: Exchange code for access token
+    // Step 2: Call GitHub API to get user info
+    // Step 3: Create or update user in database
+    // ... 50+ lines of OAuth details ...
+}
+```
+
+**Why This Matters:**
+- **Most code reading happens at the abstraction level**
+- You only dive into implementation when debugging or extending
+- Understanding abstractions lets you reason about the whole system
+- Implementations can change without breaking your mental model
+
+**When Reading Code:**
+Start with interfaces and abstract types. Only read concrete implementations when you need to understand specific behavior or fix a bug.
+
+---
+
+#### 4. Scope and Context
+
+**Concept:** Variables and functions have limited "lifespans" and visibility.
+
+**The Scope Hierarchy:**
+
+```go
+// PACKAGE-LEVEL SCOPE
+// Visible throughout the entire package
+var GlobalConfig *Config
+
+// STRUCT SCOPE
+// Visible to methods on this struct
+type ReviewService struct {
+    aiClient *ollama.Client  // Accessible to all methods
+    repo     *ReviewRepository
+}
+
+// FUNCTION SCOPE
+// Only exists during function execution
+func (s *ReviewService) AnalyzeCode(ctx context.Context, review *models.Review) error {
+    // Local variable - dies when function returns
+    result := s.aiClient.Generate(review.CodeContent)
+
+    // Block scope - only exists in this if statement
+    if result.Error != nil {
+        tempError := fmt.Errorf("AI call failed: %w", result.Error)
+        return tempError  // tempError doesn't exist outside this block
+    }
+
+    return nil
+}
+```
+
+**Why This Matters:**
+- **Limits where you need to look** when tracking down a variable
+- Prevents naming conflicts (same name can exist in different scopes)
+- Makes code easier to test (limited dependencies)
+- Reduces cognitive load (smaller context windows)
+
+**When Reading Code:**
+When you see a variable, ask: "What scope is this?" This immediately limits where it could be defined and what could affect it.
+
+---
+
+### How These Models Work Together
+
+**Example: Reading the Portal Authentication Handler**
+
+```go
+// 1. BOUNDED CONTEXT: Portal Service, Authentication Domain
+// 2. LAYER: Controller Layer (handles HTTP)
+// 3. SCOPE: Function-level
+
+func HandleGitHubCallback(c *gin.Context) {  // Function scope begins
+    code := c.Query("code")  // Local variable
+
+    // 4. ABSTRACTION: Using interface, not concrete implementation
+    user, err := authProvider.Authenticate(c.Request.Context(), code)
+
+    if err != nil {
+        // Error handling in controller layer (appropriate for this layer)
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed"})
+        return
+    }
+
+    // Generate JWT (orchestration concern, but acceptable in handler for simple cases)
+    token := generateJWT(user)
+
+    c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
+}  // Function scope ends - code, user, token no longer exist
+```
+
+**Mental Model Analysis:**
+1. ✅ **Bounded Context:** Portal/Auth - only deals with authentication
+2. ✅ **Layer:** Controller - handles HTTP, delegates to services
+3. ✅ **Abstraction:** Uses `AuthProvider` interface - don't need to know OAuth details
+4. ✅ **Scope:** All variables local - easy to track, no side effects
+
+This handler is **easy to understand** because it respects all four mental models.
+
+---
+
+### Application to the Review App
+
+The **Review application** will explicitly implement **five reading modes**, each designed to balance cognitive load appropriately:
+
+#### Preview Mode
+**Purpose:** Quick assessment of code structure
+**Cognitive Strategy:** Minimal intrinsic load, maximum speed
+**Use Case:** "Is this code interesting? Should I look deeper?"
+
+#### Skim Mode
+**Purpose:** Understand general functionality and flow
+**Cognitive Strategy:** Build high-level mental framework
+**Use Case:** "What does this codebase do overall?"
+
+#### Scan Mode
+**Purpose:** Find specific information (variables, functions, patterns)
+**Cognitive Strategy:** Targeted search, minimize extraneous load
+**Use Case:** "Where is this error coming from?"
+
+#### Detailed Mode
+**Purpose:** Deep understanding of algorithms and logic
+**Cognitive Strategy:** High intrinsic load, maximum comprehension
+**Use Case:** "How exactly does this algorithm work?"
+
+#### Critical Mode
+**Purpose:** Evaluate quality and identify improvements
+**Cognitive Strategy:** Evaluative reasoning, all models active
+**Use Case:** "How can I make this better? What's broken?"
+
+**See Section: Service Architecture → Review Service** for implementation details of these modes.
+
+---
+
+### Using Mental Models in Development
+
+#### For Claude (Architecture & Review):
+- ✅ Design with bounded contexts clearly defined
+- ✅ Ensure layering is respected in architecture
+- ✅ Create abstractions before implementations
+- ✅ Review PRs using these models as checklist
+
+#### For OpenHands (Implementation):
+- ✅ Specs will explicitly state bounded context and layer
+- ✅ Interface definitions provided before asking for implementations
+- ✅ Scope kept minimal (function-level when possible)
+- ✅ Follow existing patterns (maximize germane load)
+
+#### For Mike (Oversight):
+- ✅ Use these models when reading OpenHands output
+- ✅ Verify bounded contexts haven't leaked across services
+- ✅ Check that layering is clean
+- ✅ Ensure abstractions are used appropriately
+
+---
+
+### Key Principles for This Platform
+
+1. **Context is Everything**
+   - Same word? Check the bounded context.
+   - Same file? Check the layer.
+   - Same function? Check the scope.
+
+2. **Abstractions First**
+   - Define interfaces before implementations
+   - Read at the abstraction level when possible
+   - Dive into implementations only when necessary
+
+3. **Layers Stay Separate**
+   - Controllers handle HTTP, not business logic
+   - Services handle logic, not database details
+   - Data layer handles persistence, nothing else
+
+4. **Minimize Scope**
+   - Keep variables as local as possible
+   - Avoid package-level mutable state
+   - Pass dependencies explicitly
+
+5. **Reduce Cognitive Load**
+   - Choose clarity over cleverness
+   - Explicit over implicit
+   - Boring and predictable over novel and surprising
+
+---
+
 ## System Overview
 
 ### High-Level Architecture
@@ -317,25 +694,426 @@ Backend   Backend   Backend   Backend    Backend
 - `GET /api/apps` - List available apps
 
 ### Review Service
-**Purpose:** AI-driven code review with multiple reading modes
+**Purpose:** AI-driven code review platform with five distinct reading modes, each optimized for managing cognitive load
 
-**Responsibilities:**
-- Code import (GitHub, paste)
-- Five reading modes (Previewing, Skimming, Scanning, Detailed, Critical)
-- Syntax highlighting
-- Real-time collaboration
-- Pull request integration
+**Core Philosophy:**
+The Review service is the **centerpiece of the platform**, designed to teach users how to effectively read and understand code by providing AI-assisted analysis at different depths. Each mode balances the three types of cognitive load differently to support different reading goals.
+
+---
+
+#### The Five Reading Modes
+
+**1. Preview Mode**
+
+**Purpose:** Rapid assessment of code structure and organization
+
+**Cognitive Load Strategy:**
+- **Minimize Intrinsic:** Show only high-level structure (files, folders, imports)
+- **Reduce Extraneous:** No implementation details, no line-by-line analysis
+- **Maximize Germane:** Build mental map of codebase organization
+
+**What AI Provides:**
+- File structure tree with descriptions
+- Primary bounded contexts identified
+- Technology stack detection
+- Architectural pattern recognition (layered, microservices, etc.)
+- Entry points and main flows
+- External dependencies summary
+
+**Use Cases:**
+- Evaluating a new GitHub repo
+- Quick assessment before deeper dive
+- Understanding project organization
+- Determining if code is relevant to your needs
+
+**UI/UX:**
+- Tree view of file structure
+- Color-coded by layer (controller/service/data)
+- Collapsible sections
+- Quick filter by file type
+- AI summary panel: "This is a Go web service using Gin framework..."
+
+---
+
+**2. Skim Mode**
+
+**Purpose:** Understand overall functionality and key flows without implementation details
+
+**Cognitive Load Strategy:**
+- **Minimize Intrinsic:** Focus on abstractions (interfaces, function signatures)
+- **Reduce Extraneous:** Skip implementation bodies, show contracts only
+- **Maximize Germane:** Build mental model of what the system does
+
+**What AI Provides:**
+- Function/method signatures with natural language descriptions
+- Interface definitions and their purposes
+- Data model overview (struct definitions, primary entities)
+- Key workflows identified (e.g., "User authentication flow")
+- API endpoint catalog with descriptions
+- Integration points with external systems
+
+**Use Cases:**
+- Understanding what a codebase does overall
+- Preparing to contribute to a project
+- Architectural review
+- Documentation generation
+
+**UI/UX:**
+- Collapsible function list with AI descriptions
+- Interface viewer showing contracts
+- Workflow diagrams (mermaid.js)
+- Entity relationship diagrams
+- Click to expand for implementation (transitions to Detailed mode)
+
+---
+
+**3. Scan Mode**
+
+**Purpose:** Find specific information quickly (targeted search)
+
+**Cognitive Load Strategy:**
+- **Minimize Intrinsic:** Direct path to target information
+- **Reduce Extraneous:** Filter out irrelevant code
+- **Maximize Germane:** Understand context around the finding
+
+**What AI Provides:**
+- Semantic search (not just keyword matching)
+  - "Where is authentication validated?" → Finds relevant functions even if they don't say "validate"
+- Variable/function usage tracking
+- Error source identification
+- Pattern matching ("Find all database queries")
+- Related code discovery ("Show me all callers of this function")
+- Context-aware suggestions
+
+**Use Cases:**
+- Debugging: "Where does this error come from?"
+- Understanding data flow: "Where is this variable modified?"
+- Security audit: "Find all SQL queries"
+- Refactoring prep: "What calls this deprecated function?"
+
+**UI/UX:**
+- Search bar with natural language support
+- Results with surrounding context (3 lines before/after)
+- Jump-to-definition
+- Highlight matches in code
+- Related results panel
+- Filters: by layer, by bounded context, by file type
+
+---
+
+**4. Detailed Mode**
+
+**Purpose:** Deep understanding of specific algorithms and logic
+
+**Cognitive Load Strategy:**
+- **Accept High Intrinsic:** This is unavoidably complex
+- **Reduce Extraneous:** Provide maximum context to aid understanding
+- **Maximize Germane:** Explain step-by-step, build complete mental model
+
+**What AI Provides:**
+- Line-by-line explanation of selected code block
+- Variable state tracking ("At this point, `user` is...")
+- Control flow analysis (if/else branches, loops)
+- Algorithm explanation ("This implements binary search...")
+- Complexity analysis (time/space complexity if applicable)
+- Edge cases identified
+- Potential bugs or issues
+- Related documentation (links to Go docs, Stack Overflow, etc.)
+
+**Use Cases:**
+- Understanding a complex algorithm
+- Debugging subtle logic errors
+- Learning from well-written code
+- Preparing to modify intricate logic
+- Code review of critical path
+
+**UI/UX:**
+- Split view: code on left, AI explanation on right
+- Synchronized scrolling
+- Click any line for detailed explanation
+- Variable hover shows current state/type
+- Execution flow visualization
+- Step-through simulation for logic
+- Annotation mode (add notes)
+
+---
+
+**5. Critical Mode**
+
+**Purpose:** Evaluate code quality and identify improvements (Human-in-the-Loop review mode)
+
+**Cognitive Load Strategy:**
+- **Accept High Intrinsic:** Evaluative thinking is demanding
+- **Reduce Extraneous:** Focus on actionable feedback
+- **Maximize Germane:** Teach patterns and anti-patterns
+
+**What AI Provides:**
+- **Architecture Review:**
+  - Bounded context violations
+  - Layer mixing (controller logic in data layer, etc.)
+  - Missing abstractions
+  - Tight coupling issues
+
+- **Code Quality:**
+  - Go idiom violations
+  - Error handling issues
+  - Scope problems (unnecessary global variables)
+  - Naming convention violations
+  - Missing comments/documentation
+
+- **Security Concerns:**
+  - SQL injection risks
+  - Unvalidated input
+  - Secrets in code
+  - Authentication/authorization gaps
+
+- **Performance:**
+  - N+1 query problems
+  - Unnecessary allocations
+  - Missing indexes
+  - Inefficient algorithms
+
+- **Testing:**
+  - Untested code paths
+  - Missing error case tests
+  - Test coverage gaps
+
+- **Improvement Suggestions:**
+  - Specific refactoring recommendations
+  - Before/after code examples
+  - Priority ranking (critical/important/nice-to-have)
+  - Estimated effort
+
+**Use Cases:**
+- **Pre-merge PR review** (human-in-the-loop)
+- **Reviewing OpenHands output** before production
+- Learning from mistakes (educational)
+- Architectural refactoring planning
+- Security audit preparation
+
+**UI/UX:**
+- Issue list (categorized by severity)
+- Click issue to jump to code location
+- Issue explanation with context
+- Suggested fix (diff view)
+- Accept/reject/modify suggestions
+- Add to refactoring backlog
+- Generate PR comment for team review
+- Track issue history (which issues keep appearing?)
+
+---
+
+#### Reading Mode Selection
+
+**The Platform Helps Users Choose:**
+
+When uploading code, AI suggests starting mode based on:
+- **First time seeing this code?** → Start with Preview
+- **Need to understand overall purpose?** → Start with Skim
+- **Looking for something specific?** → Start with Scan
+- **Trying to understand complex logic?** → Start with Detailed
+- **Reviewing for quality/security?** → Start with Critical
+
+**Fluid Transitions:**
+- Click "Go Deeper" in Preview → transitions to Skim
+- Click function in Skim → transitions to Detailed for that function
+- Click "Find Usages" in Detailed → transitions to Scan
+- Click "Review This" in any mode → transitions to Critical
+
+---
+
+#### Technical Implementation
+
+**Database Schema (reviews.* schema):**
+
+```sql
+CREATE TABLE reviews.sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES portal.users(id),
+    title VARCHAR(255),
+    code_source TEXT, -- 'github', 'paste', 'upload'
+    github_repo VARCHAR(255),  -- if github
+    github_branch VARCHAR(100), -- if github
+    pasted_code TEXT,           -- if paste
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_accessed TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE reviews.reading_sessions (
+    id SERIAL PRIMARY KEY,
+    session_id INT REFERENCES reviews.sessions(id),
+    reading_mode VARCHAR(20) CHECK (reading_mode IN ('preview', 'skim', 'scan', 'detailed', 'critical')),
+    target_path VARCHAR(500),  -- file or function being analyzed
+    ai_response JSONB,          -- AI analysis results
+    user_annotations TEXT,      -- user notes
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE reviews.critical_issues (
+    id SERIAL PRIMARY KEY,
+    reading_session_id INT REFERENCES reviews.reading_sessions(id),
+    issue_type VARCHAR(50),     -- 'architecture', 'security', 'performance', 'quality'
+    severity VARCHAR(20),       -- 'critical', 'important', 'minor'
+    file_path VARCHAR(500),
+    line_number INT,
+    description TEXT,
+    suggested_fix TEXT,
+    status VARCHAR(20) DEFAULT 'open', -- 'open', 'accepted', 'rejected', 'fixed'
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**API Endpoints:**
+
+```
+POST   /api/review/sessions              - Create new review session
+GET    /api/review/sessions              - List user's sessions
+GET    /api/review/sessions/:id          - Get session details
+DELETE /api/review/sessions/:id          - Delete session
+
+POST   /api/review/sessions/:id/analyze  - Run AI analysis
+  Body: {
+    "reading_mode": "preview|skim|scan|detailed|critical",
+    "target_path": "/path/to/file.go",    // optional for preview
+    "scan_query": "find authentication",  // for scan mode
+    "options": {}
+  }
+
+GET    /api/review/sessions/:id/results/:mode  - Get cached results for mode
+POST   /api/review/sessions/:id/annotate       - Add user annotations
+GET    /api/review/sessions/:id/issues         - Get all critical issues
+PATCH  /api/review/issues/:id                  - Update issue status
+
+WS     /ws/review/sessions/:id/collaborate     - Real-time collaboration
+```
+
+**AI Integration:**
+
+```go
+// services/review_ai_service.go
+
+type ReviewAIService struct {
+    ollamaClient *ollama.Client
+    model        string // "deepseek-coder-v2:16b"
+}
+
+func (s *ReviewAIService) AnalyzeInMode(
+    ctx context.Context,
+    code string,
+    mode ReadingMode,
+    options AnalysisOptions,
+) (*AnalysisResult, error) {
+
+    prompt := s.buildPromptForMode(mode, code, options)
+
+    response, err := s.ollamaClient.Generate(ctx, &ollama.GenerateRequest{
+        Model:  s.model,
+        Prompt: prompt,
+        Options: map[string]interface{}{
+            "temperature": s.getTemperatureForMode(mode),
+        },
+    })
+
+    return s.parseResponse(response, mode)
+}
+
+func (s *ReviewAIService) buildPromptForMode(mode ReadingMode, code string, opts AnalysisOptions) string {
+    switch mode {
+    case ModePreview:
+        return fmt.Sprintf(`Analyze this codebase at a high level. Provide:
+1. File structure overview
+2. Identified bounded contexts
+3. Technology stack
+4. Architectural patterns
+5. Entry points
+
+Code:
+%s
+
+Format response as JSON with keys: file_structure, bounded_contexts, tech_stack, architecture_pattern, entry_points`, code)
+
+    case ModeSkim:
+        return fmt.Sprintf(`Analyze this code's abstractions. Provide:
+1. All function signatures with brief descriptions
+2. Interface definitions and purposes
+3. Key data structures
+4. Major workflows
+5. API endpoints
+
+Focus on WHAT, not HOW.
+
+Code:
+%s
+
+Format response as JSON.`, code)
+
+    case ModeScan:
+        return fmt.Sprintf(`Search this code for: "%s"
+
+Provide:
+1. All relevant matches with context
+2. Line numbers
+3. Surrounding code (3 lines before/after)
+4. Explanation of why each match is relevant
+
+Code:
+%s
+
+Format response as JSON array of matches.`, opts.ScanQuery, code)
+
+    case ModeDetailed:
+        return fmt.Sprintf(`Provide detailed line-by-line analysis of this code:
+
+%s
+
+For each significant line, explain:
+1. What it does
+2. Why it's needed
+3. Variable states
+4. Control flow
+5. Edge cases
+
+Format response as JSON array indexed by line number.`, code)
+
+    case ModeCritical:
+        return fmt.Sprintf(`Review this code critically. Identify issues in:
+
+1. Architecture (bounded context violations, layer mixing, missing abstractions)
+2. Code Quality (idiom violations, error handling, scope issues, naming)
+3. Security (injection risks, unvalidated input, exposed secrets)
+4. Performance (N+1 queries, inefficient algorithms)
+5. Testing (missing tests, uncovered paths)
+
+For each issue provide:
+- Severity (critical/important/minor)
+- Location (file:line)
+- Description
+- Suggested fix with code example
+- Rationale
+
+Code:
+%s
+
+Format response as JSON array of issues.`, code)
+    }
+
+    return ""
+}
+```
+
+---
 
 **Dependencies:**
 - PostgreSQL (reviews schema)
-- Ollama or Claude API
-- Logging service (optional, for telemetry)
+- Ollama with `deepseek-coder-v2:16b` (or Claude API)
+- Logging service (for telemetry and AI performance tracking)
+- Redis (for caching AI responses - expensive to regenerate)
 
-**API Endpoints:**
-- `POST /api/review/create` - Create review session
-- `POST /api/review/{id}/analyze` - Run AI analysis
-- `GET /api/review/{id}` - Get review results
-- `WS /api/review/{id}/collaborate` - Real-time collaboration
+**Integration with Other Services:**
+- **Logging:** All AI calls logged for performance analysis
+- **Analytics:** Usage patterns (which modes used most, success metrics)
+- **Build:** Can trigger review of OpenHands output before merge
+- **Portal:** Authentication, session management
 
 ### Logging Service
 **Purpose:** Real-time log tracking and centralized logging

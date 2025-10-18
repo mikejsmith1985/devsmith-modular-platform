@@ -32,24 +32,43 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 
 ### 2. Primary Architect and Strategic Reviewer (Claude via API)
 - **Role**: Designs high-level architecture, reviews PRs strategically, and solves complex problems.
+
+- **Reading Mode**: **Critical Mode** (evaluative review)
+  - Operates in "Critical Reading" mode during PR reviews
+  - Identifies architectural issues, security concerns, quality problems
+  - Provides actionable improvement suggestions
+  - See: ARCHITECTURE.md - Mental Models - Application to Review App
+
 - **Responsibilities**:
   - Design the modular architecture, ensuring apps (logging, analytics, review, build) are isolated yet interoperable.
   - Define database schemas (PostgreSQL with schema isolation) and API contracts.
   - **Create detailed implementation specs** for OpenHands to execute autonomously.
-  - Review OpenHands-generated PRs for:
-    - Adherence to DevSmith Coding Standards (file organization, naming, error handling).
-    - Architectural integrity (modularity, scalability, performance).
-    - Alignment with TDD principles (test coverage, test quality).
-    - Security and debugging best practices (e.g., friendly error messages, logging).
+    - Specs follow template in `.docs/specs/TEMPLATE.md`
+    - Explicitly state bounded contexts, layering, and abstractions
+    - Optimize for cognitive load management
+
+  - **Review OpenHands-generated PRs using mental models:**
+    - ✅ **Bounded Context:** No cross-context leakage (e.g., Portal User vs Review User)
+    - ✅ **Layering:** Controllers don't call repositories directly, clear layer separation
+    - ✅ **Abstractions:** Interfaces used appropriately, implementations follow contracts
+    - ✅ **Scope:** Variables kept local, minimal global state
+    - ✅ **Coding Standards:** File organization, naming, error handling
+    - ✅ **TDD:** Test coverage (70%+), critical paths tested
+    - ✅ **Security:** No SQL injection, input validation, no exposed secrets
+    - ✅ **Performance:** No N+1 queries, efficient algorithms
+
   - Provide detailed feedback on PRs, suggesting improvements or refactoring.
-  - Validate AI-driven features (e.g., Ollama integration, review app reading modes).
+  - Validate AI-driven features (e.g., Ollama integration, Review app's 5 reading modes).
   - Ensure WebSocket implementation for real-time logging is robust.
   - Root cause analysis of complex bugs.
   - Recommend optimizations for the one-click installation process.
+
 - **Tools**:
   - Claude Code CLI (this interface).
   - GitHub for PR reviews and comments.
   - Go + Templ + HTMX for architecture decisions.
+  - Mental models: Bounded Context, Layering, Abstractions, Scope
+
 - **Limitations**:
   - Cannot execute code directly (relies on OpenHands for implementation).
   - Subject to V8 crashes (mitigated by recovery hooks in `.claude/hooks/`).
@@ -340,8 +359,140 @@ go tool cover -html=coverage.out
 - **Backup Tests**: Add automated tests for backup system to verify recoverability.
 - **Sprints**: Organize development into sprints (e.g., Sprint 1: Portal + Logging) with milestones for tracking.
 
+---
+
+## Code Reading Modes for Team Members
+
+The platform recognizes five distinct modes of reading code, each appropriate for different situations. Understanding when to use each mode is critical for effective AI supervision.
+
+### For Mike (Project Orchestrator)
+
+**Primary Modes: Preview, Skim, and Critical**
+
+#### Preview Mode
+**When:** First time reviewing OpenHands output or exploring a new service
+- Quick scan of file structure
+- Understand what was implemented at high level
+- Decide if deeper review is needed
+
+**How:**
+- Look at file tree in GitHub PR
+- Read OpenHands' PR description
+- Check which bounded contexts and layers were touched
+
+#### Skim Mode
+**When:** Understanding OpenHands implementation before critical review
+- See what functions/interfaces were created
+- Understand data models added
+- Get high-level flow of the feature
+
+**How:**
+- Read function signatures (don't dive into implementations yet)
+- Check struct definitions
+- Review API endpoint contracts
+- Look at database schema changes
+
+#### Critical Mode
+**When:** Final acceptance review before merging
+- Verify acceptance criteria from issue are 100% met
+- Spot check implementations for quality
+- Ensure no obvious security or performance issues
+
+**How:**
+- Use Claude's review as primary filter
+- Focus on business logic correctness
+- Verify tests exist and make sense
+- Check that feature actually solves the issue
+
+**Mike's Review Checklist:**
+```markdown
+- [ ] Acceptance criteria from issue #[number] are 100% met
+- [ ] Claude's review has been addressed (no unresolved critical issues)
+- [ ] Tests exist and pass
+- [ ] Feature works when tested manually
+- [ ] No obvious security issues (secrets, SQL injection, etc.)
+- [ ] Documentation updated if needed
+```
+
+### For Claude (Architect & Reviewer)
+
+**Primary Modes: Skim and Critical**
+
+#### Skim Mode
+**When:** Creating implementation specs for OpenHands
+- Need to understand existing patterns in codebase
+- Want to see how similar features were implemented
+- Building mental model before designing new feature
+
+#### Critical Mode
+**When:** Reviewing OpenHands PRs (90% of Claude's work)
+- Full architectural review
+- Security analysis
+- Performance evaluation
+- Code quality assessment
+
+**Claude's Review Process:**
+1. **Preview context**: What service? What bounded context?
+2. **Skim abstractions**: What interfaces/contracts were created?
+3. **Critical review**: Apply mental models checklist
+4. **Provide feedback**: Specific, actionable improvements
+
+### For OpenHands (Implementation Agent)
+
+**Primary Modes: Skim, Scan, and Detailed**
+
+#### Skim Mode
+**When:** Starting implementation from Claude's spec
+- Understanding existing code patterns
+- Finding similar implementations to follow
+- Building mental model of codebase
+
+#### Scan Mode
+**When:** Looking for specific information during implementation
+- "Where do other services call the logging API?"
+- "How are database connections initialized?"
+- "What's the pattern for error handling in handlers?"
+
+#### Detailed Mode
+**When:** Understanding complex existing logic to extend
+- Need to integrate with non-trivial algorithm
+- Extending complex business logic
+- Understanding subtle edge cases
+
+**OpenHands should prefer Skim over Detailed** - implementation specs from Claude should minimize need for detailed reading.
+
+### Cognitive Load Strategy by Mode
+
+| Mode | Intrinsic Load | Extraneous Load | Germane Load | Best For |
+|------|---------------|-----------------|--------------|----------|
+| **Preview** | Minimal | Reduce | Build map | Quick assessment |
+| **Skim** | Low | Reduce | Build framework | Understanding abstractions |
+| **Scan** | Target | Minimize | Context only | Finding specific info |
+| **Detailed** | High | Provide context | Complete model | Algorithm understanding |
+| **Critical** | High | Focus | Patterns/anti-patterns | Quality evaluation |
+
+---
+
+## Platform Implementation Note
+
+These five reading modes will be **directly implemented** in the Review Service application. Users will be able to:
+
+1. Upload code (GitHub repo, paste, upload)
+2. Select reading mode based on their goal
+3. Receive AI-guided analysis appropriate for that mode
+4. Transition between modes fluidly
+
+**This platform teaches users how to read code effectively**, which is the critical skill for supervising AI-generated code (Human in the Loop).
+
+See: `ARCHITECTURE.md` - Section "Service Architecture → Review Service" for complete implementation specification.
+
+---
+
 ## Notes
-- Copilot must focus on one feature per issue to avoid scope creep and maintain repo clarity.
-- Claude’s architectural reviews ensure modularity and scalability, reducing technical debt.
-- Orchestrator’s oversight and approval process ensures alignment with project goals and recoverability.
-- All team members adhere to TDD principles per `TDD.md` and DevSmith Coding Standards.
+- OpenHands must focus on one feature per issue to avoid scope creep and maintain repo clarity.
+- Claude's architectural reviews ensure modularity and scalability, reducing technical debt.
+- Mike's oversight and approval process ensures alignment with project goals and acceptance criteria.
+- All team members apply appropriate reading modes for their role.
+- The Review app is the **centerpiece** of the platform - it teaches the fundamentals of code reading.
+- All workflows adhere to TDD principles per `DevsmithTDD.md` and DevSmith Coding Standards.
+- Mental models (bounded context, layering, abstractions, scope) are foundational to all development.
