@@ -1,0 +1,6 @@
+-- Create schemas for modular platform
+CREATE SCHEMA IF NOT EXISTS portal;
+CREATE SCHEMA IF NOT EXISTS reviews;
+CREATE SCHEMA IF NOT EXISTS logs;
+CREATE SCHEMA IF NOT EXISTS analytics;
+CREATE SCHEMA IF NOT EXISTS builds;

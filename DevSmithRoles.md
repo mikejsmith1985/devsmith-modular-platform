@@ -194,9 +194,18 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
      - Test requirements (unit, integration).
      - Acceptance criteria from issue.
    - Spec saved to issue comment or `.docs/specs/` directory.
+   - **At end of session:** Claude creates/updates devlog entry in `.docs/devlog/YYYY-MM-DD.md` with:
+     - Problems discovered
+     - Decisions made
+     - Solutions implemented
+     - Action items for next agent
 
 3. **Autonomous Implementation** (OpenHands + Ollama):
    - Mike triggers OpenHands: `openhands --task "Implement feature from spec in issue #42"`.
+   - **Before starting:** OpenHands reads:
+     - Latest devlog entry (`.docs/devlog/YYYY-MM-DD.md`) for context and action items
+     - Issue spec
+     - Architecture docs
    - OpenHands works **fully autonomously**:
      - Creates feature branch from `development`.
      - Writes tests first (TDD per `DevsmithTDD.md`).
@@ -206,6 +215,10 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
      - Commits with Conventional Commit messages.
      - Updates `AI_CHANGELOG.md`.
      - Pushes code and creates PR to `development`.
+   - **After completion:** Updates devlog with:
+     - Implementation notes
+     - Issues encountered and solutions
+     - Test results
    - **Duration**: 30 minutes - 2 hours (runs unattended).
    - **Crash-proof**: OpenHands checkpoint/resume if interrupted.
 
@@ -224,12 +237,14 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 
 5. **Strategic Review** (Claude):
    - Mike triggers Claude for PR review (<30 minutes).
+   - **Before starting:** Claude reads latest devlog for context
    - Claude reviews for:
      - Architectural integrity (modularity, scalability).
      - Adherence to DevSmith Coding Standards.
      - TDD compliance (test coverage, quality).
      - Security and error handling.
    - Claude comments on PR with detailed feedback.
+   - **After review:** Updates devlog with review findings and recommendations
 
 6. **Acceptance Review** (Mike):
    - Verifies acceptance criteria from issue are 100% met.
