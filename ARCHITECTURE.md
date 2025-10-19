@@ -2215,12 +2215,44 @@ This project uses a **hybrid AI development approach** with specialized agents:
 **See:** `DevSmithRoles.md` for detailed roles and workflow.
 
 ### Branch Strategy
-- **main:** Production releases only
-- **development:** Integration branch
-- **feature/*:** Feature development (created by OpenHands or manually)
-- **fix/*:** Bug fixes
-- **break-fix/*:** Experimental debugging (not merged)
+
+**Main Branches:**
+- **main:** Production releases only (tagged versions)
+- **development:** Integration branch (all PRs merge here first)
+
+**Feature Branches:**
+```
+feature/{issue-number}-{short-description}
+```
+
+**Examples:**
+- `feature/001-project-scaffolding`
+- `feature/002-portal-authentication`
+- `feature/003-review-preview-mode`
+- `feature/015-critical-reading-mode`
+
+**Why This Format:**
+- ✅ Issue number provides traceability to `.docs/issues/` spec
+- ✅ Short description makes purpose immediately clear
+- ✅ Agents (OpenHands/Copilot) know exactly what branch to create
+- ✅ Easy to identify what work is in progress
+- ✅ Merge commits reference specific implementation specs
+
+**Other Branch Types:**
+- **fix/{issue-number}-{description}:** Bug fixes (e.g., `fix/042-session-timeout`)
+- **break-fix/*:** Experimental debugging (NOT merged to development)
 - **claude-recovery-YYYYMMDD:** Auto-recovery branches (7-day retention)
+
+**Branch Lifecycle:**
+1. Create from `development`: `git checkout -b feature/XXX-description`
+2. Work in isolation (commits, tests, implementation)
+3. Push to origin: `git push origin feature/XXX-description`
+4. Create PR to `development`
+5. Review → Merge → Delete branch
+
+**Branch Protection:**
+- `main`: Requires PR from `development`, all checks must pass
+- `development`: Requires PR from feature branch, 1 approval minimum
 
 ### Commit Standards
 **Format:** Conventional Commits
@@ -2253,52 +2285,256 @@ Closes #42
 
 ### Feature Development Workflow
 
-**See `DevSmithRoles.md` for complete workflow documentation.**
+**See `DevSmithRoles.md` for complete workflow documentation with role details.**
 
-**Summary:**
+This workflow uses markdown-based issue specs stored in `.docs/issues/` rather than GitHub Issues UI for better traceability and agent compatibility.
 
-1. **Issue Creation** (Mike)
-   - Create GitHub issue with acceptance criteria
-   - Label appropriately
+---
 
-2. **Architecture & Spec** (Claude)
-   - Short session (<30 min to avoid crashes)
-   - Design architecture
-   - Create detailed implementation spec
-   - Save spec to issue or `.docs/specs/`
+#### 1. Issue Spec Creation
 
-3. **Autonomous Implementation** (OpenHands + Ollama)
-   - Mike triggers: `openhands --task "Implement issue #42"`
-   - OpenHands works fully autonomously:
-     - Creates feature branch from `development`
-     - Writes tests first (TDD)
-     - Implements feature per spec
-     - Runs tests, fixes failures
-     - Browser testing via Playwright
-     - Commits with Conventional Commits
-     - Creates PR with acceptance criteria checklist
-   - Duration: 30 min - 2 hours (unattended)
-   - **Crash-proof**: Checkpoint/resume capability
+**Who:** Claude (for OpenHands tasks) or Copilot (for simple tasks)
 
-4. **Strategic Review** (Claude)
-   - Short session (<30 min)
-   - Reviews PR for architectural integrity
-   - Verifies coding standards
-   - Comments with feedback
+**For OpenHands Features (Complex):**
+```bash
+# Mike requests from Claude:
+"Create the next OpenHands spec for [feature name]"
 
-5. **Acceptance Review** (Mike)
-   - Verifies acceptance criteria 100% met
-   - Reviews Claude's feedback
-   - Approves or requests changes
+# Claude creates:
+.docs/issues/{XXX}-openhands-{feature-name}.md
+```
 
-6. **Merge** (Mike)
-   - Squash merge to `development`
-   - Delete feature branch
-   - Issue auto-closed
+**Spec Includes:**
+- Feature description and user story
+- Success criteria (acceptance checklist)
+- Bounded context, layering, abstractions, scope sections
+- Complete database schema (SQL)
+- Full Go code examples (structs, handlers, services, repositories)
+- Templ template examples
+- Comprehensive test examples with mocks
+- 8-phase implementation checklist
+- Branch naming: `feature/{XXX}-{feature-name}`
 
-7. **Release** (Mike)
-   - Merge `development` to `main` when ready
-   - Tag version
+**Example:** `.docs/issues/002-openhands-portal-authentication.md` (1,280 lines)
+
+**For Copilot Tasks (Simple):**
+```bash
+# Mike requests from Copilot:
+"Create a short spec for [simple task]"
+
+# Copilot creates:
+.docs/issues/{XXX}-copilot-{task-name}.md
+```
+
+**Spec Includes:**
+- Task description (50-200 lines)
+- Files to create/modify
+- Acceptance criteria
+- Branch naming: `feature/{XXX}-{task-name}`
+
+**Example:** `.docs/issues/001-copilot-project-scaffolding.md` (407 lines)
+
+---
+
+#### 2. Implementation (Copilot or OpenHands)
+
+**For Copilot Tasks (Mike + Copilot):**
+```bash
+# 1. Create branch
+git checkout development
+git pull origin development
+git checkout -b feature/{XXX}-{task-name}
+
+# 2. Open spec
+open .docs/issues/{XXX}-copilot-{task-name}.md
+
+# 3. Create files with Copilot autocomplete
+# Copilot reads the spec and suggests code
+
+# 4. Test locally
+make test
+
+# 5. Commit
+git add -A
+git commit -m "feat(scope): description
+
+Implements .docs/issues/{XXX}-copilot-{task-name}.md"
+
+# 6. Push and create PR
+git push origin feature/{XXX}-{task-name}
+gh pr create --title "feat: description" --body "Implements .docs/issues/{XXX}"
+```
+
+**Duration:** 30-60 minutes (Mike actively working with Copilot assistance)
+
+**For OpenHands Features (Autonomous):**
+```bash
+# Mike triggers OpenHands:
+openhands --spec .docs/issues/{XXX}-openhands-{feature-name}.md
+
+# OpenHands autonomously:
+# 1. Creates branch: feature/{XXX}-{feature-name}
+# 2. Reads complete spec (all 800-1500 lines)
+# 3. Implements TDD: Write tests first
+# 4. Implements all layers (Controller → Service → Repository)
+# 5. Runs tests, fixes failures iteratively
+# 6. Browser testing via Playwright (if UI)
+# 7. Commits with Conventional Commits
+# 8. Pushes branch
+# 9. Creates PR with acceptance criteria checklist
+```
+
+**Duration:** 1.5 - 3 hours (fully unattended, crash-proof with checkpointing)
+
+---
+
+#### 3. Strategic Review (Claude)
+
+**When:** After OpenHands creates PR
+
+**Duration:** <30 minutes (to avoid crashes)
+
+**Claude Reviews Using Mental Models:**
+```
+Critical Reading Mode Checklist:
+
+Bounded Context:
+- [ ] No cross-context leakage (e.g., Portal doesn't know about Reviews)
+- [ ] Entities defined within correct context
+- [ ] Schema isolation maintained
+
+Layering:
+- [ ] No handler → repository direct calls
+- [ ] Services call repositories, not handlers
+- [ ] No circular dependencies
+
+Abstractions:
+- [ ] Interfaces defined before implementations
+- [ ] Dependency injection used (constructor parameters)
+- [ ] Tests use mocks, not concrete types
+
+Scope:
+- [ ] No global mutable state
+- [ ] Variables kept as local as possible
+- [ ] Dependencies passed explicitly
+
+Code Quality:
+- [ ] Error handling with context: fmt.Errorf("...%w", err)
+- [ ] Tests achieve 70%+ coverage
+- [ ] Follows Go idioms
+- [ ] Clear naming (no abbreviations)
+
+Security:
+- [ ] No SQL concatenation (parameterized queries only)
+- [ ] No secrets in code
+- [ ] Input validation present
+```
+
+**Output:** Comments on PR with requested changes or approval
+
+---
+
+#### 4. Acceptance Review (Mike)
+
+**Reading Modes Used:**
+
+**Preview Mode (2 minutes):**
+- Quick scan of file structure
+- Verify all expected files present
+- Check test files exist
+
+**Skim Mode (5 minutes):**
+- Read through service layer logic
+- Verify business rules make sense
+- Check test coverage report
+
+**Critical Mode (10 minutes):**
+- Review Claude's feedback
+- Spot-check 2-3 implementations
+- Verify acceptance criteria 100% met
+- Test locally: `make dev && make test`
+
+**Decision:** Approve, Request Changes, or Close (if unfixable)
+
+---
+
+#### 5. Merge (Mike)
+
+```bash
+# Ensure on development branch
+git checkout development
+git pull origin development
+
+# Merge (creates merge commit with full context)
+git merge --no-ff feature/{XXX}-{description} -m "Merge feature/{XXX}: {description}
+
+Implements .docs/issues/{XXX}-{agent}-{feature-name}.md
+
+Acceptance Criteria Met:
+- [x] Criterion 1
+- [x] Criterion 2
+- [x] Criterion 3
+
+Reviewed by: Claude (strategic), Mike (acceptance)
+Test Coverage: XX%
+"
+
+# Push
+git push origin development
+
+# Delete feature branch
+git branch -d feature/{XXX}-{description}
+git push origin --delete feature/{XXX}-{description}
+```
+
+---
+
+#### 6. Release to Production (When Ready)
+
+```bash
+# Merge development to main
+git checkout main
+git pull origin main
+git merge --no-ff development -m "Release v1.X.0"
+
+# Tag version
+git tag -a v1.X.0 -m "Release v1.X.0
+
+Features:
+- Feature 1 (issue #XXX)
+- Feature 2 (issue #YYY)
+
+Fixes:
+- Bug fix 1 (issue #ZZZ)
+"
+
+# Push
+git push origin main
+git push origin v1.X.0
+```
+
+---
+
+### Workflow Advantages
+
+**For Mike (ADHD-Friendly):**
+- ✅ All specs in markdown (readable, searchable, versioned)
+- ✅ No context switching to GitHub Issues UI
+- ✅ Clear branch naming shows what's in progress
+- ✅ Quick reviews using 5 reading modes
+- ✅ Can abandon stale feature branches without guilt
+
+**For Agents:**
+- ✅ Complete specs in single markdown file (no API calls)
+- ✅ Branch naming convention is explicit
+- ✅ Acceptance criteria checklistable
+- ✅ OpenHands can work overnight unattended
+
+**For Team (Future):**
+- ✅ Traceability: Branch → Issue Spec → Commit → Merge
+- ✅ Specs become living documentation
+- ✅ Portfolio value: Shows hybrid AI management
+- ✅ Easy onboarding: Read spec, understand feature
 
 **Key Advantages:**
 - ✅ 80% of implementation work runs unattended
