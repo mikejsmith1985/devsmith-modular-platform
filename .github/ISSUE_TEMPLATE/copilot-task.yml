@@ -1,0 +1,60 @@
+name: Copilot Task
+description: Small, focused task suitable for GitHub Copilot assistance
+title: "[COPILOT] "
+labels: ["copilot", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Copilot Task Template
+        Use this template for small, focused tasks that can be completed with Copilot assistance in the IDE.
+
+  - type: textarea
+    id: task
+    attributes:
+      label: Task Description
+      description: What needs to be done?
+      placeholder: Create configuration files, write utility functions, set up boilerplate...
+    validations:
+      required: true
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to Create/Modify
+      description: List the specific files involved
+      placeholder: |
+        - src/utils/helper.go
+        - config/database.yml
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this is done?
+      placeholder: |
+        - [ ] Files created with proper structure
+        - [ ] Code follows project conventions
+        - [ ] Basic tests added
+    validations:
+      required: true
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity
+      description: Estimated complexity (Copilot tasks should be Low)
+      options:
+        - Low
+        - Medium
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Links to documentation, examples, or related issues
+      placeholder: See ARCHITECTURE.md for patterns...
