@@ -23,28 +23,81 @@ services:
       - logs
       - analytics
   portal:
-    build: ./cmd/portal
+    build:
+      context: .
+      dockerfile: cmd/portal/Dockerfile
     ports:
-      - "3001:3001"
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
       - postgres
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   review:
-    build: ./cmd/review
+    build:
+      context: .
+      dockerfile: cmd/review/Dockerfile
     ports:
-      - "3002:3002"
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
       - postgres
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   logs:
-    build: ./cmd/logs
+    build:
+      context: .
+      dockerfile: cmd/logs/Dockerfile
     ports:
-      - "3003:3003"
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
       - postgres
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   analytics:
-    build: ./cmd/analytics
+    build:
+      context: .
+      dockerfile: cmd/analytics/Dockerfile
     ports:
-      - "3004:3004"
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
       - postgres
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  devsmith-network:
+    driver: bridge
+
 volumes:
   postgres_data:
