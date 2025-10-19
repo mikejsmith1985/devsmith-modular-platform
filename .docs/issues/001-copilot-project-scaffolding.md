@@ -34,9 +34,18 @@ Set up the foundational project structure and configuration files for the DevSmi
 ├── docker-compose.yml              # All services (Postgres, Nginx, apps)
 ├── docker-compose.dev.yml          # Development overrides
 ├── .dockerignore                   # Exclude unnecessary files
+├── cmd/
+│   ├── portal/
+│   │   └── Dockerfile             # Portal service Docker image
+│   ├── review/
+│   │   └── Dockerfile             # Review service Docker image
+│   ├── logs/
+│   │   └── Dockerfile             # Logs service Docker image
+│   └── analytics/
+│       └── Dockerfile             # Analytics service Docker image
 └── docker/
     ├── postgres/
-    │   └── init-schemas.sql       # Create schemas: portal, reviews, logs, analytics, builds
+    │   └── init-schemas.sql       # Create schemas: portal, reviews, logs, analytics
     └── nginx/
         └── nginx.conf             # Gateway routing configuration
 ```
@@ -53,23 +62,24 @@ Set up the foundational project structure and configuration files for the DevSmi
 ```
 ├── cmd/
 │   ├── portal/
-│   │   └── main.go                # Portal service entry point
+│   │   ├── main.go                # Portal service entry point (HTTP server)
+│   │   └── Dockerfile             # Portal Docker image
 │   ├── review/
-│   │   └── main.go                # Review service entry point
+│   │   ├── main.go                # Review service entry point (HTTP server)
+│   │   └── Dockerfile             # Review Docker image
 │   ├── logs/
-│   │   └── main.go                # Logging service entry point
-│   ├── analytics/
-│   │   └── main.go                # Analytics service entry point
-│   └── build/
-│       └── main.go                # Build service entry point
+│   │   ├── main.go                # Logs service entry point (HTTP server)
+│   │   └── Dockerfile             # Logs Docker image
+│   └── analytics/
+│       ├── main.go                # Analytics service entry point (HTTP server)
+│       └── Dockerfile             # Analytics Docker image
 └── internal/
-    └── shared/
-        ├── middleware/
-        │   ├── auth.go            # GitHub OAuth middleware
-        │   └── logging.go         # Request logging
-        └── database/
-            └── connection.go      # Postgres connection pool
+    └── portal/
+        └── models/
+            └── user.go            # User model placeholder
 ```
+
+**IMPORTANT:** Each `main.go` must run a persistent HTTP server using Gin, NOT just print a message and exit. Otherwise Docker containers will stop immediately and Nginx cannot route to them.
 
 ### 5. Development Tools
 ```
@@ -334,39 +344,535 @@ temp/
 
 ---
 
+### Dockerfile Template (All Services)
+
+Each service needs a multi-stage Dockerfile. **Create identical Dockerfiles in each cmd/*/Dockerfile location.**
+
+**Example: cmd/portal/Dockerfile** (replicate for review, logs, analytics)
+
+```dockerfile
+# Build stage
+FROM golang:1.22-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the service
+# CGO_ENABLED=0 for static binary
+# -ldflags="-w -s" to strip debug info (smaller binary)
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/portal ./cmd/portal
+
+# Runtime stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata wget
+
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
+
+WORKDIR /home/appuser
+
+# Copy binary from builder
+COPY --from=builder /app/bin/portal ./portal
+
+# Change ownership
+RUN chown -R appuser:appuser /home/appuser
+
+# Switch to non-root user
+USER appuser
+
+# Expose port (8080 for portal, 8081 for review, 8082 for logs, 8083 for analytics)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+# Run the binary
+CMD ["./portal"]
+```
+
+**Port assignments:**
+- Portal: 8080
+- Review: 8081
+- Logs: 8082
+- Analytics: 8083
+
+**For each Dockerfile, change:**
+1. Build path: `./cmd/portal` → `./cmd/review`, etc.
+2. Binary name: `portal` → `review`, etc.
+3. EXPOSE port: `8080` → `8081`, `8082`, `8083`
+4. Health check port in URL
+
+---
+
+### Service main.go Files (CRITICAL FIX)
+
+**PROBLEM:** Current main.go files just print and exit, causing containers to stop immediately.
+
+**SOLUTION:** Each must run a persistent HTTP server using Gin.
+
+**Example: cmd/portal/main.go** (replicate pattern for all services)
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	// Create Gin router
+	router := gin.Default()
+
+	// Health check endpoint (required for Docker health checks)
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"service": "portal",
+			"status":  "healthy",
+		})
+	})
+
+	// Root endpoint
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"service": "DevSmith Portal",
+			"version": "0.1.0",
+			"message": "Portal service is running",
+		})
+	})
+
+	// Get port from environment or default
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Start server (this runs forever until killed)
+	fmt.Printf("Portal service starting on port %s...\n", port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+```
+
+**For other services, change:**
+- Service name in JSON responses: `"portal"` → `"review"`, `"logs"`, `"analytics"`
+- Default port: `"8080"` → `"8081"`, `"8082"`, `"8083"`
+- Log message: `"Portal service..."` → `"Review service..."`, etc.
+
+---
+
+### Nginx Gateway Configuration
+
+**File:** `docker/nginx/nginx.conf`
+
+```nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    # Logging
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Upstream services
+    upstream portal {
+        server portal:8080;
+    }
+
+    upstream review {
+        server review:8081;
+    }
+
+    upstream logs {
+        server logs:8082;
+    }
+
+    upstream analytics {
+        server analytics:8083;
+    }
+
+    # Main server block
+    server {
+        listen 80;
+        server_name localhost;
+
+        # Portal (default)
+        location / {
+            proxy_pass http://portal;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Review app
+        location /review {
+            proxy_pass http://review;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Logs app
+        location /logs {
+            proxy_pass http://logs;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # WebSocket support for log streaming
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        # Analytics app
+        location /analytics {
+            proxy_pass http://analytics;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}
+```
+
+---
+
+### scripts/dev.sh
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🚀 Starting DevSmith Development Environment"
+echo "============================================="
+
+# Check if .env exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found!"
+    echo "Run 'make setup' first to create .env from template"
+    exit 1
+fi
+
+# Start all services
+echo "📦 Starting Docker Compose services..."
+docker-compose up --build
+
+# Note: This will run in foreground
+# Press Ctrl+C to stop all services
+```
+
+**Make executable:** `chmod +x scripts/dev.sh`
+
+---
+
+### scripts/test.sh
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🧪 Running DevSmith Platform Tests"
+echo "==================================="
+
+# Check if Go is installed
+if ! command -v go &> /dev/null; then
+    echo "❌ Go not found. Install from https://go.dev/doc/install"
+    exit 1
+fi
+
+# Run tests with coverage
+echo "📊 Running tests with coverage..."
+go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+# Display coverage summary
+echo ""
+echo "📈 Coverage Summary:"
+go tool cover -func=coverage.out | grep total:
+
+# Optional: Generate HTML coverage report
+if [ "$1" == "--html" ]; then
+    echo ""
+    echo "📄 Generating HTML coverage report..."
+    go tool cover -html=coverage.out -o coverage.html
+    echo "✅ Coverage report: coverage.html"
+fi
+
+echo ""
+echo "✅ All tests passed!"
+```
+
+**Make executable:** `chmod +x scripts/test.sh`
+
+---
+
+### Updated docker-compose.yml
+
+Replace the existing docker-compose.yml with this complete version:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: devsmith-postgres
+    environment:
+      POSTGRES_DB: devsmith
+      POSTGRES_USER: devsmith
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devsmith_local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/01-schemas.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devsmith -d devsmith"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devsmith-network
+
+  portal:
+    build:
+      context: .
+      dockerfile: cmd/portal/Dockerfile
+    container_name: devsmith-portal
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgres://devsmith:${DB_PASSWORD:-devsmith_local}@postgres:5432/devsmith
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - devsmith-network
+
+  review:
+    build:
+      context: .
+      dockerfile: cmd/review/Dockerfile
+    container_name: devsmith-review
+    environment:
+      - PORT=8081
+      - DATABASE_URL=postgres://devsmith:${DB_PASSWORD:-devsmith_local}@postgres:5432/devsmith
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - devsmith-network
+
+  logs:
+    build:
+      context: .
+      dockerfile: cmd/logs/Dockerfile
+    container_name: devsmith-logs
+    environment:
+      - PORT=8082
+      - DATABASE_URL=postgres://devsmith:${DB_PASSWORD:-devsmith_local}@postgres:5432/devsmith
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - devsmith-network
+
+  analytics:
+    build:
+      context: .
+      dockerfile: cmd/analytics/Dockerfile
+    container_name: devsmith-analytics
+    environment:
+      - PORT=8083
+      - DATABASE_URL=postgres://devsmith:${DB_PASSWORD:-devsmith_local}@postgres:5432/devsmith
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - devsmith-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: devsmith-nginx
+    ports:
+      - "3000:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - portal
+      - review
+      - logs
+      - analytics
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - devsmith-network
+
+volumes:
+  postgres_data:
+
+networks:
+  devsmith-network:
+    driver: bridge
+```
+
+---
+
+### internal/portal/models/user.go
+
+Simple placeholder model:
+
+```go
+package models
+
+import "time"
+
+// User represents a user in the portal system
+type User struct {
+	GitHubID  int64     `json:"github_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+}
+```
+
+---
+
 ## Acceptance Criteria
 
+### Core Files
 - [ ] `go.mod` created with correct module path and dependencies
-- [ ] `docker-compose.yml` defines all 5 services + Postgres + Nginx
-- [ ] `init-schemas.sql` creates 5 schemas (portal, reviews, logs, analytics, builds)
+- [ ] `docker-compose.yml` defines all 4 services + Postgres + Nginx with health checks and networks
+- [ ] `init-schemas.sql` creates 4 schemas (portal, reviews, logs, analytics)
 - [ ] `.env.example` contains all required environment variables
 - [ ] `Makefile` has `help`, `setup`, `dev`, `test`, `build`, `clean` targets
-- [ ] `scripts/setup.sh` is executable and runs without errors
 - [ ] `.gitignore` covers Go, Docker, IDEs, and OS files
-- [ ] Directory structure matches specification
-- [ ] All 5 `cmd/*/main.go` files have basic `package main` and `func main()`
+
+### Docker Infrastructure
+- [ ] All 4 Dockerfiles created (`cmd/portal/Dockerfile`, `cmd/review/Dockerfile`, `cmd/logs/Dockerfile`, `cmd/analytics/Dockerfile`)
+- [ ] Each Dockerfile uses multi-stage build (builder + runtime)
+- [ ] Each Dockerfile includes health check
+- [ ] Nginx configuration created (`docker/nginx/nginx.conf`)
+- [ ] PostgreSQL init script created (`docker/postgres/init-schemas.sql`)
+
+### Service Implementation
+- [ ] All 4 `cmd/*/main.go` files run persistent HTTP servers using Gin
+- [ ] Each service has `/health` endpoint
+- [ ] Each service has `/` root endpoint with service info
+- [ ] Services use correct ports (8080, 8081, 8082, 8083)
+- [ ] **CRITICAL:** Containers stay running (don't exit immediately)
+
+### Scripts
+- [ ] `scripts/setup.sh` is executable and runs without errors
+- [ ] `scripts/dev.sh` is executable and starts all services
+- [ ] `scripts/test.sh` is executable and runs tests
+
+### Integration Testing
 - [ ] Can run `make setup` successfully
-- [ ] Can run `docker-compose up postgres` and connect to database
+- [ ] Can run `make dev` and all services start
+- [ ] All services show as "healthy" in `docker-compose ps`
+- [ ] Can access http://localhost:3000/health (nginx)
+- [ ] Can access http://localhost:3000/ (portal via nginx)
+- [ ] Can access http://localhost:3000/review (review via nginx)
+- [ ] Can access http://localhost:3000/logs (logs via nginx)
+- [ ] Can access http://localhost:3000/analytics (analytics via nginx)
+- [ ] Can run `make test` successfully (even with no tests yet)
+- [ ] Database has 4 schemas created
 
 ---
 
 ## Testing Commands
 
 ```bash
-# Verify Go module
-go mod verify
+# Clean slate
+make clean
 
-# Test Docker Compose syntax
-docker-compose config
+# Run setup
+make setup
+# Should see:
+# - ✅ Prerequisites found
+# - ✅ Go dependencies installed
+# - ✅ PostgreSQL is ready
+# - ✅ All 4 schemas created successfully
 
-# Test database connection
-docker-compose up -d postgres
-sleep 5
-docker-compose exec postgres psql -U devsmith -c "\dn"
-# Should show 5 schemas: portal, reviews, logs, analytics, builds
+# Start development environment
+make dev
+# In another terminal:
 
-# Test setup script
-./scripts/setup.sh
+# Test health checks
+curl http://localhost:3000/health          # Nginx
+curl http://localhost:3000/                # Portal (via nginx)
+curl http://localhost:3000/review          # Review (via nginx)
+curl http://localhost:3000/logs            # Logs (via nginx)
+curl http://localhost:3000/analytics       # Analytics (via nginx)
+
+# Check all services healthy
+docker-compose ps
+# All services should show "healthy"
+
+# Verify database schemas
+docker-compose exec postgres psql -U devsmith -d devsmith -c "\dn"
+# Should show: portal, reviews, logs, analytics schemas
+
+# Run tests
+make test
+# Should pass (even if no tests exist yet)
 
 # Clean up
 make clean
@@ -441,15 +947,22 @@ make clean
 
 ```bash
 git add -A
-git commit -m "feat(setup): project scaffolding and configuration
+git commit -m "feat(infra): complete project scaffolding and Docker infrastructure
 
 - Go module with dependencies (Gin, Templ, pgx, zerolog)
-- Docker Compose with all services and health checks
-- PostgreSQL schema initialization (5 schemas)
-- Makefile with common commands (help, setup, dev, test, build, clean)
-- Setup scripts for one-command initialization
-- Application directory structure (cmd/*/main.go for all 5 services)
-- Development tools (.gitignore, .editorconfig)
+- Docker Compose with health checks, networks, and all 4 services
+- PostgreSQL schema initialization (4 schemas: portal, reviews, logs, analytics)
+- Dockerfiles for all 4 services (multi-stage builds)
+- Nginx gateway configuration with proper routing
+- Persistent HTTP servers for all services (Gin with /health endpoints)
+- Development scripts (setup.sh, dev.sh, test.sh)
+- Makefile with common commands
+- User model placeholder
+
+CRITICAL FIX: Services now run persistent HTTP servers instead of
+just printing and exiting. This fixes Nginx upstream resolution errors.
+
+All services are now buildable, runnable, and accessible via Nginx gateway.
 
 Implements .docs/issues/001-copilot-project-scaffolding.md
 
@@ -457,7 +970,7 @@ Implements .docs/issues/001-copilot-project-scaffolding.md
 
 Co-Authored-By: GitHub Copilot <noreply@github.com>"
 
-git push origin feature/001-project-scaffolding
+git push origin feature/001-copilot-project-scaffolding
 ```
 
 ### 5. Create Pull Request
