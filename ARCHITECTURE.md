@@ -640,6 +640,14 @@ Backend   Backend   Backend   Backend    Backend
 - Todo list (`.claude/todos.json`) - Persistent task tracking
 - Recovery branches (`claude-recovery-YYYYMMDD`) - 7-day retention
 
+**Development Log (Devlog):**
+- `.docs/devlog/` - Human-readable session summaries
+  - Date-based entries (`YYYY-MM-DD.md`)
+  - Tracks decisions, problems, solutions across all agents
+  - **Purpose:** Shared memory between sessions
+  - **Usage:** Each agent reads latest entry before starting, updates after completing
+  - See: `.docs/devlog/README.md` for complete guide
+
 **Benefits of Hybrid Approach:**
 - ✅ 80% of work is crash-proof (OpenHands runs independently)
 - ✅ No API costs for implementation (Ollama runs locally)
