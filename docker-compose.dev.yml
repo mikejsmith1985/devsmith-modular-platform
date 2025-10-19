@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  portal:
+    environment:
+      - DEBUG=true
+  review:
+    environment:
+      - DEBUG=true
+  logs:
+    environment:
+      - DEBUG=true
+  analytics:
+    environment:
+      - DEBUG=true

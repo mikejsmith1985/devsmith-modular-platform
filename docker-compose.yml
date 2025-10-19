@@ -1,0 +1,50 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: devsmith
+      POSTGRES_PASSWORD: devsmith
+      POSTGRES_DB: devsmith
+    volumes:
+      - ./docker/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "3000:3000"
+    depends_on:
+      - portal
+      - review
+      - logs
+      - analytics
+  portal:
+    build: ./cmd/portal
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+  review:
+    build: ./cmd/review
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+  logs:
+    build: ./cmd/logs
+    ports:
+      - "3003:3003"
+    depends_on:
+      - postgres
+  analytics:
+    build: ./cmd/analytics
+    ports:
+      - "3004:3004"
+    depends_on:
+      - postgres
+volumes:
+  postgres_data:
