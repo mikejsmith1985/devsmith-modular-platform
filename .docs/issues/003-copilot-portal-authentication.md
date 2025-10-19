@@ -1,17 +1,91 @@
-# OpenHands Implementation Spec: Portal Service - Authentication
+# Issue #3: [COPILOT] Portal Service - Authentication
 
+**Labels:** `copilot`, `portal`, `authentication`, `github-oauth`
+**Assignee:** Mike (with Copilot assistance)
 **Created:** 2025-10-18
-**Issue:** #2
+**Updated:** 2025-10-19
+**Issue:** #3
 **Estimated Complexity:** Medium
 **Target Service:** portal
-**Estimated Time:** 1.5 - 2 hours (autonomous)
+**Estimated Time:** 60-90 minutes
+
+---
+
+## Task Description
+
+Implement the Portal service's authentication system using GitHub OAuth, enabling users to log in and access their GitHub repositories. This is the foundation service that all other apps depend on for user identity.
+
+**Why This Task for Copilot:**
+- Well-defined OAuth patterns
+- Clear layered architecture specification
+- Complete code examples provided
+- Standard Go patterns (Gin, pgx, JWT)
+- Copilot excels at implementing from detailed specs
+
+---
+
+## IMPORTANT: Before You Start
+
+### Step 1: Create Feature Branch
+
+**In your terminal, run these commands:**
+```bash
+# Make sure you're on development and it's up to date
+git checkout development
+git pull origin development
+
+# Create and switch to feature branch for this issue
+git checkout -b feature/003-copilot-portal-authentication
+```
+
+### Step 2: Commit As You Go
+
+**DO NOT wait until everything is done to commit!**
+
+After completing each PHASE (see Implementation Checklist below):
+1. Test that phase: `go test ./...`
+2. If tests pass, commit that phase:
+   ```bash
+   git add <files-for-that-phase>
+   git commit -m "feat(portal): <brief description of phase>"
+   ```
+
+**Example commits:**
+```bash
+# After Phase 1 (models)
+git add internal/portal/models/
+git commit -m "feat(portal): add User, Session, and GitHubProfile models"
+
+# After Phase 2 (database layer)
+git add internal/portal/db/
+git commit -m "feat(portal): implement user repository with CRUD operations"
+
+# After Phase 3 (service layer)
+git add internal/portal/services/
+git commit -m "feat(portal): implement auth service with GitHub OAuth integration"
+
+# And so on...
+```
+
+This makes it easier to:
+- Track progress
+- Revert if something breaks
+- Review changes in smaller chunks
+- Push incrementally to backup work
+
+### Step 3: Push Regularly
+
+After every 2-3 commits:
+```bash
+git push -u origin feature/003-copilot-portal-authentication
+```
 
 ---
 
 ## Overview
 
 ### Feature Description
-Implement the Portal service's authentication system using GitHub OAuth, enabling users to log in and access their GitHub repositories. This is the foundation service that all other apps depend on for user identity.
+Implement GitHub OAuth authentication for the Portal service.
 
 ### User Story
 As a developer learning to read code effectively, I want to log in with my GitHub account so that I can access my repositories for code review sessions and have my learning progress tracked.
@@ -1192,29 +1266,49 @@ go test -tags=integration ./internal/portal/db/...
 - [ ] Check coverage: `go test -cover ./internal/portal/...`
 - [ ] Ensure 70%+ coverage
 
-### Phase 8: Commit and PR ✅
-- [ ] Stage changes: `git add .`
-- [ ] Commit:
-      ```
-      feat(portal): implement GitHub OAuth authentication
+### Phase 8: Final PR ✅
 
+**NOTE:** You should have already made commits throughout (see "Before You Start" section).
+
+- [ ] Review all your commits: `git log development..HEAD --oneline`
+- [ ] Run full test suite: `make test`
+- [ ] Push final changes: `git push`
+- [ ] Create PR on GitHub:
+  - Base: `development`
+  - Compare: `feature/003-copilot-portal-authentication`
+  - Title: `[Issue #003] Portal Authentication - GitHub OAuth`
+- [ ] PR Description:
+      ```markdown
+      ## Issue
+      Closes #003
+
+      ## Summary
+      Implements GitHub OAuth authentication for the Portal service, enabling users
+      to log in and access their GitHub repositories. Uses JWT-based session management
+      with layered architecture (handler → service → repository).
+
+      ## Changes
       - GitHub OAuth login flow with callback handling
-      - JWT-based session management
+      - JWT-based session management with secure cookies
       - User profile storage in portal.users table
       - Session persistence in portal.sessions table
       - Logout functionality with session revocation
-      - Layered architecture (handler → service → repository)
-      - 75% test coverage with unit and integration tests
+      - 75%+ test coverage with unit and integration tests
+      - Templ templates for login and dashboard pages
 
-      Implements bounded context separation (Portal context only knows
-      about authentication identity, not code review concerns).
+      ## Testing
+      - [x] Unit tests pass (70%+ coverage)
+      - [x] Integration tests pass
+      - [x] Manual OAuth flow tested in browser
+      - [x] Session persistence verified
 
-      Closes #2
+      ## Architecture Notes
+      Implements bounded context separation - Portal context only knows about
+      authentication identity, not code review concerns. Clean 3-layer architecture
+      with no layer violations.
       ```
-- [ ] Push: `git push origin feature/002-portal-authentication`
-- [ ] Create PR to `development`
-- [ ] Verify CI passes
-- [ ] Request review from Claude
+- [ ] Verify CI passes (all green checks)
+- [ ] Tag @Claude for code review
 
 ---
 
@@ -1267,14 +1361,17 @@ If you encounter:
 
 ---
 
-**Next Steps:**
-1. Read this spec completely
-2. Ask clarifying questions in issue comments if needed
+**Next Steps (For Copilot):**
+1. Create feature branch: `git checkout -b feature/003-copilot-portal-authentication`
+2. Read this spec completely
 3. Follow the implementation checklist phase by phase
-4. Run tests after each phase (`go test ./...`)
-5. Create PR when all phases complete
-6. Tag Claude for code review (Critical reading mode)
+4. **Commit after each phase** (see "Before You Start" section)
+5. Run tests after each phase: `go test ./...`
+6. Push regularly: `git push` after every 2-3 commits
+7. Create PR when all phases complete
+8. Tag Claude for code review
 
-**Estimated Autonomous Time:** 1.5 - 2 hours
+**Estimated Time:** 60-90 minutes
 **Test Coverage Target:** 70%+ (aim for 75%+)
 **Success Metric:** User can log in with GitHub and see dashboard
+**Depends On:** Issue #001 (merged)
