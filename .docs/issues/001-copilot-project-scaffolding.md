@@ -399,9 +399,109 @@ make clean
 
 ---
 
+## Implementation Steps
+
+### 1. Create Feature Branch
+
+**Branch Naming Convention:** See `ARCHITECTURE.md` - Branch Strategy section
+
+```bash
+git checkout development
+git pull origin development
+git checkout -b feature/001-project-scaffolding
+```
+
+### 2. Implement Files
+
+Follow the file specifications above, using Copilot autocomplete to speed up boilerplate creation.
+
+### 3. Test Setup
+
+```bash
+# Verify Go module
+go mod verify
+
+# Test Docker Compose syntax
+docker-compose config
+
+# Test database connection
+docker-compose up -d postgres
+sleep 5
+docker-compose exec postgres psql -U devsmith -c "\dn"
+# Should show 5 schemas: portal, reviews, logs, analytics, builds
+
+# Test setup script
+./scripts/setup.sh
+
+# Clean up
+make clean
+```
+
+### 4. Commit and Push
+
+```bash
+git add -A
+git commit -m "feat(setup): project scaffolding and configuration
+
+- Go module with dependencies (Gin, Templ, pgx, zerolog)
+- Docker Compose with all services and health checks
+- PostgreSQL schema initialization (5 schemas)
+- Makefile with common commands (help, setup, dev, test, build, clean)
+- Setup scripts for one-command initialization
+- Application directory structure (cmd/*/main.go for all 5 services)
+- Development tools (.gitignore, .editorconfig)
+
+Implements .docs/issues/001-copilot-project-scaffolding.md
+
+🤖 Generated with Copilot assistance
+
+Co-Authored-By: GitHub Copilot <noreply@github.com>"
+
+git push origin feature/001-project-scaffolding
+```
+
+### 5. Create Pull Request
+
+```bash
+gh pr create --title "feat(setup): project scaffolding and configuration" --body "
+## Summary
+Complete project scaffolding with Go modules, Docker Compose, database schemas, and build tools.
+
+## Implementation
+Implements \`.docs/issues/001-copilot-project-scaffolding.md\`
+
+## Acceptance Criteria
+- [x] Go module initialized with correct dependencies
+- [x] Docker Compose defines all 5 services + Postgres + Nginx
+- [x] init-schemas.sql creates 5 schemas (portal, reviews, logs, analytics, builds)
+- [x] .env.example contains all required environment variables
+- [x] Makefile has help, setup, dev, test, build, clean targets
+- [x] scripts/setup.sh is executable and runs without errors
+- [x] .gitignore covers Go, Docker, IDEs, and OS files
+- [x] Directory structure matches specification
+- [x] All 5 cmd/*/main.go files have basic package main and func main()
+- [x] Can run \`make setup\` successfully
+- [x] Can run \`docker-compose up postgres\` and connect to database
+
+## Testing
+Ran all verification commands successfully.
+
+## Next Steps
+After merge, OpenHands will implement Issue #2 (Portal Authentication).
+"
+```
+
+### 6. After Merge
+
+```bash
+# Switch back to development and delete feature branch
+git checkout development
+git pull origin development
+git branch -d feature/001-project-scaffolding
+```
+
 ## Next Steps After Completion
 
-1. Run `make setup` to verify everything works
-2. Commit with message: `feat(setup): project scaffolding and configuration`
-3. Create PR to `development` branch
-4. Move to Issue #2 (OpenHands will implement Portal service)
+1. Merge this PR to `development` branch
+2. Move to Issue #2: `.docs/issues/002-openhands-portal-authentication.md`
+3. OpenHands will autonomously implement Portal authentication
