@@ -1,235 +1,1121 @@
-# Learning Development Platform: TDD Document
+# DevSmith Modular Platform: Test-Driven Development (TDD)
 
-## Overview
-This Test-Driven Development (TDD) document outlines test cases for the Learning Development Platform, hosted at [github.com/mikejsmith1985/devsmith-modular-platform](https://github.com/mikejsmith1985/devsmith-modular-platform). The tests ensure that each component meets the requirements specified in `REQUIREMENTS.md`, following a modular, user-centric, and debug-friendly architecture. Tests are organized by component and prioritized to align with the build order (portal → logging → analytics → review → build).
+## Document Purpose
 
-## Test Framework
-- **Tools**: Use Jest for JavaScript unit tests, Pytest for Python components (e.g., Ollama integration), and Cypress for end-to-end UI tests.
-- **Approach**: Write tests before implementation. Each test case must pass before proceeding to the next development step.
-- **Coverage**: Aim for 90%+ code coverage, with focus on critical paths (auth, modularity, AI features, debugging).
+This TDD document ensures the DevSmith Modular Platform delivers on its core mission: **teaching developers to effectively read and understand code** through AI-assisted analysis in five distinct reading modes. Every test validates that the platform helps users develop the critical skill of supervising AI-generated code (Human in the Loop).
 
-## 1. Authentication
-### Test Case 1.1: GitHub OAuth Login
-- **Description**: Verify that users can log in using GitHub OAuth and access their repositories.
-- **Preconditions**: GitHub OAuth app configured with valid client ID and secret.
-- **Steps**:
-  1. Navigate to the login page.
-  2. Click the "Login with GitHub" button.
-  3. Enter valid GitHub credentials in the OAuth prompt.
-  4. Redirect back to the platform.
-- **Expected Outcome**: User is authenticated, and their GitHub profile and repositories are accessible in the portal.
-- **Failure Case**: Invalid credentials or OAuth misconfiguration return a clear error message (e.g., "Failed to authenticate with GitHub: Invalid client ID").
+**Repository**: [github.com/mikejsmith1985/devsmith-modular-platform](https://github.com/mikejsmith1985/devsmith-modular-platform)
 
-### Test Case 1.2: Unauthorized Access
-- **Description**: Ensure unauthenticated users cannot access protected endpoints.
-- **Preconditions**: User is not logged in.
-- **Steps**:
-  1. Attempt to access the portal dashboard via URL.
-  2. Attempt to fetch a protected API endpoint (e.g., `/api/user/repos`).
-- **Expected Outcome**: Redirect to login page with a friendly error: "Please log in with GitHub to continue."
-- **Failure Case**: Access granted without authentication.
+---
 
-## 2. Modularity
-### Test Case 2.1: App Toggle Functionality
-- **Description**: Verify that users can enable/disable apps independently.
-- **Preconditions**: User is logged in, portal is loaded.
-- **Steps**:
-  1. Navigate to the app browser in the portal.
-  2. Toggle the logging app to "enabled."
-  3. Toggle the analytics app to "disabled."
-  4. Access the logging app UI.
-  5. Attempt to access the analytics app UI.
-- **Expected Outcome**: Logging app is accessible; analytics app returns a clear message: "Analytics app is disabled. Enable it in the portal."
-- **Failure Case**: Disabled apps are accessible or enabled apps are inaccessible.
+## Test-Driven Development Philosophy
 
-### Test Case 2.2: Isolated App Operation
-- **Description**: Ensure apps operate independently without cross-dependencies.
-- **Preconditions**: User is logged in, only the review app is enabled.
-- **Steps**:
-  1. Open the review app.
-  2. Import a GitHub repo and perform a code review.
-  3. Check for logging or analytics app dependencies.
-- **Expected Outcome**: Review app functions fully without requiring logging or analytics apps to be enabled.
-- **Failure Case**: Review app fails due to missing dependencies from other apps.
+### Core Principles
 
-## 3. Database
-### Test Case 3.1: Postgres Schema Isolation
-- **Description**: Verify that each app’s database schema is isolated.
-- **Preconditions**: Postgres database initialized, logging and review apps enabled.
-- **Steps**:
-  1. Insert sample log data into the logging app’s schema.
-  2. Query the review app’s schema for the same data.
-- **Expected Outcome**: Review app schema contains no log data, confirming isolation.
-- **Failure Case**: Log data appears in the review app’s schema.
+1. **Red → Green → Refactor**
+   - Write failing test first (Red)
+   - Implement minimal code to pass (Green)
+   - Improve code quality while keeping tests green (Refactor)
 
-### Test Case 3.2: Federated Queries
-- **Description**: Ensure cross-app queries work when multiple apps are enabled.
-- **Preconditions**: Logging and analytics apps enabled, Postgres configured.
-- **Steps**:
-  1. Generate logs in the logging app.
-  2. Run an analytics query to count log entries by severity.
-- **Expected Outcome**: Analytics app correctly aggregates log data across schemas.
-- **Failure Case**: Query fails or returns incorrect data due to schema mismatch.
+2. **Tests as Living Documentation**
+   - Tests explain what the system does
+   - Tests validate requirements are met
+   - Tests guide implementation
 
-## 4. Logging App
-### Test Case 4.1: Real-Time Log Tracking
-- **Description**: Verify that logs are displayed in real-time via WebSockets.
-- **Preconditions**: User is logged in, logging app enabled.
-- **Steps**:
-  1. Open the logging app UI.
-  2. Trigger a test event (e.g., API call) to generate a log.
-  3. Observe the log display in the UI.
-- **Expected Outcome**: Log appears in the UI within 1 second, with timestamp, severity, and message.
-- **Failure Case**: Log is delayed, missing, or lacks metadata.
+3. **Mental Models as Test Categories**
+   - Tests organized by bounded context
+   - Tests validate layering (controller, service, data)
+   - Tests verify abstractions work correctly
+   - Tests check scope boundaries
 
-### Test Case 4.2: AI-Driven Log Analysis
-- **Description**: Ensure optional AI context analysis enhances logs.
-- **Preconditions**: Logging app enabled, Ollama configured locally.
-- **Steps**:
-  1. Generate a log with an error (e.g., "Null pointer exception").
-  2. Enable AI analysis in the logging app.
-  3. View the log’s AI-generated context.
-- **Expected Outcome**: AI adds context (e.g., “Possible uninitialized variable at line 42”) with tags and severity.
-- **Failure Case**: AI analysis fails or provides irrelevant context.
+4. **Cognitive Load in Test Design**
+   - Tests should be simple to understand (reduce extraneous load)
+   - Tests should build understanding of system (maximize germane load)
+   - Complex tests broken into smaller, focused tests
 
-## 5. Analytics App
-### Test Case 5.1: Log Frequency Analysis
-- **Description**: Verify that the analytics app calculates log frequency correctly.
-- **Preconditions**: Logging app enabled, 100 sample logs generated (50 errors, 30 warnings, 20 info).
-- **Steps**:
-  1. Open the analytics app.
-  2. Run a frequency report on log types.
-- **Expected Outcome**: Report shows 50 errors, 30 warnings, 20 info, with a downloadable CSV.
-- **Failure Case**: Incorrect counts or CSV export fails.
+---
 
-### Test Case 5.2: Anomaly Detection
-- **Description**: Ensure the analytics app detects log anomalies.
-- **Preconditions**: Logging app enabled, 100 logs with 5 unusual entries (e.g., rare error code).
-- **Steps**:
-  1. Open the analytics app.
-  2. Run anomaly detection.
-- **Expected Outcome**: App highlights the 5 unusual logs with details (e.g., “Rare error code detected 5 times”).
-- **Failure Case**: Anomalies missed or misidentified.
+## Test Framework & Tools
 
-## 6. Review App
-### Test Case 6.1: Code Import via GitHub
-- **Description**: Verify that users can import code from GitHub repos.
-- **Preconditions**: User logged in with GitHub OAuth, review app enabled.
-- **Steps**:
-  1. Open the review app.
-  2. Select a public repo (e.g., `mikejsmith1985/devsmith-modular-platform`).
-  3. Choose a file and import it.
-- **Expected Outcome**: File contents load in the UI with syntax highlighting.
-- **Failure Case**: Import fails or file contents are corrupted.
+### Backend (Go)
+- **Unit Tests**: Go's built-in `testing` package
+- **Mocking**: `testify/mock` for interfaces
+- **Database Tests**: `dockertest` for PostgreSQL integration tests
+- **HTTP Tests**: `httptest` for handler testing
+- **Coverage**: `go test -cover` (target: 70%+ unit, 90%+ critical path)
 
-### Test Case 6.2: Five Reading Modes
-- **Description**: Ensure AI-driven analysis supports all five reading modes: Previewing, Skimming, Scanning, Detailed Reading, Critical Reading.
-- **Preconditions**: Review app enabled, sample code file loaded, Ollama configured.
-- **Steps**:
-  1. Select each reading mode in the UI.
-  2. Run AI analysis on the same code file for each mode.
-- **Expected Outcomes**:
-  - **Previewing**: Returns a brief summary (e.g., “This is a Python script for a REST API”).
-  - **Skimming**: Lists high-level functionality (e.g., “Handles user authentication and data queries”).
-  - **Scanning**: Finds specific elements (e.g., highlights variable `user_id` in 3 locations).
-  - **Detailed Reading**: Explains code logic in depth (e.g., “Function `auth_user` validates JWT tokens”).
-  - **Critical Reading**: Identifies issues (e.g., “Missing error handling in `auth_user` could lead to crashes”).
-- **Failure Case**: Mode produces incorrect or incomplete output.
+### Frontend (Templ + HTMX)
+- **Template Tests**: Templ compile-time validation
+- **Integration Tests**: Playwright for browser automation
+- **Visual Regression**: Percy or Chromatic (Phase 2)
+- **Accessibility**: axe-core automated checks
 
-### Test Case 6.3: Real-Time Collaboration
-- **Description**: Verify that multiple users can collaborate on code reviews.
-- **Preconditions**: Two users logged in, review app enabled.
-- **Steps**:
-  1. User A loads a code file and starts a review session.
-  2. User B joins the session and adds an annotation.
-  3. User A responds to the annotation.
-- **Expected Outcome**: Annotation appears in real-time for both users, with logged telemetry.
-- **Failure Case**: Annotations fail to sync or are not visible.
+### AI Integration
+- **Ollama Mocking**: Mock responses for deterministic tests
+- **Prompt Validation**: Verify prompts contain required context
+- **Response Parsing**: Validate JSON structure from AI
 
-## 7. Build App
-### Test Case 7.1: Terminal Interface
-- **Description**: Ensure the terminal supports Cloud CLI and Copilot CLI commands.
-- **Preconditions**: Build app enabled, user logged in.
-- **Steps**:
-  1. Open the build app terminal.
-  2. Run a Cloud CLI command (e.g., `gcloud version`).
-  3. Run a Copilot CLI command (e.g., `gh repo list`).
-- **Expected Outcome**: Commands execute successfully, with output logged to the logging app.
-- **Failure Case**: Commands fail or logs are not captured.
+### End-to-End
+- **Framework**: Playwright
+- **Browsers**: Chrome, Firefox, Safari
+- **Test Environment**: Docker Compose with test database
 
-### Test Case 7.2: OpenHands Autonomous Coding
-- **Description**: Verify autonomous coding with OpenHands and Ollama.
-- **Preconditions**: Build app in Phase 2, Ollama configured, sample project loaded.
-- **Steps**:
-  1. Initiate an OpenHands task (e.g., “Generate a Python function for sorting”).
-  2. Monitor the autonomous coding process.
-- **Expected Outcome**: OpenHands generates correct code, logged to the logging app, and verifiable in the review app.
-- **Failure Case**: Code generation fails or produces incorrect results.
+---
 
-## 8. LLM Integration
-### Test Case 8.1: Local Ollama Operation
-- **Description**: Ensure AI features work offline with Ollama.
-- **Preconditions**: Ollama configured locally, internet disabled.
-- **Steps**:
-  1. Enable AI analysis in the logging app.
-  2. Run a code review with the review app.
-- **Expected Outcome**: AI features (e.g., log context, code analysis) function without internet.
-- **Failure Case**: AI features fail or require online connectivity.
+## Test Coverage Targets
 
-### Test Case 8.2: API Toggle
-- **Description**: Verify seamless switching between local and online LLMs.
-- **Preconditions**: User logged in, OpenAI API key provided.
-- **Steps**:
-  1. Set LLM to Ollama and run a review app analysis.
-  2. Switch to OpenAI API and rerun the analysis.
-- **Expected Outcome**: Both analyses complete successfully with consistent outputs.
-- **Failure Case**: Switching fails or outputs differ significantly.
+| Component | Unit Tests | Integration Tests | E2E Tests |
+|-----------|------------|-------------------|-----------|
+| Portal Service | 70%+ | Critical paths | Login flow |
+| Review Service | 70%+ | All 5 modes | All 5 modes |
+| Logging Service | 70%+ | WebSocket flow | Real-time logs |
+| Analytics Service | 70%+ | Query aggregation | Report generation |
+| Build Service (P2) | 70%+ | OpenHands integration | Terminal session |
 
-## 9. Collaboration
-### Test Case 9.1: Shared Terminal Session
-- **Description**: Ensure users can co-pilot in the build app’s terminal.
-- **Preconditions**: Two users logged in, build app enabled.
-- **Steps**:
-  1. User A starts a terminal session and invites User B.
-  2. User B enters a command (e.g., `ls`).
-- **Expected Outcome**: Command output is visible to both users in real-time, logged to the logging app.
-- **Failure Case**: Commands or outputs do not sync.
+**Critical Path Coverage**: 90%+ (authentication, Review app modes, data persistence)
 
-## 10. Portal
-### Test Case 10.1: Dashboard Functionality
-- **Description**: Verify the portal dashboard displays session history and app access.
-- **Preconditions**: User logged in, logging and review apps enabled.
-- **Steps**:
-  1. Open the portal dashboard.
-  2. Check session history for recent activity.
-  3. Launch the logging app from the app browser.
-- **Expected Outcome**: Dashboard shows recent logs, and logging app launches correctly.
-- **Failure Case**: History is missing or app fails to launch.
+---
 
-### Test Case 10.2: One-Click Installation
-- **Description**: Ensure the platform installs with a single command.
-- **Preconditions**: Clean system with Docker installed.
-- **Steps**:
-  1. Run the installation script (e.g., `docker-compose up`).
-  2. Check for Postgres, Ollama, and OAuth setup.
-- **Expected Outcome**: All services start successfully, and the portal is accessible.
-- **Failure Case**: Installation fails or requires manual configuration.
+## Test Organization
 
-## 11. Debugging
-### Test Case 11.1: Friendly Error Messages
-- **Description**: Verify that errors are clear and actionable.
-- **Preconditions**: User logged in, logging app enabled.
-- **Steps**:
-  1. Trigger an error (e.g., invalid API key in LLM settings).
-  2. Observe the error message in the UI.
-- **Expected Outcome**: Error includes stack trace, context, and an AI-driven “fix this” prompt (e.g., “Invalid API key. Enter a valid OpenAI key in settings.”).
-- **Failure Case**: Error is cryptic or lacks actionable guidance.
+### Directory Structure
+```
+apps/
+├── portal/
+│   ├── handlers/
+│   │   ├── auth_handler.go
+│   │   └── auth_handler_test.go
+│   ├── services/
+│   │   ├── auth_service.go
+│   │   └── auth_service_test.go
+│   └── db/
+│       ├── users.go
+│       └── users_test.go
+├── review/
+│   ├── handlers/
+│   ├── services/
+│   │   ├── review_ai_service.go
+│   │   └── review_ai_service_test.go  # Critical: 5 modes
+│   └── db/
+└── ... (other services)
 
-### Test Case 11.2: Backup Functionality
-- **Description**: Ensure automatic snapshots preserve data.
-- **Preconditions**: Logging app enabled, sample logs generated.
-- **Steps**:
-  1. Simulate a system crash (e.g., kill Docker container).
-  2. Restart the platform and check log availability.
-- **Expected Outcome**: Logs are restored from the latest snapshot.
-- **Failure Case**: Logs are lost or corrupted.
+tests/
+├── integration/
+│   ├── portal_auth_test.go
+│   ├── review_modes_test.go         # Critical: 5 modes end-to-end
+│   └── logging_websocket_test.go
+└── e2e/
+    ├── playwright.config.ts
+    ├── auth.spec.ts
+    ├── review_preview_mode.spec.ts
+    ├── review_skim_mode.spec.ts
+    ├── review_scan_mode.spec.ts
+    ├── review_detailed_mode.spec.ts
+    ├── review_critical_mode.spec.ts  # Most important test
+    └── ...
+```
+
+---
+
+## Test Categories by Mental Model
+
+### 1. Bounded Context Tests
+
+**Purpose**: Verify entities have single, clear meaning within their context
+
+**Portal Context Tests**:
+```go
+// Test: User in Portal context means authenticated identity
+func TestPortalUser_HasAuthenticationFields(t *testing.T) {
+    user := &models.PortalUser{
+        GitHubID:   12345,
+        Username:   "testuser",
+        AvatarURL:  "https://...",
+    }
+
+    assert.NotZero(t, user.GitHubID, "Portal User must have GitHub ID")
+    assert.NotEmpty(t, user.Username, "Portal User must have username")
+}
+```
+
+**Review Context Tests**:
+```go
+// Test: User in Review context means code reviewer
+func TestReviewUser_HasReviewFields(t *testing.T) {
+    user := &models.ReviewUser{
+        UserID:          1,
+        ReviewsCreated:  5,
+        IssuesIdentified: 23,
+    }
+
+    assert.NotZero(t, user.ReviewsCreated, "Review User tracks review count")
+    // Note: No GitHubID field - that's Portal's concern
+}
+```
+
+**Cross-Context Violation Test**:
+```go
+// Test: Portal User should NOT appear in Review service
+func TestReviewService_DoesNotImportPortalModels(t *testing.T) {
+    // Static analysis or import check
+    // This test ensures bounded context boundaries are respected
+}
+```
+
+---
+
+### 2. Layering Tests
+
+**Purpose**: Verify clean separation of controller, service, and data layers
+
+**Controller Layer Test** (HTTP only, no business logic):
+```go
+func TestAuthHandler_GitHubCallback_ValidatesInput(t *testing.T) {
+    // Arrange
+    mockService := new(MockAuthService)
+    handler := handlers.NewAuthHandler(mockService)
+
+    req := httptest.NewRequest("GET", "/auth/github/callback?code=", nil)
+    w := httptest.NewRecorder()
+    c, _ := gin.CreateTestContext(w)
+    c.Request = req
+
+    // Act
+    handler.GitHubCallback(c)
+
+    // Assert
+    assert.Equal(t, http.StatusBadRequest, w.Code, "Handler should validate code param")
+    assert.Contains(t, w.Body.String(), "error", "Should return error JSON")
+    mockService.AssertNotCalled(t, "Authenticate") // Service not called with invalid input
+}
+```
+
+**Service Layer Test** (Business logic, no HTTP):
+```go
+func TestAuthService_Authenticate_ValidCode(t *testing.T) {
+    // Arrange
+    mockRepo := new(MockUserRepository)
+    mockGitHub := new(MockGitHubClient)
+    service := services.NewAuthService(mockRepo, mockGitHub)
+
+    mockGitHub.On("ExchangeCode", mock.Anything, "valid_code").
+        Return(&github.AccessToken{Token: "token123"}, nil)
+    mockGitHub.On("GetUser", mock.Anything, "token123").
+        Return(&github.User{ID: 12345, Login: "testuser"}, nil)
+    mockRepo.On("FindOrCreateByGitHubID", mock.Anything, 12345, "testuser").
+        Return(&models.User{ID: 1, GitHubID: 12345}, nil)
+
+    // Act
+    user, token, err := service.Authenticate(context.Background(), "valid_code")
+
+    // Assert
+    assert.NoError(t, err)
+    assert.Equal(t, 12345, user.GitHubID)
+    assert.NotEmpty(t, token, "Should return JWT token")
+    mockRepo.AssertExpectations(t)
+}
+```
+
+**Data Layer Test** (SQL only, no business logic):
+```go
+func TestUserRepository_FindOrCreateByGitHubID_CreatesNewUser(t *testing.T) {
+    // Arrange
+    db := setupTestDB(t)
+    defer teardownTestDB(t, db)
+    repo := db.NewUserRepository(db)
+
+    // Act
+    user, err := repo.FindOrCreateByGitHubID(context.Background(), 99999, "newuser")
+
+    // Assert
+    assert.NoError(t, err)
+    assert.NotZero(t, user.ID, "Should assign ID")
+    assert.Equal(t, 99999, user.GitHubID)
+    assert.Equal(t, "newuser", user.Username)
+
+    // Verify in DB
+    var count int
+    db.QueryRow("SELECT COUNT(*) FROM portal.users WHERE github_id = $1", 99999).Scan(&count)
+    assert.Equal(t, 1, count, "User should be in database")
+}
+```
+
+**Layer Violation Test**:
+```go
+func TestAuthHandler_DoesNotCallRepository(t *testing.T) {
+    // This is a design test - handlers should never import db package
+    // Enforced via static analysis or import checks
+}
+```
+
+---
+
+### 3. Abstraction Tests
+
+**Purpose**: Verify interfaces work and implementations are swappable
+
+**Interface Definition**:
+```go
+// interfaces/auth_provider.go
+type AuthProvider interface {
+    Authenticate(ctx context.Context, code string) (*User, string, error)
+    ValidateToken(ctx context.Context, token string) (*User, error)
+}
+```
+
+**Test Against Interface** (not concrete type):
+```go
+func TestGitHubAuthProvider_ImplementsAuthProvider(t *testing.T) {
+    var _ interfaces.AuthProvider = (*services.GitHubAuthProvider)(nil)
+    // Compile-time check that GitHubAuthProvider implements interface
+}
+
+func TestMockAuthProvider_CanReplaceReal(t *testing.T) {
+    // Test that mock provider works in handler
+    mockProvider := new(MockAuthProvider)
+    handler := handlers.NewAuthHandler(mockProvider) // Takes interface, not concrete
+
+    mockProvider.On("Authenticate", mock.Anything, "test_code").
+        Return(&models.User{ID: 1}, "jwt_token", nil)
+
+    // Test handler with mock provider
+    // ...
+}
+```
+
+**Swappable Implementation Test**:
+```go
+// Future: If we add GitLabAuthProvider, this test ensures it works
+func TestAuthHandler_WorksWithDifferentProviders(t *testing.T) {
+    providers := []interfaces.AuthProvider{
+        services.NewGitHubAuthProvider(...),
+        // services.NewGitLabAuthProvider(...), // Future
+    }
+
+    for _, provider := range providers {
+        handler := handlers.NewAuthHandler(provider)
+        // Test handler works with any provider
+    }
+}
+```
+
+---
+
+### 4. Scope Tests
+
+**Purpose**: Verify variables have minimal, appropriate scope
+
+**Function Scope Test**:
+```go
+func TestReviewService_AnalyzeInMode_NoLeakedVariables(t *testing.T) {
+    // Test that temp variables don't leak outside function
+    service := setupReviewService(t)
+
+    // Call function multiple times
+    _, err1 := service.AnalyzeInMode(ctx, code, ModePreview, opts)
+    _, err2 := service.AnalyzeInMode(ctx, code, ModeSkim, opts)
+
+    // Each call should be independent (no shared state)
+    assert.NoError(t, err1)
+    assert.NoError(t, err2)
+    // Calls don't affect each other
+}
+```
+
+**No Global State Test**:
+```go
+func TestReviewService_ThreadSafe(t *testing.T) {
+    service := setupReviewService(t)
+
+    // Run multiple goroutines calling service
+    var wg sync.WaitGroup
+    for i := 0; i < 10; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            _, err := service.AnalyzeInMode(ctx, code, ModePreview, opts)
+            assert.NoError(t, err)
+        }()
+    }
+    wg.Wait()
+    // No race conditions or shared mutable state
+}
+```
+
+---
+
+## Core Feature Tests
+
+### 1. Authentication (Portal Service)
+
+#### Test 1.1: GitHub OAuth - Complete Flow
+```go
+func TestAuth_GitHubOAuthFlow_Success(t *testing.T) {
+    // GIVEN: Valid GitHub OAuth setup
+    config := loadTestConfig(t)
+    server := setupTestServer(t, config)
+    defer server.Close()
+
+    // WHEN: User initiates GitHub login
+    resp, err := http.Get(server.URL + "/auth/github/login")
+    require.NoError(t, err)
+
+    // THEN: Redirect to GitHub OAuth page
+    assert.Equal(t, http.StatusFound, resp.StatusCode)
+    location := resp.Header.Get("Location")
+    assert.Contains(t, location, "github.com/login/oauth/authorize")
+    assert.Contains(t, location, "client_id="+config.GitHubClientID)
+
+    // WHEN: GitHub redirects back with code
+    callbackResp, err := http.Get(server.URL + "/auth/github/callback?code=test_code")
+    require.NoError(t, err)
+
+    // THEN: User authenticated with JWT token
+    assert.Equal(t, http.StatusOK, callbackResp.StatusCode)
+    var result map[string]interface{}
+    json.NewDecoder(callbackResp.Body).Decode(&result)
+    assert.NotEmpty(t, result["token"], "Should return JWT token")
+    assert.NotNil(t, result["user"], "Should return user object")
+}
+```
+
+#### Test 1.2: Unauthorized Access Blocked
+```go
+func TestAuth_UnauthorizedAccess_Redirects(t *testing.T) {
+    server := setupTestServer(t, config)
+
+    // WHEN: Accessing protected endpoint without token
+    resp, _ := http.Get(server.URL + "/api/apps")
+
+    // THEN: Redirect to login
+    assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+    var result map[string]string
+    json.NewDecoder(resp.Body).Decode(&result)
+    assert.Equal(t, "Please log in with GitHub", result["error"])
+}
+```
+
+#### Test 1.3: JWT Token Validation
+```go
+func TestAuth_JWTValidation_ValidToken(t *testing.T) {
+    // GIVEN: Valid JWT token
+    token := generateTestJWT(t, &models.User{ID: 1, Username: "testuser"})
+
+    // WHEN: Making request with token
+    req, _ := http.NewRequest("GET", "/api/auth/me", nil)
+    req.Header.Set("Authorization", "Bearer "+token)
+    resp := makeRequest(t, req)
+
+    // THEN: User info returned
+    assert.Equal(t, http.StatusOK, resp.StatusCode)
+    var user models.User
+    json.NewDecoder(resp.Body).Decode(&user)
+    assert.Equal(t, "testuser", user.Username)
+}
+```
+
+---
+
+### 2. Review Service - Five Reading Modes (CRITICAL)
+
+**These are the most important tests in the system - the core value proposition**
+
+#### Test 2.1: Preview Mode - Quick Structural Assessment
+```go
+func TestReviewAI_PreviewMode_ReturnsStructure(t *testing.T) {
+    // GIVEN: Sample Go codebase
+    codebase := loadTestCodebase(t, "testdata/sample_go_project")
+    service := setupReviewAIService(t)
+
+    // WHEN: Analyzing in Preview mode
+    result, err := service.AnalyzeInMode(
+        context.Background(),
+        codebase,
+        models.ModePreview,
+        models.AnalysisOptions{},
+    )
+
+    // THEN: Returns high-level structure
+    require.NoError(t, err)
+    assert.NotNil(t, result.FileStructure, "Must return file structure")
+    assert.NotEmpty(t, result.BoundedContexts, "Must identify bounded contexts")
+    assert.NotEmpty(t, result.TechStack, "Must detect tech stack")
+    assert.Contains(t, result.TechStack, "Go", "Should detect Go")
+    assert.Contains(t, result.ArchitecturePattern, "layered", "Should identify layering")
+
+    // THEN: Should NOT contain implementation details
+    assert.Empty(t, result.FunctionImplementations, "Preview doesn't show implementations")
+
+    // THEN: Cognitive load managed
+    assert.Less(t, len(result.Summary), 500, "Summary should be brief (reduce intrinsic load)")
+}
+```
+
+#### Test 2.2: Skim Mode - Abstractions Only
+```go
+func TestReviewAI_SkimMode_ReturnsAbstractions(t *testing.T) {
+    // GIVEN: Go service with interfaces and implementations
+    code := `
+    package services
+
+    type UserService interface {
+        GetUser(ctx context.Context, id int) (*User, error)
+        CreateUser(ctx context.Context, user *User) error
+    }
+
+    type userServiceImpl struct {
+        repo UserRepository
+    }
+
+    func (s *userServiceImpl) GetUser(ctx context.Context, id int) (*User, error) {
+        // ... 50 lines of implementation ...
+    }
+    `
+
+    // WHEN: Analyzing in Skim mode
+    result, err := service.AnalyzeInMode(ctx, code, models.ModeSkim, opts)
+
+    // THEN: Returns function signatures, not implementations
+    require.NoError(t, err)
+    assert.Len(t, result.Functions, 2, "Should list both functions")
+    assert.Equal(t, "GetUser", result.Functions[0].Name)
+    assert.Contains(t, result.Functions[0].Signature, "GetUser(ctx context.Context, id int)")
+    assert.NotEmpty(t, result.Functions[0].Description, "Should describe what it does")
+
+    // THEN: Implementation details not included
+    assert.Empty(t, result.Functions[0].ImplementationLines, "Skim mode skips implementation")
+
+    // THEN: Interfaces identified
+    assert.Len(t, result.Interfaces, 1, "Should identify UserService interface")
+    assert.Equal(t, "UserService", result.Interfaces[0].Name)
+}
+```
+
+#### Test 2.3: Scan Mode - Targeted Search
+```go
+func TestReviewAI_ScanMode_FindsSpecificCode(t *testing.T) {
+    // GIVEN: Codebase with authentication logic
+    codebase := loadTestCodebase(t, "testdata/sample_project")
+
+    // WHEN: Scanning for authentication validation
+    result, err := service.AnalyzeInMode(ctx, codebase, models.ModeScan, models.AnalysisOptions{
+        ScanQuery: "Where is authentication validated?",
+    })
+
+    // THEN: Finds relevant code sections
+    require.NoError(t, err)
+    assert.NotEmpty(t, result.Matches, "Should find authentication code")
+
+    // THEN: Each match has context
+    for _, match := range result.Matches {
+        assert.NotEmpty(t, match.FilePath, "Should specify file")
+        assert.NotZero(t, match.LineNumber, "Should specify line")
+        assert.NotEmpty(t, match.Context, "Should provide surrounding context")
+        assert.NotEmpty(t, match.Explanation, "Should explain why it matches")
+    }
+
+    // THEN: Semantic search works (not just keyword)
+    foundValidation := false
+    for _, match := range result.Matches {
+        if strings.Contains(match.Code, "ValidateToken") ||
+           strings.Contains(match.Code, "jwt.Parse") {
+            foundValidation = true
+        }
+    }
+    assert.True(t, foundValidation, "Should find token validation even without 'authentication' keyword")
+}
+```
+
+#### Test 2.4: Detailed Mode - Line-by-Line Explanation
+```go
+func TestReviewAI_DetailedMode_ExplainsAlgorithm(t *testing.T) {
+    // GIVEN: Complex algorithm
+    code := `
+    func BinarySearch(arr []int, target int) int {
+        left, right := 0, len(arr)-1
+        for left <= right {
+            mid := left + (right-left)/2
+            if arr[mid] == target {
+                return mid
+            } else if arr[mid] < target {
+                left = mid + 1
+            } else {
+                right = mid - 1
+            }
+        }
+        return -1
+    }
+    `
+
+    // WHEN: Analyzing in Detailed mode
+    result, err := service.AnalyzeInMode(ctx, code, models.ModeDetailed, models.AnalysisOptions{
+        TargetPath: "binary_search.go:BinarySearch",
+    })
+
+    // THEN: Line-by-line explanation provided
+    require.NoError(t, err)
+    assert.NotEmpty(t, result.LineExplanations, "Should explain each significant line")
+
+    // THEN: Variable states tracked
+    assert.Contains(t, result.LineExplanations[2].Explanation, "left=0, right=", "Should show variable states")
+
+    // THEN: Algorithm identified
+    assert.Contains(t, result.AlgorithmSummary, "binary search", "Should recognize algorithm")
+    assert.Contains(t, result.Complexity, "O(log n)", "Should analyze complexity")
+
+    // THEN: Edge cases noted
+    assert.NotEmpty(t, result.EdgeCases, "Should identify edge cases")
+    assert.Contains(t, result.EdgeCases[0], "empty array", "Should note empty array case")
+}
+```
+
+#### Test 2.5: Critical Mode - Quality Evaluation (MOST IMPORTANT)
+```go
+func TestReviewAI_CriticalMode_IdentifiesIssues(t *testing.T) {
+    // GIVEN: Code with multiple issues
+    code := `
+    package handlers
+
+    import "database/sql"
+
+    var db *sql.DB // Global variable (scope issue)
+
+    func GetUser(w http.ResponseWriter, r *http.Request) {
+        id := r.URL.Query().Get("id")
+
+        // SQL injection vulnerability
+        query := "SELECT * FROM users WHERE id = " + id
+        rows, _ := db.Query(query) // Error ignored
+
+        // Missing input validation
+        // No bounded context check
+        // Handler calling database directly (layer violation)
+    }
+    `
+
+    // WHEN: Analyzing in Critical mode
+    result, err := service.AnalyzeInMode(ctx, code, models.ModeCritical, opts)
+
+    // THEN: Architecture issues identified
+    require.NoError(t, err)
+    architectureIssues := filterIssuesByType(result.Issues, "architecture")
+    assert.NotEmpty(t, architectureIssues, "Should find layer violation")
+    assert.Contains(t, architectureIssues[0].Description, "Handler should not call database directly")
+
+    // THEN: Security issues identified
+    securityIssues := filterIssuesByType(result.Issues, "security")
+    assert.NotEmpty(t, securityIssues, "Should find SQL injection")
+    assert.Equal(t, "critical", securityIssues[0].Severity, "SQL injection is critical")
+    assert.Contains(t, securityIssues[0].Description, "SQL injection")
+    assert.NotEmpty(t, securityIssues[0].SuggestedFix, "Should provide fix")
+    assert.Contains(t, securityIssues[0].SuggestedFix, "parameterized query")
+
+    // THEN: Code quality issues identified
+    qualityIssues := filterIssuesByType(result.Issues, "quality")
+    assert.NotEmpty(t, qualityIssues, "Should find error handling issue")
+    assert.Contains(t, qualityIssues[0].Description, "Error ignored")
+
+    // THEN: Scope issues identified
+    scopeIssues := filterIssuesByType(result.Issues, "scope")
+    assert.NotEmpty(t, scopeIssues, "Should find global variable issue")
+    assert.Contains(t, scopeIssues[0].Description, "Global variable")
+
+    // THEN: All issues have location and fix
+    for _, issue := range result.Issues {
+        assert.NotEmpty(t, issue.FilePath, "Issue must have file path")
+        assert.NotZero(t, issue.LineNumber, "Issue must have line number")
+        assert.NotEmpty(t, issue.Description, "Issue must have description")
+        assert.NotEmpty(t, issue.SuggestedFix, "Issue must have suggested fix")
+        assert.NotEmpty(t, issue.Severity, "Issue must have severity")
+    }
+}
+```
+
+#### Test 2.6: Mode Transitions
+```go
+func TestReviewUI_ModeTransitions_Fluid(t *testing.T) {
+    // E2E test with Playwright
+    page := setupBrowser(t)
+
+    // GIVEN: User uploads code
+    page.Goto(baseURL + "/review/sessions/new")
+    page.Fill("#code-input", sampleCode)
+    page.Click("#create-session")
+
+    // WHEN: Starting in Preview mode
+    page.SelectOption("#reading-mode", "preview")
+    page.Click("#analyze")
+    page.WaitForSelector(".ai-result")
+
+    // THEN: Can transition to Skim
+    page.Click("#go-deeper")  // Preview → Skim transition
+    page.WaitForSelector(".function-list")
+
+    // THEN: Can transition to Detailed on specific function
+    page.Click(".function-item:first-child") // Skim → Detailed
+    page.WaitForSelector(".line-by-line")
+
+    // THEN: Can transition to Scan
+    page.Click("#find-usages")  // Detailed → Scan
+    page.WaitForSelector(".search-results")
+
+    // THEN: Can transition to Critical from any mode
+    page.Click("#review-this")  // Any → Critical
+    page.WaitForSelector(".issue-list")
+
+    // All transitions work without errors
+}
+```
+
+---
+
+### 3. Logging Service - Real-Time Monitoring
+
+#### Test 3.1: WebSocket Log Streaming
+```go
+func TestLogging_WebSocketStream_RealTime(t *testing.T) {
+    // GIVEN: Logging service running
+    server := setupTestServer(t)
+    wsURL := "ws://localhost:3003/ws/logs"
+
+    // WHEN: Client connects to WebSocket
+    conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+    require.NoError(t, err)
+    defer conn.Close()
+
+    // WHEN: Log entry created
+    logEntry := models.LogEntry{
+        Service: "portal",
+        Level:   "error",
+        Message: "Test error message",
+    }
+    createLogEntry(t, server, logEntry)
+
+    // THEN: Client receives log within 1 second
+    conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+    var receivedLog models.LogEntry
+    err = conn.ReadJSON(&receivedLog)
+    require.NoError(t, err)
+
+    assert.Equal(t, "portal", receivedLog.Service)
+    assert.Equal(t, "error", receivedLog.Level)
+    assert.Equal(t, "Test error message", receivedLog.Message)
+    assert.NotZero(t, receivedLog.CreatedAt, "Should have timestamp")
+}
+```
+
+#### Test 3.2: Log Filtering
+```go
+func TestLogging_QueryLogs_FilteredByService(t *testing.T) {
+    // GIVEN: Logs from multiple services
+    createTestLogs(t, []models.LogEntry{
+        {Service: "portal", Level: "info", Message: "Portal log"},
+        {Service: "review", Level: "error", Message: "Review error"},
+        {Service: "portal", Level: "error", Message: "Portal error"},
+    })
+
+    // WHEN: Querying for portal logs only
+    resp := makeRequest(t, "GET", "/api/logs?service=portal", nil)
+
+    // THEN: Only portal logs returned
+    var logs []models.LogEntry
+    json.NewDecoder(resp.Body).Decode(&logs)
+    assert.Len(t, logs, 2, "Should return 2 portal logs")
+    for _, log := range logs {
+        assert.Equal(t, "portal", log.Service)
+    }
+}
+```
+
+---
+
+### 4. Analytics Service - Pattern Detection
+
+#### Test 4.1: Trend Analysis
+```go
+func TestAnalytics_TrendAnalysis_DetectsIncrease(t *testing.T) {
+    // GIVEN: Error logs increasing over time
+    baseTime := time.Now().Add(-24 * time.Hour)
+    for hour := 0; hour < 24; hour++ {
+        errorCount := hour / 4  // Increasing trend
+        for i := 0; i < errorCount; i++ {
+            createLogEntry(t, models.LogEntry{
+                Service:   "review",
+                Level:     "error",
+                Message:   "AI analysis timeout",
+                CreatedAt: baseTime.Add(time.Duration(hour) * time.Hour),
+            })
+        }
+    }
+
+    // WHEN: Running trend analysis
+    resp := makeRequest(t, "GET", "/api/analytics/trends?metric=error_rate&service=review", nil)
+
+    // THEN: Increasing trend detected
+    var result models.TrendAnalysis
+    json.NewDecoder(resp.Body).Decode(&result)
+    assert.Equal(t, "increasing", result.Direction)
+    assert.Greater(t, result.ChangePercent, 50.0, "Should show significant increase")
+}
+```
+
+---
+
+### 5. Integration Tests - Cross-Service Flows
+
+#### Test 5.1: Review Session Logged to Logging Service
+```go
+func TestIntegration_ReviewSession_LogsActivity(t *testing.T) {
+    // GIVEN: User authenticated
+    token := authenticateTestUser(t)
+
+    // WHEN: Creating review session
+    reviewResp := makeAuthenticatedRequest(t, "POST", "/api/review/sessions", token, map[string]interface{}{
+        "code_source": "paste",
+        "pasted_code": "package main\nfunc main() {}",
+        "title":       "Test Review",
+    })
+    assert.Equal(t, http.StatusOK, reviewResp.StatusCode)
+
+    var session models.ReviewSession
+    json.NewDecoder(reviewResp.Body).Decode(&session)
+
+    // WHEN: Running AI analysis in Critical mode
+    analysisResp := makeAuthenticatedRequest(t, "POST",
+        fmt.Sprintf("/api/review/sessions/%d/analyze", session.ID),
+        token,
+        map[string]interface{}{
+            "reading_mode": "critical",
+        },
+    )
+    assert.Equal(t, http.StatusOK, analysisResp.StatusCode)
+
+    // THEN: Activity logged to Logging service
+    time.Sleep(100 * time.Millisecond) // Allow async logging
+    logsResp := makeRequest(t, "GET", "/api/logs?service=review", nil)
+
+    var logs []models.LogEntry
+    json.NewDecoder(logsResp.Body).Decode(&logs)
+
+    // Find the AI analysis log
+    found := false
+    for _, log := range logs {
+        if strings.Contains(log.Message, "AI analysis completed") &&
+           strings.Contains(log.Message, "critical") {
+            found = true
+            assert.Equal(t, "info", log.Level)
+            metadata := log.Metadata.(map[string]interface{})
+            assert.Equal(t, float64(session.ID), metadata["session_id"])
+            assert.Equal(t, "critical", metadata["reading_mode"])
+        }
+    }
+    assert.True(t, found, "AI analysis should be logged")
+}
+```
+
+---
+
+## End-to-End User Workflows
+
+### E2E 1: New User Onboarding
+```typescript
+// tests/e2e/onboarding.spec.ts
+test('New user can complete full review workflow', async ({ page }) => {
+  // GIVEN: User visits platform for first time
+  await page.goto('http://localhost:3000');
+
+  // WHEN: Clicking login
+  await page.click('text=Login with GitHub');
+
+  // THEN: Redirected to GitHub OAuth (mocked in test)
+  await expect(page).toHaveURL(/github.com\/login/);
+
+  // WHEN: GitHub redirects back (simulated)
+  await page.goto('http://localhost:3000/auth/github/callback?code=test_code');
+
+  // THEN: Lands on portal dashboard
+  await expect(page).toHaveURL('http://localhost:3000/portal');
+  await expect(page.locator('.welcome-message')).toBeVisible();
+
+  // WHEN: Clicking Review app
+  await page.click('text=Code Review');
+
+  // THEN: Review app opens
+  await expect(page).toHaveURL(/\/review/);
+
+  // WHEN: Pasting code and selecting Critical mode
+  await page.fill('#code-input', `
+    func GetUser(id string) (*User, error) {
+      query := "SELECT * FROM users WHERE id = " + id
+      // SQL injection vulnerability
+    }
+  `);
+  await page.selectOption('#reading-mode', 'critical');
+  await page.click('text=Analyze Code');
+
+  // THEN: AI identifies SQL injection
+  await expect(page.locator('.issue-list')).toBeVisible();
+  await expect(page.locator('.issue-item')).toContainText('SQL injection');
+  await expect(page.locator('.severity-critical')).toBeVisible();
+
+  // WHEN: Clicking suggested fix
+  await page.click('.show-fix');
+
+  // THEN: Fix shown with before/after
+  await expect(page.locator('.suggested-fix')).toContainText('parameterized query');
+
+  // User has successfully learned to identify critical issue!
+});
+```
+
+### E2E 2: Developer Reviews OpenHands Output
+```typescript
+test('Developer reviews OpenHands PR in Critical mode', async ({ page, context }) => {
+  // GIVEN: OpenHands created PR
+  const prCode = await fetchPRCode('feature/user-auth'); // Simulated
+
+  await page.goto('http://localhost:3000/review/sessions/new');
+
+  // WHEN: Loading code from GitHub PR
+  await page.selectOption('#code-source', 'github');
+  await page.fill('#github-pr', 'mikejsmith1985/devsmith-platform/pull/42');
+  await page.click('text=Load PR');
+
+  // THEN: Code loaded
+  await expect(page.locator('.code-display')).toBeVisible();
+
+  // WHEN: Running Critical review
+  await page.selectOption('#reading-mode', 'critical');
+  await page.click('text=Review Code');
+
+  // THEN: Issues categorized by type
+  await expect(page.locator('.architecture-issues')).toBeVisible();
+  await expect(page.locator('.security-issues')).toBeVisible();
+  await expect(page.locator('.quality-issues')).toBeVisible();
+
+  // WHEN: Accepting a suggested fix
+  await page.click('.issue-item:first-child .accept-fix');
+
+  // THEN: Fix applied to code
+  await expect(page.locator('.code-display')).toContainText('// Fixed:');
+
+  // WHEN: Generating PR comment
+  await page.click('text=Generate PR Comment');
+
+  // THEN: Comment formatted for GitHub
+  await expect(page.locator('.pr-comment-preview')).toContainText('## Code Review');
+  await expect(page.locator('.pr-comment-preview')).toContainText('- [ ] Architecture');
+
+  // Developer successfully performed Human-in-the-Loop review!
+});
+```
+
+---
+
+## Performance Tests
+
+### Perf 1: AI Analysis Response Times
+```go
+func TestPerformance_PreviewMode_Under3Seconds(t *testing.T) {
+    if testing.Short() {
+        t.Skip("Skipping performance test in short mode")
+    }
+
+    codebase := loadTestCodebase(t, "testdata/medium_project") // ~1000 lines
+    service := setupReviewAIService(t)
+
+    start := time.Now()
+    _, err := service.AnalyzeInMode(ctx, codebase, models.ModePreview, opts)
+    duration := time.Since(start)
+
+    assert.NoError(t, err)
+    assert.Less(t, duration, 3*time.Second, "Preview mode must complete in <3s")
+}
+
+func TestPerformance_CriticalMode_Under30Seconds(t *testing.T) {
+    if testing.Short() {
+        t.Skip("Skipping performance test in short mode")
+    }
+
+    code := loadTestCode(t, "testdata/handler_500_lines.go")
+    service := setupReviewAIService(t)
+
+    start := time.Now()
+    _, err := service.AnalyzeInMode(ctx, code, models.ModeCritical, opts)
+    duration := time.Since(start)
+
+    assert.NoError(t, err)
+    assert.Less(t, duration, 30*time.Second, "Critical mode must complete in <30s for 500 lines")
+}
+```
+
+### Perf 2: WebSocket Latency
+```go
+func TestPerformance_WebSocket_Under100ms(t *testing.T) {
+    conn := setupWebSocket(t)
+    defer conn.Close()
+
+    // Send log entry
+    entry := models.LogEntry{Message: "test"}
+    sendTime := time.Now()
+    sendLogEntry(t, entry)
+
+    // Receive via WebSocket
+    var received models.LogEntry
+    conn.ReadJSON(&received)
+    latency := time.Since(sendTime)
+
+    assert.Less(t, latency, 100*time.Millisecond, "WebSocket latency must be <100ms")
+}
+```
+
+---
+
+## Test Execution Strategy
+
+### Local Development
+```bash
+# Run all tests
+go test ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Run specific package
+go test ./apps/review/services/...
+
+# Run integration tests only
+go test -tags=integration ./tests/integration/...
+
+# Skip slow tests
+go test -short ./...
+```
+
+### CI/CD Pipeline (GitHub Actions)
+```yaml
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - run: go test -cover ./...
+      - run: go test -coverprofile=coverage.out ./...
+      - run: go tool cover -html=coverage.out -o coverage.html
+      - uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage.html
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test
+      redis:
+        image: redis:7
+    steps:
+      - uses: actions/checkout@v3
+      - run: go test -tags=integration ./tests/integration/...
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker-compose up -d
+      - uses: actions/setup-node@v3
+      - run: npx playwright install
+      - run: npx playwright test
+```
+
+---
+
+## Test Maintenance
+
+### Red Flags (Tests Need Attention)
+- ❌ Test passes when code is wrong (false positive)
+- ❌ Test fails intermittently (flaky test)
+- ❌ Test takes >10 seconds (slow test)
+- ❌ Test requires manual setup (not automated)
+- ❌ Test doesn't match requirements (stale test)
+
+### When to Update Tests
+1. **Requirements Change**: Update tests first (TDD)
+2. **Bug Found**: Write failing test, then fix
+3. **Refactoring**: Tests should still pass (if not, tests are too coupled to implementation)
+4. **New Feature**: Write tests before implementation
+
+### Test Review Checklist
+- [ ] Test name clearly describes what is tested
+- [ ] Test has GIVEN/WHEN/THEN structure
+- [ ] Test tests one thing (atomic)
+- [ ] Test is independent (no order dependency)
+- [ ] Test uses meaningful assertions
+- [ ] Test cleans up resources
+- [ ] Test is fast (<1s for unit, <10s for integration)
+
+---
+
+## Success Criteria
+
+The platform's TDD approach is successful when:
+
+### For Users (Learning Outcomes)
+- ✅ User can identify critical issues in AI-generated code (Critical mode)
+- ✅ User understands bounded contexts after using Preview mode
+- ✅ User can navigate codebase confidently after Skim mode
+- ✅ User finds bugs faster with Scan mode
+- ✅ User comprehends complex algorithms with Detailed mode
+
+### For Development (Quality Metrics)
+- ✅ 70%+ unit test coverage
+- ✅ 90%+ critical path coverage (5 reading modes, auth, logging)
+- ✅ Zero flaky tests in CI
+- ✅ All E2E tests pass on every commit
+- ✅ PRs cannot merge without passing tests
+
+### For Platform (Reliability Metrics)
+- ✅ All reading modes complete within performance targets
+- ✅ WebSocket logs delivered <100ms latency
+- ✅ No SQL injection vulnerabilities (tested)
+- ✅ No layer violations (tested)
+- ✅ Bounded contexts respected (tested)
+
+---
+
+## Appendix: Test Data
+
+### Sample Code for Testing Review Modes
+Located in `testdata/`:
+- `simple_go_handler.go` - Basic handler (100 lines)
+- `medium_service.go` - Service with interfaces (500 lines)
+- `complex_algorithm.go` - Algorithm for Detailed mode
+- `vulnerable_code.go` - Code with multiple issues for Critical mode
+- `sample_project/` - Complete project for Preview/Skim modes
+
+### Mock Ollama Responses
+Located in `tests/mocks/ollama_responses.json`:
+- Responses for each reading mode
+- Ensures deterministic tests
+- Updated when prompt templates change
+
+---
+
+## Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2025-10-18 | Claude | Initial TDD document (React/Node stack) |
+| 2.0 | 2025-10-18 | Claude | Complete rewrite for Go+Templ+HTMX, mental models, 5 reading modes centerpiece |
+
+---
+
+## References
+- Requirements.md - Complete platform requirements
+- ARCHITECTURE.md - System design and mental models
+- DevSmithRoles.md - Team roles and workflows
+- .docs/specs/TEMPLATE.md - Implementation spec template
