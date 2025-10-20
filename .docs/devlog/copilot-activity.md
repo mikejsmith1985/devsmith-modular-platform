@@ -127,3 +127,46 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
+
+## 2025-10-20 04:38 - implement Preview Mode for Review service
+**Branch:** development
+**Files Changed:**  15 files changed, 771 insertions(+), 3 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `.docs/issues/TEMPLATE-COPILOT.md`
+- `AI_CHANGELOG.md`
+- `apps/review/handlers/preview_mode_test.go`
+- `apps/review/handlers/preview_ui_handler.go`
+- `apps/review/templates/layout.templ`
+- `apps/review/templates/preview.templ`
+- `cmd/portal/main.go`
+- `cmd/review/handlers/preview_handler.go`
+- `docker-compose.yml`
+- `go1.23.0.linux-amd64.tar.gz`
+- `go1.23.0.linux-amd64.tar.gz.1`
+- `go1.23.0.linux-amd64.tar.gz.2`
+- `internal/review/services/preview_service.go`
+- `internal/review/services/preview_service_test.go`
+
+**Action:** implement Preview Mode for Review service
+
+**Commit:** `b0ddd93`
+
+**Commit Message:**
+```
+feat(review): implement Preview Mode for Review service
+```
+
+**Details:**
+```
+- Add Preview Mode API endpoint and AI analysis logic
+- UI: tree view, color coding, summary panel, file type filter
+- Tests: 100% coverage for Preview Mode logic
+- Fixed Docker Compose and Nginx config for gateway routing
+- Fixed portal DB driver import for health
+- Updated AI_CHANGELOG.md
+
+Closes #004
+```
+
+---
+
