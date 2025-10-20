@@ -56,6 +56,73 @@ to match go.mod requirement (go 1.23.0 with toolchain go1.24.9).
 
 ---
 
+## 2025-10-20 04:33 - add automated Copilot activity logging system
+**Branch:** development
+**Files Changed:**  3 files changed, 335 insertions(+)
+- `.claude/hooks/copilot-logger.sh`
+- `.docs/devlog/LOGGING-SYSTEM.md`
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** add automated Copilot activity logging system
+
+**Commit:** `a0cc4a1`
+
+**Commit Message:**
+```
+feat(devlog): add automated Copilot activity logging system
+```
+
+**Details:**
+```
+Created comprehensive activity logging system to track all AI assistant
+actions automatically via git hooks.
+
+**Components Added:**
+
+1. **copilot-activity.md** - Append-only activity log
+   - Automatically populated by post-commit hook
+   - Tracks: timestamp, branch, files, commit hash, message
+   - Manual logging available via copilot-logger.sh
+
+2. **post-commit hook** (.git/hooks/post-commit)
+   - Runs after every git commit
+   - Extracts commit context (files, stats, message)
+   - Appends formatted entry to activity log
+   - Zero manual intervention required
+
+3. **copilot-logger.sh** - Manual logging tool
+   - For logging activity without commits
+   - Accepts action description and optional details
+   - Same format as automatic logs
+
+4. **LOGGING-SYSTEM.md** - Documentation
+   - How the system works
+   - Usage examples
+   - Viewing/searching logs
+   - Troubleshooting
+   - Best practices
+
+**How It Works:**
+1. Developer/Copilot makes changes
+2. Developer commits: `git commit -m "feat: ..."`
+3. Post-commit hook runs automatically
+4. Entry appended to copilot-activity.md
+5. Done! ✅
+
+**Benefits:**
+✅ Complete audit trail of all AI assistant work
+✅ Zero manual effort (automatic)
+✅ Searchable history
+✅ Integration with existing recovery system
+✅ Conventional commit format friendly
+
+**Log Location:** `.docs/devlog/copilot-activity.md`
+
+**Replaces:** The old "AI changelog" concept - now automated!
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
 ## 2025-10-20 04:53 - Revert "feat(review): implement Preview Mode for Review service"
 **Branch:** development
 **Files Changed:**  14 files changed, 3 insertions(+), 777 deletions(-)
