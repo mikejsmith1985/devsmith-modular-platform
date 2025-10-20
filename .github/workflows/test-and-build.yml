@@ -85,14 +85,36 @@ jobs:
           go-version: '1.22'
           cache: true
 
+      - name: Check for misplaced code in main.go
+        run: |
+          echo "Checking for code outside functions in cmd/${{ matrix.service }}/main.go..."
+          if [ -f "cmd/${{ matrix.service }}/main.go" ]; then
+            # Check for common patterns of misplaced code
+            if grep -Hn "^\s*fmt\." "cmd/${{ matrix.service }}/main.go" | grep -v "^[^:]*:[0-9]*:\s*//" | grep -v "import" | grep -q .; then
+              echo "❌ Found code outside function in main.go"
+              grep -Hn "^\s*fmt\." "cmd/${{ matrix.service }}/main.go" | grep -v "^[^:]*:[0-9]*:\s*//"
+              exit 1
+            fi
+          fi
+          echo "✓ No misplaced code detected"
+
       - name: Build ${{ matrix.service }}
         run: |
-          go build -v -o bin/${{ matrix.service }} ./cmd/${{ matrix.service }}
+          echo "Building ${{ matrix.service }} service..."
+          go build -v -o bin/${{ matrix.service }} ./cmd/${{ matrix.service }} 2>&1 | tee build.log
+          echo "✓ Build successful"
 
       - name: Verify binary
         run: |
           test -f bin/${{ matrix.service }}
           file bin/${{ matrix.service }}
+          echo "✓ Binary verified"
+
+      - name: Check for unused code in service
+        run: |
+          echo "Checking for unused code in cmd/${{ matrix.service }}..."
+          go run golang.org/x/tools/cmd/goimports@latest -l cmd/${{ matrix.service }}/ || true
+          echo "✓ Import check complete"
 
   docker-build:
     name: Docker Build

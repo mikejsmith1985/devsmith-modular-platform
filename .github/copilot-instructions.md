@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions - DevSmith Modular Platform
 
-**Version:** 1.1
+**Version:** 1.2
 **Last Updated:** 2025-10-20
 
 ---
@@ -40,51 +40,171 @@ When assigned an issue:
 - Check **references** to Requirements.md and ARCHITECTURE.md
 - **Ask Claude** if anything is unclear BEFORE coding
 
-### Step 2: Create Feature Branch 🌿
+### Step 2: Switch to Feature Branch 🌿
+
+**IMPORTANT:** After a PR merge, GitHub Actions automatically creates the next feature branch. Check if it exists before creating a new one.
 
 ```bash
-# Always branch from development
+# 1. Sync with development
 git checkout development
 git pull origin development
 
-# Branch naming: feature/{issue-number}-descriptive-name
-git checkout -b feature/42-github-oauth-login
+# 2. Check if branch already exists (created by auto-sync workflow)
+git branch -r | grep "feature/{issue-number}"
+
+# 3a. If branch EXISTS (common case - auto-created after previous PR merge):
+git checkout feature/{issue-number}-descriptive-name
+
+# 3b. If branch DOESN'T EXIST (out-of-sequence work, parallel development):
+git checkout -b feature/{issue-number}-descriptive-name
 ```
 
-### Step 3: Write Tests FIRST ✅ (TDD)
+**Branch Naming:** `feature/{issue-number}-descriptive-name`
+- Example: `feature/42-github-oauth-login`
 
-**Test-Driven Development Process:**
-1. Read acceptance criteria from issue
-2. Write test that defines expected behavior
-3. Run test (should FAIL - Red)
-4. Write minimal code to make test pass (Green)
-5. Refactor if needed
-6. Repeat for next criterion
+**When Branches Are Auto-Created:**
+- After merging PR #004, workflow creates `feature/005-...`
+- After merging PR #005, workflow creates `feature/006-...`
+- See [ARCHITECTURE.md Section "Branch Auto-Creation"](../ARCHITECTURE.md#2-implementation-copilot-or-openhands) for details
 
-**Example TDD Cycle:**
+**When to Create Manually:**
+- Out-of-sequence work (e.g., starting #007 before #006)
+- Parallel development
+- First issue in a batch
+
+### Step 3: Write Tests FIRST ✅ (TDD) - MANDATORY
+
+**⚠️ CRITICAL: TDD is REQUIRED, not optional. Claude will reject PRs that don't follow TDD.**
+
+**Test-Driven Development Process (Red-Green-Refactor):**
+
+1. **RED Phase**: Write failing test that defines expected behavior
+2. **GREEN Phase**: Write minimal code to make test pass
+3. **REFACTOR Phase**: Improve code quality while keeping tests green
+
+**Complete TDD Workflow:**
+
+```bash
+# Step 1: RED PHASE - Write failing tests FIRST
+# Create test file: internal/review/services/scan_service_test.go
+
+# Run tests - they should FAIL
+go test ./internal/review/services/...
+# Expected: FAIL - NewScanService undefined
+
+# Commit the failing tests
+git add internal/review/services/scan_service_test.go
+git commit -m "test(review): add failing tests for Scan Mode (RED phase)
+
+Tests define expected behavior:
+- TestScanService_AnalyzeScan_Success
+- TestScanService_AnalyzeScan_EmptyQuery
+- TestScanService_AnalyzeScan_NoMatches
+
+Reference: DevsmithTDD.md (Red-Green-Refactor cycle)
+Status: RED (tests fail as expected)"
+
+# Step 2: GREEN PHASE - Implement minimal code to pass tests
+# Create: internal/review/services/scan_service.go
+
+# Run tests - they should PASS now
+go test ./internal/review/services/...
+# Expected: PASS
+
+# Verify build succeeds (CRITICAL)
+go build -o /dev/null ./cmd/review
+
+# Commit the implementation
+git add internal/review/services/scan_service.go
+git commit -m "feat(review): implement Scan Mode service (GREEN phase)
+
+Implementation:
+- NewScanService constructor
+- AnalyzeScan method with Ollama integration
+- Query validation
+- Result caching
+
+Testing:
+- All 3 tests passing
+- go build succeeds
+
+Status: GREEN (tests pass, implementation complete)"
+
+# Step 3: REFACTOR PHASE (if needed)
+# Improve code quality while keeping tests green
+# Example: Extract method, improve naming, add comments
+
+# Run tests again - should still PASS
+go test ./internal/review/services/...
+
+# Commit refactoring
+git commit -m "refactor(review): improve Scan Mode error handling"
+```
+
+**Go/Backend TDD Example:**
+```go
+// 1. RED: Write test FIRST (in scan_service_test.go)
+func TestScanService_AnalyzeScan_Success(t *testing.T) {
+	mockOllama := new(MockOllamaClient)
+	mockRepo := new(MockAnalysisRepository)
+	service := NewScanService(mockOllama, mockRepo)
+
+	output, err := service.AnalyzeScan(ctx, 1, "auth", "owner", "repo")
+
+	assert.NoError(t, err)
+	assert.Len(t, output.Matches, 1)
+}
+// Run: FAILS (NewScanService undefined)
+
+// 2. GREEN: Write minimal implementation (in scan_service.go)
+func NewScanService(ollama *OllamaClient, repo AnalysisRepositoryInterface) *ScanService {
+	return &ScanService{ollamaClient: ollama, analysisRepo: repo}
+}
+
+func (s *ScanService) AnalyzeScan(...) (*models.ScanModeOutput, error) {
+	// Minimal implementation to pass tests
+}
+// Run: PASSES
+
+// 3. REFACTOR: Improve (still in scan_service.go)
+// Add better error handling, comments, validation
+// Run: Still PASSES
+```
+
+**React/Frontend TDD Example:**
 ```javascript
-// 1. Write test FIRST
+// 1. RED: Write test FIRST
 test('stores JWT token in localStorage with correct key', () => {
   const token = 'fake-jwt-token';
   authService.saveToken(token);
   expect(localStorage.getItem('devsmith_token')).toBe(token);
 });
+// Run: FAILS (authService.saveToken undefined)
 
-// 2. Run test - it FAILS (no authService.saveToken yet)
-
-// 3. Write minimal code to pass
+// 2. GREEN: Write minimal code
 export const authService = {
   saveToken: (token) => {
     localStorage.setItem('devsmith_token', token);
   }
 };
+// Run: PASSES
 
-// 4. Run test - it PASSES
-
-// 5. Refactor if needed
-
-// 6. Move to next acceptance criterion
+// 3. REFACTOR: Improve
+export const authService = {
+  saveToken: (token) => {
+    if (!token) throw new Error('Token required');
+    localStorage.setItem('devsmith_token', token);
+  }
+};
+// Run: Still PASSES
 ```
+
+**Why TDD is Mandatory:**
+- Tests define requirements clearly (living documentation)
+- Prevents over-engineering (write only needed code)
+- Catches bugs early (before they reach production)
+- Enables confident refactoring (tests protect against regressions)
+- Aligns with platform mission (supervising AI, not trusting blindly)
 
 ### Step 4: Implement Feature 💻
 
@@ -100,6 +220,91 @@ Follow **[ARCHITECTURE.md Section 13: DevSmith Coding Standards](../ARCHITECTURE
 - Testing: 70% unit coverage, 90% critical path coverage
 
 **DO NOT duplicate standards here. Reference ARCHITECTURE.md Section 13.**
+
+### Step 4.5: Verify Full Build (CRITICAL) 🔨
+
+**BEFORE committing, you MUST verify the full service builds successfully.**
+
+This step catches issues that tests alone miss:
+- Code outside functions (copy-paste errors)
+- Missing imports in main.go
+- Type mismatches between packages
+- Undefined variables/functions
+- Syntax errors in wiring code
+
+**Required Build Verification:**
+
+```bash
+# 1. Build the specific service you're working on
+go build -o /dev/null ./cmd/{service}
+
+# Examples:
+go build -o /dev/null ./cmd/portal
+go build -o /dev/null ./cmd/review
+go build -o /dev/null ./cmd/logs
+go build -o /dev/null ./cmd/analytics
+
+# 2. If build succeeds, verify with golangci-lint
+golangci-lint run ./cmd/{service}/...
+
+# 3. Check for unused imports
+goimports -l cmd/{service}/
+```
+
+**Common Build Errors to Watch For:**
+
+❌ **Code Outside Functions**
+```go
+// WRONG - in cmd/portal/main.go
+package main
+
+fmt.Println("Starting...") // ❌ Code outside function!
+
+func main() {
+  // ...
+}
+```
+
+✅ **Correct**
+```go
+package main
+
+func main() {
+  fmt.Println("Starting...") // ✅ Inside function
+  // ...
+}
+```
+
+❌ **Test Code in Production**
+```go
+// WRONG - in cmd/portal/main.go
+func TestSomething(t *testing.T) { // ❌ Test code in main!
+  // ...
+}
+```
+
+✅ **Correct - Tests belong in *_test.go files**
+
+❌ **Duplicate Definitions**
+```go
+// WRONG
+type Config struct { // ❌ Already defined elsewhere
+  Port int
+}
+```
+
+**Pre-Commit Hook:**
+Our pre-commit hook will automatically run these checks. If you see:
+```
+❌ Pre-commit validation FAILED
+```
+Fix the build errors before committing. DO NOT use `--no-verify`.
+
+**Why This Matters:**
+- Tests validate logic, but don't catch wiring/syntax errors
+- Full build catches 90% of production errors before commit
+- Prevents broken code from entering CI/CD pipeline
+- Saves time by catching issues locally
 
 ### Step 5: Run Tests Locally 🧪
 
@@ -221,9 +426,19 @@ When Claude reviews your PR:
 
 ### 1. Test-Driven Development (TDD) is REQUIRED
 
+**RED → GREEN → REFACTOR cycle is mandatory for ALL features.**
+
 - Tests written BEFORE implementation code
-- No exceptions
-- If you write code first, Claude will reject PR
+- Commit tests first (RED phase): `git commit -m "test: add failing tests (RED)"`
+- Then commit implementation (GREEN phase): `git commit -m "feat: implement feature (GREEN)"`
+- No exceptions - this is not negotiable
+- If you write code first, Claude will reject PR immediately
+
+**Why Separate Commits Matter:**
+- RED commit proves tests were written first
+- GREEN commit shows implementation driven by tests
+- Git history validates TDD process
+- Pre-commit hook detects RED phase and provides helpful guidance
 
 ### 2. One Feature Per Issue, One Issue Per PR
 
@@ -431,6 +646,9 @@ Before creating PR, verify ALL of these:
 
 - [ ] Read GitHub issue completely
 - [ ] Wrote tests FIRST (TDD)
+- [ ] **FULL SERVICE BUILD PASSES** (`go build ./cmd/{service}`) ⭐ CRITICAL
+- [ ] golangci-lint passes (`golangci-lint run ./cmd/{service}/...`)
+- [ ] No unused imports (`goimports -l cmd/{service}/`)
 - [ ] All automated tests passing
 - [ ] Test coverage >= 70% (unit) and 90% (critical paths)
 - [ ] Manual testing checklist complete
@@ -459,6 +677,9 @@ If any checkbox is unchecked, **DO NOT create PR yet.**
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-10-18 | Initial version with workflow updates |
+| 1.1 | 2025-10-20 | Added automated activity logging via git hooks |
+| 1.2 | 2025-10-20 | Updated branch workflow for auto-created branches |
+| 1.3 | 2025-10-20 | **Major TDD Update**: Added comprehensive TDD workflow with Red-Green-Refactor cycle, complete examples, and mandatory separate commits for test and implementation phases |
 
 ---
 

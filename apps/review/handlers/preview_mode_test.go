@@ -3,8 +3,9 @@ package handlers
 import (
 	"context"
 	"testing"
-	"github.com/stretchr/testify/assert"
+
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPreviewMode_ReturnsFileStructure(t *testing.T) {
