@@ -365,9 +365,32 @@ Closes #42"
 # Push branch
 git push origin feature/42-github-oauth-login
 
-# Create PR to development (NOT main!)
-# PR title: Same as commit message first line
-# PR description: Include "Closes #42" and testing summary
+# Create PR using GitHub CLI (REQUIRED - DO THIS NOW!)
+gh pr create \
+  --title "Issue #042: GitHub OAuth Login" \
+  --body "$(cat <<'PRBODY'
+## Summary
+Implements Issue #042: GitHub OAuth Login
+
+## Changes
+- Added GitHub OAuth endpoints
+- JWT token storage
+- Login flow integration
+
+## Testing
+- [x] All tests passing
+- [x] Unit coverage: 85%+
+- [x] Manual testing complete
+
+Closes #42
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+PRBODY
+)" \
+  --base development \
+  --head feature/42-github-oauth-login
 ```
 
 **PR Description Template:**
