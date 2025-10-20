@@ -122,6 +122,91 @@ Follow **[ARCHITECTURE.md Section 13: DevSmith Coding Standards](../ARCHITECTURE
 
 **DO NOT duplicate standards here. Reference ARCHITECTURE.md Section 13.**
 
+### Step 4.5: Verify Full Build (CRITICAL) 🔨
+
+**BEFORE committing, you MUST verify the full service builds successfully.**
+
+This step catches issues that tests alone miss:
+- Code outside functions (copy-paste errors)
+- Missing imports in main.go
+- Type mismatches between packages
+- Undefined variables/functions
+- Syntax errors in wiring code
+
+**Required Build Verification:**
+
+```bash
+# 1. Build the specific service you're working on
+go build -o /dev/null ./cmd/{service}
+
+# Examples:
+go build -o /dev/null ./cmd/portal
+go build -o /dev/null ./cmd/review
+go build -o /dev/null ./cmd/logs
+go build -o /dev/null ./cmd/analytics
+
+# 2. If build succeeds, verify with golangci-lint
+golangci-lint run ./cmd/{service}/...
+
+# 3. Check for unused imports
+goimports -l cmd/{service}/
+```
+
+**Common Build Errors to Watch For:**
+
+❌ **Code Outside Functions**
+```go
+// WRONG - in cmd/portal/main.go
+package main
+
+fmt.Println("Starting...") // ❌ Code outside function!
+
+func main() {
+  // ...
+}
+```
+
+✅ **Correct**
+```go
+package main
+
+func main() {
+  fmt.Println("Starting...") // ✅ Inside function
+  // ...
+}
+```
+
+❌ **Test Code in Production**
+```go
+// WRONG - in cmd/portal/main.go
+func TestSomething(t *testing.T) { // ❌ Test code in main!
+  // ...
+}
+```
+
+✅ **Correct - Tests belong in *_test.go files**
+
+❌ **Duplicate Definitions**
+```go
+// WRONG
+type Config struct { // ❌ Already defined elsewhere
+  Port int
+}
+```
+
+**Pre-Commit Hook:**
+Our pre-commit hook will automatically run these checks. If you see:
+```
+❌ Pre-commit validation FAILED
+```
+Fix the build errors before committing. DO NOT use `--no-verify`.
+
+**Why This Matters:**
+- Tests validate logic, but don't catch wiring/syntax errors
+- Full build catches 90% of production errors before commit
+- Prevents broken code from entering CI/CD pipeline
+- Saves time by catching issues locally
+
 ### Step 5: Run Tests Locally 🧪
 
 **Before creating PR, ALL must pass:**
@@ -452,6 +537,9 @@ Before creating PR, verify ALL of these:
 
 - [ ] Read GitHub issue completely
 - [ ] Wrote tests FIRST (TDD)
+- [ ] **FULL SERVICE BUILD PASSES** (`go build ./cmd/{service}`) ⭐ CRITICAL
+- [ ] golangci-lint passes (`golangci-lint run ./cmd/{service}/...`)
+- [ ] No unused imports (`goimports -l cmd/{service}/`)
 - [ ] All automated tests passing
 - [ ] Test coverage >= 70% (unit) and 90% (critical paths)
 - [ ] Manual testing checklist complete
