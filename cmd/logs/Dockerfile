@@ -4,17 +4,17 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/review ./cmd/review
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/logs ./cmd/logs
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates tzdata wget
 RUN addgroup -g 1000 appuser && \
 	adduser -D -u 1000 -G appuser appuser
 WORKDIR /home/appuser
-COPY --from=builder /app/bin/review ./review
+COPY --from=builder /app/bin/logs ./logs
 RUN chown -R appuser:appuser /home/appuser
 USER appuser
-EXPOSE 8081
+EXPOSE 8082
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-	CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
-CMD ["./review"]
+	CMD wget --no-verbose --tries=1 --spider http://localhost:8082/health || exit 1
+CMD ["./logs"]
