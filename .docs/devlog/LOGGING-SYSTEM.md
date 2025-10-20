@@ -190,5 +190,46 @@ The activity log complements (but doesn't replace) the crash recovery system:
 
 ---
 
+## Automated Workflow Integration
+
+### GitHub Actions: Auto-Sync and Next Issue Branch
+
+When a PR is merged to `development`, the **Auto-Sync Workflow** automatically:
+
+1. ✅ **Handles activity log merges** - Commits any pending `copilot-activity.md` changes
+2. ✅ **Finds next issue** - Looks for the next sequential issue file (e.g., 004 → 005)
+3. ✅ **Creates feature branch** - Auto-creates `feature/NNN-description` branch
+4. ✅ **Posts PR comment** - Shows what's next with instructions to start working
+
+**Workflow file:** `.github/workflows/auto-sync-next-issue.yml`
+
+**Example:**
+- Merge PR for Issue #004 (`feature/004-review-service-preview-mode`)
+- Workflow automatically creates `feature/005-review-skim-mode`
+- Comment posted on merged PR with next steps
+- Developer just needs to: `git pull && git checkout feature/005-review-skim-mode`
+
+**Benefits:**
+- 🚀 **Zero manual work** - No need to run sync scripts
+- 🔄 **Consistent workflow** - Every PR merge prepares for next issue
+- 📝 **Activity log handled** - Automatic merge conflict resolution
+- 👀 **Visible progress** - PR comments show what's next
+
+**When it doesn't run:**
+- PR is closed without merging
+- Next issue file doesn't exist (e.g., no 006-*.md after 005)
+- Non-feature branches (doesn't apply to direct `development` commits)
+
+**Fallback: Manual Script**
+
+If you need to start an issue manually (skip sequence, parallel work, etc.):
+
+```bash
+# Still available for edge cases
+./scripts/sync-and-start-issue.sh 007 review-detailed-mode
+```
+
+---
+
 **Created:** 2025-10-19
-**Last Updated:** 2025-10-19
+**Last Updated:** 2025-10-20
