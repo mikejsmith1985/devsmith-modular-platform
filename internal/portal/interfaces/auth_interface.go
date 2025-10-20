@@ -1,4 +1,5 @@
-package interfaces
+// Package authifaces defines authentication and user repository interfaces for the portal service.
+package authifaces
 
 import (
 	"context"

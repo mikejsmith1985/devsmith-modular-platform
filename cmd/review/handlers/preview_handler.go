@@ -1,3 +1,4 @@
+// Package handlers contains HTTP handlers for the review service.
 package handlers
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
+// RegisterPreviewRoutes registers the API routes for preview mode analysis in the review service.
 func RegisterPreviewRoutes(router *gin.Engine, previewService *services.PreviewService) {
 	router.POST("/api/review/sessions/:id/analyze", func(c *gin.Context) {
 		var req struct {

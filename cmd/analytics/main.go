@@ -1,3 +1,4 @@
+// The analytics command starts the analytics service for the DevSmith platform.
 package main
 
 import (

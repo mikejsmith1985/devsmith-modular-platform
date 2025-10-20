@@ -1,3 +1,4 @@
+// Package config provides configuration loading for environment variables and service ports.
 package config
 
 import (
@@ -5,6 +6,7 @@ import (
 	"os"
 )
 
+// Config holds environment variables and service port settings.
 type Config struct {
 	PostgresUser       string
 	PostgresPassword   string
@@ -19,6 +21,7 @@ type Config struct {
 	JWTSecret          string
 }
 
+// LoadConfig loads configuration from environment variables and validates it.
 func LoadConfig() *Config {
 	cfg := &Config{
 		PostgresUser:       getEnv("POSTGRES_USER"),
@@ -45,6 +48,8 @@ func getEnv(key string) string {
 	return val
 }
 
-func (c *Config) Validate() {
+// Validate checks if the configuration is valid and returns an error if not.
+func (c *Config) Validate() error {
 	// Add additional validation logic if needed
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
+// RegisterPreviewUIRoutes registers the UI routes for preview mode in the review app.
 func RegisterPreviewUIRoutes(router *gin.Engine, previewService *services.PreviewService) {
 	router.GET("/review/preview", func(c *gin.Context) {
 		// For demo, use mock session ID and codebase

@@ -9,15 +9,18 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
+// ScanService provides Scan Mode analysis for code review sessions.
 type ScanService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface
 }
 
+// NewScanService creates a new ScanService with the given dependencies.
 func NewScanService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRepositoryInterface) *ScanService {
 	return &ScanService{ollamaClient, analysisRepo}
 }
 
+// AnalyzeScan performs Scan Mode analysis for the given review session and query.
 func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string, repoOwner, repoName string) (*models.ScanModeOutput, error) {
 	if query == "" {
 		return nil, errors.New("query cannot be empty")

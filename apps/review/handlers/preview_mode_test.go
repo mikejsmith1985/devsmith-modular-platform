@@ -1,3 +1,4 @@
+// Package handlers contains HTTP handlers for the review app.
 package handlers
 
 import (

@@ -1,3 +1,4 @@
+// Package models contains user and profile data structures for the portal service.
 package models
 
 import "time"

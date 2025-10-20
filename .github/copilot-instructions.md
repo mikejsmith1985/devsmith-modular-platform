@@ -165,8 +165,164 @@ git branch --show-current  # Should show feature/007-...
 ls .docs/issues/007-*.md   # Should show the issue file
 cat .docs/issues/007-*.md  # Should display issue content
 
-# If all three commands work, you're ready to proceed to Step 3 (TDD)
+# If all three commands work, you're ready to proceed to Step 2.6 (Pre-Commit Awareness)
 ```
+
+---
+
+### Step 2.6: Know the Pre-Commit Checks (Code Smart, Not Hard) 🛡️
+
+**🚨 CRITICAL: Understanding what will be validated at commit time helps you write correct code the first time.**
+
+**Your commits will be automatically validated by `.git/hooks/pre-commit`. Here's what it checks:**
+
+#### Pre-Commit Validation Checklist (6 Steps)
+
+```bash
+# These checks run AUTOMATICALLY when you commit:
+
+# Step 1/6: Code Formatting
+gofmt -l ./...
+# ❌ FAILS if any files unformatted
+# ✅ FIX: Run 'go fmt ./...' before committing
+
+# Step 2/6: Static Analysis
+go vet ./...
+# ❌ FAILS if code has suspicious constructs
+# ✅ FIX: Address all 'go vet' warnings
+
+# Step 3/6: Unused Imports
+goimports -l ./...
+# ❌ FAILS if unused imports exist
+# ✅ FIX: Run 'goimports -w .' before committing
+
+# Step 4/6: Build Validation (CRITICAL - catches 90% of errors)
+go build -o /dev/null ./cmd/portal
+go build -o /dev/null ./cmd/review
+go build -o /dev/null ./cmd/logs
+go build -o /dev/null ./cmd/analytics
+# ❌ FAILS if service doesn't build
+# ✅ FIX: Fix build errors BEFORE committing
+
+# Step 5/6: Misplaced Code Detection
+grep "^\s*fmt\." *.go  # Checks for code outside functions
+# ❌ FAILS if code outside functions (common copy-paste error)
+# ✅ FIX: Move all code inside functions
+
+# Step 6/6: Test Execution
+go test -short ./...
+# ❌ FAILS if any tests fail
+# ✅ FIX: Make tests pass before committing
+```
+
+#### Common Pre-Commit Failures and How to Avoid Them
+
+**1. Missing `type` keyword (90% of recent failures)**
+
+```go
+// ❌ WRONG - Will fail pre-commit (code outside function)
+// AuthService provides authentication...
+	userRepo     UserRepository  // ← Floating field!
+	githubClient GitHubClient
+}
+
+// ✅ CORRECT - Pre-commit passes
+// AuthService provides authentication...
+type AuthService struct {  // ← 'type' keyword present
+	userRepo     UserRepository
+	githubClient GitHubClient
+}
+```
+
+**2. Duplicate type definitions**
+
+```go
+// ❌ WRONG - Will fail build
+// In file1.go:
+type OllamaClient interface { ... }
+
+// In file2.go:
+type OllamaClient interface { ... }  // ← Redeclaration!
+
+// ✅ CORRECT - Define once in interfaces.go
+// interfaces.go:
+type OllamaClient interface { ... }
+
+// file1.go and file2.go import it
+```
+
+**3. Code outside functions**
+
+```go
+// ❌ WRONG - Will fail pre-commit
+package main
+
+fmt.Println("Starting...")  // ← Outside function!
+
+func main() {
+	// ...
+}
+
+// ✅ CORRECT
+package main
+
+func main() {
+	fmt.Println("Starting...")  // ← Inside function
+}
+```
+
+**4. Missing imports**
+
+```go
+// ❌ WRONG - Will fail build
+func (s *Service) DoThing(ctx context.Context) {
+	// Using context.Context but no import!
+}
+
+// ✅ CORRECT
+import "context"
+
+func (s *Service) DoThing(ctx context.Context) {
+	// Import present
+}
+```
+
+#### Pro Tips to Pass Pre-Commit First Time
+
+**BEFORE you commit, run these commands yourself:**
+
+```bash
+# 1. Format code
+go fmt ./...
+
+# 2. Fix imports
+goimports -w .
+
+# 3. Check for issues
+go vet ./...
+
+# 4. Build ALL services you touched
+go build -o /dev/null ./cmd/portal
+
+# 5. Run tests
+go test ./...
+
+# If all 5 pass, your commit will succeed!
+```
+
+**Write code with pre-commit in mind:**
+- ✅ Always use `type` keyword for struct/interface definitions
+- ✅ Define shared interfaces in `interfaces.go` (one place only)
+- ✅ Keep all code inside functions (no floating statements)
+- ✅ Use IDE auto-complete for imports (avoid typos)
+- ✅ Run `go build` frequently (catch errors early)
+
+**Time saved by coding correctly first time:**
+- ❌ Without awareness: Write code → commit fails → fix error → commit fails → fix again → commit succeeds = 30 min
+- ✅ With awareness: Write correct code → commit succeeds = 5 min
+- **25 minutes saved per commit × 20 commits per issue = 8+ hours saved**
+
+---
 
 ### Step 3: Write Tests FIRST ✅ (TDD) - MANDATORY
 

@@ -1,3 +1,4 @@
+// DevSmith Review service main entry point.
 package main
 
 import (
@@ -19,16 +20,16 @@ import (
 // Dependency stubs for local dev/demo
 type OllamaClientStub struct{}
 
-func (o *OllamaClientStub) Generate(ctx context.Context, prompt string) (string, error) {
+func (o *OllamaClientStub) Generate(_ context.Context, _ string) (string, error) {
 	return `{"functions":[],"interfaces":[],"data_models":[],"workflows":[],"summary":"Stubbed AI output"}`, nil
 }
 
 type MockAnalysisRepository struct{}
 
-func (m *MockAnalysisRepository) FindByReviewAndMode(ctx context.Context, reviewID int64, mode string) (*models.AnalysisResult, error) {
+func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, _ int64, _ string) (*models.AnalysisResult, error) {
 	return nil, fmt.Errorf("not found")
 }
-func (m *MockAnalysisRepository) Create(ctx context.Context, result *models.AnalysisResult) error {
+func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisResult) error {
 	return nil
 }
 

@@ -1,3 +1,4 @@
+// Package db provides database access for review sessions and repositories.
 package db
 
 import (
@@ -6,6 +7,7 @@ import (
 	"fmt"
 )
 
+// Review represents a code review session in the database.
 type Review struct {
 	ID           int64
 	UserID       int64
@@ -18,10 +20,12 @@ type Review struct {
 	LastAccessed string
 }
 
+// ReviewRepository handles CRUD operations for Review sessions.
 type ReviewRepository struct {
 	DB *sql.DB
 }
 
+// NewReviewRepository creates a new ReviewRepository with the given database connection.
 func NewReviewRepository(db *sql.DB) *ReviewRepository {
 	return &ReviewRepository{DB: db}
 }
@@ -43,6 +47,7 @@ func (r *ReviewRepository) Create(ctx context.Context, review *Review) (*Review,
 	return review, nil
 }
 
+// GetByID retrieves a Review by its ID.
 func (r *ReviewRepository) GetByID(ctx context.Context, id int64) (*Review, error) {
 	row := r.DB.QueryRowContext(ctx, `SELECT id, user_id, title, code_source, github_repo, github_branch, pasted_code, created_at, last_accessed FROM reviews.sessions WHERE id = $1`, id)
 	var review Review
