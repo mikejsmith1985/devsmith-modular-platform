@@ -69,12 +69,16 @@ func main() {
 	ollamaClient := &OllamaClientStub{}
 	analysisRepo := &MockAnalysisRepository{}
 	skimService := services.NewSkimService(ollamaClient, analysisRepo)
+	scanService := services.NewScanService(ollamaClient, analysisRepo)
 	reviewService := services.NewReviewService(skimService, reviewRepo)
 	previewService := services.NewPreviewService()
-	reviewHandler := handlers.NewReviewHandler(reviewService, previewService, skimService)
+	reviewHandler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService)
 
 	// Skim Mode endpoint
 	router.GET("/api/reviews/:id/skim", reviewHandler.GetSkimAnalysis)
+
+	// Scan Mode endpoint
+	router.GET("/api/reviews/:id/scan", reviewHandler.GetScanAnalysis)
 
 	// Create review session endpoint
 	router.POST("/api/review/sessions", reviewHandler.CreateReviewSession)

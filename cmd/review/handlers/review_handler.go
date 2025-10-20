@@ -9,6 +9,22 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
+// GetScanAnalysis handles Scan Mode requests
+func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	query := c.Query("q") // GET /api/reviews/:id/scan?q=authentication
+
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter required"})
+		return
+	}
+
+	review, _ := h.reviewService.GetReview(c.Request.Context(), id)
+	output, _ := h.scanService.AnalyzeScan(c.Request.Context(), review.ID, query, "owner", "repo")
+
+	c.JSON(http.StatusOK, output)
+}
+
 // CreateReviewSession handles POST /api/review/sessions
 func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 	var req struct {
@@ -43,13 +59,15 @@ type ReviewHandler struct {
 	reviewService  *services.ReviewService
 	previewService *services.PreviewService
 	skimService    *services.SkimService
+	scanService    *services.ScanService
 }
 
-func NewReviewHandler(reviewService *services.ReviewService, previewService *services.PreviewService, skimService *services.SkimService) *ReviewHandler {
+func NewReviewHandler(reviewService *services.ReviewService, previewService *services.PreviewService, skimService *services.SkimService, scanService *services.ScanService) *ReviewHandler {
 	return &ReviewHandler{
 		reviewService:  reviewService,
 		previewService: previewService,
 		skimService:    skimService,
+		scanService:    scanService,
 	}
 }
 

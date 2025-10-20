@@ -1,7 +1,22 @@
 package models
 
+// Scan Mode output model
+type ScanModeOutput struct {
+	Matches []CodeMatch `json:"matches"`
+	Summary string      `json:"summary"`
+}
+
+type CodeMatch struct {
+	File        string  `json:"file"`
+	Line        int     `json:"line"`
+	CodeSnippet string  `json:"code_snippet"`
+	Relevance   float64 `json:"relevance"`
+	Context     string  `json:"context"`
+}
+
 // SkimMode is the string identifier for Skim Mode analysis
 const SkimMode = "skim"
+const ScanMode = "scan"
 
 // AnalysisResult represents a cached/captured analysis result
 type AnalysisResult struct {

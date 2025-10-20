@@ -8,17 +8,6 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
-// OllamaClientInterface abstracts the AI client for SkimService
-type OllamaClientInterface interface {
-	Generate(ctx context.Context, prompt string) (string, error)
-}
-
-// AnalysisRepositoryInterface abstracts the analysis result storage
-type AnalysisRepositoryInterface interface {
-	FindByReviewAndMode(ctx context.Context, reviewID int64, mode string) (*models.AnalysisResult, error)
-	Create(ctx context.Context, result *models.AnalysisResult) error
-}
-
 type SkimService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface
