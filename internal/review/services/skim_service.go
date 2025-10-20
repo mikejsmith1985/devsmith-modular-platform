@@ -8,11 +8,13 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
+// SkimService provides Skim Mode analysis for code review sessions.
 type SkimService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface
 }
 
+// NewSkimService creates a new SkimService with the given dependencies.
 func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRepositoryInterface) *SkimService {
 	return &SkimService{
 		ollamaClient: ollamaClient,
@@ -20,6 +22,7 @@ func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 	}
 }
 
+// AnalyzeSkim performs Skim Mode analysis for the given review session and repository.
 func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.SkimModeOutput, error) {
 	// Check cache
 	existing, _ := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, models.SkimMode)

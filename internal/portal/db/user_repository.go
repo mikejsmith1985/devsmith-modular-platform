@@ -1,24 +1,26 @@
+// Package db provides database access and repository implementations for the portal service.
 package db
 
 import (
 	"context"
 	"database/sql"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
+	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
-// UserRepositoryImpl implements interfaces.UserRepository
-// Handles CRUD operations for portal.users
-
+// UserRepositoryImpl implements interfaces.UserRepository and handles CRUD operations for portal.users.
+// It provides methods to create, update, and retrieve users from the database.
 type UserRepositoryImpl struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) interfaces.UserRepository {
+// NewUserRepository creates a new UserRepositoryImpl with the given database connection.
+func NewUserRepository(db *sql.DB) authifaces.UserRepository {
 	return &UserRepositoryImpl{db: db}
 }
 
+// CreateOrUpdate inserts or updates a user in the portal.users table by GitHub ID.
 func (r *UserRepositoryImpl) CreateOrUpdate(ctx context.Context, user *models.User) error {
 	// Upsert user by GitHub ID
 	_, err := r.db.ExecContext(ctx,
@@ -34,6 +36,7 @@ func (r *UserRepositoryImpl) CreateOrUpdate(ctx context.Context, user *models.Us
 	return err
 }
 
+// FindByGitHubID retrieves a user by GitHub ID from the portal.users table.
 func (r *UserRepositoryImpl) FindByGitHubID(ctx context.Context, githubID int64) (*models.User, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, github_id, username, email, avatar_url, github_access_token, created_at, updated_at
@@ -46,6 +49,7 @@ func (r *UserRepositoryImpl) FindByGitHubID(ctx context.Context, githubID int64)
 	return &user, nil
 }
 
+// FindByID retrieves a user by ID from the portal.users table.
 func (r *UserRepositoryImpl) FindByID(ctx context.Context, id int) (*models.User, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, github_id, username, email, avatar_url, github_access_token, created_at, updated_at

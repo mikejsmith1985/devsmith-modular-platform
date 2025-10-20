@@ -32,45 +32,297 @@ You are **GitHub Copilot**, the primary implementation developer. Your job is to
 
 ## Workflow
 
-### Step 1: Read the GitHub Issue 📋
+### Step 1: Switch to Feature Branch FIRST 🌿 (CRITICAL - DO THIS FIRST!)
 
-When assigned an issue:
-- Read the **entire issue description**
-- Note all **acceptance criteria** (these are your checklist)
-- Check **references** to Requirements.md and ARCHITECTURE.md
-- **Ask Claude** if anything is unclear BEFORE coding
+**🚨 CRITICAL: You MUST switch to the feature branch BEFORE doing anything else. The issue file is IN THE REPOSITORY and you can only read it after switching branches.**
 
-### Step 2: Switch to Feature Branch 🌿
-
-**IMPORTANT:** After a PR merge, GitHub Actions automatically creates the next feature branch. Check if it exists before creating a new one.
+**When user says "work on issue #007" (or any issue number), immediately run these commands:**
 
 ```bash
-# 1. Sync with development
-git checkout development
-git pull origin development
+# 1. Fetch all branches from remote
+git fetch origin
 
-# 2. Check if branch already exists (created by auto-sync workflow)
-git branch -r | grep "feature/{issue-number}"
+# 2. List branches to find the one for this issue
+git branch -r | grep "feature/007"
+# Example output: origin/feature/007-copilot-review-detailed-mode
 
-# 3a. If branch EXISTS (common case - auto-created after previous PR merge):
-git checkout feature/{issue-number}-descriptive-name
+# 3. Switch to that branch (remove 'origin/' prefix)
+git checkout feature/007-copilot-review-detailed-mode
 
-# 3b. If branch DOESN'T EXIST (out-of-sequence work, parallel development):
-git checkout -b feature/{issue-number}-descriptive-name
+# 4. Pull latest changes
+git pull origin feature/007-copilot-review-detailed-mode
+
+# 5. VERIFY you're on the correct branch
+git branch --show-current
+# Should show: feature/007-copilot-review-detailed-mode
 ```
 
-**Branch Naming:** `feature/{issue-number}-descriptive-name`
-- Example: `feature/42-github-oauth-login`
+**🚨 NEVER SKIP THIS STEP. If you try to read the issue before switching branches, you won't find it!**
 
-**When Branches Are Auto-Created:**
-- After merging PR #004, workflow creates `feature/005-...`
-- After merging PR #005, workflow creates `feature/006-...`
-- See [ARCHITECTURE.md Section "Branch Auto-Creation"](../ARCHITECTURE.md#2-implementation-copilot-or-openhands) for details
+**Common Scenarios:**
 
-**When to Create Manually:**
-- Out-of-sequence work (e.g., starting #007 before #006)
-- Parallel development
-- First issue in a batch
+**Scenario A: Branch Already Exists (90% of cases)**
+```bash
+# After user says "work on issue #007"
+git fetch origin
+git branch -r | grep "feature/007"
+# Output: origin/feature/007-copilot-review-detailed-mode
+
+git checkout feature/007-copilot-review-detailed-mode
+git pull origin feature/007-copilot-review-detailed-mode
+
+# ✅ SUCCESS - Branch exists and you're on it
+```
+
+**Scenario B: Branch Doesn't Exist (rare)**
+```bash
+# After user says "work on issue #007"
+git fetch origin
+git branch -r | grep "feature/007"
+# Output: (nothing - branch doesn't exist)
+
+# Create branch manually
+git checkout development
+git pull origin development
+git checkout -b feature/007-copilot-review-detailed-mode
+
+# ✅ SUCCESS - Created new branch
+```
+
+**Branch Naming Convention:**
+- Format: `feature/{issue-number}-{descriptive-name}`
+- Issue number: 3 digits, zero-padded (e.g., `007`, `042`, `123`)
+- Example: `feature/007-copilot-review-detailed-mode`
+- Example: `feature/042-github-oauth-login`
+
+**Why Branches Are Usually Pre-Created:**
+- GitHub Actions auto-creates the next branch when a PR is merged
+- After merging PR #006, workflow creates `feature/007-...`
+- See [auto-sync-next-issue.yml](../.github/workflows/auto-sync-next-issue.yml)
+
+---
+
+### Step 2: Read Issue File from Repository 📋
+
+**After switching branches in Step 1, NOW read the issue specification from the repository.**
+
+**The issue file is located at:** `.docs/issues/{issue-number}-*.md`
+
+```bash
+# For issue #007, the file is:
+cat .docs/issues/007-copilot-review-detailed-mode.md
+
+# Or use your IDE to open it:
+code .docs/issues/007-copilot-review-detailed-mode.md
+```
+
+**What to do with the issue file:**
+
+1. **Read the ENTIRE file** - Don't skip sections
+2. **Note all Acceptance Criteria** - These are your checklist for "done"
+3. **Check References** - May reference Requirements.md or ARCHITECTURE.md
+4. **Understand the TDD workflow section** - Follow the RED-GREEN-REFACTOR examples
+5. **Ask questions BEFORE coding** - If anything is unclear, ask Mike or Claude
+
+**Example Issue File Structure:**
+```markdown
+# Issue #007: Review Service - Detailed Mode
+
+## Summary
+[What this feature does]
+
+## Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+...
+
+## Implementation
+[Code examples and file structure]
+
+## TDD Workflow
+[Specific tests to write for this issue]
+
+## Testing Requirements
+[Manual testing checklist]
+```
+
+**🚨 DO NOT ask the user "Please provide issue #007". The issue is IN THE REPO. Read it yourself after switching branches.**
+
+**If you cannot find the issue file:**
+1. Verify you switched branches (Step 1)
+2. Check the exact filename: `ls .docs/issues/007-*.md`
+3. If still not found, tell the user: "Issue file `.docs/issues/007-*.md` not found in repository"
+
+---
+
+### Step 2.5: Verify You're Ready to Start
+
+**Before writing any code, verify:**
+
+```bash
+# ✅ Checklist before coding:
+git branch --show-current  # Should show feature/007-...
+ls .docs/issues/007-*.md   # Should show the issue file
+cat .docs/issues/007-*.md  # Should display issue content
+
+# If all three commands work, you're ready to proceed to Step 2.6 (Pre-Commit Awareness)
+```
+
+---
+
+### Step 2.6: Know the Pre-Commit Checks (Code Smart, Not Hard) 🛡️
+
+**🚨 CRITICAL: Understanding what will be validated at commit time helps you write correct code the first time.**
+
+**Your commits will be automatically validated by `.git/hooks/pre-commit`. Here's what it checks:**
+
+#### Pre-Commit Validation Checklist (6 Steps)
+
+```bash
+# These checks run AUTOMATICALLY when you commit:
+
+# Step 1/6: Code Formatting
+gofmt -l ./...
+# ❌ FAILS if any files unformatted
+# ✅ FIX: Run 'go fmt ./...' before committing
+
+# Step 2/6: Static Analysis
+go vet ./...
+# ❌ FAILS if code has suspicious constructs
+# ✅ FIX: Address all 'go vet' warnings
+
+# Step 3/6: Unused Imports
+goimports -l ./...
+# ❌ FAILS if unused imports exist
+# ✅ FIX: Run 'goimports -w .' before committing
+
+# Step 4/6: Build Validation (CRITICAL - catches 90% of errors)
+go build -o /dev/null ./cmd/portal
+go build -o /dev/null ./cmd/review
+go build -o /dev/null ./cmd/logs
+go build -o /dev/null ./cmd/analytics
+# ❌ FAILS if service doesn't build
+# ✅ FIX: Fix build errors BEFORE committing
+
+# Step 5/6: Misplaced Code Detection
+grep "^\s*fmt\." *.go  # Checks for code outside functions
+# ❌ FAILS if code outside functions (common copy-paste error)
+# ✅ FIX: Move all code inside functions
+
+# Step 6/6: Test Execution
+go test -short ./...
+# ❌ FAILS if any tests fail
+# ✅ FIX: Make tests pass before committing
+```
+
+#### Common Pre-Commit Failures and How to Avoid Them
+
+**1. Missing `type` keyword (90% of recent failures)**
+
+```go
+// ❌ WRONG - Will fail pre-commit (code outside function)
+// AuthService provides authentication...
+	userRepo     UserRepository  // ← Floating field!
+	githubClient GitHubClient
+}
+
+// ✅ CORRECT - Pre-commit passes
+// AuthService provides authentication...
+type AuthService struct {  // ← 'type' keyword present
+	userRepo     UserRepository
+	githubClient GitHubClient
+}
+```
+
+**2. Duplicate type definitions**
+
+```go
+// ❌ WRONG - Will fail build
+// In file1.go:
+type OllamaClient interface { ... }
+
+// In file2.go:
+type OllamaClient interface { ... }  // ← Redeclaration!
+
+// ✅ CORRECT - Define once in interfaces.go
+// interfaces.go:
+type OllamaClient interface { ... }
+
+// file1.go and file2.go import it
+```
+
+**3. Code outside functions**
+
+```go
+// ❌ WRONG - Will fail pre-commit
+package main
+
+fmt.Println("Starting...")  // ← Outside function!
+
+func main() {
+	// ...
+}
+
+// ✅ CORRECT
+package main
+
+func main() {
+	fmt.Println("Starting...")  // ← Inside function
+}
+```
+
+**4. Missing imports**
+
+```go
+// ❌ WRONG - Will fail build
+func (s *Service) DoThing(ctx context.Context) {
+	// Using context.Context but no import!
+}
+
+// ✅ CORRECT
+import "context"
+
+func (s *Service) DoThing(ctx context.Context) {
+	// Import present
+}
+```
+
+#### Pro Tips to Pass Pre-Commit First Time
+
+**BEFORE you commit, run these commands yourself:**
+
+```bash
+# 1. Format code
+go fmt ./...
+
+# 2. Fix imports
+goimports -w .
+
+# 3. Check for issues
+go vet ./...
+
+# 4. Build ALL services you touched
+go build -o /dev/null ./cmd/portal
+
+# 5. Run tests
+go test ./...
+
+# If all 5 pass, your commit will succeed!
+```
+
+**Write code with pre-commit in mind:**
+- ✅ Always use `type` keyword for struct/interface definitions
+- ✅ Define shared interfaces in `interfaces.go` (one place only)
+- ✅ Keep all code inside functions (no floating statements)
+- ✅ Use IDE auto-complete for imports (avoid typos)
+- ✅ Run `go build` frequently (catch errors early)
+
+**Time saved by coding correctly first time:**
+- ❌ Without awareness: Write code → commit fails → fix error → commit fails → fix again → commit succeeds = 30 min
+- ✅ With awareness: Write correct code → commit succeeds = 5 min
+- **25 minutes saved per commit × 20 commits per issue = 8+ hours saved**
+
+---
 
 ### Step 3: Write Tests FIRST ✅ (TDD) - MANDATORY
 
