@@ -1,3 +1,23 @@
+import (
+	"net/http"
+	"strconv"
+	"github.com/gin-gonic/gin"
+)
+// GetScanAnalysis handles Scan Mode requests
+func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	query := c.Query("q") // GET /api/reviews/:id/scan?q=authentication
+
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter required"})
+		return
+	}
+
+	review, _ := h.reviewService.GetReview(c.Request.Context(), id)
+	output, _ := h.scanService.AnalyzeScan(c.Request.Context(), review.ID, query, "owner", "repo")
+
+	c.JSON(http.StatusOK, output)
+}
 package handlers
 
 import (
