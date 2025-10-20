@@ -161,7 +161,11 @@ git log development..HEAD
 
 ## Creating a Pull Request
 
-### Step 1: Push Your Branch
+### Automatic PR Creation (Recommended)
+
+**The Easy Way - Just Push Your Code!**
+
+PRs are **automatically created** when you push to a feature branch:
 
 ```bash
 # First push (sets upstream)
@@ -171,50 +175,42 @@ git push -u origin feature/001-copilot-project-scaffolding
 git push
 ```
 
-### Step 2: Create PR via GitHub Web Interface
+**What Happens Automatically:**
+1. GitHub Actions detects your push to `feature/**` branch
+2. Extracts issue number from branch name (e.g., `001`)
+3. Finds issue file (`.docs/issues/001-*.md`)
+4. Extracts PR title and description from issue
+5. **Creates PR automatically** with:
+   - Base: `development`
+   - Title: From issue spec
+   - Description: From issue spec template
+   - Link: `Closes #001`
 
-1. Go to: https://github.com/your-org/DevSmith-Modular-Platform
-2. Click "Pull requests" tab
-3. Click "New pull request" button
-4. Set:
-   - **Base:** `development` (NOT main!)
-   - **Compare:** `feature/001-copilot-project-scaffolding`
+**Benefits:**
+- ✅ No manual PR creation
+- ✅ PR always matches issue spec
+- ✅ Consistent format
+- ✅ Less room for error
+
+**Note:** If a PR already exists for your branch, the workflow skips creation (prevents duplicates).
+
+---
+
+### Manual PR Creation (If Needed)
+
+If automatic creation fails or you need to create manually:
+
+1. Go to: https://github.com/your-org/DevSmith-Modular-Platform/pulls
+2. Click "New pull request"
+3. Set Base: `development`, Compare: `feature/###-description`
+4. Fill in title and description using template from issue
 5. Click "Create pull request"
-6. Fill in title and description
-7. Click "Create pull request"
 
-**PR Title Format:**
-```
-[Issue #001] Project Scaffolding - Complete Docker Infrastructure
-```
+---
 
-**PR Description Template:**
-```markdown
-## Issue
-Closes #001
+### After PR is Created (Automatic or Manual)
 
-## Summary
-Brief description of what this PR does (2-3 sentences).
-
-## Changes
-- First major change
-- Second major change
-- Third major change
-
-## Testing
-- [ ] Local testing completed
-- [ ] All services start successfully
-- [ ] Health checks pass
-- [ ] Tests pass locally
-
-## Checklist
-- [ ] Follows conventional commit format
-- [ ] Updated relevant documentation
-- [ ] No sensitive data committed
-- [ ] Devlog updated
-```
-
-### Step 3: Wait for CI/CD Checks
+### Step 1: Wait for CI/CD Checks
 
 GitHub Actions will automatically run when you create the PR:
 

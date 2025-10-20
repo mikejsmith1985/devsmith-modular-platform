@@ -1,0 +1,127 @@
+name: Auto-Create PR
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    # Only run if PR doesn't already exist for this branch
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to get commits
+
+      - name: Extract issue number from branch
+        id: issue
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          echo "Branch: $BRANCH_NAME"
+
+          # Extract issue number (e.g., feature/003-copilot-portal-auth -> 003)
+          ISSUE_NUM=$(echo "$BRANCH_NAME" | sed 's/feature\/\([0-9]*\)-.*/\1/')
+          echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "Issue number: $ISSUE_NUM"
+
+      - name: Find issue file
+        id: issue_file
+        run: |
+          ISSUE_NUM="${{ steps.issue.outputs.issue_num }}"
+          ISSUE_FILE=$(ls .docs/issues/${ISSUE_NUM}-*.md 2>/dev/null | head -1)
+
+          if [ -z "$ISSUE_FILE" ]; then
+            echo "Error: Issue file not found for issue #$ISSUE_NUM"
+            exit 1
+          fi
+
+          echo "issue_file=$ISSUE_FILE" >> $GITHUB_OUTPUT
+          echo "Found issue file: $ISSUE_FILE"
+
+      - name: Extract PR title
+        id: pr_title
+        run: |
+          ISSUE_FILE="${{ steps.issue_file.outputs.issue_file }}"
+          # First line of issue file, remove markdown heading
+          PR_TITLE=$(head -n 1 "$ISSUE_FILE" | sed 's/^# //')
+          echo "title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "PR Title: $PR_TITLE"
+
+      - name: Extract PR body from issue
+        id: pr_body
+        run: |
+          ISSUE_FILE="${{ steps.issue_file.outputs.issue_file }}"
+          ISSUE_NUM="${{ steps.issue.outputs.issue_num }}"
+
+          # Look for PR description template in issue file
+          # Extract content between "## Issue" and closing ```
+          PR_BODY=$(awk '/## Issue/,/```$/ {
+            if (/## Issue/) { found=1; print; next }
+            if (found && /^```$/) { exit }
+            if (found) print
+          }' "$ISSUE_FILE")
+
+          # If no template found, create default
+          if [ -z "$PR_BODY" ]; then
+            PR_BODY="## Issue
+          Closes #${ISSUE_NUM}
+
+          ## Summary
+          Implements changes for Issue #${ISSUE_NUM}.
+
+          ## Changes
+          See commits for details.
+
+          ## Testing
+          - [ ] Tests pass locally
+          - [ ] CI checks pass
+
+          ## Architecture Notes
+          See issue #${ISSUE_NUM} for full specification."
+          fi
+
+          # Save to file for multi-line output
+          echo "$PR_BODY" > pr_body.txt
+          echo "PR Body extracted"
+
+      - name: Check if PR already exists
+        id: check_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+
+          # Check if PR exists for this branch
+          PR_EXISTS=$(gh pr list --head "$BRANCH_NAME" --json number --jq length)
+
+          echo "pr_exists=$PR_EXISTS" >> $GITHUB_OUTPUT
+          echo "PRs for branch: $PR_EXISTS"
+
+      - name: Create Pull Request
+        if: steps.check_pr.outputs.pr_exists == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          PR_TITLE="${{ steps.pr_title.outputs.title }}"
+
+          gh pr create \
+            --base development \
+            --head "$BRANCH_NAME" \
+            --title "$PR_TITLE" \
+            --body-file pr_body.txt
+
+          echo "✅ PR created successfully!"
+
+      - name: PR already exists
+        if: steps.check_pr.outputs.pr_exists != '0'
+        run: |
+          echo "ℹ️ PR already exists for this branch. Skipping creation."
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          gh pr view "$BRANCH_NAME" --json url --jq .url
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
