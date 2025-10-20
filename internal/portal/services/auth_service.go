@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 	"github.com/rs/zerolog"
 )
 
 // AuthService provides authentication and session management for the portal service.
+type AuthService struct {
 	userRepo     authifaces.UserRepository
 	githubClient authifaces.GitHubClient
 	jwtSecret    []byte
