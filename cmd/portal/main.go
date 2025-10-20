@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
-	_ "github.com/jackc/pgx/v4/stdlib" // Fix: Import pgx PostgreSQL driver for DB connection
 )
 
 func main() {
