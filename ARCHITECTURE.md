@@ -595,7 +595,10 @@ Backend   Backend   Backend   Backend    Backend
 - **Setup:**
   - OpenHands: `pip install openhands` (autonomous agent framework)
   - Ollama: Local LLM runtime (privacy, no API costs)
-  - Recommended models: `deepseek-coder-v2:16b` or `codellama:34b`
+  - Recommended models:
+    - `deepseek-coder:6.7b` (16GB RAM, default, good balance)
+    - `deepseek-coder-v2:16b` (32GB RAM, best quality)
+    - `deepseek-coder:1.5b` (8GB RAM, low-end systems)
 - **Capabilities:**
   - Fully autonomous feature implementation
   - TDD workflow (write tests → implement → verify)
@@ -1002,7 +1005,7 @@ WS     /ws/review/sessions/:id/collaborate     - Real-time collaboration
 
 type ReviewAIService struct {
     ollamaClient *ollama.Client
-    model        string // "deepseek-coder-v2:16b"
+    model        string // From env: OLLAMA_MODEL (default: "deepseek-coder:6.7b")
 }
 
 func (s *ReviewAIService) AnalyzeInMode(
@@ -1113,9 +1116,9 @@ Format response as JSON array of issues.`, code)
 
 **Dependencies:**
 - PostgreSQL (reviews schema)
-- Ollama with `deepseek-coder-v2:16b` (or Claude API)
+- Ollama with configurable model (default: `deepseek-coder:6.7b`, or Claude API fallback)
 - Logging service (for telemetry and AI performance tracking)
-- Redis (for caching AI responses - expensive to regenerate)
+- Database caching (AI responses expensive to regenerate)
 
 **Integration with Other Services:**
 - **Logging:** All AI calls logged for performance analysis

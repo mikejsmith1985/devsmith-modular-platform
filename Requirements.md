@@ -88,7 +88,7 @@ All code interaction happens through one of five modes:
 
 ### AI Integration
 - **Primary**: Ollama (local, private, no API costs)
-- **Recommended Model**: `deepseek-coder-v2:16b` (optimal for code analysis)
+- **Model Selection**: Configurable based on available RAM (see System Requirements)
 - **Fallback**: Claude API for complex architectural tasks
 - **Configuration**: Environment variables, toggled via UI
 
@@ -96,22 +96,58 @@ All code interaction happens through one of five modes:
 
 ## System Requirements
 
-### Minimum
-- **RAM**: 16GB (for Ollama with 13B-16B models)
+### AI Model Selection
+
+The platform supports multiple DeepSeek-Coder models with different resource requirements:
+
+| Model | RAM Required | Performance | Best For | Download Size |
+|-------|--------------|-------------|----------|---------------|
+| `deepseek-coder:1.5b` | 8GB | Fastest | Low-end systems, quick responses | ~1GB |
+| `deepseek-coder:6.7b` | 16GB | **Recommended** | Most users, good balance | ~4GB |
+| `deepseek-coder-v2:16b` | 32GB | Best quality | Complex analysis, Critical Mode | ~9GB |
+| `qwen2.5-coder:7b` | 16GB | Alternative | Similar to 6.7b | ~4GB |
+
+**Default**: `deepseek-coder:6.7b` (setup script auto-detects RAM and suggests best model)
+
+**Model Capabilities by Reading Mode**:
+- **Preview Mode** (2-3 min): All models adequate (structure analysis)
+- **Skim Mode** (5-7 min): 6.7b+ recommended (pattern recognition)
+- **Scan Mode** (3-5 min): All models adequate (targeted search)
+- **Detailed Mode** (10-15 min): 6.7b+ recommended, 16b better (deep analysis)
+- **Critical Mode** (15-20 min): 16b preferred (quality analysis, but 6.7b adequate)
+
+### Minimum Configuration
+- **RAM**: 16GB (for `deepseek-coder:6.7b` - recommended default)
 - **CPU**: 8 cores (Intel/AMD) or Apple M1+
 - **Storage**: 50GB (models + Docker images)
 - **OS**: Linux, macOS, Windows (via WSL2)
 
-### Recommended
-- **RAM**: 32GB (can run multiple large models)
+**Low-end Systems (8GB RAM)**:
+- Use `deepseek-coder:1.5b` model
+- Expect slower inference and less accurate analysis
+- All reading modes functional but quality reduced
+
+### Recommended Configuration
+- **RAM**: 32GB (for `deepseek-coder-v2:16b` - best quality)
 - **CPU**: 16+ cores or Apple M1 Pro+
 - **GPU**: Optional but beneficial (8GB+ VRAM)
-  - NVIDIA RTX 4070+ ideal for 16B-33B models
+  - NVIDIA RTX 4070+ ideal for 16B+ models
   - Apple Silicon uses unified memory (no separate GPU needed)
 
-### Verified Configuration
+### Verified Configurations
+
+**Budget-Friendly (16GB RAM)**:
+- Model: `deepseek-coder:6.7b`
+- Performance: Good for 90% of use cases
+- Inference: ~2-5 seconds per response
+- Assessment: ✅ Recommended for most users
+
+**High-Performance (32GB RAM)**:
 - **Dell G16 7630**: i9-13900HX (24 cores), 32GB RAM, RTX 4070 8GB
-- **Assessment**: Excellent - can run 70B quantized models
+- Model: `deepseek-coder-v2:16b`
+- Performance: Excellent - can run 70B quantized models
+- Inference: ~5-10 seconds per response
+- Assessment: ✅ Best for complex codebases and Critical Mode
 
 ---
 
@@ -370,9 +406,9 @@ WS     /ws/review/sessions/:id/collaborate     - Real-time collaboration
 
 **AI Integration**:
 - Ollama endpoint: `http://localhost:11434`
-- Model: `deepseek-coder-v2:16b`
+- Model: Configurable (default: `deepseek-coder:6.7b`, see System Requirements)
 - Temperature varies by mode (0.1 for Preview, 0.7 for Critical)
-- Responses cached in Redis (expensive to regenerate)
+- Responses cached in database (expensive to regenerate)
 - Fallback to Claude API if Ollama unavailable
 
 **Integration with Other Services**:
@@ -614,12 +650,13 @@ cd devsmith-modular-platform
 **Setup script handles**:
 1. Docker and Docker Compose check
 2. Ollama installation (if not present)
-3. Model download (`deepseek-coder-v2:16b`)
-4. PostgreSQL initialization (via Docker)
-5. Database migrations
-6. GitHub OAuth app creation wizard
-7. Environment variable configuration
-8. Service health checks
+3. RAM detection and model recommendation
+4. Model download (auto-selects based on available RAM)
+5. PostgreSQL initialization (via Docker)
+6. Database migrations
+7. GitHub OAuth app creation wizard
+8. Environment variable configuration
+9. Service health checks
 9. Launch platform at `http://localhost:3000`
 
 ### Docker Compose Architecture

@@ -143,19 +143,70 @@ echo "🔨 Step 5/8: Building all service binaries..."
 ./scripts/build-services.sh
 echo -e "${GREEN}✓ Services built${NC}\n"
 
-# Step 6: Start Ollama (if not running)
-echo "🤖 Step 6/8: Checking Ollama service..."
+# Step 6: Start Ollama and select model based on RAM
+echo "🤖 Step 6/8: Setting up Ollama and AI model..."
 if ! pgrep -x "ollama" > /dev/null; then
   echo "Starting Ollama..."
   ollama serve > /dev/null 2>&1 &
   sleep 3
 fi
 
-# Pull model if needed
-if ! ollama list | grep -q "deepseek-coder-v2:16b"; then
-  echo "Pulling deepseek-coder-v2:16b model (this may take 10-15 minutes)..."
-  ollama pull deepseek-coder-v2:16b
+# Detect RAM and recommend model
+TOTAL_RAM=$(free -g 2>/dev/null | awk '/^Mem:/{print $2}' || sysctl -n hw.memsize 2>/dev/null | awk '{print int($1/1024/1024/1024)}')
+
+if [ -z "$TOTAL_RAM" ] || [ "$TOTAL_RAM" -lt 8 ]; then
+  echo -e "${RED}⚠️  Unable to detect RAM or less than 8GB${NC}"
+  echo "   Recommend: deepseek-coder:1.5b (minimal)"
+  DEFAULT_MODEL="deepseek-coder:1.5b"
+elif [ "$TOTAL_RAM" -lt 24 ]; then
+  echo "✓ ${TOTAL_RAM}GB RAM detected"
+  echo "   Recommend: deepseek-coder:6.7b (good balance)"
+  DEFAULT_MODEL="deepseek-coder:6.7b"
+else
+  echo "✓ ${TOTAL_RAM}GB RAM detected"
+  echo "   Recommend: deepseek-coder-v2:16b (best quality)"
+  DEFAULT_MODEL="deepseek-coder-v2:16b"
 fi
+
+echo ""
+echo "Available models:"
+echo "  1) deepseek-coder:1.5b (8GB RAM, ~1GB download, fastest)"
+echo "  2) deepseek-coder:6.7b (16GB RAM, ~4GB download, recommended)"
+echo "  3) deepseek-coder-v2:16b (32GB RAM, ~9GB download, best quality)"
+echo "  4) qwen2.5-coder:7b (16GB RAM, ~4GB download, alternative)"
+echo ""
+
+read -p "Select model [2]: " MODEL_CHOICE
+MODEL_CHOICE=${MODEL_CHOICE:-2}
+
+case $MODEL_CHOICE in
+  1) CHOSEN_MODEL="deepseek-coder:1.5b" ;;
+  2) CHOSEN_MODEL="deepseek-coder:6.7b" ;;
+  3) CHOSEN_MODEL="deepseek-coder-v2:16b" ;;
+  4) CHOSEN_MODEL="qwen2.5-coder:7b" ;;
+  *) CHOSEN_MODEL=$DEFAULT_MODEL ;;
+esac
+
+echo "Selected model: $CHOSEN_MODEL"
+
+# Pull model if not already present
+if ! ollama list | grep -q "$CHOSEN_MODEL"; then
+  echo "Pulling $CHOSEN_MODEL (this may take 5-15 minutes depending on model size)..."
+  ollama pull $CHOSEN_MODEL
+else
+  echo "Model $CHOSEN_MODEL already downloaded"
+fi
+
+# Update .env with chosen model
+if [ -f .env ]; then
+  if grep -q "OLLAMA_MODEL=" .env; then
+    sed -i.bak "s|OLLAMA_MODEL=.*|OLLAMA_MODEL=$CHOSEN_MODEL|" .env
+  else
+    echo "OLLAMA_MODEL=$CHOSEN_MODEL" >> .env
+  fi
+  echo "✓ Updated .env with OLLAMA_MODEL=$CHOSEN_MODEL"
+fi
+
 echo -e "${GREEN}✓ Ollama ready${NC}\n"
 
 # Step 7: Start services
@@ -561,7 +612,19 @@ REVIEW_DATABASE_URL=postgresql://review_user:review_pass@localhost:5432/devsmith
 
 # Ollama Configuration
 OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-coder-v2:16b
+
+# AI Model Selection (auto-configured by setup script based on RAM)
+# Options:
+#   deepseek-coder:1.5b    - 8GB RAM min, fastest, basic quality
+#   deepseek-coder:6.7b    - 16GB RAM, recommended, good balance
+#   deepseek-coder-v2:16b  - 32GB RAM, best quality, slower
+#   qwen2.5-coder:7b       - 16GB RAM, alternative
+OLLAMA_MODEL=deepseek-coder:6.7b
+
+# Model settings (optional, defaults shown)
+# OLLAMA_TEMPERATURE=0.7
+# OLLAMA_TOP_P=0.9
+# OLLAMA_CONTEXT_LENGTH=4096
 
 # GitHub API (for fetching repositories)
 GITHUB_TOKEN=your_github_personal_access_token
