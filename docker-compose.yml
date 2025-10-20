@@ -10,6 +10,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - devsmith-network
   nginx:
     image: nginx:latest
     volumes:
@@ -50,6 +52,7 @@ services:
     environment:
       - PORT=8081
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
       - postgres
     networks:

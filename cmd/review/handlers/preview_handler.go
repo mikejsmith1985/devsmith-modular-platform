@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"net/http"
+
 	"github.com/gin-gonic/gin"
-	"DevSmith-Modular-Platform/internal/review/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
 func RegisterPreviewRoutes(router *gin.Engine, previewService *services.PreviewService) {
