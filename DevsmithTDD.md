@@ -35,6 +35,251 @@ This TDD document ensures the DevSmith Modular Platform delivers on its core mis
 
 ---
 
+## TDD Workflow Best Practices (Reduce Iterations)
+
+### Pre-RED Phase Checklist (Before Writing Tests)
+
+**Problem:** Writing tests that fail due to structural issues (missing interfaces, wrong imports) wastes time.
+
+**Solution:** Validate structure BEFORE writing tests.
+
+#### Step 0: Structure Validation (2 minutes, saves 20+ minutes)
+
+```bash
+# 1. Verify package structure exists
+ls -la internal/review/services/
+
+# 2. Check if shared interfaces exist
+grep -l "interface" internal/review/services/*.go
+
+# 3. If interfaces scattered, consolidate FIRST:
+# Create: internal/review/services/interfaces.go
+# Move all shared interfaces there
+# Remove duplicates from service files
+
+# 4. Verify imports compile
+go build ./internal/review/services/...
+# ✅ MUST pass before writing tests
+
+# 5. Run gofmt and goimports
+gofmt -w internal/review/services/
+goimports -w internal/review/services/
+```
+
+**Pre-RED Checklist:**
+- [ ] Package directory exists
+- [ ] Shared interfaces in `interfaces.go` (one location only)
+- [ ] No duplicate type/interface definitions
+- [ ] `go build` succeeds (even with empty functions)
+- [ ] Imports formatted with `goimports`
+- [ ] Package declaration matches directory name
+
+**Why This Matters:**
+- ❌ **Without checklist:** Write test → import error → fix import → redeclaration error → fix duplicate → finally test runs = 30 minutes
+- ✅ **With checklist:** Validate structure → write test → test fails as expected = 5 minutes
+
+---
+
+### RED Phase: Write Failing Tests
+
+**Common Pitfalls (Go-Specific):**
+
+1. **Import Path Errors**
+   ```go
+   // ❌ WRONG: Relative imports
+   import "../models"
+
+   // ✅ CORRECT: Absolute from module root
+   import "devsmith/internal/review/models"
+   ```
+
+2. **Duplicate Interface Definitions**
+   ```go
+   // ❌ WRONG: Interface in skim_service.go AND scan_service.go
+   type OllamaClientInterface interface { ... }
+
+   // ✅ CORRECT: Interface in interfaces.go (one place)
+   // Both services import from interfaces.go
+   ```
+
+3. **Missing Package Declaration**
+   ```go
+   // ❌ WRONG: No package at top
+   import "testing"
+
+   // ✅ CORRECT: Package first
+   package services
+
+   import "testing"
+   ```
+
+4. **Copy-Paste Corruption**
+   ```go
+   // ❌ WRONG: Copied from markdown with invisible characters
+   import​ "context"  // ← invisible Unicode character
+
+   // ✅ CORRECT: Type it fresh or use IDE auto-complete
+   import "context"
+   ```
+
+**RED Phase Workflow:**
+```bash
+# 1. Create test file
+touch internal/review/services/scan_service_test.go
+
+# 2. Write test (use IDE autocomplete for imports)
+# Let IDE suggest imports instead of typing them
+
+# 3. Run test - SHOULD FAIL with "undefined: NewScanService"
+go test ./internal/review/services/... -v -run TestScanService
+# Expected: FAIL - function doesn't exist yet
+
+# 4. Commit RED phase
+git add internal/review/services/scan_service_test.go
+git commit -m "test(review): add failing test for ScanService (RED phase)"
+```
+
+**RED Phase Commit:** Tests exist, they fail, that's expected.
+
+---
+
+### GREEN Phase: Minimal Implementation
+
+**GREEN Phase Workflow:**
+```bash
+# 1. Create implementation file
+touch internal/review/services/scan_service.go
+
+# 2. Add minimal code to pass test
+# - Package declaration
+# - Import interfaces from interfaces.go (NOT redefine)
+# - Struct definition
+# - Constructor
+# - Method stubs (return nil or zero values)
+
+# 3. Build BEFORE running tests
+go build ./internal/review/services/...
+# ✅ MUST pass (catches syntax errors)
+
+# 4. Run tests - SHOULD PASS
+go test ./internal/review/services/... -v
+# Expected: PASS - minimal implementation works
+
+# 5. Commit GREEN phase
+git add internal/review/services/scan_service.go
+git commit -m "feat(review): implement ScanService (GREEN phase)"
+```
+
+**GREEN Phase Commit:** Tests pass, implementation is minimal but correct.
+
+---
+
+### REFACTOR Phase: Improve Quality
+
+**REFACTOR Phase Workflow:**
+```bash
+# 1. Improve code quality (while keeping tests green)
+# - Extract constants
+# - Add error handling
+# - Improve naming
+# - Add documentation comments
+
+# 2. Run tests after EACH change
+go test ./internal/review/services/... -v
+# ✅ MUST stay green
+
+# 3. Format code
+gofmt -w internal/review/services/
+goimports -w internal/review/services/
+
+# 4. Commit REFACTOR phase
+git add internal/review/services/scan_service.go
+git commit -m "refactor(review): improve ScanService error handling and docs"
+```
+
+**REFACTOR Phase Commit:** Tests still pass, code is cleaner.
+
+---
+
+### Anti-Patterns (What NOT to Do)
+
+1. **Don't skip `go build` before tests**
+   ```bash
+   # ❌ WRONG: Jump straight to tests
+   go test ./internal/review/services/...
+   # Gets cryptic errors about missing imports
+
+   # ✅ CORRECT: Build first to catch syntax errors
+   go build ./internal/review/services/...
+   go test ./internal/review/services/...
+   ```
+
+2. **Don't define interfaces in service files**
+   ```go
+   // ❌ WRONG: scan_service.go
+   type OllamaClientInterface interface { ... }
+   type ScanService struct { ... }
+
+   // ✅ CORRECT: interfaces.go
+   type OllamaClientInterface interface { ... }
+
+   // scan_service.go just imports it
+   type ScanService struct {
+       ollamaClient OllamaClientInterface // From interfaces.go
+   }
+   ```
+
+3. **Don't commit without running tests**
+   ```bash
+   # ❌ WRONG: Commit without verification
+   git add . && git commit -m "fix: stuff"
+
+   # ✅ CORRECT: Test before commit
+   go test ./... && git add . && git commit -m "fix: resolve import errors"
+   ```
+
+4. **Don't mix multiple phases in one commit**
+   ```bash
+   # ❌ WRONG: One commit with tests + implementation
+   git commit -m "add ScanService with tests"
+
+   # ✅ CORRECT: Three commits (RED → GREEN → REFACTOR)
+   git commit -m "test(review): add failing test (RED)"
+   git commit -m "feat(review): implement ScanService (GREEN)"
+   git commit -m "refactor(review): improve error handling"
+   ```
+
+---
+
+### Quick Reference: TDD Phases
+
+| Phase | Action | Expected Outcome | Commit Message |
+|-------|--------|------------------|----------------|
+| **PRE-RED** | Validate structure | `go build` passes | N/A (no commit) |
+| **RED** | Write failing test | Test fails (function undefined) | `test: add failing test (RED)` |
+| **GREEN** | Minimal implementation | Test passes | `feat: implement feature (GREEN)` |
+| **REFACTOR** | Improve quality | Tests still pass | `refactor: improve code quality` |
+
+---
+
+### Time Savings
+
+**Without Pre-RED Validation:**
+- Write test (5 min)
+- Import error (5 min to fix)
+- Redeclaration error (10 min to fix)
+- Build error (5 min to fix)
+- Test finally runs (25 min total)
+
+**With Pre-RED Validation:**
+- Validate structure (2 min)
+- Write test (5 min)
+- Test runs immediately (7 min total)
+
+**Time Saved:** 18 minutes per test file × 16 issues = **4.8 hours saved**
+
+---
+
 ## Test Framework & Tools
 
 ### Backend (Go)
