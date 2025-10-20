@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions - DevSmith Modular Platform
 
-**Version:** 1.1
+**Version:** 1.2
 **Last Updated:** 2025-10-20
 
 ---
@@ -40,16 +40,37 @@ When assigned an issue:
 - Check **references** to Requirements.md and ARCHITECTURE.md
 - **Ask Claude** if anything is unclear BEFORE coding
 
-### Step 2: Create Feature Branch 🌿
+### Step 2: Switch to Feature Branch 🌿
+
+**IMPORTANT:** After a PR merge, GitHub Actions automatically creates the next feature branch. Check if it exists before creating a new one.
 
 ```bash
-# Always branch from development
+# 1. Sync with development
 git checkout development
 git pull origin development
 
-# Branch naming: feature/{issue-number}-descriptive-name
-git checkout -b feature/42-github-oauth-login
+# 2. Check if branch already exists (created by auto-sync workflow)
+git branch -r | grep "feature/{issue-number}"
+
+# 3a. If branch EXISTS (common case - auto-created after previous PR merge):
+git checkout feature/{issue-number}-descriptive-name
+
+# 3b. If branch DOESN'T EXIST (out-of-sequence work, parallel development):
+git checkout -b feature/{issue-number}-descriptive-name
 ```
+
+**Branch Naming:** `feature/{issue-number}-descriptive-name`
+- Example: `feature/42-github-oauth-login`
+
+**When Branches Are Auto-Created:**
+- After merging PR #004, workflow creates `feature/005-...`
+- After merging PR #005, workflow creates `feature/006-...`
+- See [ARCHITECTURE.md Section "Branch Auto-Creation"](../ARCHITECTURE.md#2-implementation-copilot-or-openhands) for details
+
+**When to Create Manually:**
+- Out-of-sequence work (e.g., starting #007 before #006)
+- Parallel development
+- First issue in a batch
 
 ### Step 3: Write Tests FIRST ✅ (TDD)
 
@@ -459,6 +480,8 @@ If any checkbox is unchecked, **DO NOT create PR yet.**
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-10-18 | Initial version with workflow updates |
+| 1.1 | 2025-10-20 | Added automated activity logging via git hooks |
+| 1.2 | 2025-10-20 | Updated branch workflow for auto-created branches |
 
 ---
 
