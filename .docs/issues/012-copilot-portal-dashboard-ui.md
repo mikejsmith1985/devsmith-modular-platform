@@ -472,6 +472,235 @@ checkServiceHealth();
 
 ---
 
+## TDD Workflow
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create test files BEFORE implementation:
+
+```go
+// apps/portal/handlers/dashboard_handler_test.go
+package handlers
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDashboardHandler_RendersWithUserInfo(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	// Mock JWT middleware
+	router.Use(func(c *gin.Context) {
+		c.Set("user", jwt.MapClaims{
+			"username":   "testuser",
+			"email":      "test@example.com",
+			"avatar_url": "https://example.com/avatar.jpg",
+		})
+		c.Next()
+	})
+
+	router.GET("/dashboard", DashboardHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "testuser")
+	assert.Contains(t, w.Body.String(), "test@example.com")
+	assert.Contains(t, w.Body.String(), "DevSmith Dashboard")
+}
+
+func TestDashboardHandler_ShowsServiceCards(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	router.Use(func(c *gin.Context) {
+		c.Set("user", jwt.MapClaims{"username": "testuser"})
+		c.Next()
+	})
+
+	router.GET("/dashboard", DashboardHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Should show all 3 service cards
+	assert.Contains(t, w.Body.String(), "Review")
+	assert.Contains(t, w.Body.String(), "Logs")
+	assert.Contains(t, w.Body.String(), "Analytics")
+	assert.Contains(t, w.Body.String(), "service-card")
+}
+
+func TestDashboardHandler_RequiresAuthentication(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	// No JWT middleware - unauthenticated
+	router.GET("/dashboard", DashboardHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Should redirect to login
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Contains(t, w.Header().Get("Location"), "/login")
+}
+
+func TestGetUserInfoHandler_ReturnsUserData(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	router.Use(func(c *gin.Context) {
+		c.Set("user", jwt.MapClaims{
+			"username":   "testuser",
+			"email":      "test@example.com",
+			"avatar_url": "https://example.com/avatar.jpg",
+			"github_id":  float64(12345),
+		})
+		c.Next()
+	})
+
+	router.GET("/api/v1/dashboard/user", GetUserInfoHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard/user", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "testuser")
+	assert.Contains(t, w.Body.String(), "test@example.com")
+}
+
+// apps/portal/templates/dashboard_test.go (Templ testing)
+package templates
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDashboardTemplate_RendersUserInfo(t *testing.T) {
+	user := UserInfo{
+		Username:  "testuser",
+		Email:     "test@example.com",
+		AvatarURL: "https://example.com/avatar.jpg",
+	}
+
+	// Render template
+	var buf strings.Builder
+	err := Dashboard(user).Render(context.Background(), &buf)
+
+	assert.NoError(t, err)
+	html := buf.String()
+	assert.Contains(t, html, "testuser")
+	assert.Contains(t, html, "test@example.com")
+	assert.Contains(t, html, "avatar.jpg")
+}
+
+func TestDashboardTemplate_ShowsAllServices(t *testing.T) {
+	user := UserInfo{Username: "testuser"}
+
+	var buf strings.Builder
+	err := Dashboard(user).Render(context.Background(), &buf)
+
+	assert.NoError(t, err)
+	html := buf.String()
+
+	// Should contain all service names
+	assert.Contains(t, html, "Review")
+	assert.Contains(t, html, "Logs")
+	assert.Contains(t, html, "Analytics")
+}
+```
+
+**Run tests (should FAIL):**
+```bash
+go test ./apps/portal/handlers/...
+# Expected: FAIL - DashboardHandler undefined
+
+go test ./apps/portal/templates/...
+# Expected: FAIL - Dashboard template undefined
+```
+
+**Commit failing tests:**
+```bash
+git add apps/portal/handlers/dashboard_handler_test.go
+git add apps/portal/templates/dashboard_test.go
+git commit -m "test(portal): add failing tests for dashboard UI (RED phase)"
+```
+
+**Step 2: GREEN PHASE - Implement to Pass Tests**
+
+Now implement the templates and handlers. See Implementation section above.
+
+**After implementation, run tests:**
+```bash
+go test ./apps/portal/...
+# Expected: PASS
+```
+
+**Step 3: Verify Build**
+```bash
+templ generate apps/portal/templates/*.templ
+go build -o /dev/null ./cmd/portal
+```
+
+**Step 4: Manual Testing**
+
+Follow the manual testing checklist below.
+
+**Step 5: Commit Implementation**
+```bash
+git add apps/portal/
+git commit -m "feat(portal): implement dashboard UI with service cards and user info (GREEN phase)"
+```
+
+**Step 6: REFACTOR PHASE (Optional)**
+
+If needed, refactor for:
+- Service health check indicators (real-time status)
+- Improved card layout and styling
+- Better responsive design
+- Accessibility improvements (ARIA labels, keyboard navigation)
+
+**Commit refactors:**
+```bash
+git add apps/portal/
+git commit -m "refactor(portal): improve dashboard UX and accessibility"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36, 38-86 (RED-GREEN-REFACTOR)
+
+**Key TDD Principles for UI:**
+1. **Test HTML structure** (dashboard container, service cards, user info)
+2. **Test authentication requirement** (unauthenticated redirects to login)
+3. **Test user data rendering** (username, email, avatar display correctly)
+4. **Test service cards** (all 3 services shown with correct links)
+5. **Test API endpoints** (user info endpoint returns correct JSON)
+
+**Coverage Target:** 70%+ for Go handlers, 60%+ for Templ templates
+
+**Special Testing Considerations:**
+- Mock JWT middleware in tests (inject user claims)
+- Test Templ components by rendering to string buffer
+- Test protected routes with/without authentication
+- Verify service URLs come from environment config
+
+---
+
 ## Testing Requirements
 
 ### Unit Tests

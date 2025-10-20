@@ -829,6 +829,269 @@ document.getElementById('copy-btn')?.addEventListener('click', async () => {
 
 ---
 
+## TDD Workflow
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create test files BEFORE implementation:
+
+```go
+// apps/review/handlers/ui_handler_test.go
+package handlers
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestReviewPageHandler_RendersForm(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/", ReviewPageHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "DevSmith Code Review")
+	assert.Contains(t, w.Body.String(), "repository-url")
+	assert.Contains(t, w.Body.String(), "reading-mode")
+	assert.Contains(t, w.Body.String(), "analyze-btn")
+}
+
+func TestReviewPageHandler_ShowsAllFiveReadingModes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/", ReviewPageHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Should show all 5 reading modes
+	assert.Contains(t, w.Body.String(), "preview")
+	assert.Contains(t, w.Body.String(), "skim")
+	assert.Contains(t, w.Body.String(), "scan")
+	assert.Contains(t, w.Body.String(), "detailed")
+	assert.Contains(t, w.Body.String(), "critical")
+}
+
+func TestAnalysisResultsHandler_DisplaysMarkdownOutput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/analysis/:id", AnalysisResultsHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/analysis/123", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "analysis-output")
+	assert.Contains(t, w.Body.String(), "markdown-content")
+}
+
+func TestStartAnalysisHandler_ValidatesInput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/api/v1/review/start", StartAnalysisHandler)
+
+	// Test with missing repository URL
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/review/start", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestStartAnalysisHandler_CreatesAnalysis(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	// Mock service layer
+	mockService := &MockReviewService{
+		CreateAnalysisFn: func(ctx context.Context, req AnalysisRequest) (*Analysis, error) {
+			return &Analysis{
+				ID:          "test-123",
+				RepoURL:     req.RepoURL,
+				ReadingMode: req.ReadingMode,
+				Status:      "pending",
+			}, nil
+		},
+	}
+
+	handler := NewReviewHandler(mockService)
+	router.POST("/api/v1/review/start", handler.StartAnalysis)
+
+	body := `{"repository_url": "https://github.com/user/repo", "reading_mode": "skim"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/review/start", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "test-123")
+}
+
+// apps/review/templates/review_page_test.go (Templ testing)
+package templates
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestReviewPageTemplate_RendersFormElements(t *testing.T) {
+	var buf strings.Builder
+	err := ReviewPage().Render(context.Background(), &buf)
+
+	assert.NoError(t, err)
+	html := buf.String()
+	assert.Contains(t, html, "repository-url")
+	assert.Contains(t, html, "reading-mode")
+	assert.Contains(t, html, "analyze-btn")
+	assert.Contains(t, html, "form")
+}
+
+func TestReadingModeSelector_ShowsAllModes(t *testing.T) {
+	var buf strings.Builder
+	err := ReadingModeSelector().Render(context.Background(), &buf)
+
+	assert.NoError(t, err)
+	html := buf.String()
+
+	modes := []string{"preview", "skim", "scan", "detailed", "critical"}
+	for _, mode := range modes {
+		assert.Contains(t, html, mode)
+	}
+}
+
+func TestReadingModeSelector_ShowsDescriptions(t *testing.T) {
+	var buf strings.Builder
+	err := ReadingModeSelector().Render(context.Background(), &buf)
+
+	assert.NoError(t, err)
+	html := buf.String()
+
+	// Each mode should have a description
+	assert.Contains(t, html, "Quick overview")       // Preview
+	assert.Contains(t, html, "Fast scan")            // Skim
+	assert.Contains(t, html, "Pattern detection")    // Scan
+	assert.Contains(t, html, "Comprehensive")        // Detailed
+	assert.Contains(t, html, "Production-ready")     // Critical
+}
+
+func TestAnalysisResultsTemplate_RendersMarkdown(t *testing.T) {
+	analysis := &Analysis{
+		ID:          "123",
+		RepoURL:     "https://github.com/user/repo",
+		ReadingMode: "skim",
+		Output:      "# Analysis Results\n\n## Overview\n\nThis is markdown.",
+		Status:      "completed",
+	}
+
+	var buf strings.Builder
+	err := AnalysisResults(analysis).Render(context.Background(), &buf)
+
+	assert.NoError(t, err)
+	html := buf.String()
+	assert.Contains(t, html, "Analysis Results")
+	assert.Contains(t, html, "markdown-content")
+	assert.Contains(t, html, analysis.ID)
+}
+```
+
+**Run tests (should FAIL):**
+```bash
+go test ./apps/review/handlers/...
+# Expected: FAIL - ReviewPageHandler undefined
+
+go test ./apps/review/templates/...
+# Expected: FAIL - ReviewPage template undefined
+```
+
+**Commit failing tests:**
+```bash
+git add apps/review/handlers/ui_handler_test.go
+git add apps/review/templates/review_page_test.go
+git commit -m "test(review): add failing tests for Review UI integration (RED phase)"
+```
+
+**Step 2: GREEN PHASE - Implement to Pass Tests**
+
+Now implement the templates, handlers, and JavaScript. See Implementation section above.
+
+**After implementation, run tests:**
+```bash
+go test ./apps/review/...
+# Expected: PASS
+```
+
+**Step 3: Verify Build**
+```bash
+templ generate apps/review/templates/*.templ
+go build -o /dev/null ./cmd/review
+```
+
+**Step 4: Manual Testing**
+
+Follow the manual testing checklist below.
+
+**Step 5: Commit Implementation**
+```bash
+git add apps/review/
+git commit -m "feat(review): implement Review UI with 5 reading modes and analysis display (GREEN phase)"
+```
+
+**Step 6: REFACTOR PHASE (Optional)**
+
+If needed, refactor for:
+- Better form validation (client-side and server-side)
+- Improved markdown rendering (syntax highlighting, code blocks)
+- Real-time analysis progress updates (WebSocket or polling)
+- Better error handling and user feedback
+- Accessibility improvements (ARIA labels, keyboard navigation)
+
+**Commit refactors:**
+```bash
+git add apps/review/
+git commit -m "refactor(review): improve form validation and markdown rendering"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36, 38-86 (RED-GREEN-REFACTOR)
+
+**Key TDD Principles for Review UI:**
+1. **Test form rendering** (all input fields present)
+2. **Test reading mode selector** (all 5 modes shown with descriptions)
+3. **Test form submission** (validation, API call, response handling)
+4. **Test analysis display** (markdown rendered, metadata shown)
+5. **Test error states** (invalid input, failed analysis)
+6. **Test navigation** (start analysis → results page → back to form)
+
+**Coverage Target:** 70%+ for Go handlers, 60%+ for Templ templates, 60%+ for JavaScript
+
+**Special Testing Considerations:**
+- Mock Review service layer in handler tests
+- Test Templ components by rendering to string buffer
+- Test markdown rendering with various markdown content
+- Test form validation with edge cases (empty URL, invalid mode)
+- Test HTMX behavior (form submission, dynamic content loading)
+
+**Integration with Backend:**
+- Review UI calls existing API endpoints from Issues #004-#008
+- Each reading mode uses different prompt strategy
+- Analysis results are stored in `review.analyses` table
+- Markdown output is rendered using Go markdown library
+
+---
+
 ## Testing Requirements
 
 ### Unit Tests
