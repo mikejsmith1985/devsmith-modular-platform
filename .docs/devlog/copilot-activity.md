@@ -1163,3 +1163,86 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
+
+## 2025-10-20 08:45 - update copilot activity log from pre-commit hook
+**Branch:** feature/005-review-skim-mode
+**Files Changed:**  1 file changed, 287 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** update copilot activity log from pre-commit hook
+
+**Commit:** `b60a0c5`
+
+**Commit Message:**
+```
+docs(activity): update copilot activity log from pre-commit hook
+```
+
+---
+
+
+## 2025-10-20 08:48 - add comprehensive TDD workflow to issues #012-#013
+**Branch:** feature/005-review-skim-mode
+**Files Changed:**  2 files changed, 492 insertions(+)
+- `.docs/issues/012-copilot-portal-dashboard-ui.md`
+- `.docs/issues/013-copilot-review-ui-integration.md`
+
+**Action:** add comprehensive TDD workflow to issues #012-#013
+
+**Commit:** `3a42723`
+
+**Commit Message:**
+```
+docs(tdd): add comprehensive TDD workflow to issues #012-#013
+```
+
+**Details:**
+```
+Added detailed TDD workflow sections to Portal and Review UI issues,
+completing TDD documentation for all 16 Copilot issues.
+
+Changes:
+
+1. Issue #012 (Portal Dashboard UI)
+   - Go handler tests for dashboard rendering
+   - Templ template tests for user info and service cards
+   - Authentication requirement tests
+   - API endpoint tests (user info)
+   - Coverage targets: 70%+ Go, 60%+ Templ
+
+2. Issue #013 (Review UI Integration)
+   - Go handler tests for review form and analysis display
+   - Templ template tests for reading mode selector
+   - Form validation tests (client and server)
+   - Analysis results rendering tests
+   - Mock service layer for handler tests
+   - Coverage targets: 70%+ Go, 60%+ Templ, 60%+ JavaScript
+
+All TDD sections follow standardized RED-GREEN-REFACTOR cycle:
+- Step 1: Write failing tests FIRST (RED phase)
+- Step 2: Implement to pass tests (GREEN phase)
+- Step 3: Verify build
+- Step 4: Manual testing
+- Step 5: Commit implementation
+- Step 6: Refactor (optional)
+
+Key additions:
+- Templ component testing patterns (render to string buffer)
+- JWT middleware mocking for authentication tests
+- Mock service layer for handler tests
+- Form validation edge cases
+- Reading mode selector tests (all 5 modes)
+- Markdown rendering tests
+- HTMX behavior considerations
+
+This completes TDD documentation for ALL 16 Copilot issues (#001-#016).
+All issues now have consistent, comprehensive TDD guidance aligned with
+DevsmithTDD.md principles and platform standards.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+---
+
