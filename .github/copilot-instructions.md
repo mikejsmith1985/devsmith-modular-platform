@@ -1,7 +1,20 @@
 # GitHub Copilot Instructions - DevSmith Modular Platform
 
-**Version:** 1.0
-**Last Updated:** 2025-10-18
+**Version:** 1.1
+**Last Updated:** 2025-10-20
+
+---
+
+## 🤖 Activity Logging (Automated)
+
+**All your commits are automatically logged!**
+
+Every commit you make is automatically captured in `.docs/devlog/copilot-activity.md` via git hooks. Just write good commit messages with:
+- Clear description of changes
+- Testing details (coverage, results)
+- Acceptance criteria checklist
+
+**No need to manually update AI_CHANGELOG.md anymore - it's automatic!**
 
 ---
 
@@ -116,33 +129,13 @@ See **[ARCHITECTURE.md Section 13 - Manual Testing Checklist](../ARCHITECTURE.md
 - [ ] Authentication persists across apps
 - [ ] No hardcoded URLs
 
-### Step 7: Update Changelog 📝
+### Step 7: Commit & Create PR 🚀
 
-Edit `AI_CHANGELOG.md`:
-```markdown
-## 2025-10-18 - GitHub OAuth Login
-
-**Changed by:** GitHub Copilot
-**Issue:** #42
-**Files modified:**
-- apps/portal-backend/routes/auth.py - OAuth endpoints
-- apps/portal-frontend/src/components/Login.jsx - Login UI
-
-**Changes:**
-- Implemented GitHub OAuth flow
-- JWT token stored with github_access_token field
-- Login redirects to dashboard
-
-**Testing:**
-- Unit tests: 85% coverage
-- Integration test: login → dashboard flow passing
-- Manual: Tested OAuth flow end-to-end
-```
-
-### Step 8: Commit & Create PR 🚀
+**Note:** Activity logging is automated via git hooks. Your commit message will automatically be logged to `.docs/devlog/copilot-activity.md` - no manual changelog updates needed!
 
 ```bash
 # Commit with Conventional Commits format
+# Include testing details and acceptance criteria in commit body
 git add .
 git commit -m "feat(auth): implement GitHub OAuth login
 
@@ -150,6 +143,17 @@ git commit -m "feat(auth): implement GitHub OAuth login
 - Create login component with OAuth button
 - Store JWT in localStorage with correct key
 - Redirect to dashboard after successful login
+
+Testing:
+- Unit tests: 85% coverage
+- Integration test: login → dashboard flow passing
+- Manual: Tested OAuth flow end-to-end
+
+Acceptance Criteria:
+- [x] User can login with GitHub OAuth
+- [x] JWT stored in localStorage with key 'devsmith_token'
+- [x] Token includes github_access_token field
+- [x] Login redirects to portal dashboard
 
 Closes #42"
 
@@ -317,9 +321,10 @@ and all failed. Can you help diagnose the root cause?
    - Must verify in actual browser
    - Must check through gateway
 
-5. **Create PR without updating AI_CHANGELOG.md**
-   - Changelog updates are required
-   - Claude will reject PR without it
+5. **Skip testing details in commit message**
+   - Include test coverage and results in commit body
+   - Activity logging system extracts this automatically
+   - No need for separate AI_CHANGELOG.md (automated)
 
 6. **Implement multiple features in one PR**
    - One issue = one PR
@@ -438,8 +443,8 @@ Before creating PR, verify ALL of these:
 - [ ] Loading states present
 - [ ] Follows file organization (ARCHITECTURE.md Section 13)
 - [ ] Follows naming conventions (ARCHITECTURE.md Section 13)
-- [ ] AI_CHANGELOG.md updated
-- [ ] Commit message follows Conventional Commits
+- [ ] Commit message includes testing details and acceptance criteria
+- [ ] Commit message follows Conventional Commits (activity logged automatically)
 - [ ] PR description includes "Closes #XX"
 - [ ] PR description lists all acceptance criteria with checkboxes
 - [ ] Every acceptance criterion is met (100%)
