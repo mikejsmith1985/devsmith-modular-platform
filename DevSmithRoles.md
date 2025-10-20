@@ -222,16 +222,13 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
    - **Duration**: 30 minutes - 2 hours (runs unattended).
    - **Crash-proof**: OpenHands checkpoint/resume if interrupted.
 
-4. **PR Creation** (Automatic via GitHub Actions):
-   - **When**: Automatically triggered when code is pushed to a `feature/**` branch
-   - **How**: `.github/workflows/auto-create-pr.yml` workflow runs automatically
-   - **What it does**:
-     - Detects the feature branch (e.g., `feature/003-copilot-portal-auth`)
-     - Extracts issue number from branch name (e.g., `003`)
-     - Finds corresponding issue file (`.docs/issues/003-*.md`)
-     - Extracts PR title from issue file (first line)
-     - Extracts PR description from issue template
-     - Creates PR automatically with:
+4. **PR Creation** (Manual):
+   - **When**: After code is pushed and developer is ready to create PR
+   - **How**: Developer runs `gh pr create` manually
+   - **What to include**:
+     - Detects current branch automatically
+     - PR title: "Issue #XXX: Title from issue"
+     - PR description should include:
        - Base: `development`
        - Title: From issue spec
        - Body: From issue spec (includes "Closes #N", summary, testing checklist)
