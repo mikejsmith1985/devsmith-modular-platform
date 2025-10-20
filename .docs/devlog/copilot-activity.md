@@ -123,6 +123,70 @@ actions automatically via git hooks.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
+## 2025-10-20 04:53 - Revert "feat(review): implement Preview Mode for Review service"
+**Branch:** development
+**Files Changed:**  14 files changed, 3 insertions(+), 777 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `.docs/issues/TEMPLATE-COPILOT.md`
+- `apps/review/handlers/preview_mode_test.go`
+- `apps/review/handlers/preview_ui_handler.go`
+- `apps/review/templates/layout.templ`
+- `apps/review/templates/preview.templ`
+- `cmd/portal/main.go`
+- `cmd/review/handlers/preview_handler.go`
+- `docker-compose.yml`
+- `go1.23.0.linux-amd64.tar.gz`
+- `go1.23.0.linux-amd64.tar.gz.1`
+- `go1.23.0.linux-amd64.tar.gz.2`
+- `internal/review/services/preview_service.go`
+- `internal/review/services/preview_service_test.go`
+
+**Action:** Revert "feat(review): implement Preview Mode for Review service"
+
+**Commit:** `2013be4`
+
+**Commit Message:**
+```
+Revert "feat(review): implement Preview Mode for Review service"
+```
+
+**Details:**
+```
+This reverts commit b0ddd93e466bcaf39aabd1cef6a5c5eef9fc0c00.
+```
+
+---
+
+
+## 2025-10-20 04:54 - chore: update copilot-activity.md from revert
+**Branch:** development
+**Files Changed:**  1 file changed, 35 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** chore: update copilot-activity.md from revert
+
+**Commit:** `0ab1a26`
+
+**Commit Message:**
+```
+chore: update copilot-activity.md from revert
+```
+
+---
+
+
+## 2025-10-20 04:54 - chore: merge copilot-activity updates
+**Branch:** development
+**Files Changed:**  1 file changed, 17 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** chore: merge copilot-activity updates
+
+**Commit:** `ce1f57e`
+
+**Commit Message:**
+```
+chore: merge copilot-activity updates
 ```
 
 ---
