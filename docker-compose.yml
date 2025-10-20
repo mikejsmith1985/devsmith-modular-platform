@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   postgres:
     image: postgres:15
@@ -15,14 +16,12 @@ services:
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
     ports:
-      - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
+      - "3000:3000"
     depends_on:
       - portal
       - review
       - logs
       - analytics
-    networks:
-      - devsmith-network
   portal:
     build:
       context: .
@@ -95,7 +94,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
 
 networks:
   devsmith-network:
