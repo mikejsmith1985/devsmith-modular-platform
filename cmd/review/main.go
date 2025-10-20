@@ -66,16 +66,13 @@ func main() {
 
 	reviewRepo := db.NewReviewRepository(sqlDB)
 
-
 	ollamaClient := &OllamaClientStub{}
 	analysisRepo := &MockAnalysisRepository{}
 	skimService := services.NewSkimService(ollamaClient, analysisRepo)
 	scanService := services.NewScanService(ollamaClient, analysisRepo)
 	reviewService := services.NewReviewService(skimService, reviewRepo)
 	previewService := services.NewPreviewService()
-	reviewHandler := handlers.NewReviewHandler(reviewService, previewService, skimService)
-	reviewHandler.scanService = scanService // Inject scanService if needed
-
+	reviewHandler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService)
 
 	// Skim Mode endpoint
 	router.GET("/api/reviews/:id/skim", reviewHandler.GetSkimAnalysis)

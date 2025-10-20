@@ -46,7 +46,8 @@ func TestSkimMode_Integration(t *testing.T) {
 	skimService := services.NewSkimService(ollamaClient, analysisRepo)
 	reviewService := services.NewReviewService(skimService, reviewRepo)
 	previewService := services.NewPreviewService()
-	handler := handlers.NewReviewHandler(reviewService, previewService, skimService)
+	scanService := services.NewScanService(ollamaClient, analysisRepo)
+	handler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService)
 
 	r := gin.Default()
 	r.GET("/api/reviews/:id/skim", handler.GetSkimAnalysis)
