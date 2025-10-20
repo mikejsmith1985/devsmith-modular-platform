@@ -191,3 +191,61 @@ chore: merge copilot-activity updates
 
 ---
 
+
+## 2025-10-20 04:54 - chore: final copilot-activity.md update
+**Branch:** development
+**Files Changed:**  1 file changed, 17 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** chore: final copilot-activity.md update
+
+**Commit:** `3c8b1f0`
+
+**Commit Message:**
+```
+chore: final copilot-activity.md update
+```
+
+---
+
+
+## 2025-10-20 05:00 - add pull-requests write permission to auto-create-pr workflow
+**Branch:** development
+**Files Changed:**  1 file changed, 3 insertions(+)
+- `.github/workflows/auto-create-pr.yml`
+
+**Action:** add pull-requests write permission to auto-create-pr workflow
+
+**Commit:** `affcee6`
+
+**Commit Message:**
+```
+fix(ci): add pull-requests write permission to auto-create-pr workflow
+```
+
+**Details:**
+```
+The auto-create-pr workflow was failing with:
+'Resource not accessible by integration (createPullRequest)'
+
+This is because GITHUB_TOKEN needs explicit pull-requests:write permission.
+
+Added permissions block to the job:
+  permissions:
+    contents: read
+    pull-requests: write
+
+This allows the workflow to create PRs automatically when pushing to
+feature branches.
+
+Fixes workflow runs:
+- 18647126553 (failed)
+- 18638500045 (failed)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+---
+
