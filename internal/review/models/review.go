@@ -71,3 +71,25 @@ type WorkflowInfo struct {
 	Name  string   `json:"name"`
 	Steps []string `json:"steps"`
 }
+
+// CriticalModeOutput contains results for Critical Mode analysis.
+type CriticalModeOutput struct {
+	Issues       []CodeIssue `json:"issues"`
+	Summary      string      `json:"summary"`
+	OverallGrade string      `json:"overall_grade"`
+}
+
+// CodeIssue represents an issue found during Critical Mode analysis.
+type CodeIssue struct {
+	Severity      string `json:"severity"` // critical, high, medium, low
+	Category      string `json:"category"` // security, bug, performance, maintainability
+	File          string `json:"file"`
+	Line          int    `json:"line"`
+	CodeSnippet   string `json:"code_snippet"`
+	Description   string `json:"description"`
+	Impact        string `json:"impact"`
+	FixSuggestion string `json:"fix_suggestion"`
+}
+
+// CriticalMode is the string identifier for Critical Mode analysis.
+const CriticalMode = "critical"
