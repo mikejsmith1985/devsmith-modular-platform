@@ -113,6 +113,65 @@ As a developer monitoring my platform, I want to see trends and anomalies in my 
 
 ---
 
+## ⚠️ CRITICAL: Test-Driven Development (TDD) Required
+
+**YOU MUST WRITE TESTS FIRST, THEN IMPLEMENTATION.**
+
+### TDD Workflow - Analytics Service
+
+```go
+// internal/analytics/services/frequency_analyzer_test.go
+func TestFrequencyAnalyzer_AnalyzeErrors_ReturnsTopErrors(t *testing.T) {
+	mockRepo := new(MockLogReader)
+	analyzer := NewFrequencyAnalyzer(mockRepo)
+
+	result, err := analyzer.AnalyzeErrors(ctx, TimeWindow{Days: 7})
+
+	assert.NoError(t, err)
+	assert.Len(t, result.TopErrors, 10)
+	assert.Greater(t, result.TopErrors[0].Count, result.TopErrors[1].Count)
+}
+
+// internal/analytics/services/trend_detector_test.go
+func TestTrendDetector_DetectTrends_IdentifiesIncreasingPattern(t *testing.T) {
+	mockRepo := new(MockAggregationRepo)
+	detector := NewTrendDetector(mockRepo)
+
+	trend, _ := detector.DetectTrends(ctx, "error_rate", TimeWindow{Days: 30})
+
+	assert.Equal(t, "increasing", trend.Direction)
+	assert.Greater(t, trend.Confidence, 0.8)
+}
+
+// internal/analytics/services/anomaly_detector_test.go
+func TestAnomalyDetector_DetectAnomalies_FlagsSpikes(t *testing.T) {
+	mockRepo := new(MockAggregationRepo)
+	detector := NewAnomalyDetector(mockRepo)
+
+	anomalies, _ := detector.DetectAnomalies(ctx, TimeWindow{Hours: 24})
+
+	assert.NotEmpty(t, anomalies)
+	assert.Equal(t, "spike", anomalies[0].Type)
+	assert.Greater(t, anomalies[0].Severity, 2.0) // 2 std devs
+}
+```
+
+**Commit tests (RED):**
+```bash
+git add internal/analytics/services/*_test.go
+git commit -m "test(analytics): add frequency/trend/anomaly detector tests (RED phase)"
+```
+
+**Implement and commit (GREEN):**
+```bash
+git add internal/analytics/services/*.go
+git commit -m "feat(analytics): implement analysis services (GREEN phase)"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36
+
+---
+
 ## Context for Cognitive Load Management
 
 ### Bounded Context

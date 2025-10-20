@@ -34,7 +34,109 @@ Build Logs Service foundation - ingestion API, storage, basic retrieval. Real-ti
 
 ---
 
+## ⚠️ CRITICAL: Test-Driven Development (TDD) Required
+
+**YOU MUST WRITE TESTS FIRST, THEN IMPLEMENTATION.**
+
+Follow the Red-Green-Refactor cycle from DevsmithTDD.md.
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create test files BEFORE implementation:
+
+```go
+// internal/logs/db/log_repository_test.go
+package db
+
+import (
+	"context"
+	"testing"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestLogRepository_Create_Success(t *testing.T) {
+	// Test creating log entry
+	repo := NewLogRepository(testDB)
+	entry := &models.LogEntry{
+		UserID:  1,
+		Service: "portal",
+		Level:   "info",
+		Message: "Test log",
+		Tags:    []string{"test"},
+	}
+
+	err := repo.Create(context.Background(), entry)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, entry.ID)
+}
+
+func TestLogRepository_Find_WithFilters(t *testing.T) {
+	// Test retrieving with filters
+	repo := NewLogRepository(testDB)
+
+	entries, err := repo.Find(context.Background(), LogFilters{
+		Service: "portal",
+		Level:   "error",
+	})
+
+	assert.NoError(t, err)
+	// All entries should match filters
+	for _, entry := range entries {
+		assert.Equal(t, "portal", entry.Service)
+		assert.Equal(t, "error", entry.Level)
+	}
+}
+
+func TestLogRepository_Find_Pagination(t *testing.T) {
+	// Test pagination works correctly
+	repo := NewLogRepository(testDB)
+
+	page1, _ := repo.Find(ctx, LogFilters{Limit: 10, Offset: 0})
+	page2, _ := repo.Find(ctx, LogFilters{Limit: 10, Offset: 10})
+
+	assert.Len(t, page1, 10)
+	assert.Len(t, page2, 10)
+	assert.NotEqual(t, page1[0].ID, page2[0].ID)
+}
+```
+
+**Run tests (should FAIL):**
+```bash
+go test ./internal/logs/...
+# Expected: FAIL - NewLogRepository undefined
+```
+
+**Commit failing tests:**
+```bash
+git add internal/logs/db/log_repository_test.go
+git commit -m "test(logs): add failing tests for log repository (RED phase)"
+```
+
+**Step 2: GREEN PHASE - Implement to Pass Tests**
+
+Now implement `log_repository.go`. See Implementation section below.
+
+**Step 3: Verify Build**
+```bash
+go build -o /dev/null ./cmd/logs
+```
+
+**Step 4: Commit Implementation**
+```bash
+git add internal/logs/db/log_repository.go
+git commit -m "feat(logs): implement log repository (GREEN phase)"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36
+
+---
+
 ## Implementation
+
+**IMPORTANT: Follow TDD workflow above. Write tests FIRST (shown above), then implement.**
 
 ### Phase 1: Database Migrations
 
