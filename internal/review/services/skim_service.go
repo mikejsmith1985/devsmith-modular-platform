@@ -8,7 +8,6 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
-
 type SkimService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface

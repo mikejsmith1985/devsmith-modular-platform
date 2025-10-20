@@ -3,8 +3,9 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
+
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
@@ -14,7 +15,7 @@ type ScanService struct {
 }
 
 func NewScanService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRepositoryInterface) *ScanService {
-    return &ScanService{ollamaClient, analysisRepo}
+	return &ScanService{ollamaClient, analysisRepo}
 }
 
 func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string, repoOwner, repoName string) (*models.ScanModeOutput, error) {

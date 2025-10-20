@@ -1,8 +1,14 @@
+package handlers
+
 import (
 	"net/http"
 	"strconv"
+
 	"github.com/gin-gonic/gin"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
+
 // GetScanAnalysis handles Scan Mode requests
 func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -18,16 +24,6 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 
 	c.JSON(http.StatusOK, output)
 }
-package handlers
-
-import (
-	"net/http"
-	"strconv"
-
-	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
-)
 
 // CreateReviewSession handles POST /api/review/sessions
 func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
@@ -63,13 +59,15 @@ type ReviewHandler struct {
 	reviewService  *services.ReviewService
 	previewService *services.PreviewService
 	skimService    *services.SkimService
+	scanService    *services.ScanService
 }
 
-func NewReviewHandler(reviewService *services.ReviewService, previewService *services.PreviewService, skimService *services.SkimService) *ReviewHandler {
+func NewReviewHandler(reviewService *services.ReviewService, previewService *services.PreviewService, skimService *services.SkimService, scanService *services.ScanService) *ReviewHandler {
 	return &ReviewHandler{
 		reviewService:  reviewService,
 		previewService: previewService,
 		skimService:    skimService,
+		scanService:    scanService,
 	}
 }
 
