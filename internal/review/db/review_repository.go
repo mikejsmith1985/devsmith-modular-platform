@@ -9,8 +9,6 @@ import (
 
 // Review represents a code review session in the database.
 type Review struct {
-	ID           int64
-	UserID       int64
 	Title        string
 	CodeSource   string
 	GithubRepo   string
@@ -18,6 +16,8 @@ type Review struct {
 	PastedCode   string
 	CreatedAt    string
 	LastAccessed string
+	ID           int64
+	UserID       int64
 }
 
 // ReviewRepository handles CRUD operations for Review sessions.

@@ -36,7 +36,10 @@ func LoadConfig() *Config {
 		GitHubClientSecret: getEnv("GITHUB_CLIENT_SECRET"),
 		JWTSecret:          getEnv("JWT_SECRET"),
 	}
-	cfg.Validate()
+	// Ensure the configuration is validated and handle errors
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("configuration validation failed: %v", err)
+	}
 	return cfg
 }
 

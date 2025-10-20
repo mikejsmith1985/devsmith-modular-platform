@@ -15,7 +15,7 @@ func TestAuthRoutes_LoginRedirect(t *testing.T) {
 	// Dummy DB connection not needed for login redirect
 	RegisterAuthRoutes(r, nil)
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/auth/github/login", nil)
+	req, _ := http.NewRequest("GET", "/auth/github/login", http.NoBody)
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusFound, w.Code)
 	assert.Contains(t, w.Header().Get("Location"), "github.com/login/oauth/authorize")

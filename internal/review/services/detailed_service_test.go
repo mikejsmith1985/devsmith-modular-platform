@@ -39,7 +39,7 @@ func TestDetailedService_AnalyzeDetailed_Success(t *testing.T) {
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-	output, err := service.AnalyzeDetailed(context.Background(), 1, "auth.go", "owner", "repo")
+	output, err := service.AnalyzeDetailed(context.Background(), 1, "auth.go")
 
 	assert.NoError(t, err)
 	assert.Len(t, output.Lines, 2)
@@ -54,7 +54,7 @@ func TestDetailedService_AnalyzeDetailed_EmptyFilePath(t *testing.T) {
 	mockRepo := new(MockAnalysisRepository)
 	service := NewDetailedService(mockOllama, mockRepo)
 
-	_, err := service.AnalyzeDetailed(context.Background(), 1, "", "owner", "repo")
+	_, err := service.AnalyzeDetailed(context.Background(), 1, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "file path cannot be empty")
@@ -85,7 +85,7 @@ func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-	output, err := service.AnalyzeDetailed(context.Background(), 1, "db.go", "owner", "repo")
+	output, err := service.AnalyzeDetailed(context.Background(), 1, "db.go")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "high", output.Lines[0].Complexity)

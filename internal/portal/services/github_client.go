@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"log"
+
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
@@ -40,7 +42,12 @@ func (g *GitHubClientImpl) ExchangeCodeForToken(ctx context.Context, code string
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	// Ensure the response body is closed and handle errors
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body: %v", err)
+		}
+	}()
 	var result struct {
 		AccessToken string `json:"access_token"`
 		Error       string `json:"error"`
@@ -56,7 +63,7 @@ func (g *GitHubClientImpl) ExchangeCodeForToken(ctx context.Context, code string
 
 // GetUserProfile fetches the authenticated user's GitHub profile using the access token.
 func (g *GitHubClientImpl) GetUserProfile(ctx context.Context, accessToken string) (*models.GitHubProfile, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -66,12 +73,17 @@ func (g *GitHubClientImpl) GetUserProfile(ctx context.Context, accessToken strin
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	// Ensure the response body is closed and handle errors
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body: %v", err)
+		}
+	}()
 	var profile struct {
-		ID        int64  `json:"id"`
 		Login     string `json:"login"`
 		Email     string `json:"email"`
 		AvatarURL string `json:"avatar_url"`
+		ID        int64  `json:"id"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&profile); err != nil {
 		return nil, err

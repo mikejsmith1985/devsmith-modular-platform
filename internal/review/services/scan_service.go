@@ -21,23 +21,28 @@ func NewScanService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 }
 
 // AnalyzeScan performs Scan Mode analysis for the given review session and query.
-func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string, repoOwner, repoName string) (*models.ScanModeOutput, error) {
+func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string) (*models.ScanModeOutput, error) {
 	if query == "" {
 		return nil, errors.New("query cannot be empty")
 	}
-	prompt := fmt.Sprintf(`Find code related to: "%s" in repository %s/%s.\n\nReturn JSON:\n{\n  "matches": [\n    {"file": "path/to/file.go", "line": 42, "code_snippet": "...", "relevance": 0.95, "context": "Why this matches"}\n  ],\n  "summary": "Found X matches in Y files"\n}`,
-		query, repoOwner, repoName)
+	prompt := fmt.Sprintf(`Find code related to: %q.\n\nReturn JSON:\n{\n  "matches": [\n    {"file": "path/to/file.go", "line": 42, "code_snippet": "...", "relevance": 0.95, "context": "Why this matches"}\n  ],\n  "summary": "Found X matches in Y files"\n}`,
+		query)
 
 	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
 	var output models.ScanModeOutput
-	if err := json.Unmarshal([]byte(rawOutput), &output); err != nil {
-		return nil, err
+	// Properly handle errors for Unmarshal
+	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal scan analysis output: %w", unmarshalErr)
 	}
 
-	metadataJSON, _ := json.Marshal(output)
+	metadataJSON, err := json.Marshal(output)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal scan analysis output: %w", err)
+	}
+
 	result := &models.AnalysisResult{
 		ReviewID:  reviewID,
 		Mode:      models.ScanMode,
@@ -47,7 +52,10 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query str
 		Metadata:  string(metadataJSON),
 		ModelUsed: "qwen2.5-coder:32b",
 	}
-	s.analysisRepo.Create(ctx, result)
+	// Ensure the result is saved and handle errors
+	if err := s.analysisRepo.Create(ctx, result); err != nil {
+		return nil, fmt.Errorf("failed to save scan analysis result: %w", err)
+	}
 
 	return &output, nil
 }

@@ -8,15 +8,20 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
+// CriticalService provides methods for analyzing repositories in Critical Mode.
+// It identifies issues such as security vulnerabilities, bugs, performance problems, and code smells.
 type CriticalService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface
 }
 
+// NewCriticalService creates a new instance of CriticalService with the provided dependencies.
 func NewCriticalService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRepositoryInterface) *CriticalService {
-	return &CriticalService{ollamaClient, analysisRepo}
+	return &CriticalService{ollamaClient: ollamaClient, analysisRepo: analysisRepo}
 }
 
+// AnalyzeCritical performs a detailed analysis of a repository in Critical Mode.
+// It generates a report identifying various issues and returns the analysis output.
 func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.CriticalModeOutput, error) {
 	prompt := fmt.Sprintf(`Review repository %s/%s in Critical Mode.
 
@@ -46,11 +51,24 @@ Return JSON:
   "overall_grade": "C"
 }`, repoOwner, repoName)
 
-	rawOutput, _ := s.ollamaClient.Generate(ctx, prompt)
-	var output models.CriticalModeOutput
-	json.Unmarshal([]byte(rawOutput), &output)
+	// Check and handle errors for Generate
+	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate critical analysis: %w", err)
+	}
 
-	metadataJSON, _ := json.Marshal(output)
+	var output models.CriticalModeOutput
+
+	// Avoid shadowing the error variable
+	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal critical analysis output: %w", unmarshalErr)
+	}
+
+	// Check and handle errors for Marshal
+	metadataJSON, err := json.Marshal(output)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal critical analysis output: %w", err)
+	}
 	result := &models.AnalysisResult{
 		ReviewID:  reviewID,
 		Mode:      models.CriticalMode,
@@ -60,15 +78,21 @@ Return JSON:
 		Metadata:  string(metadataJSON),
 		ModelUsed: "qwen2.5-coder:32b",
 	}
-	s.analysisRepo.Create(ctx, result)
+
+	// Ensure the result is saved and handle errors
+	if err := s.analysisRepo.Create(ctx, result); err != nil {
+		return nil, fmt.Errorf("failed to save analysis result: %w", err)
+	}
 
 	return &output, nil
 }
 
 // OllamaClient represents the AI client used for generating analysis.
+// It provides methods to interact with the AI model.
 type OllamaClient struct{}
 
 // Generate simulates AI generation for the given prompt.
+// It returns the generated output or an error if the operation fails.
 func (o *OllamaClient) Generate(ctx context.Context, prompt string) (string, error) {
 	// Simulated implementation
 	return "", nil
