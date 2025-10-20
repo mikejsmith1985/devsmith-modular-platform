@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	reviewservices "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/rs/zerolog"
 )
 
@@ -16,19 +17,23 @@ import (
 type AuthService struct {
 	userRepo     authifaces.UserRepository
 	githubClient authifaces.GitHubClient
+	ollamaClient reviewservices.OllamaClientInterface
+	analysisRepo reviewservices.AnalysisRepositoryInterface
+	logger       *zerolog.Logger
 	jwtSecret    []byte
 	tokenExpiry  time.Duration
-	logger       *zerolog.Logger
 }
 
 // NewAuthService creates a new AuthService with the given dependencies.
-func NewAuthService(userRepo authifaces.UserRepository, githubClient authifaces.GitHubClient, jwtSecret string, logger *zerolog.Logger) *AuthService {
+func NewAuthService(userRepo authifaces.UserRepository, githubClient authifaces.GitHubClient, jwtSecret string, logger *zerolog.Logger, client reviewservices.OllamaClientInterface, repo reviewservices.AnalysisRepositoryInterface) *AuthService {
 	return &AuthService{
 		userRepo:     userRepo,
 		githubClient: githubClient,
 		jwtSecret:    []byte(jwtSecret),
 		tokenExpiry:  24 * time.Hour,
 		logger:       logger,
+		ollamaClient: client,
+		analysisRepo: repo,
 	}
 }
 

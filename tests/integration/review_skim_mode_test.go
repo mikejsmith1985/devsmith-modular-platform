@@ -36,7 +36,11 @@ func setupTestDB(t *testing.T) *sql.DB {
 func TestSkimMode_Integration(t *testing.T) {
 	// Setup DB and insert a test review session
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("Error closing test DB: %v", err)
+		}
+	}()
 	_, err := db.Exec(`INSERT INTO reviews.sessions (id, user_id, title, code_source, github_repo, github_branch, pasted_code) VALUES (1001, 1, 'Test Review', 'github', 'mikejsmith1985/devsmith-modular-platform', 'main', '') ON CONFLICT (id) DO NOTHING`)
 	assert.NoError(t, err)
 
@@ -53,7 +57,7 @@ func TestSkimMode_Integration(t *testing.T) {
 	r.GET("/api/reviews/:id/skim", handler.GetSkimAnalysis)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/reviews/1001/skim", nil)
+	req, _ := http.NewRequest("GET", "/api/reviews/1001/skim", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
