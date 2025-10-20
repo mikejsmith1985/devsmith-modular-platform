@@ -222,18 +222,30 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
    - **Duration**: 30 minutes - 2 hours (runs unattended).
    - **Crash-proof**: OpenHands checkpoint/resume if interrupted.
 
-4. **PR Creation** (OpenHands):
-   - PR includes:
-     - Link to issue (`Closes #42`).
-     - Implementation summary.
-     - Test results (automated + manual).
-     - Screenshots (if UI changes).
-     - Acceptance criteria checklist (all checked).
-   - GitHub Actions run automated checks:
-     - Go tests and coverage.
-     - Linting (golangci-lint).
-     - Docker build verification.
-     - Security scan (Trivy).
+4. **PR Creation** (Automatic via GitHub Actions):
+   - **When**: Automatically triggered when code is pushed to a `feature/**` branch
+   - **How**: `.github/workflows/auto-create-pr.yml` workflow runs automatically
+   - **What it does**:
+     - Detects the feature branch (e.g., `feature/003-copilot-portal-auth`)
+     - Extracts issue number from branch name (e.g., `003`)
+     - Finds corresponding issue file (`.docs/issues/003-*.md`)
+     - Extracts PR title from issue file (first line)
+     - Extracts PR description from issue template
+     - Creates PR automatically with:
+       - Base: `development`
+       - Title: From issue spec
+       - Body: From issue spec (includes "Closes #N", summary, testing checklist)
+   - **Benefits**:
+     - No manual PR creation needed
+     - PR details always match issue spec
+     - Consistent PR format across all agents
+     - Reduces human error
+   - **When skipped**: If PR already exists for the branch (prevents duplicates)
+   - GitHub Actions run automated checks after PR creation:
+     - Go tests and coverage
+     - Linting (golangci-lint)
+     - Docker build verification
+     - Security scan (Trivy)
 
 5. **Strategic Review** (Claude):
    - Mike triggers Claude for PR review (<30 minutes).
