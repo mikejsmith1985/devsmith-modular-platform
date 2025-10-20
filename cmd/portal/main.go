@@ -1,3 +1,4 @@
+// Package main starts the portal service for the DevSmith platform.
 package main
 
 import (

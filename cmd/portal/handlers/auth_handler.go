@@ -1,3 +1,4 @@
+// Package handlers contains HTTP handlers for the portal service.
 package handlers
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// RegisterAuthRoutes registers authentication-related routes for the portal service.
 func RegisterAuthRoutes(r *gin.Engine, dbConn *sql.DB) {
 	logger := zerolog.New(os.Stdout)
 	userRepo := db.NewUserRepository(dbConn)

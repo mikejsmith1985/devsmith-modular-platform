@@ -25,9 +25,9 @@ linters:
     - nilerr        # Find code returning nil even if err != nil
 
     # Additional strict linters (per Copilot feedback)
-    - deadcode      # Find unused code (functions, variables)
-    - structcheck   # Find unused struct fields
-    - varcheck      # Find unused global variables/constants
+  # - deadcode      # Find unused code (functions, variables) [deprecated, replaced by unused]
+  # - structcheck   # Find unused struct fields [deprecated, replaced by unused]
+  # - varcheck      # Find unused global variables/constants [deprecated, replaced by unused]
     - unconvert     # Remove unnecessary type conversions
     - unparam       # Report unused function parameters
     - exportloopref # Check for pointer references to loop vars
