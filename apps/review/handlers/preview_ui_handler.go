@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
@@ -15,15 +16,15 @@ func RegisterPreviewUIRoutes(router *gin.Engine, previewService *services.Previe
 			return
 		}
 		c.HTML(http.StatusOK, "layout", gin.H{
-			"Title": "Preview Mode",
-			"FileTree": result.FileTree,
-			"BoundedContexts": result.BoundedContexts,
-			"TechStack": result.TechStack,
-			"ArchitecturePattern": result.ArchitecturePattern,
-			"EntryPoints": result.EntryPoints,
+			"Title":                "Preview Mode",
+			"FileTree":             result.FileTree,
+			"BoundedContexts":      result.BoundedContexts,
+			"TechStack":            result.TechStack,
+			"ArchitecturePattern":  result.ArchitecturePattern,
+			"EntryPoints":          result.EntryPoints,
 			"ExternalDependencies": result.ExternalDependencies,
-			"Summary": result.Summary,
-			"SessionID": "demo-session",
+			"Summary":              result.Summary,
+			"SessionID":            "demo-session",
 		})
 	})
 }

@@ -8,12 +8,13 @@ run:
 
 linters:
   enable:
+    # Core linters
     - errcheck      # Check for unchecked errors
     - gosimple      # Simplify code
     - govet         # Vet examines Go source code
     - ineffassign   # Detect ineffectual assignments
     - staticcheck   # Advanced static analysis
-    - unused        # Check for unused code
+    - unused        # Check for unused code (CRITICAL: catches unused code in main.go)
     - gofmt         # Check formatting
     - goimports     # Check imports
     - misspell      # Check for misspelled English words
@@ -23,6 +24,21 @@ linters:
     - bodyclose     # Check HTTP response body closed
     - nilerr        # Find code returning nil even if err != nil
 
+    # Additional strict linters (per Copilot feedback)
+    - deadcode      # Find unused code (functions, variables)
+    - structcheck   # Find unused struct fields
+    - varcheck      # Find unused global variables/constants
+    - unconvert     # Remove unnecessary type conversions
+    - unparam       # Report unused function parameters
+    - exportloopref # Check for pointer references to loop vars
+    - errorlint     # Find code that will cause problems with error wrapping
+    - goconst       # Find repeated strings that could be constants
+    - gocyclo       # Compute cyclomatic complexity
+    - dupl          # Code clone detection
+    - funlen        # Detect long functions
+    - nestif        # Check deeply nested if statements
+    - gocognit      # Compute cognitive complexity
+
 linters-settings:
   errcheck:
     check-type-assertions: true
@@ -30,6 +46,44 @@ linters-settings:
 
   govet:
     check-shadowing: true
+    enable-all: true
+
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: devsmith
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+
+  # Complexity limits
+  funlen:
+    lines: 100
+    statements: 50
+
+  gocyclo:
+    min-complexity: 15
+
+  gocognit:
+    min-complexity: 20
+
+  nestif:
+    min-complexity: 4
+
+  # Code duplication
+  dupl:
+    threshold: 100
+
+  # Repeated strings
+  goconst:
+    min-len: 3
+    min-occurrences: 3
 
   revive:
     rules:
@@ -39,6 +93,24 @@ linters-settings:
         arguments:
           - "checkPrivateReceivers"
           - "sayRepetitiveInsteadOfStutters"
+      - name: package-comments
+        severity: warning
+      - name: unexported-return
+        severity: warning
+      - name: time-naming
+        severity: warning
+      - name: var-declaration
+        severity: warning
+      - name: receiver-naming
+        severity: warning
+      - name: indent-error-flow
+        severity: warning
+      - name: error-return
+        severity: warning
+      - name: error-strings
+        severity: warning
+      - name: error-naming
+        severity: warning
 
   gosec:
     excludes:
@@ -55,6 +127,20 @@ issues:
       linters:
         - errcheck
         - gosec
+        - dupl
+        - funlen
+        - gocyclo
+        - gocognit
+
+    # Exclude generated Templ files
+    - path: .*_templ\.go
+      linters:
+        - all
+
+    # Allow main.go to be longer (setup code)
+    - path: cmd/.*/main\.go
+      linters:
+        - funlen
 
 output:
   format: colored-line-number

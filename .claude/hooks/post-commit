@@ -1,0 +1,82 @@
+#!/bin/bash
+#
+# post-commit - Automatically log commits to copilot-activity.md
+#
+# This hook runs after every successful git commit.
+# It extracts commit info and appends to the activity log.
+#
+# NOTE: Only updates devlog on development/main branches to keep feature branches clean.
+#
+
+set -euo pipefail
+
+ACTIVITY_LOG=".docs/devlog/copilot-activity.md"
+
+# Only log if activity log exists
+if [[ ! -f "$ACTIVITY_LOG" ]]; then
+    exit 0
+fi
+
+# Get current branch
+BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+
+# Only update devlog on development or main branches
+if [[ "$BRANCH" != "development" ]] && [[ "$BRANCH" != "main" ]]; then
+    echo "⏭️  Skipping devlog update on feature branch '$BRANCH'"
+    echo "   (Devlog will be updated when PR merges to development)"
+    exit 0
+fi
+
+# Get commit info
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M")
+COMMIT_HASH=$(git log -1 --format='%h')
+COMMIT_MSG=$(git log -1 --format='%s')
+COMMIT_BODY=$(git log -1 --format='%b')
+FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | head -20)
+STATS=$(git show --stat --format="" HEAD | tail -1)
+
+# Extract action type from commit message (feat/fix/docs/etc)
+if [[ "$COMMIT_MSG" =~ ^([a-z]+)\(([a-z-]+)\): ]]; then
+    TYPE="${BASH_REMATCH[1]}"
+    SCOPE="${BASH_REMATCH[2]}"
+    MSG="${COMMIT_MSG#*: }"
+    ACTION_DESC="$MSG"
+else
+    ACTION_DESC="$COMMIT_MSG"
+fi
+
+# Create log entry
+LOG_ENTRY="
+## $TIMESTAMP - $ACTION_DESC
+**Branch:** $BRANCH
+**Files Changed:** $STATS
+$(echo "$FILES_CHANGED" | sed 's/^/- `/' | sed 's/$/`/')
+
+**Action:** $ACTION_DESC
+
+**Commit:** \`$COMMIT_HASH\`
+
+**Commit Message:**
+\`\`\`
+$COMMIT_MSG
+\`\`\`
+"
+
+# Add commit body if it exists (multi-line details)
+if [[ -n "$COMMIT_BODY" ]]; then
+    LOG_ENTRY+="
+**Details:**
+\`\`\`
+$COMMIT_BODY
+\`\`\`
+"
+fi
+
+LOG_ENTRY+="
+---
+"
+
+# Append to activity log
+echo "$LOG_ENTRY" >> "$ACTIVITY_LOG"
+
+echo "✅ Activity logged to $ACTIVITY_LOG"

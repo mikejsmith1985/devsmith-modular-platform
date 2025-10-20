@@ -1,14 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
 	_ "github.com/jackc/pgx/v4/stdlib" // Fix: Import pgx PostgreSQL driver for DB connection
+	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 
 	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
-	dbConn, err := sql.Open("postgres", dbURL)
+	dbConn, err := sql.Open("pgx", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -46,8 +47,8 @@ func main() {
 	// This import is implied: "github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
 	handlers.RegisterAuthRoutes(router, dbConn)
 
-	// Load Templ templates
-	router.LoadHTMLGlob("cmd/portal/templates/*.templ")
+	// Load Templ templates (runtime path is ./templates/*.templ)
+	router.LoadHTMLGlob("templates/*.templ")
 	router.GET("/login", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.templ", nil)
 	})
@@ -57,7 +58,7 @@ func main() {
 	if port == "" {
 		port = "3001"
 	}
-
+	// ...existing code...
 	fmt.Printf("Portal service starting on port %s...\n", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

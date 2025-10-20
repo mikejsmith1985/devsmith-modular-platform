@@ -595,7 +595,10 @@ Backend   Backend   Backend   Backend    Backend
 - **Setup:**
   - OpenHands: `pip install openhands` (autonomous agent framework)
   - Ollama: Local LLM runtime (privacy, no API costs)
-  - Recommended models: `deepseek-coder-v2:16b` or `codellama:34b`
+  - Recommended models:
+    - `deepseek-coder:6.7b` (16GB RAM, default, good balance)
+    - `deepseek-coder-v2:16b` (32GB RAM, best quality)
+    - `deepseek-coder:1.5b` (8GB RAM, low-end systems)
 - **Capabilities:**
   - Fully autonomous feature implementation
   - TDD workflow (write tests → implement → verify)
@@ -1002,7 +1005,7 @@ WS     /ws/review/sessions/:id/collaborate     - Real-time collaboration
 
 type ReviewAIService struct {
     ollamaClient *ollama.Client
-    model        string // "deepseek-coder-v2:16b"
+    model        string // From env: OLLAMA_MODEL (default: "deepseek-coder:6.7b")
 }
 
 func (s *ReviewAIService) AnalyzeInMode(
@@ -1113,9 +1116,9 @@ Format response as JSON array of issues.`, code)
 
 **Dependencies:**
 - PostgreSQL (reviews schema)
-- Ollama with `deepseek-coder-v2:16b` (or Claude API)
+- Ollama with configurable model (default: `deepseek-coder:6.7b`, or Claude API fallback)
 - Logging service (for telemetry and AI performance tracking)
-- Redis (for caching AI responses - expensive to regenerate)
+- Database caching (AI responses expensive to regenerate)
 
 **Integration with Other Services:**
 - **Logging:** All AI calls logged for performance analysis
@@ -2347,31 +2350,55 @@ This workflow uses markdown-based issue specs stored in `.docs/issues/` rather t
 #### 2. Implementation (Copilot or OpenHands)
 
 **For Copilot Tasks (Mike + Copilot):**
+
+**IMPORTANT: Branch Auto-Creation**
+When a PR is merged to `development`, GitHub Actions automatically creates the next feature branch (see `.github/workflows/auto-sync-next-issue.yml`). Always check if the branch exists before creating it.
+
 ```bash
-# 1. Create branch
+# 1. Switch to development and sync
 git checkout development
 git pull origin development
+
+# 2. Check if branch already exists (created by auto-sync workflow)
+git branch -r | grep feature/{XXX}-{task-name}
+
+# If branch exists (common case after PR merge):
+git checkout feature/{XXX}-{task-name}
+
+# If branch doesn't exist (manual workflow, out-of-sequence work):
 git checkout -b feature/{XXX}-{task-name}
 
-# 2. Open spec
+# 3. Open spec
 open .docs/issues/{XXX}-copilot-{task-name}.md
 
-# 3. Create files with Copilot autocomplete
+# 4. Create files with Copilot autocomplete
 # Copilot reads the spec and suggests code
 
-# 4. Test locally
+# 5. Test locally
 make test
 
-# 5. Commit
+# 6. Commit
 git add -A
 git commit -m "feat(scope): description
 
 Implements .docs/issues/{XXX}-copilot-{task-name}.md"
 
-# 6. Push and create PR
+# 7. Push and create PR (auto-create-pr workflow will create PR)
 git push origin feature/{XXX}-{task-name}
-gh pr create --title "feat: description" --body "Implements .docs/issues/{XXX}"
 ```
+
+**Auto-Created Branches:**
+After merging PR for Issue #004, the workflow automatically:
+- Commits any pending `copilot-activity.md` changes
+- Finds next issue file (`.docs/issues/005-*.md`)
+- Creates `feature/005-description` branch
+- Posts comment on merged PR with next steps
+
+**Manual Branch Creation:**
+Only needed for:
+- Out-of-sequence work (e.g., starting #007 before #006)
+- Parallel development on non-sequential issues
+- First issue in a new batch
 
 **Duration:** 30-60 minutes (Mike actively working with Copilot assistance)
 
