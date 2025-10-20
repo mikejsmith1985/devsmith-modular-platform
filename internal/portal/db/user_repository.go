@@ -5,13 +5,13 @@ import (
 	"context"
 	"database/sql"
 
+	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
 // UserRepositoryImpl implements interfaces.UserRepository and handles CRUD operations for portal.users.
 // It provides methods to create, update, and retrieve users from the database.
-// UserRepositoryImpl implements interfaces.UserRepository and handles CRUD operations for portal.users.
-// It provides methods to create, update, and retrieve users from the database.
+type UserRepositoryImpl struct {
 	db *sql.DB
 }
 
