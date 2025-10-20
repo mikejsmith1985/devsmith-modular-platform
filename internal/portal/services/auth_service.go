@@ -1,3 +1,4 @@
+// Package services provides authentication and user management logic for the portal service.
 package services
 
 import (
@@ -6,20 +7,22 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
+	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 	"github.com/rs/zerolog"
 )
 
+// AuthService provides authentication and session management for the portal service.
 type AuthService struct {
-	userRepo     interfaces.UserRepository
-	githubClient interfaces.GitHubClient
+	userRepo     authifaces.UserRepository
+	githubClient authifaces.GitHubClient
 	jwtSecret    []byte
 	tokenExpiry  time.Duration
 	logger       *zerolog.Logger
 }
 
-func NewAuthService(userRepo interfaces.UserRepository, githubClient interfaces.GitHubClient, jwtSecret string, logger *zerolog.Logger) *AuthService {
+// NewAuthService creates a new AuthService with the given dependencies.
+func NewAuthService(userRepo authifaces.UserRepository, githubClient authifaces.GitHubClient, jwtSecret string, logger *zerolog.Logger) *AuthService {
 	return &AuthService{
 		userRepo:     userRepo,
 		githubClient: githubClient,
@@ -29,6 +32,7 @@ func NewAuthService(userRepo interfaces.UserRepository, githubClient interfaces.
 	}
 }
 
+// AuthenticateWithGitHub authenticates a user using a GitHub OAuth code and returns the user and JWT token.
 func (s *AuthService) AuthenticateWithGitHub(ctx context.Context, code string) (*models.User, string, error) {
 	token, err := s.githubClient.ExchangeCodeForToken(ctx, code)
 	if err != nil {
@@ -60,6 +64,7 @@ func (s *AuthService) AuthenticateWithGitHub(ctx context.Context, code string) (
 	return user, jwtToken, nil
 }
 
+// ValidateSession validates a JWT token and returns the associated user if valid.
 func (s *AuthService) ValidateSession(ctx context.Context, token string) (*models.User, error) {
 	claims := &jwt.RegisteredClaims{}
 	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
@@ -82,12 +87,12 @@ func (s *AuthService) ValidateSession(ctx context.Context, token string) (*model
 	return user, nil
 }
 
+// RevokeSession revokes a user's session. For MVP, this is a no-op (stateless JWT).
+// Future: implement session blacklist in DB
 func (s *AuthService) RevokeSession(ctx context.Context, token string) error {
 	// For MVP, just let token expire (stateless JWT)
-	// Future: implement session blacklist in DB
 	return nil
 }
-
 func (s *AuthService) generateJWT(user *models.User) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Subject:   fmt.Sprintf("%d", user.ID),

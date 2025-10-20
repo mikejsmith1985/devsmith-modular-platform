@@ -29,12 +29,14 @@ type PreviewService struct {
 	// Add dependencies here (e.g., AI client, cache)
 }
 
+// NewPreviewService creates a new PreviewService.
 func NewPreviewService() *PreviewService {
 	return &PreviewService{}
 }
 
-// AnalyzePreview analyzes the codebase in Preview Mode
-func (s *PreviewService) AnalyzePreview(ctx context.Context, codebasePath string) (*PreviewResult, error) {
+// AnalyzePreview analyzes the codebase in Preview Mode.
+// It returns a PreviewResult containing high-level structure and context for the given codebase.
+func (s *PreviewService) AnalyzePreview(_ context.Context, _ string) (*PreviewResult, error) {
 	// TODO: Integrate AI analysis logic here
 	// For now, return mock data
 	return &PreviewResult{
