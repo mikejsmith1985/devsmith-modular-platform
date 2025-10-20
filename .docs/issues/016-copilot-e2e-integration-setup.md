@@ -715,6 +715,292 @@ func TestCrossServiceAccess(t *testing.T) {
 
 ---
 
+## TDD Workflow
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create test files BEFORE implementation:
+
+```go
+// tests/integration/setup_test.go
+package integration
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	// Setup test environment
+	os.Setenv("ENVIRONMENT", "test")
+	os.Exit(m.Run())
+}
+
+// tests/integration/auth_flow_test.go
+package integration
+
+import (
+	"net/http"
+	"testing"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestPortalHealthCheck(t *testing.T) {
+	resp, err := http.Get("http://localhost:8080/health")
+	require.NoError(t, err, "Portal service should be reachable")
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	defer resp.Body.Close()
+}
+
+func TestPortalLoginPage(t *testing.T) {
+	resp, err := http.Get("http://localhost:8080/login")
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	defer resp.Body.Close()
+}
+
+func TestGitHubOAuthRedirect(t *testing.T) {
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects
+		},
+	}
+
+	resp, err := client.Get("http://localhost:8080/auth/github")
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusFound, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Location"), "github.com")
+	defer resp.Body.Close()
+}
+
+// tests/integration/services_test.go
+package integration
+
+import (
+	"net/http"
+	"testing"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestAllServicesHealthy(t *testing.T) {
+	services := []struct {
+		name string
+		url  string
+		port string
+	}{
+		{"Portal", "http://localhost:8080/health", "8080"},
+		{"Review", "http://localhost:8081/health", "8081"},
+		{"Logs", "http://localhost:8082/health", "8082"},
+		{"Analytics", "http://localhost:8083/health", "8083"},
+	}
+
+	for _, service := range services {
+		t.Run(service.name, func(t *testing.T) {
+			resp, err := http.Get(service.url)
+			require.NoError(t, err, "%s service should be reachable at %s", service.name, service.url)
+			assert.Equal(t, http.StatusOK, resp.StatusCode, "%s health check failed", service.name)
+			defer resp.Body.Close()
+		})
+	}
+}
+
+func TestCrossServiceCommunication(t *testing.T) {
+	// Test that Portal can reach other services
+	// This would require authenticated requests
+	t.Skip("Requires authentication flow - implement after OAuth setup")
+}
+
+// tests/integration/database_test.go
+package integration
+
+import (
+	"context"
+	"testing"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestDatabaseConnections(t *testing.T) {
+	databases := []struct {
+		name   string
+		connStr string
+	}{
+		{"Portal", "postgresql://portal_user:portal_pass@localhost:5432/devsmith_portal?sslmode=disable"},
+		{"Review", "postgresql://review_user:review_pass@localhost:5432/devsmith_review?sslmode=disable"},
+		{"Logs", "postgresql://logs_user:logs_pass@localhost:5432/devsmith_logs?sslmode=disable"},
+		{"Analytics", "postgresql://analytics_user:analytics_pass@localhost:5432/devsmith_analytics?sslmode=disable"},
+	}
+
+	for _, db := range databases {
+		t.Run(db.name, func(t *testing.T) {
+			pool, err := pgxpool.New(context.Background(), db.connStr)
+			require.NoError(t, err, "%s database connection failed", db.name)
+			defer pool.Close()
+
+			// Test connection
+			err = pool.Ping(context.Background())
+			assert.NoError(t, err, "%s database ping failed", db.name)
+		})
+	}
+}
+
+func TestAnalyticsReadOnlyAccessToLogs(t *testing.T) {
+	// Connect as analytics user to logs database
+	pool, err := pgxpool.New(context.Background(),
+		"postgresql://analytics_user:analytics_pass@localhost:5432/devsmith_logs?sslmode=disable")
+	require.NoError(t, err)
+	defer pool.Close()
+
+	// Should be able to SELECT
+	var count int
+	err = pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM logs.entries").Scan(&count)
+	assert.NoError(t, err, "Analytics should have READ access to logs")
+
+	// Should NOT be able to INSERT
+	_, err = pool.Exec(context.Background(),
+		"INSERT INTO logs.entries (user_id, service, level, message) VALUES (1, 'test', 'info', 'test')")
+	assert.Error(t, err, "Analytics should NOT have WRITE access to logs")
+}
+
+// scripts/health-checks_test.sh (bash test)
+#!/bin/bash
+
+test_health_check_script() {
+  # Run health checks
+  ./scripts/health-checks.sh
+
+  # Should exit with 0 if all services healthy
+  assertEquals "Health checks should pass" 0 $?
+}
+
+test_failed_service_detected() {
+  # Stop one service
+  kill $(cat .pid_portal)
+
+  # Health checks should fail
+  ./scripts/health-checks.sh
+  assertNotEquals "Health checks should fail when service down" 0 $?
+
+  # Restart service
+  ./bin/portal > logs/portal.log 2>&1 &
+  echo $! > .pid_portal
+  sleep 2
+}
+```
+
+**Run tests (should FAIL):**
+```bash
+# Integration tests will fail because services and scripts don't exist yet
+go test ./tests/integration/...
+# Expected: FAIL - services not running, scripts don't exist
+
+# Script tests (using shunit2 or similar)
+bash scripts/health-checks_test.sh
+# Expected: FAIL - scripts don't exist
+```
+
+**Commit failing tests:**
+```bash
+git add tests/integration/
+git add scripts/*_test.sh
+git commit -m "test(integration): add failing E2E tests for platform setup (RED phase)"
+```
+
+**Step 2: GREEN PHASE - Implement to Pass Tests**
+
+Now implement all scripts and integration components. See Implementation section above.
+
+**After implementation, run tests:**
+```bash
+# First run setup
+./setup.sh
+
+# Then run integration tests
+go test ./tests/integration/...
+# Expected: PASS
+
+# Test scripts
+bash scripts/health-checks_test.sh
+# Expected: PASS
+```
+
+**Step 3: Verify Full Platform Setup**
+```bash
+# Clean environment
+./teardown.sh --clean
+
+# Fresh setup
+./setup.sh
+
+# All services should start successfully
+./verify-setup.sh
+# Expected: All checks pass
+```
+
+**Step 4: Manual Testing**
+
+Follow the manual testing checklist below.
+
+**Step 5: Commit Implementation**
+```bash
+git add setup.sh teardown.sh verify-setup.sh
+git add scripts/
+git add docker-compose.yml
+git add .env.example
+git commit -m "feat(integration): add one-command setup and E2E integration (GREEN phase)"
+```
+
+**Step 6: REFACTOR PHASE (Optional)**
+
+If needed, refactor for:
+- Improved error messages in setup script
+- Better progress indicators (progress bars, colored output)
+- Parallel service startup (reduce setup time)
+- Better cleanup on failed setup (rollback changes)
+- Docker Compose optimization (layer caching, build speed)
+
+**Commit refactors:**
+```bash
+git add setup.sh scripts/
+git commit -m "refactor(integration): improve setup script UX and error handling"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36, 38-86 (RED-GREEN-REFACTOR)
+
+**Key TDD Principles for Integration:**
+1. **Test infrastructure setup** (databases, users, permissions)
+2. **Test service orchestration** (startup order, dependencies)
+3. **Test health checks** (all services reachable)
+4. **Test cross-service access** (Portal → Review, Analytics → Logs)
+5. **Test database permissions** (read-only access enforced)
+6. **Test idempotency** (setup can run multiple times safely)
+7. **Test teardown** (services stop cleanly, data preserved)
+
+**Coverage Target:**
+- 80%+ for integration tests (critical platform functionality)
+- 100% script execution coverage (all code paths tested)
+
+**Special Testing Considerations:**
+- **Idempotency tests:** Run setup twice, both should succeed
+- **Failure recovery:** Test setup with intentional failures (DB down, port conflict)
+- **Clean slate tests:** Test on fresh environment (CI/CD simulation)
+- **Upgrade tests:** Test setup on existing installation
+- **Performance tests:** Measure setup time (target: <5 minutes)
+- **Rollback tests:** Test teardown doesn't corrupt data
+
+**Integration Test Phases:**
+1. **Unit:** Test individual scripts in isolation
+2. **Integration:** Test scripts working together (setup → verify → teardown)
+3. **System:** Test full platform end-to-end (user journey)
+4. **Acceptance:** Manual testing by user on fresh system
+
+---
+
 ## Testing Requirements
 
 ### Manual Testing Checklist

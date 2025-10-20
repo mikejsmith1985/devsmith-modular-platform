@@ -827,6 +827,162 @@ function showError(containerId, message) {
 
 ---
 
+## TDD Workflow
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create test files BEFORE implementation:
+
+```go
+// apps/analytics/handlers/ui_handler_test.go
+package handlers
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDashboardHandler_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/", DashboardHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "DevSmith Analytics")
+	assert.Contains(t, w.Body.String(), "trends-chart")
+	assert.Contains(t, w.Body.String(), "anomalies-container")
+}
+
+// apps/analytics/static/js/analytics.test.js (if using Jest)
+describe('Analytics Dashboard', () => {
+  test('loadTrends fetches and renders chart', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({
+          timestamps: ['10:00', '11:00'],
+          info_counts: [10, 15],
+          warn_counts: [2, 3],
+          error_counts: [1, 0],
+        }),
+      })
+    );
+
+    await loadTrends();
+    expect(fetch).toHaveBeenCalledWith('/api/v1/analytics/trends?time_range=24h');
+    expect(document.getElementById('trends-chart')).toBeDefined();
+  });
+
+  test('filterAnomaliesBySeverity works', () => {
+    const anomalies = [
+      { severity: 'high', metric: 'error_rate' },
+      { severity: 'low', metric: 'log_count' },
+    ];
+
+    const filtered = anomalies.filter(a => a.severity === 'high');
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].metric).toBe('error_rate');
+  });
+
+  test('exportData triggers download', async () => {
+    const createElementSpy = jest.spyOn(document, 'createElement');
+
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['test data'])),
+      })
+    );
+
+    await exportData('csv');
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/analytics/export?format=csv&time_range=24h');
+    expect(createElementSpy).toHaveBeenCalledWith('a');
+  });
+});
+```
+
+**Run tests (should FAIL):**
+```bash
+go test ./apps/analytics/handlers/...
+# Expected: FAIL - DashboardHandler undefined
+
+# For JavaScript (if using Jest):
+npm test -- analytics.test.js
+# Expected: FAIL - loadTrends is not defined
+```
+
+**Commit failing tests:**
+```bash
+git add apps/analytics/handlers/ui_handler_test.go
+git add apps/analytics/static/js/analytics.test.js
+git commit -m "test(analytics): add failing tests for dashboard UI (RED phase)"
+```
+
+**Step 2: GREEN PHASE - Implement to Pass Tests**
+
+Now implement the templates, handlers, and JavaScript. See Implementation section above.
+
+**After implementation, run tests:**
+```bash
+go test ./apps/analytics/...
+# Expected: PASS
+
+npm test
+# Expected: PASS
+```
+
+**Step 3: Verify Build**
+```bash
+templ generate apps/analytics/templates/*.templ
+go build -o /dev/null ./cmd/analytics
+```
+
+**Step 4: Manual Testing**
+
+Follow the manual testing checklist below.
+
+**Step 5: Commit Implementation**
+```bash
+git add apps/analytics/
+git commit -m "feat(analytics): implement dashboard UI with trends, anomalies, and exports (GREEN phase)"
+```
+
+**Step 6: REFACTOR PHASE (Optional)**
+
+If needed, refactor for:
+- Chart rendering performance (virtualization for large datasets)
+- Reusable chart components
+- Error handling improvements
+- Accessibility (ARIA labels, keyboard navigation)
+
+**Commit refactors:**
+```bash
+git add apps/analytics/
+git commit -m "refactor(analytics): improve chart performance and accessibility"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36, 38-86 (RED-GREEN-REFACTOR)
+
+**Key TDD Principles for UI:**
+1. **Test HTML structure exists** (dashboard container, chart canvas, buttons)
+2. **Test event handlers work** (time range change, export buttons)
+3. **Test data fetching** (API calls with correct parameters)
+4. **Test rendering logic** (anomalies display correctly, table populates)
+5. **Test error states** (failed fetch shows error message)
+
+**Coverage Target:** 70%+ for Go handlers, 60%+ for JavaScript logic
+
+---
+
 ## Testing Requirements
 
 ### Manual Testing Checklist

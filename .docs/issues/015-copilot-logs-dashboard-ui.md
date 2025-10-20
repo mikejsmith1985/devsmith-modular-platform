@@ -740,6 +740,228 @@ function showError(message) {
 
 ---
 
+## TDD Workflow
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create test files BEFORE implementation:
+
+```go
+// apps/logs/handlers/ui_handler_test.go
+package handlers
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDashboardHandler_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/", DashboardHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "DevSmith Logs")
+	assert.Contains(t, w.Body.String(), "logs-output")
+	assert.Contains(t, w.Body.String(), "level-filter")
+	assert.Contains(t, w.Body.String(), "service-filter")
+}
+
+// apps/logs/static/js/websocket.test.js
+describe('LogsWebSocket', () => {
+  test('connects to WebSocket server', () => {
+    const mockWS = {
+      readyState: WebSocket.OPEN,
+      onopen: null,
+      onmessage: null,
+      onerror: null,
+      onclose: null,
+    };
+
+    global.WebSocket = jest.fn(() => mockWS);
+
+    const ws = new LogsWebSocket('ws://localhost/test', jest.fn(), jest.fn());
+    ws.connect();
+
+    expect(global.WebSocket).toHaveBeenCalledWith('ws://localhost/test');
+  });
+
+  test('handles incoming log messages', () => {
+    const onMessage = jest.fn();
+    const ws = new LogsWebSocket('ws://localhost/test', onMessage, jest.fn());
+    ws.isPaused = false;
+
+    const logEntry = { level: 'info', message: 'Test log', service: 'portal' };
+    const event = { data: JSON.stringify(logEntry) };
+
+    // Simulate WebSocket message
+    ws.ws = { onmessage: (e) => ws.onMessage(e) };
+    ws.ws.onmessage(event);
+
+    expect(onMessage).toHaveBeenCalledWith(logEntry);
+  });
+
+  test('pause stops message processing', () => {
+    const onMessage = jest.fn();
+    const ws = new LogsWebSocket('ws://localhost/test', onMessage, jest.fn());
+
+    ws.pause();
+    expect(ws.isPaused).toBe(true);
+
+    // Message should not be processed when paused
+    const event = { data: JSON.stringify({ level: 'info', message: 'Test' }) };
+    ws.ws = { onmessage: (e) => ws.onMessage(e) };
+    ws.ws.onmessage(event);
+
+    expect(onMessage).not.toHaveBeenCalled();
+  });
+});
+
+// apps/logs/static/js/logs.test.js
+describe('Logs Dashboard', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <div id="logs-output"></div>
+      <select id="level-filter"><option value="all">All</option></select>
+      <select id="service-filter"><option value="all">All</option></select>
+      <input id="search-input" />
+    `;
+  });
+
+  test('renderLogEntry creates log element', () => {
+    const log = {
+      timestamp: '2025-10-20T10:30:00Z',
+      level: 'info',
+      service: 'portal',
+      message: 'Test message',
+    };
+
+    renderLogEntry(log);
+
+    const logsOutput = document.getElementById('logs-output');
+    expect(logsOutput.children.length).toBe(1);
+    expect(logsOutput.children[0].textContent).toContain('Test message');
+    expect(logsOutput.children[0].classList.contains('log-info')).toBe(true);
+  });
+
+  test('matchesFilters correctly filters logs', () => {
+    currentFilters = { level: 'error', service: 'review', search: 'failed' };
+
+    expect(matchesFilters({ level: 'error', service: 'review', message: 'Analysis failed' })).toBe(true);
+    expect(matchesFilters({ level: 'info', service: 'review', message: 'Analysis failed' })).toBe(false);
+    expect(matchesFilters({ level: 'error', service: 'portal', message: 'Analysis failed' })).toBe(false);
+    expect(matchesFilters({ level: 'error', service: 'review', message: 'Success' })).toBe(false);
+  });
+
+  test('clearLogs empties output container', () => {
+    document.getElementById('logs-output').innerHTML = '<div>Log 1</div><div>Log 2</div>';
+
+    clearLogs();
+
+    expect(document.getElementById('logs-output').innerHTML).toBe('');
+  });
+
+  test('limits log entries to 1000', () => {
+    const logsOutput = document.getElementById('logs-output');
+
+    // Add 1001 log entries
+    for (let i = 0; i < 1001; i++) {
+      renderLogEntry({ timestamp: new Date().toISOString(), level: 'info', service: 'test', message: `Log ${i}` });
+    }
+
+    expect(logsOutput.children.length).toBe(1000);
+  });
+});
+```
+
+**Run tests (should FAIL):**
+```bash
+go test ./apps/logs/handlers/...
+# Expected: FAIL - DashboardHandler undefined
+
+npm test -- logs.test.js
+# Expected: FAIL - renderLogEntry is not defined
+```
+
+**Commit failing tests:**
+```bash
+git add apps/logs/handlers/ui_handler_test.go
+git add apps/logs/static/js/*.test.js
+git commit -m "test(logs): add failing tests for dashboard UI and WebSocket (RED phase)"
+```
+
+**Step 2: GREEN PHASE - Implement to Pass Tests**
+
+Now implement the templates, handlers, and JavaScript. See Implementation section above.
+
+**After implementation, run tests:**
+```bash
+go test ./apps/logs/...
+# Expected: PASS
+
+npm test
+# Expected: PASS
+```
+
+**Step 3: Verify Build**
+```bash
+templ generate apps/logs/templates/*.templ
+go build -o /dev/null ./cmd/logs
+```
+
+**Step 4: Manual Testing**
+
+Follow the manual testing checklist below.
+
+**Step 5: Commit Implementation**
+```bash
+git add apps/logs/
+git commit -m "feat(logs): implement real-time dashboard with WebSocket streaming (GREEN phase)"
+```
+
+**Step 6: REFACTOR PHASE (Optional)**
+
+If needed, refactor for:
+- WebSocket reconnection logic (exponential backoff)
+- Performance optimization (virtual scrolling for large log lists)
+- Improved filtering (regex support, advanced search)
+- Accessibility (keyboard shortcuts, screen reader support)
+
+**Commit refactors:**
+```bash
+git add apps/logs/
+git commit -m "refactor(logs): improve WebSocket reliability and performance"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36, 38-86 (RED-GREEN-REFACTOR)
+
+**Key TDD Principles for Real-time UI:**
+1. **Test WebSocket connection lifecycle** (connect, disconnect, reconnect)
+2. **Test message handling** (parse JSON, update UI)
+3. **Test filtering logic** (level, service, search work correctly)
+4. **Test state management** (pause/resume, auto-scroll toggle)
+5. **Test error handling** (connection failures, malformed messages)
+6. **Test performance limits** (1000 entry cap, memory management)
+
+**Coverage Target:** 70%+ for Go handlers, 60%+ for JavaScript logic
+
+**Special Testing Considerations:**
+- Mock WebSocket in tests (can't use real WebSocket in unit tests)
+- Test reconnection logic with simulated failures
+- Test UI responsiveness with rapid log generation
+- Verify memory doesn't leak with long-running connections
+
+---
+
 ## Testing Requirements
 
 ### Manual Testing Checklist
