@@ -72,40 +72,139 @@ git checkout -b feature/{issue-number}-descriptive-name
 - Parallel development
 - First issue in a batch
 
-### Step 3: Write Tests FIRST ✅ (TDD)
+### Step 3: Write Tests FIRST ✅ (TDD) - MANDATORY
 
-**Test-Driven Development Process:**
-1. Read acceptance criteria from issue
-2. Write test that defines expected behavior
-3. Run test (should FAIL - Red)
-4. Write minimal code to make test pass (Green)
-5. Refactor if needed
-6. Repeat for next criterion
+**⚠️ CRITICAL: TDD is REQUIRED, not optional. Claude will reject PRs that don't follow TDD.**
 
-**Example TDD Cycle:**
+**Test-Driven Development Process (Red-Green-Refactor):**
+
+1. **RED Phase**: Write failing test that defines expected behavior
+2. **GREEN Phase**: Write minimal code to make test pass
+3. **REFACTOR Phase**: Improve code quality while keeping tests green
+
+**Complete TDD Workflow:**
+
+```bash
+# Step 1: RED PHASE - Write failing tests FIRST
+# Create test file: internal/review/services/scan_service_test.go
+
+# Run tests - they should FAIL
+go test ./internal/review/services/...
+# Expected: FAIL - NewScanService undefined
+
+# Commit the failing tests
+git add internal/review/services/scan_service_test.go
+git commit -m "test(review): add failing tests for Scan Mode (RED phase)
+
+Tests define expected behavior:
+- TestScanService_AnalyzeScan_Success
+- TestScanService_AnalyzeScan_EmptyQuery
+- TestScanService_AnalyzeScan_NoMatches
+
+Reference: DevsmithTDD.md (Red-Green-Refactor cycle)
+Status: RED (tests fail as expected)"
+
+# Step 2: GREEN PHASE - Implement minimal code to pass tests
+# Create: internal/review/services/scan_service.go
+
+# Run tests - they should PASS now
+go test ./internal/review/services/...
+# Expected: PASS
+
+# Verify build succeeds (CRITICAL)
+go build -o /dev/null ./cmd/review
+
+# Commit the implementation
+git add internal/review/services/scan_service.go
+git commit -m "feat(review): implement Scan Mode service (GREEN phase)
+
+Implementation:
+- NewScanService constructor
+- AnalyzeScan method with Ollama integration
+- Query validation
+- Result caching
+
+Testing:
+- All 3 tests passing
+- go build succeeds
+
+Status: GREEN (tests pass, implementation complete)"
+
+# Step 3: REFACTOR PHASE (if needed)
+# Improve code quality while keeping tests green
+# Example: Extract method, improve naming, add comments
+
+# Run tests again - should still PASS
+go test ./internal/review/services/...
+
+# Commit refactoring
+git commit -m "refactor(review): improve Scan Mode error handling"
+```
+
+**Go/Backend TDD Example:**
+```go
+// 1. RED: Write test FIRST (in scan_service_test.go)
+func TestScanService_AnalyzeScan_Success(t *testing.T) {
+	mockOllama := new(MockOllamaClient)
+	mockRepo := new(MockAnalysisRepository)
+	service := NewScanService(mockOllama, mockRepo)
+
+	output, err := service.AnalyzeScan(ctx, 1, "auth", "owner", "repo")
+
+	assert.NoError(t, err)
+	assert.Len(t, output.Matches, 1)
+}
+// Run: FAILS (NewScanService undefined)
+
+// 2. GREEN: Write minimal implementation (in scan_service.go)
+func NewScanService(ollama *OllamaClient, repo AnalysisRepositoryInterface) *ScanService {
+	return &ScanService{ollamaClient: ollama, analysisRepo: repo}
+}
+
+func (s *ScanService) AnalyzeScan(...) (*models.ScanModeOutput, error) {
+	// Minimal implementation to pass tests
+}
+// Run: PASSES
+
+// 3. REFACTOR: Improve (still in scan_service.go)
+// Add better error handling, comments, validation
+// Run: Still PASSES
+```
+
+**React/Frontend TDD Example:**
 ```javascript
-// 1. Write test FIRST
+// 1. RED: Write test FIRST
 test('stores JWT token in localStorage with correct key', () => {
   const token = 'fake-jwt-token';
   authService.saveToken(token);
   expect(localStorage.getItem('devsmith_token')).toBe(token);
 });
+// Run: FAILS (authService.saveToken undefined)
 
-// 2. Run test - it FAILS (no authService.saveToken yet)
-
-// 3. Write minimal code to pass
+// 2. GREEN: Write minimal code
 export const authService = {
   saveToken: (token) => {
     localStorage.setItem('devsmith_token', token);
   }
 };
+// Run: PASSES
 
-// 4. Run test - it PASSES
-
-// 5. Refactor if needed
-
-// 6. Move to next acceptance criterion
+// 3. REFACTOR: Improve
+export const authService = {
+  saveToken: (token) => {
+    if (!token) throw new Error('Token required');
+    localStorage.setItem('devsmith_token', token);
+  }
+};
+// Run: Still PASSES
 ```
+
+**Why TDD is Mandatory:**
+- Tests define requirements clearly (living documentation)
+- Prevents over-engineering (write only needed code)
+- Catches bugs early (before they reach production)
+- Enables confident refactoring (tests protect against regressions)
+- Aligns with platform mission (supervising AI, not trusting blindly)
 
 ### Step 4: Implement Feature 💻
 
@@ -327,9 +426,19 @@ When Claude reviews your PR:
 
 ### 1. Test-Driven Development (TDD) is REQUIRED
 
+**RED → GREEN → REFACTOR cycle is mandatory for ALL features.**
+
 - Tests written BEFORE implementation code
-- No exceptions
-- If you write code first, Claude will reject PR
+- Commit tests first (RED phase): `git commit -m "test: add failing tests (RED)"`
+- Then commit implementation (GREEN phase): `git commit -m "feat: implement feature (GREEN)"`
+- No exceptions - this is not negotiable
+- If you write code first, Claude will reject PR immediately
+
+**Why Separate Commits Matter:**
+- RED commit proves tests were written first
+- GREEN commit shows implementation driven by tests
+- Git history validates TDD process
+- Pre-commit hook detects RED phase and provides helpful guidance
 
 ### 2. One Feature Per Issue, One Issue Per PR
 
@@ -570,6 +679,7 @@ If any checkbox is unchecked, **DO NOT create PR yet.**
 | 1.0 | 2025-10-18 | Initial version with workflow updates |
 | 1.1 | 2025-10-20 | Added automated activity logging via git hooks |
 | 1.2 | 2025-10-20 | Updated branch workflow for auto-created branches |
+| 1.3 | 2025-10-20 | **Major TDD Update**: Added comprehensive TDD workflow with Red-Green-Refactor cycle, complete examples, and mandatory separate commits for test and implementation phases |
 
 ---
 

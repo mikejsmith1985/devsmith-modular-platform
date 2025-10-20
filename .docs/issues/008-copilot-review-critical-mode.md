@@ -37,7 +37,209 @@ Implement Critical Mode - evaluative review. AI identifies bugs, security vulner
 
 ---
 
+## ⚠️ CRITICAL: Test-Driven Development (TDD) Required
+
+**YOU MUST WRITE TESTS FIRST, THEN IMPLEMENTATION.**
+
+Follow the Red-Green-Refactor cycle from DevsmithTDD.md:
+1. **RED**: Write failing test
+2. **GREEN**: Write minimal code to pass
+3. **REFACTOR**: Improve code quality
+
+### TDD Workflow for This Issue
+
+**Step 1: RED PHASE (Write Failing Tests) - DO THIS FIRST!**
+
+Create `internal/review/services/critical_service_test.go` BEFORE writing `critical_service.go`:
+
+```go
+package services
+
+import (
+	"context"
+	"testing"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// Test 1: Finds security vulnerabilities
+func TestCriticalService_AnalyzeCritical_FindsSecurityIssues(t *testing.T) {
+	mockOllama := new(MockOllamaClient)
+	mockRepo := new(MockAnalysisRepository)
+	service := NewCriticalService(mockOllama, mockRepo)
+
+	aiResponse := `{
+		"issues": [
+			{
+				"severity": "critical",
+				"category": "security",
+				"file": "auth.go",
+				"line": 10,
+				"code_snippet": "db.Query(userInput)",
+				"description": "SQL injection vulnerability",
+				"impact": "Attacker can access entire database",
+				"fix_suggestion": "Use parameterized queries: db.Query(sql, userInput)"
+			}
+		],
+		"summary": "Found 1 critical security issue",
+		"overall_grade": "D"
+	}`
+	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
+	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+
+	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
+
+	assert.NoError(t, err)
+	assert.Len(t, output.Issues, 1)
+	assert.Equal(t, "critical", output.Issues[0].Severity)
+	assert.Equal(t, "security", output.Issues[0].Category)
+	assert.Contains(t, output.Issues[0].Description, "SQL injection")
+	assert.Equal(t, "D", output.OverallGrade)
+}
+
+// Test 2: Finds multiple issue types
+func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
+	mockOllama := new(MockOllamaClient)
+	mockRepo := new(MockAnalysisRepository)
+	service := NewCriticalService(mockOllama, mockRepo)
+
+	aiResponse := `{
+		"issues": [
+			{
+				"severity": "critical",
+				"category": "security",
+				"file": "auth.go",
+				"line": 10,
+				"code_snippet": "eval(userInput)",
+				"description": "Code injection vulnerability",
+				"impact": "Remote code execution",
+				"fix_suggestion": "Never use eval with user input"
+			},
+			{
+				"severity": "high",
+				"category": "performance",
+				"file": "users.go",
+				"line": 25,
+				"code_snippet": "for user in users: db.query()",
+				"description": "N+1 query problem",
+				"impact": "Database overload with many users",
+				"fix_suggestion": "Use JOIN or batch query"
+			},
+			{
+				"severity": "medium",
+				"category": "maintainability",
+				"file": "utils.go",
+				"line": 100,
+				"code_snippet": "if ... elif ... elif ... (50 lines)",
+				"description": "Excessive cyclomatic complexity",
+				"impact": "Hard to test and maintain",
+				"fix_suggestion": "Refactor to switch statement or strategy pattern"
+			}
+		],
+		"summary": "Found 1 critical, 1 high, 1 medium issue",
+		"overall_grade": "C"
+	}`
+	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
+	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+
+	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
+
+	assert.NoError(t, err)
+	assert.Len(t, output.Issues, 3)
+
+	// Verify severity levels
+	severities := []string{output.Issues[0].Severity, output.Issues[1].Severity, output.Issues[2].Severity}
+	assert.Contains(t, severities, "critical")
+	assert.Contains(t, severities, "high")
+	assert.Contains(t, severities, "medium")
+
+	// Verify categories
+	categories := []string{output.Issues[0].Category, output.Issues[1].Category, output.Issues[2].Category}
+	assert.Contains(t, categories, "security")
+	assert.Contains(t, categories, "performance")
+	assert.Contains(t, categories, "maintainability")
+}
+
+// Test 3: Clean code (no issues)
+func TestCriticalService_AnalyzeCritical_CleanCode(t *testing.T) {
+	mockOllama := new(MockOllamaClient)
+	mockRepo := new(MockAnalysisRepository)
+	service := NewCriticalService(mockOllama, mockRepo)
+
+	aiResponse := `{
+		"issues": [],
+		"summary": "No issues found - excellent code quality",
+		"overall_grade": "A"
+	}`
+	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
+	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+
+	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
+
+	assert.NoError(t, err)
+	assert.Empty(t, output.Issues)
+	assert.Equal(t, "A", output.OverallGrade)
+}
+
+// Test 4: Handles AI parsing errors
+func TestCriticalService_AnalyzeCritical_InvalidJSON(t *testing.T) {
+	mockOllama := new(MockOllamaClient)
+	mockRepo := new(MockAnalysisRepository)
+	service := NewCriticalService(mockOllama, mockRepo)
+
+	aiResponse := `Invalid JSON response`
+	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
+
+	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
+
+	// Should handle gracefully, not crash
+	assert.NoError(t, err)
+	assert.NotNil(t, output)
+	// Fallback response expected
+}
+```
+
+**Run tests (they should FAIL):**
+```bash
+go test ./internal/review/services/...
+# Expected: FAIL - NewCriticalService undefined
+```
+
+**Commit the failing tests:**
+```bash
+git add internal/review/services/critical_service_test.go
+git commit -m "test(review): add failing tests for Critical Mode (RED phase)"
+```
+
+**Step 2: GREEN PHASE (Make Tests Pass)**
+
+Now implement `critical_service.go` to make tests pass. See Phase 1 below.
+
+**Step 3: Verify Build (CRITICAL)**
+
+Before committing implementation:
+```bash
+# Build must succeed
+go build -o /dev/null ./cmd/review
+
+# If build fails, fix errors before committing
+```
+
+**Step 4: Commit Implementation**
+```bash
+git add internal/review/services/critical_service.go
+git commit -m "feat(review): implement Critical Mode service (GREEN phase)"
+```
+
+**Reference:** DevsmithTDD.md lines 15-36 (Red-Green-Refactor cycle)
+
+**Note:** This is the platform's centerpiece mode - most important for HITL training. Tests must be comprehensive.
+
+---
+
 ## Implementation
+
+**IMPORTANT: Follow TDD workflow above. Write tests FIRST (already shown), then implement.**
 
 ### Phase 1: Critical Service
 
