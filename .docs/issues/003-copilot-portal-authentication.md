@@ -24,6 +24,16 @@ Implement the Portal service's authentication system using GitHub OAuth, enablin
 
 ---
 
+# ⚠️ STOP! READ THIS FIRST! ⚠️
+
+**BEFORE writing ANY code, you MUST create a feature branch!**
+
+**DO NOT work on the `development` branch directly!**
+
+If you start coding on `development`, you will break the workflow and have to redo your work.
+
+---
+
 ## IMPORTANT: Before You Start
 
 ### Step 1: Create Feature Branch
