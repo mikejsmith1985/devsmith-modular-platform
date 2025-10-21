@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS portal.users (
     id SERIAL PRIMARY KEY,
     github_id BIGINT NOT NULL UNIQUE,
     username VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
     avatar_url TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
+    github_access_token TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
