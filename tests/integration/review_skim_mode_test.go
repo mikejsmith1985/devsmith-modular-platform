@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/review/handlers"
 	reviewdb "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
