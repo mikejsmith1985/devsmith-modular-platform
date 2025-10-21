@@ -29,11 +29,11 @@ func TestScanService_AnalyzeScan_Success(t *testing.T) {
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-	output, err := service.AnalyzeScan(context.Background(), 1, "authentication", "owner", "repo")
+	output, err := service.AnalyzeScan(context.Background(), 1, "authentication")
 
 	assert.NoError(t, err)
 	assert.Len(t, output.Matches, 1)
-	assert.Equal(t, "auth.go", output.Matches[0].File)
+	assert.Equal(t, "auth.go", output.Matches[0].FilePath)
 	assert.Equal(t, 0.9, output.Matches[0].Relevance)
 }
 
@@ -43,7 +43,7 @@ func TestScanService_AnalyzeScan_EmptyQuery(t *testing.T) {
 	mockRepo := new(MockAnalysisRepository)
 	service := NewScanService(mockOllama, mockRepo)
 
-	_, err := service.AnalyzeScan(context.Background(), 1, "", "owner", "repo")
+	_, err := service.AnalyzeScan(context.Background(), 1, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "query cannot be empty")
@@ -59,7 +59,7 @@ func TestScanService_AnalyzeScan_NoMatches(t *testing.T) {
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-	output, err := service.AnalyzeScan(context.Background(), 1, "nonexistent", "owner", "repo")
+	output, err := service.AnalyzeScan(context.Background(), 1, "nonexistent")
 
 	assert.NoError(t, err)
 	assert.Empty(t, output.Matches)

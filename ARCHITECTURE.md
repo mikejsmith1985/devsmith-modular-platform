@@ -2383,8 +2383,9 @@ git commit -m "feat(scope): description
 
 Implements .docs/issues/{XXX}-copilot-{task-name}.md"
 
-# 7. Push and create PR (auto-create-pr workflow will create PR)
+# 7. Push and manually create PR
 git push origin feature/{XXX}-{task-name}
+gh pr create --title "Issue #XXX: Title" --body "..."
 ```
 
 **Auto-Created Branches:**

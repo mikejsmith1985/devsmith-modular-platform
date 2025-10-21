@@ -20,7 +20,7 @@ func RegisterAuthRoutes(r *gin.Engine, dbConn *sql.DB) {
 	logger := zerolog.New(os.Stdout)
 	userRepo := db.NewUserRepository(dbConn)
 	githubClient := services.NewGitHubClient(os.Getenv("GITHUB_CLIENT_ID"), os.Getenv("GITHUB_CLIENT_SECRET"))
-	authService := services.NewAuthService(userRepo, githubClient, os.Getenv("JWT_SECRET"), &logger)
+	authService := services.NewAuthService(userRepo, githubClient, os.Getenv("JWT_SECRET"), &logger, nil, nil)
 
 	r.GET("/auth/github/login", func(c *gin.Context) {
 		clientID := os.Getenv("GITHUB_CLIENT_ID")

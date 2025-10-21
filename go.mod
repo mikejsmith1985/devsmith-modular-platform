@@ -2,8 +2,6 @@ module github.com/mikejsmith1985/devsmith-modular-platform
 
 go 1.23.0
 
-toolchain go1.24.9
-
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
