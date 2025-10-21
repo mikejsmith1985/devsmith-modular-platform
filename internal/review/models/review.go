@@ -11,7 +11,7 @@ type ScanModeOutput struct {
 // CodeMatch represents a code match found during Scan Mode analysis.
 // It includes the relevance, file path, code snippet, context, and line number.
 type CodeMatch struct {
-	FilePath    string
+	FilePath    string `json:"file"`
 	CodeSnippet string `json:"code_snippet"`
 	Context     string `json:"context"`
 	Snippet     string

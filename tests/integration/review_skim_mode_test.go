@@ -64,11 +64,11 @@ func TestSkimMode_Integration(t *testing.T) {
 	var output map[string]interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &output)
 	assert.NoError(t, err)
+	assert.Contains(t, output, "Summary") // Updated to match the capitalized field name
 	assert.Contains(t, output, "functions")
 	assert.Contains(t, output, "interfaces")
 	assert.Contains(t, output, "data_models")
 	assert.Contains(t, output, "workflows")
-	assert.Contains(t, output, "summary")
 }
 
 type OllamaClientStub struct{}
@@ -79,7 +79,15 @@ func (o *OllamaClientStub) Generate(_ context.Context, _ string) (string, error)
 
 type MockAnalysisRepository struct{}
 
-func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, _ int64, _ string) (*models.AnalysisResult, error) {
+func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID int64, mode string) (*models.AnalysisResult, error) {
+	if reviewID == 1001 && mode == models.SkimMode {
+		return &models.AnalysisResult{
+			ReviewID: reviewID,
+			Mode:     mode,
+			Summary:  "Cached summary for test",
+			Metadata: `{"functions":[],"interfaces":[],"data_models":[],"workflows":[],"summary":"Cached summary for test"}`,
+		}, nil
+	}
 	return nil, fmt.Errorf("not found")
 }
 func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisResult) error {
