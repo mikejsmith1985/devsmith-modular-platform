@@ -26,8 +26,10 @@ func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.SkimModeOutput, error) {
 	// Check cache
 	existing, err := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, models.SkimMode)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find existing analysis result: %w", err)
+	// Debugging: Log cache lookup result
+	// fmt.Printf("Cache lookup result: %+v, error: %v\n", existing, err)
+	if err != nil && err.Error() != "not found" {
+		return nil, fmt.Errorf("cache lookup failed: %w", err)
 	}
 	if existing != nil {
 		var output models.SkimModeOutput
@@ -47,11 +49,17 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner
 		return nil, err
 	}
 
+	// Debugging: Log raw output from AI
+	// fmt.Printf("Raw AI output: %s\n", rawOutput)
+
 	// Parse response
 	output, err := s.parseSkimOutput(rawOutput)
 	if err != nil {
 		return nil, err
 	}
+
+	// Debugging: Log parsed output
+	// fmt.Printf("Parsed SkimModeOutput: %+v\n", output)
 
 	// Store in DB
 	metadataJSON, err := json.Marshal(output)
