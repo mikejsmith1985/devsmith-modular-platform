@@ -6,8 +6,8 @@ CREATE SCHEMA IF NOT EXISTS analytics;
 CREATE SCHEMA IF NOT EXISTS builds;
 
 -- Create roles for authentication
-CREATE ROLE devsmith WITH LOGIN PASSWORD 'test_password';
-CREATE ROLE root WITH LOGIN PASSWORD 'test_password';
+CREATE ROLE devsmith IF NOT EXISTS WITH LOGIN PASSWORD 'test_password';
+CREATE ROLE root IF NOT EXISTS WITH LOGIN PASSWORD 'test_password';
 
 -- Create reviews.sessions table for Review Service
 CREATE TABLE IF NOT EXISTS reviews.sessions (
