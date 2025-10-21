@@ -6,22 +6,6 @@ This directory contains automated CI/CD workflows for the DevSmith Modular Platf
 
 ### 🔄 Development Workflow Automation
 
-#### `auto-create-pr.yml` - Auto-Create Pull Requests
-**Trigger:** Push to `feature/**` branches
-**Purpose:** Automatically creates PRs when pushing to feature branches
-
-**What it does:**
-1. Extracts issue number from branch name (e.g., `feature/004-...` → `004`)
-2. Finds corresponding issue file (`.docs/issues/004-*.md`)
-3. Extracts PR title from issue file (first heading)
-4. Extracts PR body from issue template (if available)
-5. Creates PR to `development` branch
-6. Skips if PR already exists
-
-**Required:** `pull-requests: write` permission
-
----
-
 #### `auto-sync-next-issue.yml` - Auto-Sync and Create Next Issue Branch
 **Trigger:** PR merge to `development` branch
 **Purpose:** Automatically prepares for the next issue after PR merge
@@ -146,12 +130,12 @@ All workflows use `GITHUB_TOKEN` with these permissions:
 
 | Workflow | Permissions Required |
 |----------|---------------------|
-| `auto-create-pr.yml` | `contents: read`, `pull-requests: write` |
 | `auto-sync-next-issue.yml` | `contents: write`, `pull-requests: write` |
-| `pr-checks.yml` | `contents: read`, `pull-requests: write` |
 | `test-and-build.yml` | `contents: read` |
 | `security-scan.yml` | `contents: read`, `security-events: write` |
 | `pr-preview.yml` | `contents: read`, `deployments: write` |
+| `auto-label.yml` | `contents: read`, `pull-requests: write` |
+| `validate-migrations.yml` | `contents: read` |
 
 ---
 
@@ -160,9 +144,9 @@ All workflows use `GITHUB_TOKEN` with these permissions:
 ```
 Feature Branch Push
   ↓
-auto-create-pr.yml (creates PR)
+Developer manually creates PR (gh pr create)
   ↓
-pr-checks.yml + test-and-build.yml + security-scan.yml
+test-and-build.yml + security-scan.yml + auto-label.yml
   ↓
 PR Approved & Merged
   ↓
@@ -172,11 +156,6 @@ auto-sync-next-issue.yml (creates next feature branch)
 ---
 
 ## Troubleshooting
-
-### PR Not Auto-Created
-- Check branch name follows `feature/NNN-description` format
-- Verify issue file exists at `.docs/issues/NNN-*.md`
-- Check workflow permissions in repository settings
 
 ### Next Issue Branch Not Created
 - Verify PR was merged (not just closed)

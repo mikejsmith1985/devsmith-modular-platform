@@ -25,10 +25,18 @@ func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 // AnalyzeSkim performs Skim Mode analysis for the given review session and repository.
 func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.SkimModeOutput, error) {
 	// Check cache
-	existing, _ := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, models.SkimMode)
+	existing, err := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, models.SkimMode)
+	// Debugging: Log cache lookup result
+	// fmt.Printf("Cache lookup result: %+v, error: %v\n", existing, err)
+	if err != nil && err.Error() != "not found" {
+		return nil, fmt.Errorf("cache lookup failed: %w", err)
+	}
 	if existing != nil {
 		var output models.SkimModeOutput
-		json.Unmarshal([]byte(existing.Metadata), &output)
+		// Properly handle errors for Unmarshal
+		if unmarshalErr := json.Unmarshal([]byte(existing.Metadata), &output); unmarshalErr != nil {
+			return nil, fmt.Errorf("failed to unmarshal existing metadata: %w", unmarshalErr)
+		}
 		return &output, nil
 	}
 
@@ -41,11 +49,23 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner
 		return nil, err
 	}
 
+	// Debugging: Log raw output from AI
+	// fmt.Printf("Raw AI output: %s\n", rawOutput)
+
 	// Parse response
-	output, _ := s.parseSkimOutput(rawOutput)
+	output, err := s.parseSkimOutput(rawOutput)
+	if err != nil {
+		return nil, err
+	}
+
+	// Debugging: Log parsed output
+	// fmt.Printf("Parsed SkimModeOutput: %+v\n", output)
 
 	// Store in DB
-	metadataJSON, _ := json.Marshal(output)
+	metadataJSON, err := json.Marshal(output)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal skim analysis output: %w", err)
+	}
 	result := &models.AnalysisResult{
 		ReviewID:  reviewID,
 		Mode:      models.SkimMode,
@@ -55,7 +75,10 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner
 		Metadata:  string(metadataJSON),
 		ModelUsed: "qwen2.5-coder:32b",
 	}
-	s.analysisRepo.Create(ctx, result)
+	// Ensure the result is saved and handle errors
+	if err := s.analysisRepo.Create(ctx, result); err != nil {
+		return nil, fmt.Errorf("failed to save skim analysis result: %w", err)
+	}
 
 	return output, nil
 }
@@ -77,8 +100,11 @@ Provide JSON:
 Repository: https://github.com/%s/%s`, owner, repo, owner, repo)
 }
 
+// Fix parseSkimOutput to handle errors properly
 func (s *SkimService) parseSkimOutput(raw string) (*models.SkimModeOutput, error) {
 	var output models.SkimModeOutput
-	json.Unmarshal([]byte(raw), &output)
+	if err := json.Unmarshal([]byte(raw), &output); err != nil {
+		return nil, fmt.Errorf("failed to parse skim output: %w", err)
+	}
 	return &output, nil
 }

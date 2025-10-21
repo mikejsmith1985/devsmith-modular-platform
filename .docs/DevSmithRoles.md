@@ -27,15 +27,14 @@ DevSmith Platform uses a hybrid AI development team with **Mike as Product Manag
 - ❌ Writing code (AI agents do this)
 - ❌ Creating Git branches (automated by workflow)
 - ❌ Switching branches (automated by Copilot)
-- ❌ Creating PRs (automated by AI agents)
 - ❌ Running tests (automated by CI/CD)
-- ❌ Manual Git operations (automated where possible)
+- ❌ Most manual Git operations (automated where possible)
 
 **Workflow Position:**
 ```
-Issue Created → AI Implementation → PR Auto-Created → [MIKE REVIEWS] → Approve/Reject → Merge
-                                                            ↑
-                                                      QUALITY GATE
+Issue Created → AI Implementation → Manual PR Creation → [MIKE REVIEWS] → Approve/Reject → Merge
+                                                                ↑
+                                                          QUALITY GATE
 ```
 
 **Time Investment:**
@@ -90,7 +89,7 @@ Planning Session → Create Issues → [AI IMPLEMENTS] → Review PRs → Recomm
 - ✅ **Feature implementation** - Writes production code for defined issues
 - ✅ **Test-first development** - Follows TDD (RED-GREEN-REFACTOR)
 - ✅ **Branch detection** - Auto-switches to correct feature branch
-- ✅ **PR creation** - Auto-creates PR when work complete
+- ✅ **PR creation** - Manually creates PR when work complete (`gh pr create`)
 - ✅ **Quick iterations** - Handles small-to-medium complexity tasks
 - ✅ **IDE assistance** - Provides inline suggestions and completions
 

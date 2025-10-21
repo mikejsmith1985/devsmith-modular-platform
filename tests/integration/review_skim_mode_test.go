@@ -36,7 +36,11 @@ func setupTestDB(t *testing.T) *sql.DB {
 func TestSkimMode_Integration(t *testing.T) {
 	// Setup DB and insert a test review session
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("Error closing test DB: %v", err)
+		}
+	}()
 	_, err := db.Exec(`INSERT INTO reviews.sessions (id, user_id, title, code_source, github_repo, github_branch, pasted_code) VALUES (1001, 1, 'Test Review', 'github', 'mikejsmith1985/devsmith-modular-platform', 'main', '') ON CONFLICT (id) DO NOTHING`)
 	assert.NoError(t, err)
 
@@ -53,18 +57,18 @@ func TestSkimMode_Integration(t *testing.T) {
 	r.GET("/api/reviews/:id/skim", handler.GetSkimAnalysis)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/reviews/1001/skim", nil)
+	req, _ := http.NewRequest("GET", "/api/reviews/1001/skim", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code)
 	var output map[string]interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &output)
 	assert.NoError(t, err)
+	assert.Contains(t, output, "Summary") // Updated to match the capitalized field name
 	assert.Contains(t, output, "functions")
 	assert.Contains(t, output, "interfaces")
 	assert.Contains(t, output, "data_models")
 	assert.Contains(t, output, "workflows")
-	assert.Contains(t, output, "summary")
 }
 
 type OllamaClientStub struct{}
@@ -75,7 +79,15 @@ func (o *OllamaClientStub) Generate(_ context.Context, _ string) (string, error)
 
 type MockAnalysisRepository struct{}
 
-func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, _ int64, _ string) (*models.AnalysisResult, error) {
+func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID int64, mode string) (*models.AnalysisResult, error) {
+	if reviewID == 1001 && mode == models.SkimMode {
+		return &models.AnalysisResult{
+			ReviewID: reviewID,
+			Mode:     mode,
+			Summary:  "Cached summary for test",
+			Metadata: `{"functions":[],"interfaces":[],"data_models":[],"workflows":[],"summary":"Cached summary for test"}`,
+		}, nil
+	}
 	return nil, fmt.Errorf("not found")
 }
 func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisResult) error {

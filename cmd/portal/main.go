@@ -3,7 +3,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -40,7 +39,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer dbConn.Close()
+	defer func() {
+		if err := dbConn.Close(); err != nil {
+			log.Printf("Error closing DB connection: %v", err)
+		}
+	}()
 
 	// Register authentication routes
 	// Import handlers package
@@ -59,9 +62,11 @@ func main() {
 	if port == "" {
 		port = "3001"
 	}
-	// ...existing code...
-	fmt.Printf("Portal service starting on port %s...\n", port)
+	// Replace fmt.Printf with log.Printf for better logging consistency
+	log.Printf("Portal service starting on port %s...", port)
 	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		// Replace os.Exit with proper error handling
+		log.Printf("Failed to start server: %v", err)
+		return
 	}
 }
