@@ -744,6 +744,157 @@ All URLs, ports, API keys go in environment variables.
 
 See [ARCHITECTURE.md Section 13 - Configuration Management](../ARCHITECTURE.md#configuration-management).
 
+#### 5.1 Special Case: Test Mocks Must Use Framework, Not Hardcoded Returns
+
+**CRITICAL: Test mocks MUST participate in the testify mock framework. Never hardcode return values.**
+
+**The Problem:**
+When implementing mock methods, it's tempting to hardcode return values as placeholders. This bypasses the entire mock expectation system and makes tests impossible to configure.
+
+**❌ WRONG - Hardcoded Mock (Breaks Tests)**
+```go
+// In testutils/mock_log_reader.go
+func (m *MockLogReader) FindTopMessages(ctx context.Context, service string, level string, start time.Time, end time.Time, limit int) ([]models.IssueItem, error) {
+    // Mock implementation
+    return nil, nil  // ❌ HARDCODED - Ignores test expectations!
+}
+```
+
+**Why This Breaks:**
+- Test sets up expectations: `mockRepo.On("FindTopMessages", ...).Return(testData, nil)`
+- Mock ignores expectations and always returns `nil, nil`
+- Test receives empty results despite setup
+- Developers waste hours debugging "why isn't my mock working?"
+- **Real incident: #011 spent 20+ iterations trying to fix test before architect found hardcoded return**
+
+**✅ CORRECT - Framework-Integrated Mock**
+```go
+// In testutils/mock_log_reader.go
+func (m *MockLogReader) FindTopMessages(ctx context.Context, service string, level string, start time.Time, end time.Time, limit int) ([]models.IssueItem, error) {
+    args := m.Called(ctx, service, level, start, end, limit)  // ✅ Uses framework
+    return args.Get(0).([]models.IssueItem), args.Error(1)
+}
+```
+
+**The Pattern: All Mock Methods Must:**
+1. Call `m.Called(...)` with all parameters
+2. Extract return values using `args.Get(N)` and `args.Error(N)`
+3. Cast to correct types
+4. Return the framework-provided values
+
+**Complete Mock Template:**
+```go
+type MockRepository struct {
+    mock.Mock
+}
+
+// Method with complex return type
+func (m *MockRepository) FindData(ctx context.Context, id string, filters map[string]string) ([]models.Data, error) {
+    args := m.Called(ctx, id, filters)
+    if args.Get(0) == nil {
+        return nil, args.Error(1)  // Handle nil case
+    }
+    return args.Get(0).([]models.Data), args.Error(1)
+}
+
+// Method with simple return
+func (m *MockRepository) Count(ctx context.Context) (int, error) {
+    args := m.Called(ctx)
+    return args.Int(0), args.Error(1)  // Use typed getters when available
+}
+
+// Method with no error return
+func (m *MockRepository) GetName() string {
+    args := m.Called()
+    return args.String(0)
+}
+```
+
+**When Hardcoded Values ARE Acceptable:**
+
+✅ **Test Input Data (Non-Mock)**
+```go
+// These are test fixtures, not mocks - hardcoding is fine
+func TestService_ProcessUser(t *testing.T) {
+    testUser := models.User{
+        ID:    "test-123",           // ✅ OK - Test input
+        Name:  "Test User",          // ✅ OK - Test input
+        Email: "test@example.com",   // ✅ OK - Test input
+    }
+
+    result := service.ProcessUser(testUser)
+    assert.Equal(t, "Processed: Test User", result)
+}
+```
+
+✅ **Sentinel Errors and Constants**
+```go
+var (
+    ErrNotFound = errors.New("not found")  // ✅ OK - Sentinel error
+    ErrInvalid  = errors.New("invalid")    // ✅ OK - Sentinel error
+)
+
+const (
+    MaxRetries = 3              // ✅ OK - Constant
+    DefaultTimeout = time.Second * 30  // ✅ OK - Constant
+)
+```
+
+✅ **Helper Functions (Non-Mock)**
+```go
+// ✅ OK - Helper that generates test data
+func createTestContext() context.Context {
+    return context.WithValue(context.Background(), "test", true)
+}
+```
+
+**❌ Never Hardcode in Mocks:**
+```go
+// ❌ WRONG - Defeats entire purpose of mocking
+func (m *MockRepo) Find(id string) (*Data, error) {
+    if id == "test-123" {
+        return &Data{Name: "hardcoded"}, nil  // ❌ Hardcoded logic!
+    }
+    return nil, errors.New("not found")
+}
+
+// ✅ CORRECT - Let test configure behavior
+func (m *MockRepo) Find(id string) (*Data, error) {
+    args := m.Called(id)
+    if args.Get(0) == nil {
+        return nil, args.Error(1)
+    }
+    return args.Get(0).(*Data), args.Error(1)
+}
+
+// In test:
+mockRepo.On("Find", "test-123").Return(&Data{Name: "configured"}, nil)
+mockRepo.On("Find", "other").Return(nil, ErrNotFound)
+```
+
+**Pre-Commit Reminder:**
+Before committing mock implementations, verify:
+```bash
+# 1. Check mock uses m.Called()
+grep -n "m.Called" testutils/mock_*.go
+# Should show usage in every mock method
+
+# 2. Check for hardcoded returns in mocks
+grep -n "return.*nil.*nil" testutils/mock_*.go
+# Should NOT find "return nil, nil" outside error handling
+
+# 3. Run tests to verify mocks work
+go test ./...
+```
+
+**Why This Matters:**
+- Hardcoded mocks waste developer time (hours debugging "broken" tests)
+- Tests become unconfigurable and useless
+- Creates false sense of test coverage (test doesn't actually test anything)
+- Violates principle of explicit over implicit (test should show what's expected)
+
+**Remember:** Mocks exist to let tests control behavior. Hardcoding defeats that purpose entirely.
+
 ---
 
 ## When to Ask Claude for Help
@@ -955,6 +1106,7 @@ If any checkbox is unchecked, **DO NOT create PR yet.**
 | 1.1 | 2025-10-20 | Added automated activity logging via git hooks |
 | 1.2 | 2025-10-20 | Updated branch workflow for auto-created branches |
 | 1.3 | 2025-10-20 | **Major TDD Update**: Added comprehensive TDD workflow with Red-Green-Refactor cycle, complete examples, and mandatory separate commits for test and implementation phases |
+| 1.4 | 2025-10-21 | **Mock Implementation Guidelines**: Added section 5.1 on responsible use of hardcoded values in test mocks, with examples of correct testify framework integration and common anti-patterns to avoid (addresses issue #011 mock implementation failure) |
 
 ---
 
