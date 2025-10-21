@@ -2,8 +2,10 @@
 package services
 
 import (
+	"log"
 	"sync"
 
+	"github.com/gorilla/websocket"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
@@ -18,8 +20,9 @@ type WebSocketHub struct {
 
 // Client represents a WebSocket client connected to the hub.
 type Client struct {
-	send    chan *models.LogEntry
-	filters map[string]string
+	Conn    *websocket.Conn
+	Send    chan *models.LogEntry
+	Filters map[string]string
 }
 
 // NewWebSocketHub creates and returns a new WebSocketHub instance.
@@ -45,7 +48,7 @@ func (h *WebSocketHub) Run() {
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				close(client.send)
+				close(client.Send)
 			}
 			h.mu.Unlock()
 
@@ -54,9 +57,9 @@ func (h *WebSocketHub) Run() {
 			for client := range h.clients {
 				if h.matchesFilters(client, log) {
 					select {
-					case client.send <- log:
+					case client.Send <- log:
 					default:
-						close(client.send)
+						close(client.Send)
 						delete(h.clients, client)
 					}
 				}
@@ -68,11 +71,47 @@ func (h *WebSocketHub) Run() {
 
 // matchesFilters checks if a log entry matches the filters set by a client.
 func (h *WebSocketHub) matchesFilters(client *Client, log *models.LogEntry) bool {
-	if service, ok := client.filters["service"]; ok && service != log.Service {
+	if service, ok := client.Filters["service"]; ok && service != log.Service {
 		return false
 	}
-	if level, ok := client.filters["level"]; ok && level != log.Level {
+	if level, ok := client.Filters["level"]; ok && level != log.Level {
 		return false
 	}
 	return true
+}
+
+// Register adds a client to the hub.
+func (h *WebSocketHub) Register(client *Client) {
+	h.register <- client
+}
+
+// WritePump sends messages to the WebSocket connection.
+func (c *Client) WritePump() {
+	defer func() {
+		if err := c.Conn.Close(); err != nil {
+			// Log the error for debugging purposes
+			log.Printf("Error closing WebSocket connection: %v", err)
+		}
+	}()
+	for log := range c.Send {
+		if err := c.Conn.WriteJSON(log); err != nil {
+			break
+		}
+	}
+}
+
+// ReadPump reads messages from the WebSocket connection.
+func (c *Client) ReadPump() {
+	defer func() {
+		if err := c.Conn.Close(); err != nil {
+			// Log the error for debugging purposes
+			log.Printf("Error closing WebSocket connection: %v", err)
+		}
+	}()
+	for {
+		_, _, err := c.Conn.ReadMessage()
+		if err != nil {
+			break
+		}
+	}
 }

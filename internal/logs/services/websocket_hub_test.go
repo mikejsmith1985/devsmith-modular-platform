@@ -2,10 +2,9 @@ package services
 
 import (
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWebSocketHub_BroadcastToClients(t *testing.T) {
@@ -13,8 +12,8 @@ func TestWebSocketHub_BroadcastToClients(t *testing.T) {
 	go hub.Run()
 
 	// Mock clients
-	client1 := &Client{send: make(chan *models.LogEntry, 1)}
-	client2 := &Client{send: make(chan *models.LogEntry, 1)}
+	client1 := &Client{Send: make(chan *models.LogEntry, 1)}
+	client2 := &Client{Send: make(chan *models.LogEntry, 1)}
 
 	hub.register <- client1
 	hub.register <- client2
@@ -24,8 +23,8 @@ func TestWebSocketHub_BroadcastToClients(t *testing.T) {
 	hub.broadcast <- testLog
 
 	// Both clients should receive
-	assert.Equal(t, testLog, <-client1.send)
-	assert.Equal(t, testLog, <-client2.send)
+	assert.Equal(t, testLog, <-client1.Send)
+	assert.Equal(t, testLog, <-client2.Send)
 }
 
 func TestWebSocketHub_FiltersByService(t *testing.T) {
@@ -33,8 +32,8 @@ func TestWebSocketHub_FiltersByService(t *testing.T) {
 	go hub.Run()
 
 	client := &Client{
-		filters: map[string]string{"service": "portal"},
-		send:    make(chan *models.LogEntry, 1),
+		Filters: map[string]string{"service": "portal"},
+		Send:    make(chan *models.LogEntry, 1),
 	}
 
 	hub.register <- client
@@ -42,7 +41,7 @@ func TestWebSocketHub_FiltersByService(t *testing.T) {
 
 	// Should not receive (filtered out)
 	select {
-	case <-client.send:
+	case <-client.Send:
 		t.Fatal("Client received filtered log")
 	default:
 		// Expected - no message
