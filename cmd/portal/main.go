@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/jackc/pgx/v4/stdlib" // Fix: Import pgx PostgreSQL driver for DB connection
+	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx PostgreSQL driver for DB connection
 	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
 )
 
