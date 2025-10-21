@@ -21,3 +21,12 @@ CREATE TABLE IF NOT EXISTS reviews.sessions (
 	created_at TIMESTAMP DEFAULT NOW(),
 	last_accessed TIMESTAMP DEFAULT NOW()
 );
+
+-- Create portal.users table
+CREATE TABLE IF NOT EXISTS portal.users (
+    id SERIAL PRIMARY KEY,
+    github_id BIGINT NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL,
+    avatar_url TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
