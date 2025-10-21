@@ -165,12 +165,72 @@ git branch --show-current  # Should show feature/007-...
 ls .docs/issues/007-*.md   # Should show the issue file
 cat .docs/issues/007-*.md  # Should display issue content
 
-# If all three commands work, you're ready to proceed to Step 2.6 (Pre-Commit Awareness)
+# If all three commands work, you're ready to proceed to Step 2.6 (Pre-Implementation Validation)
 ```
 
 ---
 
-### Step 2.6: Know the Pre-Commit Checks (Code Smart, Not Hard) 🛡️
+### Step 2.6: PRE-IMPLEMENTATION VALIDATION (Prevents Recurring Issues) 🔍
+
+**🚨 CRITICAL: Run these checks BEFORE writing any code to prevent recurring issues identified in Root Cause Analysis.**
+
+**Common Recurring Issues We're Preventing:**
+1. Type Mismatches (wrong argument types)
+2. Undefined References (missing method implementations)
+3. Redundant Fixes (repeating same fix in multiple test files)
+4. Unused Imports (import clutter)
+5. Missing Test Files (incomplete test coverage)
+
+**Pre-Implementation Validation Commands:**
+
+```bash
+# Step 1: Validate package structure exists
+go list ./internal/{service}/...
+# Example: go list ./internal/analytics/...
+# ✅ Should list packages or show "no Go files" (expected for new services)
+
+# Step 2: Check for existing types/interfaces you'll need
+grep -r "type.*Service interface" internal/{service}/
+grep -r "type.*Repository interface" internal/{service}/
+# ✅ Identifies existing interfaces (prevents type mismatches)
+
+# Step 3: Verify test infrastructure is ready
+ls internal/{service}/*_test.go 2>/dev/null || echo "No tests yet - will create"
+test -f internal/{service}/testutils/mocks.go || echo "Will need to create mocks"
+# ✅ Shows what test files exist (prevents missing tests)
+
+# Step 4: Check imports for dependencies
+go list -f '{{.Imports}}' ./internal/{service}/... 2>/dev/null
+# ✅ Shows current dependencies (helps plan new ones)
+
+# Step 5: Run goimports to clean any existing code
+goimports -w ./internal/{service}/
+# ✅ Removes unused imports proactively
+```
+
+**Pre-Implementation Checklist:**
+- [ ] Verified package structure (prevents undefined references)
+- [ ] Located existing interfaces (prevents type mismatches)
+- [ ] Confirmed test file locations (prevents missing tests)
+- [ ] Identified shared mocks (prevents redundant fixes)
+- [ ] Cleaned imports (prevents unused import clutter)
+
+**Why This Matters:**
+Running these checks takes 2-3 minutes but prevents 30-60 minutes of rework fixing:
+- Type mismatch errors discovered during build
+- Undefined method errors in test files
+- Copy-pasting same mock fixes across multiple files
+- Import cleanup before committing
+
+**When These Checks Fail:**
+- **Package doesn't exist yet?** ✅ Normal for new services - you'll create it
+- **No interfaces found?** ✅ Check spelling or look in related services for patterns
+- **No test files?** ✅ Expected for new work - you'll create them following TDD
+- **Many imports?** ⚠️ Review if all are needed - consider consolidation
+
+---
+
+### Step 2.7: Know the Pre-Commit Checks (Code Smart, Not Hard) 🛡️
 
 **🚨 CRITICAL: Understanding what will be validated at commit time helps you write correct code the first time.**
 

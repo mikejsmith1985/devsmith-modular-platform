@@ -2371,19 +2371,46 @@ git checkout -b feature/{XXX}-{task-name}
 # 3. Open spec
 open .docs/issues/{XXX}-copilot-{task-name}.md
 
-# 4. Create files with Copilot autocomplete
+# 4. PRE-IMPLEMENTATION VALIDATION (Prevents recurring issues)
+# Run these checks BEFORE writing any code to catch issues early
+
+# 4a. Validate package structure exists
+go list ./internal/{service}/...  # Should list packages or "no Go files"
+
+# 4b. Check for existing types/interfaces you'll need
+grep -r "type.*Service interface" internal/{service}/
+grep -r "type.*Repository interface" internal/{service}/
+
+# 4c. Verify test infrastructure is ready
+ls internal/{service}/*_test.go 2>/dev/null || echo "No tests yet - will create"
+test -f internal/{service}/testutils/mocks.go || echo "Will need to create mocks"
+
+# 4d. Check imports for dependencies
+go list -f '{{.Imports}}' ./internal/{service}/... | grep -o '\[.*\]'
+
+# 4e. Run goimports to clean any existing code
+goimports -w ./internal/{service}/
+
+# Pre-Implementation Checklist (based on Root Cause Analysis):
+# - [ ] Verified package structure (prevents undefined references)
+# - [ ] Located existing interfaces (prevents type mismatches)
+# - [ ] Confirmed test file locations (prevents missing tests)
+# - [ ] Identified shared mocks (prevents redundant fixes)
+# - [ ] Cleaned imports (prevents unused import clutter)
+
+# 5. Create files with Copilot autocomplete
 # Copilot reads the spec and suggests code
 
-# 5. Test locally
+# 6. Test locally
 make test
 
-# 6. Commit
+# 7. Commit
 git add -A
 git commit -m "feat(scope): description
 
 Implements .docs/issues/{XXX}-copilot-{task-name}.md"
 
-# 7. Push and manually create PR
+# 8. Push and manually create PR
 git push origin feature/{XXX}-{task-name}
 gh pr create --title "Issue #XXX: Title" --body "..."
 ```
@@ -2464,6 +2491,13 @@ Security:
 - [ ] No SQL concatenation (parameterized queries only)
 - [ ] No secrets in code
 - [ ] Input validation present
+
+Implementation Quality (Root Cause Analysis Prevention):
+- [ ] No type mismatches (correct argument types to all functions)
+- [ ] No undefined references (all methods implemented in mocks/interfaces)
+- [ ] No redundant test fixes (shared mocks consolidated in testutils)
+- [ ] No unused imports (goimports run before commit)
+- [ ] No missing test files (every package has *_test.go)
 ```
 
 **Output:** Comments on PR with requested changes or approval

@@ -87,6 +87,20 @@ When Copilot creates a PR, you review for:
 - [ ] Critical path coverage >= 90%
 - [ ] Manual testing checklist completed
 
+#### Implementation Quality (Root Cause Analysis Prevention)
+- [ ] No type mismatches (correct argument types to all functions)
+- [ ] No undefined references (all methods implemented in mocks/interfaces)
+- [ ] No redundant test fixes (shared mocks consolidated in testutils)
+- [ ] No unused imports (goimports run before commit)
+- [ ] No missing test files (every package has *_test.go)
+
+**Common Issues to Check:**
+1. **Type Mismatches:** Verify function arguments match expected types (e.g., passing `string` vs `int`)
+2. **Undefined References:** Ensure all interface methods are implemented in mocks
+3. **Redundant Fixes:** Check if same mock updates are repeated across multiple test files
+4. **Unused Imports:** Run `goimports -l .` to identify unused imports
+5. **Missing Tests:** Verify every package in `internal/` has corresponding `*_test.go` files
+
 #### Acceptance Criteria
 - [ ] **Every** acceptance criterion from the issue is met
 - [ ] No partial implementations
