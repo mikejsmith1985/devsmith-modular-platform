@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TopIssuesService provides methods to retrieve top issues.
 type TopIssuesService struct {
 	logReader db.LogReaderInterface
 	logger    *logrus.Logger
@@ -31,7 +32,7 @@ func NewTopIssuesService(logReader db.LogReaderInterface, logger *logrus.Logger)
 }
 
 // GetTopIssues retrieves the most frequent errors and warnings for a service
-func (s *TopIssuesService) GetTopIssues(ctx context.Context, service string, level string, start, end time.Time, limit int) ([]models.IssueItem, error) {
+func (s *TopIssuesService) GetTopIssues(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.IssueItem, error) {
 	s.logger.WithFields(logrus.Fields{
 		"service": service,
 		"level":   level,
