@@ -1,0 +1,39 @@
+// Package {{.PackageName}} contains tests for the {{.ServiceName}} service.
+package {{.PackageName}}_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/sirupsen/logrus"
+
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/testutils"
+)
+
+func Test{{.ServiceName}}_{{.MethodName}}(t *testing.T) {
+	mockRepo := new(testutils.MockAggregationRepository)
+	logger, _ := logrus.NewNullLogger()
+
+	service := services.New{{.ServiceName}}(mockRepo, logger)
+
+	// Mock expectations
+	mockRepo.On("{{.MockMethod}}", mock.Anything, mock.Anything).Return([]models.Aggregation{
+		{MetricType: "example_metric", Service: "example_service", Value: 42},
+	}, nil)
+
+	// Call the method
+	result, err := service.{{.MethodName}}(context.Background(), "example_metric")
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "example_service", result[0].Service)
+	assert.Equal(t, 42, result[0].Value)
+
+	mockRepo.AssertExpectations(t)
+}

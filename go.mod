@@ -9,6 +9,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/lib/pq v1.10.9
 	github.com/rs/zerolog v1.34.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 )
 
