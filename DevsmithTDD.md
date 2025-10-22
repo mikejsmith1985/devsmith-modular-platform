@@ -1060,6 +1060,548 @@ func TestIntegration_ReviewSession_LogsActivity(t *testing.T) {
 
 ---
 
+## Enhanced Pre-commit Hook Tests (Phase 2)
+
+### Overview
+Tests for the enhanced pre-commit validation system that integrates with Logging and Analytics services. These tests ensure AI agents and developers receive intelligent, actionable feedback on code quality issues.
+
+### Test Category: Pre-commit Hook Core Features
+
+#### Test 1: JSON Output Generation
+```bash
+# test/hooks/test_json_output.sh
+test_json_output_contains_all_fields() {
+    # GIVEN: Code with known issues
+    echo 'package test\nimport "unused"\nfunc Test() {}' > test.go
+    git add test.go
+
+    # WHEN: Running hook with --json flag
+    output=$(.git/hooks/pre-commit --json 2>&1 || true)
+
+    # THEN: Output is valid JSON with required fields
+    echo "$output" | jq -e '.status' > /dev/null
+    echo "$output" | jq -e '.duration' > /dev/null
+    echo "$output" | jq -e '.issues' > /dev/null
+    echo "$output" | jq -e '.grouped' > /dev/null
+    echo "$output" | jq -e '.summary' > /dev/null
+
+    assert_equal "$(echo "$output" | jq -r '.status')" "failed"
+    assert_greater_than "$(echo "$output" | jq '.issues | length')" "0"
+}
+```
+
+#### Test 2: Issue Prioritization
+```bash
+test_issues_grouped_by_priority() {
+    # GIVEN: Code with high, medium, and low priority issues
+    cat > test_file.go <<EOF
+package test
+import "unused"  // Medium: unused import
+func Test() {
+    undefined_func()  // High: build error
+}
+// Missing comment  // Low: style issue
+type ExportedType struct{}
+EOF
+    git add test_file.go
+
+    # WHEN: Running validation
+    output=$(.git/hooks/pre-commit --json 2>&1 || true)
+
+    # THEN: Issues are properly grouped
+    high_count=$(echo "$output" | jq '.grouped.high | length')
+    medium_count=$(echo "$output" | jq '.grouped.medium | length')
+    low_count=$(echo "$output" | jq '.grouped.low | length')
+
+    assert_greater_than "$high_count" "0"  # Build errors
+    assert_greater_than "$medium_count" "0"  # Unused import
+    assert_greater_than "$low_count" "0"  # Style issues
+}
+```
+
+#### Test 3: Context Extraction
+```bash
+test_context_includes_surrounding_lines() {
+    # GIVEN: File with error on line 10
+    for i in {1..20}; do echo "// Line $i" >> context_test.go; done
+    sed -i '10s/.*/undefined_func()  \/\/ Error here/' context_test.go
+    git add context_test.go
+
+    # WHEN: Running validation
+    output=$(.git/hooks/pre-commit --json 2>&1 || true)
+
+    # THEN: Context includes ±3 lines around error
+    context=$(echo "$output" | jq -r '.issues[0].context')
+    echo "$context" | grep -q "Line 7"
+    echo "$context" | grep -q "Line 10"
+    echo "$context" | grep -q "Line 13"
+}
+```
+
+#### Test 4: Auto-fix Mode
+```bash
+test_auto_fix_corrects_formatting() {
+    # GIVEN: Unformatted Go code
+    cat > unformatted.go <<EOF
+package test
+import( "fmt"
+"strings" )
+func Test( ){fmt.Println("test")}
+EOF
+    git add unformatted.go
+
+    # WHEN: Running with --fix flag
+    .git/hooks/pre-commit --fix
+
+    # THEN: Code is properly formatted
+    go fmt unformatted.go
+    diff <(cat unformatted.go) <(gofmt unformatted.go)
+    assert_equal "$?" "0"
+}
+```
+
+#### Test 5: Parallel Execution Performance
+```bash
+test_parallel_execution_faster_than_sequential() {
+    # GIVEN: Repository with multiple Go files
+    for i in {1..10}; do
+        echo "package test$i" > "test$i.go"
+        git add "test$i.go"
+    done
+
+    # WHEN: Running in standard mode (parallel)
+    start=$(date +%s)
+    .git/hooks/pre-commit 2>&1 || true
+    parallel_duration=$(($(date +%s) - start))
+
+    # AND: Simulating sequential execution
+    start=$(date +%s)
+    go fmt ./... && go vet ./... && golangci-lint run ./... && go test ./...
+    sequential_duration=$(($(date +%s) - start))
+
+    # THEN: Parallel is at least 2x faster
+    assert_greater_than "$sequential_duration" "$((parallel_duration * 2))"
+}
+```
+
+#### Test 6: Dependency Graph Generation
+```bash
+test_dependency_graph_shows_fix_order() {
+    # GIVEN: Code with build error (blocks tests)
+    cat > broken.go <<EOF
+package test
+func Test() {
+    undefined_func()  // Build error
+}
+EOF
+    git add broken.go
+
+    # WHEN: Running validation
+    output=$(.git/hooks/pre-commit --json 2>&1 || true)
+
+    # THEN: Dependency graph shows correct fix order
+    fix_order=$(echo "$output" | jq -r '.dependencyGraph.fix_order[]')
+    echo "$fix_order" | head -1 | grep -q "build_errors"
+    echo "$fix_order" | tail -1 | grep -q "style"
+}
+```
+
+#### Test 7: Progressive Validation Modes
+```bash
+test_quick_mode_faster_than_standard() {
+    # GIVEN: Repository with test files
+    create_test_files
+
+    # WHEN: Running in quick mode
+    start=$(date +%s)
+    .git/hooks/pre-commit --quick 2>&1 || true
+    quick_duration=$(($(date +%s) - start))
+
+    # AND: Running in standard mode
+    start=$(date +%s)
+    .git/hooks/pre-commit 2>&1 || true
+    standard_duration=$(($(date +%s) - start))
+
+    # THEN: Quick mode is significantly faster
+    assert_less_than "$quick_duration" "$((standard_duration / 2))"
+}
+```
+
+#### Test 8: Interactive Explain Mode
+```bash
+test_explain_mode_provides_test_details() {
+    # GIVEN: Failing test
+    cat > failing_test.go <<EOF
+package test
+import "testing"
+func TestExample(t *testing.T) {
+    t.Error("This test fails")
+}
+EOF
+    git add failing_test.go
+
+    # WHEN: Running explain mode
+    output=$(.git/hooks/pre-commit --explain TestExample 2>&1 || true)
+
+    # THEN: Output contains test-specific details
+    echo "$output" | grep -q "TestExample"
+    echo "$output" | grep -q "Issue:"
+    echo "$output" | grep -q "Suggestion:"
+}
+```
+
+#### Test 9: LSP Output Format
+```bash
+test_lsp_output_valid_format() {
+    # GIVEN: Code with linting issues
+    cat > lsp_test.go <<EOF
+package test
+func unexported() {}  // Missing comment
+EOF
+    git add lsp_test.go
+
+    # WHEN: Generating LSP output
+    output=$(.git/hooks/pre-commit --output-lsp 2>&1 || true)
+
+    # THEN: Output is valid LSP diagnostic format
+    echo "$output" | jq -e '.[].uri' > /dev/null
+    echo "$output" | jq -e '.[].range.start.line' > /dev/null
+    echo "$output" | jq -e '.[].severity' > /dev/null
+    echo "$output" | jq -e '.[].message' > /dev/null
+
+    # AND: File URIs are properly formatted
+    uri=$(echo "$output" | jq -r '.[0].uri')
+    echo "$uri" | grep -q "^file://"
+}
+```
+
+#### Test 10: Agent Guide Integration
+```bash
+test_agent_guide_provides_fix_steps() {
+    # GIVEN: Agent guide exists with mock setup pattern
+    test -f .git/hooks/pre-commit-agent-guide.json
+    grep -q "missing_mock_setup" .git/hooks/pre-commit-agent-guide.json
+
+    # WHEN: Encountering mock expectation failure
+    cat > mock_test.go <<EOF
+package test
+import "testing"
+func TestMock(t *testing.T) {
+    // Mock expectations not met error
+    t.Error("0 out of 5 expectation(s) were met")
+}
+EOF
+    git add mock_test.go
+    output=$(.git/hooks/pre-commit --json 2>&1 || true)
+
+    # THEN: Suggestion includes guide steps
+    suggestion=$(echo "$output" | jq -r '.issues[0].suggestion')
+    echo "$suggestion" | grep -q "Mock.On()"
+    echo "$suggestion" | grep -q ".docs/copilot-instructions.md"
+}
+```
+
+### Test Category: Logging Service Integration
+
+#### Test 11: Validation Results Ingestion
+```go
+// internal/logs/handlers/validation_handler_test.go
+func TestSubmitValidationResults(t *testing.T) {
+    // GIVEN: Validation results from pre-commit hook
+    validationData := models.ValidationRun{
+        UserID:     1,
+        Repository: "devsmith-modular-platform",
+        Branch:     "feature/test",
+        CommitSHA:  "abc123",
+        Mode:       "standard",
+        Duration:   45,
+        Status:     "failed",
+        IssuesJSON: `{"total": 25, "errors": 2}`,
+    }
+
+    // WHEN: Submitting via API
+    req := httptest.NewRequest("POST", "/api/logs/validation", toJSON(validationData))
+    w := httptest.NewRecorder()
+    handler.SubmitValidation(w, req)
+
+    // THEN: Results are stored
+    assert.Equal(t, http.StatusCreated, w.Code)
+
+    // AND: Can be retrieved
+    stored, err := repo.FindValidationByID(1)
+    assert.NoError(t, err)
+    assert.Equal(t, "feature/test", stored.Branch)
+    assert.Equal(t, 2, stored.ErrorCount())
+}
+```
+
+#### Test 12: Validation History Query
+```go
+func TestGetValidationHistory(t *testing.T) {
+    // GIVEN: Multiple validation runs for a user
+    createValidationRuns(userID, 10)
+
+    // WHEN: Querying history
+    req := httptest.NewRequest("GET", "/api/logs/validation/history?user_id=1&limit=5", nil)
+    w := httptest.NewRecorder()
+    handler.GetValidationHistory(w, req)
+
+    // THEN: Returns most recent runs
+    assert.Equal(t, http.StatusOK, w.Code)
+    var results []models.ValidationRun
+    json.Unmarshal(w.Body.Bytes(), &results)
+    assert.Equal(t, 5, len(results))
+
+    // AND: Results are sorted by created_at DESC
+    assert.True(t, results[0].CreatedAt.After(results[1].CreatedAt))
+}
+```
+
+#### Test 13: WebSocket Validation Streaming
+```go
+func TestValidationWebSocketStream(t *testing.T) {
+    // GIVEN: WebSocket connection established
+    conn := connectToWebSocket("/ws/logs/validation")
+
+    // WHEN: New validation run is submitted
+    submitValidation(models.ValidationRun{
+        Status: "failed",
+        IssuesJSON: `{"total": 5}`,
+    })
+
+    // THEN: Event is broadcast via WebSocket
+    msg, err := conn.ReadMessage()
+    assert.NoError(t, err)
+
+    var event ValidationEvent
+    json.Unmarshal(msg, &event)
+    assert.Equal(t, "validation_completed", event.Type)
+    assert.Equal(t, "failed", event.Data.Status)
+}
+```
+
+### Test Category: Analytics Service Integration
+
+#### Test 14: Validation Trend Analysis
+```go
+// internal/analytics/services/validation_analytics_test.go
+func TestValidationTrendAnalysis(t *testing.T) {
+    // GIVEN: Validation runs over 7 days
+    for day := 0; day < 7; day++ {
+        date := time.Now().AddDate(0, 0, -day)
+        createValidationRuns(date, 10, 8) // 10 total, 8 passed
+    }
+
+    // WHEN: Analyzing trends
+    trends, err := service.GetValidationTrends(7)
+
+    // THEN: Returns daily pass rates
+    assert.NoError(t, err)
+    assert.Equal(t, 7, len(trends))
+    assert.Equal(t, 80.0, trends[0].PassRate) // 8/10 = 80%
+}
+```
+
+#### Test 15: Top Issues Aggregation
+```go
+func TestTopIssuesAggregation(t *testing.T) {
+    // GIVEN: Validation runs with various issue types
+    createValidationWithIssues("missing_mock_setup", 25)
+    createValidationWithIssues("missing_godoc", 15)
+    createValidationWithIssues("unused_import", 10)
+
+    // WHEN: Querying top issues
+    topIssues, err := service.GetTopIssues(5)
+
+    // THEN: Returns most common issues
+    assert.NoError(t, err)
+    assert.Equal(t, "missing_mock_setup", topIssues[0].IssueType)
+    assert.Equal(t, 25, topIssues[0].Count)
+}
+```
+
+#### Test 16: Auto-fix Effectiveness Rate
+```go
+func TestAutoFixEffectivenessRate(t *testing.T) {
+    // GIVEN: Validations with auto-fixable issues
+    createValidation(ValidationRun{
+        IssuesJSON: `{"total": 20, "autoFixable": 15}`,
+    })
+
+    // WHEN: Calculating auto-fix rate
+    rate, err := service.GetAutoFixRate()
+
+    // THEN: Returns correct percentage
+    assert.NoError(t, err)
+    assert.Equal(t, 75.0, rate) // 15/20 = 75%
+}
+```
+
+#### Test 17: Agent Fix Success Rate
+```go
+func TestAgentFixSuccessRate(t *testing.T) {
+    // GIVEN: Validations with agent attribution
+    createAgentValidation("OpenHands", "passed", 8)
+    createAgentValidation("OpenHands", "failed", 2)
+
+    // WHEN: Calculating agent success rate
+    rate, err := service.GetAgentSuccessRate("OpenHands")
+
+    // THEN: Returns correct rate
+    assert.NoError(t, err)
+    assert.Equal(t, 80.0, rate) // 8/10 = 80%
+}
+```
+
+### Test Category: Portal Dashboard Integration
+
+#### Test 18: Validation Dashboard Widget
+```go
+// internal/portal/handlers/dashboard_test.go
+func TestValidationDashboardWidget(t *testing.T) {
+    // GIVEN: User with validation history
+    createValidationRuns(userID, 10, 7) // 10 total, 7 passed
+
+    // WHEN: Loading dashboard
+    req := httptest.NewRequest("GET", "/dashboard", nil)
+    req = addAuth(req, userID)
+    w := httptest.NewRecorder()
+    handler.Dashboard(w, req)
+
+    // THEN: Dashboard shows validation stats
+    body := w.Body.String()
+    assert.Contains(t, body, "Validation Pass Rate")
+    assert.Contains(t, body, "70%") // 7/10
+    assert.Contains(t, body, "Recent Validations")
+}
+```
+
+### Test Category: End-to-End Workflows
+
+#### Test 19: OpenHands Integration Workflow
+```bash
+# tests/e2e/openhands_validation.sh
+test_openhands_validation_workflow() {
+    # GIVEN: OpenHands implementing a feature
+    # (Simulated - actual OpenHands integration in Phase 2)
+
+    # WHEN: Running pre-commit validation
+    output=$(.git/hooks/pre-commit --json 2>&1 || true)
+
+    # THEN: JSON is parseable by agent
+    issues=$(echo "$output" | jq '.issues')
+    assert_not_empty "$issues"
+
+    # AND: Auto-fix handles simple issues
+    .git/hooks/pre-commit --fix
+    output2=$(.git/hooks/pre-commit --json 2>&1 || true)
+    count1=$(echo "$output" | jq '.issues | length')
+    count2=$(echo "$output2" | jq '.issues | length')
+    assert_less_than "$count2" "$count1"
+
+    # AND: Remaining issues have fix guidance
+    for issue in $(echo "$output2" | jq -c '.issues[]'); do
+        suggestion=$(echo "$issue" | jq -r '.suggestion')
+        assert_not_empty "$suggestion"
+    done
+}
+```
+
+#### Test 20: Developer Workflow with Dashboard
+```bash
+test_developer_sees_validation_stats() {
+    # GIVEN: Developer has made multiple commits
+    for i in {1..5}; do
+        create_commit_with_issues $i
+        .git/hooks/pre-commit --json | curl -X POST http://localhost:3003/api/logs/validation -d @-
+    done
+
+    # WHEN: Viewing Portal dashboard
+    response=$(curl http://localhost:3000/dashboard -H "Cookie: session=$SESSION")
+
+    # THEN: Dashboard shows validation trends
+    echo "$response" | grep -q "Validation Statistics"
+    echo "$response" | grep -q "Pass Rate"
+    echo "$response" | grep -q "Top Issues"
+}
+```
+
+### Performance Requirements
+
+#### Perf Test 1: JSON Output Generation Speed
+```go
+func BenchmarkJSONOutputGeneration(b *testing.B) {
+    // GIVEN: Pre-commit results with 100 issues
+    issues := generateIssues(100)
+
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        // WHEN: Generating JSON output
+        output := generateJSONOutput(issues)
+
+        // THEN: Completes in <10ms
+        _ = output
+    }
+    // Target: <10ms per call
+}
+```
+
+#### Perf Test 2: Parallel Execution Scaling
+```bash
+test_parallel_execution_scales_linearly() {
+    # GIVEN: Increasing numbers of Go files
+    for count in 10 50 100 200; do
+        create_test_files $count
+
+        # WHEN: Running validation
+        start=$(date +%s)
+        .git/hooks/pre-commit 2>&1 || true
+        duration=$(($(date +%s) - start))
+
+        # THEN: Duration scales sub-linearly (due to parallelization)
+        # Record: count=$count, duration=$duration
+        echo "$count,$duration" >> scaling_results.csv
+    done
+
+    # Verify: 200 files takes <2x time of 100 files
+}
+```
+
+### Acceptance Criteria
+
+All tests must pass before marking Phase 2 complete:
+
+**Core Features** (Tests 1-10):
+- [ ] JSON output is valid and contains all required fields
+- [ ] Issues are correctly grouped by priority
+- [ ] Code context is extracted for all issues
+- [ ] Auto-fix corrects at least 60% of common issues
+- [ ] Parallel execution is 2x+ faster than sequential
+- [ ] Dependency graph shows correct fix order
+- [ ] All three validation modes work correctly
+- [ ] Interactive modes provide useful information
+- [ ] LSP output format is valid
+- [ ] Agent guide provides actionable fix steps
+
+**Service Integration** (Tests 11-18):
+- [ ] Logging service ingests validation results
+- [ ] Validation history is queryable
+- [ ] WebSocket streaming works
+- [ ] Analytics calculates correct trends
+- [ ] Top issues are identified
+- [ ] Auto-fix and agent success rates are tracked
+- [ ] Portal dashboard displays validation stats
+
+**End-to-End** (Tests 19-20):
+- [ ] OpenHands workflow completes successfully
+- [ ] Developer can view stats in dashboard
+
+**Performance** (Perf Tests 1-2):
+- [ ] JSON generation completes in <10ms
+- [ ] Parallel execution scales sub-linearly
+
+---
+
 ## End-to-End User Workflows
 
 ### E2E 1: New User Onboarding

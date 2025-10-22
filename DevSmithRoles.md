@@ -7,34 +7,35 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 - **Tech Stack**: Go 1.21+ with Templ templates, HTMX for interactivity, TailwindCSS + DaisyUI
 - **Database**: PostgreSQL 15+ with pgx driver, schema isolation per app
 - **Infrastructure**: Docker + Docker Compose, Nginx gateway, GitHub Actions CI/CD
-- **AI Integration**: Ollama (local), OpenHands (autonomous coding), Claude (architecture), GitHub Copilot (IDE assist)
+- **AI Integration**: Claude Code (architecture & planning), GitHub Copilot (implementation)
 
 ## Roles and Responsibilities
 
-### 1. Project Orchestrator and Manager (Mike)
-- **Role**: Oversees the project, manages the AI agent team, and ensures alignment with project goals.
+### 1. Project Orchestrator and Supervisor (Mike)
+- **Role**: Oversees the project, supervises AI development work, and ensures alignment with project goals.
 - **Responsibilities**:
   - Define and prioritize features based on `Requirements.md`.
   - Create GitHub issues with clear, single-feature tasks and acceptance criteria using issue templates.
-  - **Trigger OpenHands** with implementation specs from Claude.
-  - Review and approve pull requests (PRs) after Claude's architectural review.
+  - **Trigger Claude Code** for architecture and planning sessions.
+  - **Implement features** using GitHub Copilot based on Claude's specs.
+  - Review and test code as it's built.
+  - Create pull requests and manage code reviews.
   - Merge approved PRs into the `development` branch and manage releases to `main`.
   - Monitor project progress and ensure adherence to TDD and coding standards.
-  - Validate backups (logs, code states, model configurations) to ensure recoverability.
   - Coordinate sprints (e.g., Sprint 1: Portal + Logging) and track milestones.
   - Configure GitHub branch protection rules to enforce tests, approvals, and changelog updates.
-  - **Manage Ollama models** (install, update, configure).
 - **Tools**:
-  - GitHub for issue tracking, PR approvals, and repo management.
+  - GitHub for issue tracking, PR management, and repo operations.
   - GitHub Projects for sprint planning.
-  - OpenHands CLI for triggering autonomous tasks.
-  - Ollama for local LLM management.
+  - Claude Code CLI for architecture sessions.
+  - GitHub Copilot in VS Code for implementation.
+  - Git for version control.
 
-### 2. Primary Architect and Strategic Reviewer (Claude via API)
-- **Role**: Designs high-level architecture, reviews PRs strategically, and solves complex problems.
+### 2. Primary Architect and Planner (Claude Code)
+- **Role**: Designs high-level architecture, creates implementation plans, and provides strategic guidance.
 
 - **Reading Mode**: **Critical Mode** (evaluative review)
-  - Operates in "Critical Reading" mode during PR reviews
+  - Operates in "Critical Reading" mode during planning and reviews
   - Identifies architectural issues, security concerns, quality problems
   - Provides actionable improvement suggestions
   - See: ARCHITECTURE.md - Mental Models - Application to Review App
@@ -42,12 +43,13 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 - **Responsibilities**:
   - Design the modular architecture, ensuring apps (logging, analytics, review, build) are isolated yet interoperable.
   - Define database schemas (PostgreSQL with schema isolation) and API contracts.
-  - **Create detailed implementation specs** for OpenHands to execute autonomously.
-    - Specs follow template in `.docs/specs/TEMPLATE.md`
+  - **Create detailed implementation plans** for Mike to execute with Copilot.
+    - Plans include: file structure, function signatures, interfaces, test requirements
     - Explicitly state bounded contexts, layering, and abstractions
     - Optimize for cognitive load management
+    - Provide code patterns and examples
 
-  - **Review OpenHands-generated PRs using mental models:**
+  - **Review code using mental models:**
     - ✅ **Bounded Context:** No cross-context leakage (e.g., Portal User vs Review User)
     - ✅ **Layering:** Controllers don't call repositories directly, clear layer separation
     - ✅ **Abstractions:** Interfaces used appropriately, implementations follow contracts
@@ -57,27 +59,34 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
     - ✅ **Security:** No SQL injection, input validation, no exposed secrets
     - ✅ **Performance:** No N+1 queries, efficient algorithms
 
-  - Provide detailed feedback on PRs, suggesting improvements or refactoring.
-  - Validate AI-driven features (e.g., Ollama integration, Review app's 5 reading modes).
+  - Provide detailed architectural guidance during implementation.
+  - Validate feature designs before implementation begins.
   - Ensure WebSocket implementation for real-time logging is robust.
   - Root cause analysis of complex bugs.
-  - Recommend optimizations for the one-click installation process.
+  - Recommend optimizations and refactorings.
 
 - **Tools**:
-  - Claude Code CLI (this interface).
-  - GitHub for PR reviews and comments.
-  - Go + Templ + HTMX for architecture decisions.
+  - Claude Code CLI (this interface)
+  - Direct file read/write/edit capabilities
+  - Bash for running tests and builds
   - Mental models: Bounded Context, Layering, Abstractions, Scope
 
-- **Limitations**:
-  - Cannot execute code directly (relies on OpenHands for implementation).
-  - Subject to V8 crashes (mitigated by recovery hooks in `.claude/hooks/`).
-  - Sessions should be kept short (< 30 minutes) to reduce crash risk.
+- **Strengths**:
+  - Can read, write, and edit files directly
+  - Can run tests and validate changes
+  - Large context window for understanding complex systems
+  - Strong architectural reasoning capabilities
 
-### 3. Primary Implementation Agent (OpenHands + Ollama)
-- **Role**: **Autonomous code generator and implementer** - executes 70-80% of development work.
+- **Crash Recovery**:
+  - V8 crash recovery hooks in `.claude/hooks/` for automatic recovery
+  - Todo list persistence (`.claude/todos.json`) tracks progress across crashes
+  - Recovery branches (`claude-recovery-YYYYMMDD`) with auto-commits
+  - Session logs (`.claude/recovery-logs/`) for resuming work
+
+### 3. Primary Implementation Assistant (GitHub Copilot)
+- **Role**: **AI-powered code completion and generation** - assists Mike with 70-80% of development work.
 - **Responsibilities**:
-  - **Implement features autonomously** based on specs from Claude.
+  - **Generate code** based on specs from Claude.
   - Follow DevSmith Coding Standards:
     - **File Organization** (Go service structure):
       - `apps/{service}/{main.go, handlers/, models/, templates/, static/, services/, db/, middleware/, utils/, config/, tests/}`.
@@ -122,59 +131,37 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
       }
       ```
     - **Error Handling**: Provide user-friendly messages, explicit error checking (`if err != nil`), structured logging.
-  - Write TDD-compliant tests (unit, integration) before coding, targeting 70%+ unit test coverage and 90%+ critical path coverage.
-  - Run tests locally (`go test ./...`) before committing.
-  - **Autonomous workflow** (no human intervention needed):
-    - Create feature branch from `development`.
-    - Write tests first (TDD).
-    - Implement feature following specs.
-    - Run tests, fix failures iteratively.
-    - Commit with Conventional Commit messages (e.g., `feat(portal): add GitHub OAuth login`).
-    - Update `AI_CHANGELOG.md`.
-    - Push code and create PR to `development`.
-  - Perform manual testing (browser-based via Playwright/Cypress integration):
+  - Suggest TDD-compliant test implementations targeting 70%+ unit test coverage and 90%+ critical path coverage.
+  - Assist Mike with running tests locally (`go test ./...`) before committing.
+  - **Supervised workflow** (Mike drives, Copilot assists):
+    - Mike creates feature branch from `development`.
+    - Copilot suggests test implementations (TDD).
+    - Copilot generates feature code following Claude's specs.
+    - Mike reviews suggestions, accepts/modifies as needed.
+    - Mike runs tests, Copilot helps fix failures.
+    - Mike commits with Conventional Commit messages (e.g., `feat(portal): add GitHub OAuth login`).
+    - Mike updates `AI_CHANGELOG.md`.
+    - Mike pushes code and creates PR to `development`.
+  - Assist with manual testing reminders:
     - Feature works through nginx gateway (`http://localhost:3000`).
     - No console errors/warnings.
     - Regression check for related features.
     - Light/dark mode compatibility (if applicable).
     - Responsive design for mobile/tablet (if applicable).
 - **Tools**:
-  - OpenHands CLI (autonomous agent framework).
-  - Ollama with models: `deepseek-coder-v2:16b` or `codellama:34b`.
-  - Go toolchain: `go test`, `go build`, `air` (hot reload).
-  - Git for version control.
-  - Browser automation for testing.
-- **Strengths**:
-  - **Fully autonomous** - can work overnight on complex tasks.
-  - **Local execution** - no API costs, no rate limits.
-  - **Persistent state** - checkpoint/resume on crash or reboot.
-  - **Direct execution** - bash, file editing, git operations.
-- **Limitations**:
-  - Smaller context window than Claude (but sufficient for single features).
-  - May need guidance on complex architectural decisions (defers to Claude).
-  - Quality depends on Ollama model (use 16B+ models for best results).
-
-### 4. IDE Coding Assistant (GitHub Copilot)
-- **Role**: Real-time autocomplete and quick generation during manual coding.
-- **When to use**:
-  - Quick code snippets while Mike is manually coding.
-  - Real-time autocomplete in VS Code.
-  - Small refactorings.
-  - Boilerplate generation.
-- **Responsibilities**:
-  - Provide intelligent autocomplete suggestions.
-  - Generate function/struct boilerplate.
-  - Assist with quick edits.
-- **Tools**:
   - GitHub Copilot extension in VS Code.
+  - GitHub Copilot Chat for explanations and refactoring.
+  - Go toolchain: `go test`, `go build`, `air` (hot reload).
 - **Strengths**:
-  - Instant feedback in IDE.
-  - Great for boilerplate.
-  - Works well with Go, Templ, HTMX.
+  - **Real-time assistance** - instant suggestions as Mike types.
+  - **Context-aware** - understands current file and surrounding code.
+  - **Multi-language** - excellent with Go, Templ, HTMX, SQL.
+  - **Chat interface** - can explain code, suggest improvements, write tests.
+  - **Fast** - no latency, no rate limits.
 - **Limitations**:
-  - No autonomous workflow.
-  - Limited context (single file).
-  - Requires manual intervention.
+  - Requires Mike's supervision and decision-making.
+  - Limited to file-level context (doesn't see entire codebase).
+  - May suggest code that doesn't follow architectural patterns without guidance.
 
 ## Hybrid Workflow
 
@@ -184,146 +171,138 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
    - Create GitHub issue with clear acceptance criteria using issue templates.
    - Label with appropriate tags (`feature`, `app:portal`, etc.).
 
-2. **Architecture & Spec Creation** (Claude):
-   - Mike triggers Claude session (<30 minutes to avoid crash risk).
+2. **Architecture & Planning** (Claude Code):
+   - Mike triggers Claude Code session.
    - Claude designs high-level architecture.
-   - Claude creates **detailed implementation spec** with:
+   - Claude creates **detailed implementation plan** with:
      - File structure (which Go files, templates, handlers).
      - Function signatures and interfaces.
      - Database schema changes (if any).
      - Test requirements (unit, integration).
+     - Code examples and patterns to follow.
      - Acceptance criteria from issue.
-   - Spec saved to issue comment or `.docs/specs/` directory.
-   - **At end of session:** Claude creates/updates devlog entry in `.docs/devlog/YYYY-MM-DD.md` with:
-     - Problems discovered
-     - Decisions made
-     - Solutions implemented
-     - Action items for next agent
+   - Plan saved to issue comment or `.docs/specs/` directory.
+   - **Note**: Devlog updated POST-MERGE (step 7), not during planning session
 
-3. **Autonomous Implementation** (OpenHands + Ollama):
-   - Mike triggers OpenHands: `openhands --task "Implement feature from spec in issue #42"`.
-   - **Before starting:** OpenHands reads:
-     - Latest devlog entry (`.docs/devlog/YYYY-MM-DD.md`) for context and action items
-     - Issue spec
-     - Architecture docs
-   - OpenHands works **fully autonomously**:
-     - Creates feature branch from `development`.
-     - Writes tests first (TDD per `DevsmithTDD.md`).
-     - Implements feature following Claude's spec.
-     - Runs tests (`go test ./...`), fixes failures iteratively.
-     - Performs browser testing via Playwright integration.
-     - Commits with Conventional Commit messages.
-     - Updates `AI_CHANGELOG.md`.
-     - Pushes code and creates PR to `development`.
-   - **After completion:** Updates devlog with:
-     - Implementation notes
-     - Issues encountered and solutions
-     - Test results
-   - **Duration**: 30 minutes - 2 hours (runs unattended).
-   - **Crash-proof**: OpenHands checkpoint/resume if interrupted.
+3. **Supervised Implementation** (Mike + Copilot):
+   - Mike reads Claude's implementation plan.
+   - Mike creates feature branch from `development`.
+   - **Mike writes tests first** (TDD per `DevsmithTDD.md`), with Copilot assisting:
+     - Copilot suggests test structure and assertions.
+     - Mike reviews and accepts/modifies suggestions.
+   - **Mike implements feature** following Claude's spec, with Copilot generating code:
+     - Mike provides context (comments, function signatures).
+     - Copilot generates implementation code.
+     - Mike reviews each suggestion before accepting.
+   - Mike runs tests (`go test ./...`), fixes failures with Copilot's help.
+   - Mike performs manual browser testing.
+   - Mike commits with Conventional Commit messages.
+   - Mike updates `AI_CHANGELOG.md`.
+   - Mike pushes code to remote.
+   - **Duration**: Varies by feature complexity (Mike works at own pace).
 
-4. **PR Creation** (Manual):
-   - **When**: After code is pushed and developer is ready to create PR
-   - **How**: Developer runs `gh pr create` manually
-   - **What to include**:
-     - Detects current branch automatically
+4. **PR Creation** (Mike + Copilot):
+   - Mike uses Copilot to assist with PR creation.
+   - Copilot suggests PR title and description based on commits.
+   - Mike runs `gh pr create` with Copilot-generated content:
      - PR title: "Issue #XXX: Title from issue"
-     - PR description should include:
-       - Base: `development`
-       - Title: From issue spec
-       - Body: From issue spec (includes "Closes #N", summary, testing checklist)
-   - **Benefits**:
-     - No manual PR creation needed
-     - PR details always match issue spec
-     - Consistent PR format across all agents
-     - Reduces human error
-   - **When skipped**: If PR already exists for the branch (prevents duplicates)
-   - GitHub Actions run automated checks after PR creation:
+     - PR description includes:
+       - Link to issue: "Closes #N"
+       - Summary of changes
+       - Testing checklist completed
+   - Base branch: `development`
+   - GitHub Actions run automated checks:
      - Go tests and coverage
      - Linting (golangci-lint)
      - Docker build verification
      - Security scan (Trivy)
 
-5. **Strategic Review** (Claude):
-   - Mike triggers Claude for PR review (<30 minutes).
-   - **Before starting:** Claude reads latest devlog for context
+5. **Optional Review** (Claude Code):
+   - For complex features or when Mike wants architectural validation.
+   - Mike triggers Claude Code for PR review.
    - Claude reviews for:
      - Architectural integrity (modularity, scalability).
      - Adherence to DevSmith Coding Standards.
      - TDD compliance (test coverage, quality).
      - Security and error handling.
-   - Claude comments on PR with detailed feedback.
-   - **After review:** Updates devlog with review findings and recommendations
+     - Performance considerations.
+   - Claude provides detailed feedback.
+   - Mike addresses feedback if needed.
 
-6. **Acceptance Review** (Mike):
+6. **Acceptance and Merge** (Mike):
    - Verifies acceptance criteria from issue are 100% met.
-   - Reviews Claude's feedback.
-   - Approves or requests changes.
-
-7. **Merge and Release** (Mike):
-   - Merge PR to `development` (squash merge).
-   - Delete feature branch.
+   - Ensures all automated checks pass.
+   - Reviews Claude's feedback (if review was requested).
+   - Merges PR to `development` (squash merge).
+   - Deletes feature branch.
    - Issue automatically closed.
    - When ready for release: merge `development` to `main` with version tag.
+
+7. **Post-Merge Documentation** (Mike + Copilot or Claude):
+   - **After merge**, update devlog entry in `.docs/devlog/YYYY-MM-DD.md`:
+     - What was implemented
+     - Decisions made during implementation
+     - Issues encountered and solutions
+     - Any architectural insights
+   - **Purpose**: Maintains project history and context for future sessions
+   - **Who writes**: Mike with Copilot assistance, or Claude Code if session is active
 
 ### Complex Problems / Architecture Changes (20% of work)
 
 For complex issues that require deep architectural thinking:
 
-1. **Problem Analysis** (Claude):
+1. **Problem Analysis** (Claude Code):
    - Mike describes problem in detail.
    - Claude performs root cause analysis.
    - Claude proposes multiple solutions with trade-offs.
+   - Claude may prototype or validate approaches.
 
-2. **Decision & Spec** (Mike + Claude):
+2. **Decision & Planning** (Mike + Claude):
    - Mike selects approach.
-   - Claude creates detailed spec (as above).
+   - Claude creates detailed implementation plan (as above).
+   - Extra detail on complex areas and potential pitfalls.
 
-3. **Implementation** (OpenHands):
-   - Same autonomous workflow as standard features.
+3. **Implementation** (Mike + Copilot):
+   - Same supervised workflow as standard features.
+   - Mike may consult Claude more frequently during implementation.
+   - Extra testing and validation steps.
 
 4. **Review** (Claude + Mike):
    - Extra scrutiny on architectural changes.
    - May require multiple review rounds.
+   - Claude may suggest refactorings or improvements.
 
-### Manual Coding (5-10% of work)
+### Quick Fixes / Small Changes (5-10% of work)
 
-When Mike codes manually:
+When Mike makes small changes without architecture planning:
 
 1. **IDE Assistance** (Copilot):
    - Real-time autocomplete in VS Code.
    - Quick boilerplate generation.
+   - Bug fixes, typos, small refactorings.
 
-2. **Testing** (Manual):
+2. **Testing** (Mike):
    - Run `go test ./...`.
    - Manual browser testing.
 
-3. **PR** (Manual):
-   - Create PR, same review process as OpenHands PRs.
+3. **PR** (Mike):
+   - Create PR, same process as standard features.
+   - May skip Claude review for trivial changes.
 
 ### Work Distribution
 
-| Type | Agent | % of Work | Crash Risk |
-|------|-------|-----------|------------|
-| Architecture & Specs | Claude | 10-15% | Low (short sessions) |
-| Implementation | OpenHands | 70-80% | **None** (checkpoint/resume) |
-| PR Reviews | Claude | 5-10% | Low (short sessions) |
-| Manual Coding | Mike + Copilot | 5-10% | None |
+| Type | Agent | % of Work | Notes |
+|------|-------|-----------|-------|
+| Architecture & Planning | Claude Code | 15-20% | Deep design sessions |
+| Implementation | Mike + Copilot | 70-80% | Supervised coding |
+| Code Review (optional) | Claude Code | 5-10% | Complex features only |
+| Quick Fixes | Mike + Copilot | 5-10% | Small changes |
 
-### Crash Recovery
-
-If Claude crashes during spec creation:
-
-1. Check `.claude/todos.json` to see what was in progress.
-2. Check `.claude/recovery-logs/session-YYYYMMDD.md` for recent actions.
-3. Run `.claude/hooks/recovery-helper.sh restore` to recover work from git.
-4. Resume from where Claude left off.
-
-**Key Insight**: 80% of work (implementation) is now crash-proof because OpenHands runs as a separate process with persistent state.
+**Key Insight**: Mike supervises all implementation work, maintaining quality and learning the codebase deeply. Claude provides architectural guidance and strategic reviews when needed.
 
 ## Testing Requirements
 
-### Automated Testing (OpenHands)
+### Automated Testing (Mike + Copilot)
 
 - **Unit tests** for utilities and services (70%+ coverage).
 - **Handler tests** for HTTP endpoints.
@@ -349,7 +328,7 @@ go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 ```
 
-### Manual Testing Checklist (OpenHands + Mike)
+### Manual Testing Checklist (Mike)
 
 - [ ] Feature works in browser through nginx gateway (`http://localhost:3000`).
 - [ ] No JavaScript errors in browser console.
@@ -394,18 +373,18 @@ The platform recognizes five distinct modes of reading code, each appropriate fo
 **Primary Modes: Preview, Skim, and Critical**
 
 #### Preview Mode
-**When:** First time reviewing OpenHands output or exploring a new service
+**When:** First time reviewing implemented code or exploring a new service
 - Quick scan of file structure
 - Understand what was implemented at high level
 - Decide if deeper review is needed
 
 **How:**
 - Look at file tree in GitHub PR
-- Read OpenHands' PR description
+- Read PR description
 - Check which bounded contexts and layers were touched
 
 #### Skim Mode
-**When:** Understanding OpenHands implementation before critical review
+**When:** Understanding implementation before critical review or testing
 - See what functions/interfaces were created
 - Understand data models added
 - Get high-level flow of the feature
@@ -443,13 +422,13 @@ The platform recognizes five distinct modes of reading code, each appropriate fo
 **Primary Modes: Skim and Critical**
 
 #### Skim Mode
-**When:** Creating implementation specs for OpenHands
+**When:** Creating implementation plans for Mike
 - Need to understand existing patterns in codebase
 - Want to see how similar features were implemented
 - Building mental model before designing new feature
 
 #### Critical Mode
-**When:** Reviewing OpenHands PRs (90% of Claude's work)
+**When:** Reviewing code or providing architectural guidance
 - Full architectural review
 - Security analysis
 - Performance evaluation
@@ -461,12 +440,12 @@ The platform recognizes five distinct modes of reading code, each appropriate fo
 3. **Critical review**: Apply mental models checklist
 4. **Provide feedback**: Specific, actionable improvements
 
-### For OpenHands (Implementation Agent)
+### For Mike + Copilot (Implementation Team)
 
 **Primary Modes: Skim, Scan, and Detailed**
 
 #### Skim Mode
-**When:** Starting implementation from Claude's spec
+**When:** Starting implementation from Claude's plan
 - Understanding existing code patterns
 - Finding similar implementations to follow
 - Building mental model of codebase
@@ -483,7 +462,7 @@ The platform recognizes five distinct modes of reading code, each appropriate fo
 - Extending complex business logic
 - Understanding subtle edge cases
 
-**OpenHands should prefer Skim over Detailed** - implementation specs from Claude should minimize need for detailed reading.
+**Prefer Skim over Detailed** - Claude's implementation plans should minimize need for detailed reading.
 
 ### Cognitive Load Strategy by Mode
 
@@ -513,10 +492,11 @@ See: `ARCHITECTURE.md` - Section "Service Architecture → Review Service" for c
 ---
 
 ## Notes
-- OpenHands must focus on one feature per issue to avoid scope creep and maintain repo clarity.
-- Claude's architectural reviews ensure modularity and scalability, reducing technical debt.
-- Mike's oversight and approval process ensures alignment with project goals and acceptance criteria.
+- Each implementation focuses on one feature per issue to avoid scope creep and maintain repo clarity.
+- Claude's architectural planning ensures modularity and scalability, reducing technical debt.
+- Mike's supervision ensures quality, alignment with project goals, and deep codebase knowledge.
 - All team members apply appropriate reading modes for their role.
 - The Review app is the **centerpiece** of the platform - it teaches the fundamentals of code reading.
 - All workflows adhere to TDD principles per `DevsmithTDD.md` and DevSmith Coding Standards.
 - Mental models (bounded context, layering, abstractions, scope) are foundational to all development.
+- This simplified workflow (Claude + Copilot + Mike) eliminates local LLM complexity while maintaining high quality.

@@ -35,7 +35,7 @@ The DevSmith Modular Platform is a comprehensive learning and development platfo
 ### Key Design Goals
 - **True Modularity**: Apps operate independently, no forced dependencies
 - **Developer Experience**: One-click installation, excellent debugging
-- **AI-First**: Local LLM support via Ollama with online API fallback
+- **AI-Assisted Development**: Claude Code for architecture, GitHub Copilot for implementation
 - **Production-Ready**: Gateway architecture, proper auth, comprehensive logging
 
 ### Current Status
@@ -233,7 +233,7 @@ type ReviewRequest struct {
 // ORCHESTRATION LAYER (services/review_service.go)
 // Concern: Business logic, AI interaction
 func (s *ReviewService) AnalyzeCode(ctx context.Context, review *models.Review) error {
-    // Call Ollama API
+    // Call AI service (Claude API, OpenAI, etc.)
     // Parse results
     // Apply business rules
 }
@@ -320,7 +320,7 @@ var GlobalConfig *Config
 // STRUCT SCOPE
 // Visible to methods on this struct
 type ReviewService struct {
-    aiClient *ollama.Client  // Accessible to all methods
+    aiClient AIProvider  // Accessible to all methods (interface for Claude, OpenAI, etc.)
     repo     *ReviewRepository
 }
 
@@ -567,17 +567,17 @@ Backend   Backend   Backend   Backend    Backend
 - Build time: ~30 seconds per service
 - No npm/pip install in containers
 
-### AI/LLM Integration
-- **Local:** Ollama (for offline operation)
-- **Online:** Anthropic Claude API, OpenAI API (user-provided keys)
+### AI/LLM Integration (Platform Features)
+- **API Support:** Anthropic Claude API, OpenAI API (user-provided keys)
 - **Go Client:** github.com/anthropics/anthropic-sdk-go
 - **HTTP Client:** Native Go http.Client with proper timeouts
+- **Interface-based:** AIProvider interface for multiple backend support
 
 **Rationale:**
-- Ollama: Privacy, offline capability, no API costs
 - Multiple APIs: Flexibility, no vendor lock-in
 - Native Go HTTP: No SDK version compatibility issues
 - Proper timeout handling: Go's context package prevents hanging requests
+- Interface pattern: Easy to add new AI providers
 
 ### Development Tools
 
@@ -588,80 +588,77 @@ Backend   Backend   Backend   Backend    Backend
 - **API Docs:** Swagger/OpenAPI via swaggo/swag
 - **Dependency Management:** Go modules (built-in)
 
-#### AI Development Tools (Hybrid Approach)
+#### AI Development Tools (Supervised Approach)
 
-**Primary Implementation Agent: OpenHands + Ollama**
-- **Role:** Autonomous code generation and implementation (70-80% of work)
-- **Setup:**
-  - OpenHands: `pip install openhands` (autonomous agent framework)
-  - Ollama: Local LLM runtime (privacy, no API costs)
-  - Recommended models:
-    - `deepseek-coder:6.7b` (16GB RAM, default, good balance)
-    - `deepseek-coder-v2:16b` (32GB RAM, best quality)
-    - `deepseek-coder:1.5b` (8GB RAM, low-end systems)
-- **Capabilities:**
-  - Fully autonomous feature implementation
-  - TDD workflow (write tests → implement → verify)
-  - File creation/editing, git operations, test execution
-  - Browser automation for testing
-  - Checkpoint/resume on crash or interruption
-- **System Requirements:**
-  - Minimum: 16GB RAM, 8 CPU cores
-  - Recommended: 32GB RAM, 16+ CPU cores (met by Dell G16 7630)
-  - GPU: Optional but recommended (RTX 4070 ideal for 16B+ models)
-
-**Architecture & Review: Claude (via API)**
-- **Role:** High-level architecture, strategic code review (10-15% of work)
+**Architect & Planner: Claude Code**
+- **Role:** High-level architecture, planning, strategic guidance (15-20% of work)
 - **Interface:** Claude Code CLI (this tool)
 - **Capabilities:**
-  - 200K context window (can review entire codebase)
+  - 200K context window (can understand entire codebase)
+  - Direct file read/write/edit operations
   - Architecture design and API contracts
   - Database schema design
-  - Strategic PR reviews
+  - Test execution and validation
+  - Implementation planning with code examples
   - Complex problem solving
-- **Limitations:**
-  - Subject to V8 crashes (mitigated by recovery hooks)
-  - Cannot execute code directly
-  - Sessions should be <30 minutes
+- **Workflow:**
+  - Designs architecture and creates implementation plans
+  - Provides detailed specs with file structure, function signatures, patterns
+  - Reviews code when requested
+  - Assists with debugging and problem-solving
 
-**IDE Assistant: GitHub Copilot**
-- **Role:** Real-time autocomplete during manual coding (5-10% of work)
+**Primary Implementation: GitHub Copilot**
+- **Role:** AI-assisted code generation during supervised implementation (70-80% of work)
 - **Interface:** VS Code extension
 - **Capabilities:**
-  - Inline code suggestions
-  - Boilerplate generation
-  - Quick refactorings
-- **Limitations:**
-  - No autonomous workflow
-  - Limited context (single file)
+  - Real-time code suggestions as developer types
+  - Full function/struct generation from comments
+  - Test generation assistance
+  - Refactoring suggestions
+  - Multi-language support (Go, Templ, SQL, HTMX)
+  - Chat interface for explanations and guidance
+- **Workflow:**
+  - Developer implements features following Claude's plans
+  - Copilot provides suggestions, developer reviews and accepts/modifies
+  - Maintains human oversight and quality control
 
-**Crash Recovery Mechanisms:**
-- `.claude/hooks/` - Automated recovery scripts
-  - `session-logger.sh` - Logs all actions to markdown
-  - `git-recovery.sh` - Auto-commits to recovery branches
-  - `recovery-helper.sh` - Interactive recovery tool
-- Todo list (`.claude/todos.json`) - Persistent task tracking
-- Recovery branches (`claude-recovery-YYYYMMDD`) - 7-day retention
+**Project Orchestrator: Mike**
+- **Role:** Supervises all development, maintains quality (100% oversight)
+- **Responsibilities:**
+  - Triggers Claude Code for architecture sessions
+  - Implements features with Copilot assistance
+  - Reviews all code before committing
+  - Runs tests and validates functionality
+  - Creates PRs and manages merges
+  - Ensures adherence to standards and TDD principles
 
 **Development Log (Devlog):**
 - `.docs/devlog/` - Human-readable session summaries
   - Date-based entries (`YYYY-MM-DD.md`)
-  - Tracks decisions, problems, solutions across all agents
-  - **Purpose:** Shared memory between sessions
-  - **Usage:** Each agent reads latest entry before starting, updates after completing
+  - Tracks decisions, problems, solutions across sessions
+  - **Purpose:** Shared memory between development sessions
+  - **Timing:** Updated POST-MERGE after features are completed
+  - **Who writes:** Mike with Copilot assistance, or Claude Code if session is active
   - See: `.docs/devlog/README.md` for complete guide
 
-**Benefits of Hybrid Approach:**
-- ✅ 80% of work is crash-proof (OpenHands runs independently)
-- ✅ No API costs for implementation (Ollama runs locally)
-- ✅ No rate limits (can run 24/7)
-- ✅ Claude focuses on high-value architecture work
-- ✅ Parallel development (OpenHands implements while Claude reviews)
+**Crash Recovery (Claude Code V8 Crashes):**
+- `.claude/hooks/` - Automated recovery scripts
+  - `session-logger.sh` - Logs all actions to markdown
+  - `git-recovery.sh` - Auto-commits to recovery branches
+  - `recovery-helper.sh` - Interactive recovery tool
+- Todo list (`.claude/todos.json`) - Persistent task tracking across crashes
+- Recovery branches (`claude-recovery-YYYYMMDD`) - 7-day retention
+- Session logs (`.claude/recovery-logs/`) - For resuming interrupted work
 
-**System Requirements Met:**
-- **Your System:** Dell G16 7630 (i9-13900HX, 32GB RAM, RTX 4070)
-- **Assessment:** Excellent for running multiple large Ollama models simultaneously
-- **Can Run:** Llama 3.1 70B quantized + CodeLlama 34B concurrently
+**Benefits of Supervised Approach:**
+- ✅ Human oversight ensures quality and deep codebase understanding
+- ✅ No local LLM complexity or management overhead
+- ✅ Claude provides architectural guidance when needed
+- ✅ Copilot accelerates implementation without sacrificing control
+- ✅ Simple tool chain: Claude Code + Copilot + Git
+- ✅ Developer learns codebase through hands-on implementation
+- ✅ Crash recovery hooks handle Claude Code V8 crashes gracefully
+- ✅ Copilot assists with PR creation for streamlined workflow
 
 ### Why Not React/Node?
 
@@ -1004,8 +1001,8 @@ WS     /ws/review/sessions/:id/collaborate     - Real-time collaboration
 // services/review_ai_service.go
 
 type ReviewAIService struct {
-    ollamaClient *ollama.Client
-    model        string // From env: OLLAMA_MODEL (default: "deepseek-coder:6.7b")
+    aiClient AIProvider
+    model    string // From env: AI_MODEL (e.g., "claude-3-5-sonnet-20241022")
 }
 
 func (s *ReviewAIService) AnalyzeInMode(
@@ -1017,7 +1014,7 @@ func (s *ReviewAIService) AnalyzeInMode(
 
     prompt := s.buildPromptForMode(mode, code, options)
 
-    response, err := s.ollamaClient.Generate(ctx, &ollama.GenerateRequest{
+    response, err := s.aiClient.Generate(ctx, &AIRequest{
         Model:  s.model,
         Prompt: prompt,
         Options: map[string]interface{}{
@@ -1123,7 +1120,7 @@ Format response as JSON array of issues.`, code)
 **Integration with Other Services:**
 - **Logging:** All AI calls logged for performance analysis
 - **Analytics:** Usage patterns (which modes used most, success metrics)
-- **Build:** Can trigger review of OpenHands output before merge
+- **Build:** Can trigger review of code before merge
 - **Portal:** Authentication, session management
 
 ### Logging Service
@@ -1139,7 +1136,7 @@ Format response as JSON array of issues.`, code)
 **Dependencies:**
 - PostgreSQL (logs schema)
 - Redis (WebSocket pub/sub)
-- Ollama (optional, for log analysis)
+- AI API (optional, for log analysis)
 
 **API Endpoints:**
 - `POST /api/logs` - Ingest log entry
@@ -1168,19 +1165,19 @@ Format response as JSON array of issues.`, code)
 - `GET /api/analytics/export` - Export report
 
 ### Build Service (Phase 2)
-**Purpose:** Terminal interface and autonomous coding
+**Purpose:** Terminal interface and collaborative coding
 
 **Responsibilities:**
 - Terminal emulation
 - Cloud CLI support
 - Copilot CLI integration
-- OpenHands autonomous coding (Phase 2)
 - Real-time collaboration
+- Session recording and playback
 
 **Dependencies:**
 - PostgreSQL (build sessions schema)
 - Logging service (terminal output capture)
-- Ollama (for autonomous coding)
+- AI API (optional, for code assistance)
 
 **API Endpoints:**
 - `POST /api/build/session` - Create terminal session
@@ -2294,6 +2291,308 @@ as defined in Requirements.md section 4.3.
 Closes #42
 ```
 
+### Enhanced Pre-commit Validation System
+
+**Purpose:** Provide intelligent, actionable feedback on code quality before commits, designed for both human developers and AI agents (OpenHands, Claude, Copilot).
+
+**Version:** 2.0 (Enhanced with 12 major features)
+
+#### Core Capabilities
+
+**1. Machine-Readable Output (`--json`)**
+```bash
+.git/hooks/pre-commit --json
+```
+Returns structured JSON with:
+- All issues with type, severity, file, line, message
+- Grouped by priority (high/medium/low)
+- Code context (±3 lines around error)
+- Auto-fixable flags and fix commands
+- Dependency graph showing fix order
+- Summary statistics
+
+**Use Cases:**
+- AI agents parsing validation results
+- IDE integration
+- CI/CD pipeline integration
+- Analytics platform ingestion
+
+**2. Issue Prioritization**
+Issues automatically categorized:
+- **High Priority (Blocking):** Build errors, test failures, security critical
+- **Medium Priority (Should Fix):** Security warnings, error handling gaps, unused imports
+- **Low Priority (Can Defer):** Style issues, missing comments, optimizations
+
+**Benefits:**
+- Developers know what to fix first
+- AI agents prioritize correctly
+- Reduces decision fatigue
+
+**3. Context-Aware Suggestions**
+Each issue includes:
+- Code snippet showing problematic line
+- Actionable fix guidance ("Add Mock.On()...")
+- Link to documentation (.docs/copilot-instructions.md)
+- Template for correct implementation
+- Similar fixes from git history
+
+**4. Progressive Validation Modes**
+
+**Quick Mode** (~5 seconds):
+```bash
+.git/hooks/pre-commit --quick
+```
+- Formatting checks only
+- Critical build errors
+- Use during rapid development iteration
+
+**Standard Mode** (~15 seconds):
+```bash
+.git/hooks/pre-commit
+```
+- All checks in parallel (4x faster than sequential)
+- Default for pre-commit hook
+- Balanced speed/thoroughness
+
+**Thorough Mode** (~60 seconds):
+```bash
+.git/hooks/pre-commit --thorough
+```
+- Includes race detection (`go test -race`)
+- More comprehensive linting
+- Use before creating PR
+
+**5. Auto-Fix Mode**
+```bash
+.git/hooks/pre-commit --fix
+```
+Automatically corrects:
+- Code formatting (go fmt, goimports)
+- Unused imports
+- Basic comment templates
+- Parameter type combinations
+
+**Success Rate:** 60%+ of common issues fixed automatically
+
+**6. Interactive Query Mode**
+
+**Explain Test Failure:**
+```bash
+.git/hooks/pre-commit --explain TestAggregatorService
+```
+Returns detailed information about specific test failure with suggestions.
+
+**Get Fix Suggestion:**
+```bash
+.git/hooks/pre-commit --suggest-fix internal/analytics/services/aggregator_service.go:42
+```
+Returns targeted fix guidance for specific file:line.
+
+**Check Specific Tool:**
+```bash
+.git/hooks/pre-commit --check-only golangci-lint
+```
+Runs only the specified validation tool.
+
+**7. LSP Integration**
+```bash
+.git/hooks/pre-commit --output-lsp > diagnostics.json
+```
+Exports validation results in Language Server Protocol format for IDE consumption (VS Code, IntelliJ, etc.).
+
+**8. Agent-Specific Guide**
+
+**File:** `.git/hooks/pre-commit-agent-guide.json`
+
+Contains common error patterns with:
+- Regex pattern for error detection
+- Step-by-step fix instructions
+- Before/after code examples
+- Auto-fixable flags
+- Priority recommendations
+
+**Example Pattern:**
+```json
+{
+  "missing_mock_setup": {
+    "pattern": "mock expectation(s) not met",
+    "severity": "error",
+    "fix_steps": [
+      "1. Read test file to identify test function",
+      "2. Locate mock object (type Mock*)",
+      "3. Add mockObj.On(\"Method\", args).Return(values)",
+      "4. Ensure m.Called() is used in mock implementation"
+    ],
+    "example_code": "mockRepo.On(\"FindByRange\", ...).Return([]*models.Aggregation{}, nil)",
+    "auto_fixable": false
+  }
+}
+```
+
+#### Agent Integration Workflows
+
+**For OpenHands (Autonomous Implementation):**
+```bash
+# 1. Implement feature
+# 2. Run validation
+output=$(.git/hooks/pre-commit --json)
+
+# 3. Auto-fix simple issues
+.git/hooks/pre-commit --fix
+
+# 4. Parse remaining issues
+issues=$(echo "$output" | jq '.grouped.high[]')
+
+# 5. Use agent guide to fix remaining issues
+for issue in $issues; do
+    pattern=$(echo "$issue" | jq -r '.type')
+    fix_steps=$(jq -r ".common_patterns.$pattern.fix_steps[]" .git/hooks/pre-commit-agent-guide.json)
+    # Apply fix steps...
+done
+
+# 6. Re-run validation until passed
+while [[ $(.git/hooks/pre-commit --json | jq '.status') == "failed" ]]; do
+    # Fix remaining issues
+done
+
+# 7. Create PR
+```
+
+**For Claude/Copilot (Interactive Development):**
+```bash
+# Quick feedback during development
+.git/hooks/pre-commit --quick
+
+# Explain specific test failure
+.git/hooks/pre-commit --explain TestName
+
+# Get targeted fix suggestion
+.git/hooks/pre-commit --suggest-fix file.go:42
+
+# View in IDE
+.git/hooks/pre-commit --output-lsp > diagnostics.json
+```
+
+#### Performance Characteristics
+
+**Parallel Execution:**
+- Sequential: ~60 seconds
+- Parallel: ~15 seconds (4x faster)
+- Implementation: Background jobs with `wait`
+
+**Smart Caching:**
+- MD5-based file hashing
+- Skip validation for unchanged files
+- 50-80% faster for incremental commits
+- Cache dir: `.git/pre-commit-cache/`
+
+**JSON Generation:**
+- <10ms for 100 issues
+- Suitable for real-time feedback
+
+#### Integration with Platform (Phase 2)
+
+**Logging Service:**
+- New schema: `logs.validation_runs`
+- API: `POST /api/logs/validation` (submit results)
+- API: `GET /api/logs/validation/history` (query history)
+- WebSocket: `/ws/logs/validation` (real-time streaming)
+
+**Analytics Service:**
+- Validation success rate trends
+- Most common issue types
+- Average fix time per issue type
+- Auto-fix effectiveness rate
+- Agent fix success rate
+
+**Portal Service:**
+- Validation dashboard widget
+- Recent validation runs (last 10)
+- Overall pass rate (7-day trend)
+- Top 5 recurring issues
+- Achievement badges
+
+#### Benefits
+
+**For Developers:**
+- 4x faster validation with parallel execution
+- Clear prioritization reduces cognitive load
+- Actionable guidance (not just "fix this")
+- Auto-fix eliminates 60%+ of manual work
+- Learning tool: understand common patterns
+
+**For AI Agents:**
+- Structured JSON output (easily parsed)
+- Priority guidance (fix high → medium → low)
+- Code context (no need to re-read files)
+- Fix templates (apply patterns)
+- Dependency graph (fix in correct order)
+
+**For Teams:**
+- Consistent standards enforcement
+- Quality metrics over time
+- Knowledge sharing via agent guide
+- Reduced PR review time
+- Better human-AI collaboration
+
+#### Usage in Development Workflow
+
+**Normal Commit:**
+```bash
+git add .
+git commit -m "feat: add new feature"
+# Hook runs automatically in standard mode
+```
+
+**During Active Development:**
+```bash
+# Quick validation between changes
+.git/hooks/pre-commit --quick
+
+# Auto-fix formatting before committing
+.git/hooks/pre-commit --fix
+git add .
+git commit -m "fix: correct validation issues"
+```
+
+**Before Creating PR:**
+```bash
+# Thorough validation with race detection
+.git/hooks/pre-commit --thorough
+
+# Submit results to platform (Phase 2)
+.git/hooks/pre-commit --json | curl -X POST http://localhost:3003/api/logs/validation -d @-
+```
+
+**Bypassing (Emergency Only):**
+```bash
+git commit --no-verify
+```
+
+#### Technical Implementation
+
+**Language:** Bash (universal, no dependencies beyond standard Go tools)
+
+**Dependencies:**
+- go fmt, go vet, go test (standard Go toolchain)
+- golangci-lint (code quality)
+- jq (JSON processing)
+- goimports (import management)
+
+**Key Functions:**
+- `add_issue()`: Structured issue tracking
+- `parse_golangci_lint()`: Parse linter output
+- `parse_test_error()`: Parse test failures
+- `parse_build_error()`: Parse build errors
+- `group_issues_by_priority()`: Prioritization logic
+- `build_dependency_graph()`: Issue relationships
+- `output_json()`, `output_human()`, `output_lsp()`: Output formatters
+
+**Error Handling:**
+- `set -e` for fail-fast behavior
+- Arithmetic operations use `$((var + 1))` (not `((var++))` due to `set -e`)
+- Separate arrays for error vs warning suggestions (prevent misalignment)
+
 ### Feature Development Workflow
 
 **See `DevSmithRoles.md` for complete workflow documentation with role details.**
@@ -3218,64 +3517,63 @@ branches:
 - Old platform CLAUDE_CHANGELOG.md: V8 crash workarounds
 - Technology Stack (Section 4)
 
-### Decision: Hybrid AI Development Team (OpenHands + Ollama + Claude + Copilot)
-**Date:** 2025-10-18
+### Decision: Supervised AI Development with Claude Code + Copilot
+**Date:** 2025-10-22 (Updated from 2025-10-18)
 **Status:** Accepted
-**Context:** Claude Code (running on Node.js/V8) is prone to crashes, causing work loss. Need a development approach that:
-1. Minimizes Claude crash risk
-2. Automates majority of implementation work
-3. Maintains high code quality
-4. Operates within system resources (Dell G16 7630)
+**Context:** Need a development approach that:
+1. Maintains high code quality and architectural integrity
+2. Leverages AI assistance for productivity
+3. Ensures developer maintains deep codebase knowledge
+4. Avoids complexity of local LLM management
 
-**Decision:** Implement hybrid AI team with specialized roles:
-- **OpenHands + Ollama:** Primary implementation agent (70-80% of work) - fully autonomous, crash-proof
-- **Claude (via API):** Architecture and strategic review (10-15% of work) - short sessions to minimize crash risk
-- **GitHub Copilot:** IDE assistance for manual coding (5-10% of work)
-- **Mike:** Project orchestration and final approval
-
-**System Specs Verified:**
-- Dell G16 7630: i9-13900HX (24 cores/32 threads), 32GB RAM, RTX 4070 8GB
-- Assessment: Excellent for running multiple large Ollama models (16B-70B)
+**Decision:** Implement supervised development with specialized AI tools:
+- **Claude Code:** Architecture planning and strategic guidance (15-20% of work time)
+- **GitHub Copilot:** AI-assisted implementation (70-80% of work time)
+- **Mike:** Supervises all development, maintains oversight (100% involvement)
 
 **Alternatives Considered:**
-1. **Continue with Claude + Copilot only** - Rejected: Claude crash risk too high, Copilot not autonomous
-2. **Use only OpenHands** - Rejected: Lacks Claude's architectural reasoning and 200K context
-3. **Use cloud-based agents (Cursor, Replit)** - Rejected: Privacy concerns, API costs, vendor lock-in
+1. **Fully autonomous agents (OpenHands + local LLMs)** - Rejected: Added complexity, reduced developer involvement and learning
+2. **Claude only** - Rejected: No real-time IDE assistance during implementation
+3. **Copilot only** - Rejected: Lacks architectural planning and strategic guidance
+4. **Cloud-based agents (Cursor, Replit)** - Rejected: Vendor lock-in, less control
 
 **Consequences:**
 
 ✅ **Benefits:**
-- 80% of work is crash-proof (OpenHands runs independently with checkpoint/resume)
-- Claude crash risk reduced to 10-15% of work time (short architecture/review sessions)
-- No API costs for implementation (Ollama runs locally)
-- No rate limits (can run 24/7)
-- OpenHands can work overnight on complex features
-- Parallel development (OpenHands implements while Claude reviews)
-- Privacy preserved (code stays local for implementation)
+- Human oversight ensures quality and adherence to standards
+- Developer builds deep understanding of codebase
+- Simplified tool chain (no local LLM management)
+- Claude provides strategic architectural guidance when needed
+- Copilot accelerates implementation without sacrificing control
+- Clean separation: planning (Claude) vs. implementation (Copilot)
+- Developer learns through hands-on implementation
 
 ⚠️ **Trade-offs:**
-- Learning curve for OpenHands configuration
-- Ollama model management overhead
-- Need to write detailed specs for OpenHands (more upfront planning)
-- OpenHands quality depends on model size (16B+ recommended)
+- Requires active developer involvement (not fully autonomous)
+- Implementation pace depends on developer availability
+- No overnight automated development
 
-⚠️ **Risks Mitigated:**
-- Claude crash recovery hooks in `.claude/hooks/` (session logging, git auto-recovery)
-- Todo list persistence for tracking progress
-- OpenHands checkpoint/resume handles system crashes
-- Detailed specs ensure OpenHands understands requirements
+✅ **Strengths:**
+- Quality maintained through human review
+- Knowledge retained by team, not just AI
+- Simple setup and maintenance
+- Flexible - can adjust approach as needed
+- No local infrastructure to manage
 
 **Implementation Impact:**
-- DevSmithRoles.md updated with hybrid workflow
+- DevSmithRoles.md updated with supervised workflow
 - ARCHITECTURE.md Section 5 (Development Tools) updated
 - ARCHITECTURE.md Section 14 (Development Workflow) updated
-- Crash recovery hooks implemented in `.claude/hooks/`
-- No changes to tech stack (Go + Templ + HTMX)
+- No local LLM infrastructure needed
+- Tech stack remains: Go + Templ + HTMX
+- Crash recovery hooks remain in `.claude/hooks/` for Claude Code V8 crashes
+- Devlog written POST-MERGE by Mike/Copilot or Claude
+- PR creation assisted by Copilot
 
 **References:**
 - DevSmithRoles.md - Complete workflow documentation
+- Development follows TDD principles per DevsmithTDD.md
 - `.claude/hooks/README.md` - Crash recovery documentation
-- System specs screenshots (2025-10-18)
 
 ---
 
@@ -3287,6 +3585,7 @@ branches:
 | 1.1 | 2025-10-18 | Claude | Added CI/CD & Automation section (Section 15) |
 | 1.2 | 2025-10-18 | Claude | Changed tech stack from React+Node to Go+Templ+HTMX to eliminate V8 crashes |
 | 1.3 | 2025-10-18 | Claude | Added hybrid AI development approach (OpenHands + Ollama + Claude + Copilot) |
+| 1.4 | 2025-10-22 | Claude | Updated to supervised AI development approach (Claude Code + Copilot), removed Ollama/OpenHands references |
 
 ---
 
