@@ -11,12 +11,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// AggregatorService provides methods to aggregate data.
 type AggregatorService struct {
 	aggregationRepo analytics.AggregationRepositoryInterface
 	logReader       analytics.LogReaderInterface
 	logger          *logrus.Logger
 }
 
+// NewAggregatorService creates a new instance of AggregatorService.
 func NewAggregatorService(aggregationRepo analytics.AggregationRepositoryInterface, logReader analytics.LogReaderInterface, logger *logrus.Logger) *AggregatorService {
 	return &AggregatorService{
 		aggregationRepo: aggregationRepo,

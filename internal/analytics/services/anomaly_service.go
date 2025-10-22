@@ -11,11 +11,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// AnomalyService provides methods to detect anomalies.
 type AnomalyService struct {
 	aggregationRepo db.AggregationRepositoryInterface
 	logger          *logrus.Logger
 }
 
+// NewAnomalyService creates a new instance of AnomalyService.
 func NewAnomalyService(aggregationRepo db.AggregationRepositoryInterface, logger *logrus.Logger) *AnomalyService {
 	return &AnomalyService{
 		aggregationRepo: aggregationRepo,

@@ -13,6 +13,7 @@ type LogReader struct {
 	db *pgxpool.Pool
 }
 
+// NewLogReader creates a new instance of LogReader.
 func NewLogReader(db *pgxpool.Pool) *LogReader {
 	return &LogReader{db: db}
 }

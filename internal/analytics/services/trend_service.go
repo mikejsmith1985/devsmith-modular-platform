@@ -9,11 +9,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TrendService provides methods to analyze trends.
 type TrendService struct {
 	aggregationRepo db.AggregationRepositoryInterface
 	logger          *logrus.Logger
 }
 
+// NewTrendService creates a new instance of TrendService.
 func NewTrendService(aggregationRepo db.AggregationRepositoryInterface, logger *logrus.Logger) *TrendService {
 	return &TrendService{
 		aggregationRepo: aggregationRepo,
