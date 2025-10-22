@@ -794,6 +794,7 @@ All services behind Nginx gateway - users only access `localhost:3000`.
 - Real-time collaboration in all apps (not just Review)
 - Mobile app (React Native or Progressive Web App)
 - VS Code extension (launch Review from editor)
+- **Enhanced Pre-commit Hook Integration** (Developer Experience Enhancement)
 
 ### Phase 3
 - Team features (shared workspaces, org accounts)
@@ -806,6 +807,422 @@ All services behind Nginx gateway - users only access `localhost:3000`.
 - Plugin system for language-specific analyzers
 - Integration with CI/CD pipelines
 - Automated code improvement suggestions
+
+---
+
+## Enhanced Pre-commit Hook Integration (Phase 2)
+
+### Overview
+Integrate the enhanced pre-commit validation system into the DevSmith platform's Logging and Analytics services, providing developers and AI agents with intelligent, actionable feedback on code quality issues before commits.
+
+### Core Features
+
+#### 1. Machine-Readable Output (JSON API)
+Enable programmatic access to validation results for AI agents and tools:
+
+**Output Format**:
+```json
+{
+  "status": "failed|passed",
+  "duration": 45,
+  "mode": "standard|quick|thorough",
+  "issues": [
+    {
+      "type": "test_mock_expectation|style|security|...",
+      "severity": "error|warning",
+      "file": "path/to/file.go",
+      "line": 42,
+      "message": "Test failed - 18 mock expectations not met",
+      "suggestion": "Add Mock.On() expectations - see docs §5.1",
+      "autoFixable": false,
+      "fixCommand": "go fmt file.go",
+      "context": "...code snippet..."
+    }
+  ],
+  "grouped": {
+    "high": [...],    // Blocking errors
+    "medium": [...],  // Should fix
+    "low": [...]      // Can defer
+  },
+  "dependencyGraph": {
+    "nodes": ["build_errors", "tests", "style"],
+    "edges": [...],
+    "fix_order": ["build_errors", "tests", "style"]
+  },
+  "summary": {
+    "total": 25,
+    "errors": 2,
+    "warnings": 23,
+    "autoFixable": 15
+  }
+}
+```
+
+**API Endpoints** (Logging Service):
+```
+POST   /api/validation/submit     - Submit pre-commit results
+GET    /api/validation/history    - Get validation history
+GET    /api/validation/stats      - Aggregate statistics
+WS     /ws/validation             - Real-time validation stream
+```
+
+#### 2. Issue Prioritization & Grouping
+Automatically categorize validation issues by priority:
+
+- **High Priority (Blocking)**: Build errors, test failures, critical security issues
+- **Medium Priority (Should Fix)**: Security warnings, error handling gaps, unused imports
+- **Low Priority (Can Defer)**: Style issues, missing comments, code quality suggestions
+
+**Benefits**:
+- AI agents know what to fix first
+- Humans see most important issues up front
+- Reduces cognitive load during code review
+
+#### 3. Context-Aware Suggestions
+Provide actionable guidance with code context:
+
+**Enhanced Issue Display**:
+```
+ERROR: Test 'TestAggregatorService' - 18 mock expectations not met
+  File: internal/analytics/services/aggregator_service_test.go:45
+
+  43: func TestAggregatorService_RunHourlyAggregation(t *testing.T) {
+  44:     mockRepo := &testutils.MockAggregationRepository{}
+  45:     service := NewAggregatorService(mockRepo, logger)
+  46:     // Missing: mockRepo.On("FindByRange", ...).Return(...)
+
+  Suggestion: Add mock expectations before service call
+  Template: mockRepo.On("FindByRange", mock.Anything, ...).Return([]*models.Aggregation{}, nil)
+
+  See: .docs/copilot-instructions.md §5.1
+  Similar fixes: git log -S "FindByRange" --oneline | head -1
+```
+
+#### 4. Parallel Execution
+Speed up validation with concurrent checks:
+
+**Performance Gains**:
+- Sequential: ~60 seconds
+- Parallel: ~15 seconds (4x faster)
+
+**Implementation**:
+```bash
+# Run independent checks in parallel
+{
+  go fmt ./... &
+  go vet ./... &
+  golangci-lint run ./... &
+  go test -short ./... &
+  wait
+}
+```
+
+#### 5. Auto-Fix Mode
+Automatically correct simple issues:
+
+**Supported Fixes**:
+- Code formatting (`go fmt`, `goimports`)
+- Unused imports removal
+- Basic comment templates
+- Parameter type combinations
+
+**Usage**:
+```bash
+.git/hooks/pre-commit --fix
+# ✓ Auto-fixed 12 issue(s)
+# ⚠ 3 issues require manual attention
+```
+
+#### 6. Smart Caching
+Skip validation for unchanged files:
+
+**Cache Strategy**:
+- Store MD5 hash of each file
+- Compare before running checks
+- Only validate modified files
+- Clear cache on branch switch
+
+**Performance Impact**:
+- 50-80% faster for incremental commits
+- Especially beneficial for large codebases
+
+#### 7. Issue Context Extraction
+Show code snippets around problems:
+
+**Context Window**: ±3 lines around issue
+**Benefits**:
+- AI agents understand problem without reading entire file
+- Faster diagnosis and fixes
+- Reduces file I/O operations
+
+#### 8. Dependency Graph
+Visualize issue relationships:
+
+```
+Issue Dependencies:
+  Build Error (logs service)
+    ↳ Blocks: All logs service tests
+    ↳ Blocks: Integration tests
+
+  Fix Priority:
+    1. Fix build → 2. Run tests → 3. Fix style issues
+```
+
+#### 9. Progressive Validation Modes
+
+**Quick Mode** (~5 seconds):
+- Formatting checks
+- Critical build errors only
+- Use during rapid development
+
+**Standard Mode** (~15 seconds):
+- All checks in parallel
+- Default for pre-commit hook
+- Balanced speed/thoroughness
+
+**Thorough Mode** (~60 seconds):
+- Includes race detection
+- More comprehensive linting
+- Use before creating PR
+
+**Usage**:
+```bash
+.git/hooks/pre-commit --quick     # Fast feedback
+.git/hooks/pre-commit              # Normal (default)
+.git/hooks/pre-commit --thorough   # Comprehensive
+```
+
+#### 10. Agent-Specific Guide
+Provide AI agents with fix patterns:
+
+**Guide File**: `.git/hooks/pre-commit-agent-guide.json`
+
+**Contents**:
+- Common error patterns
+- Step-by-step fix instructions
+- Code examples (before/after)
+- Auto-fixable flags
+- Priority recommendations
+
+**Example Pattern**:
+```json
+{
+  "missing_mock_setup": {
+    "pattern": "mock expectation(s) not met",
+    "severity": "error",
+    "fix_steps": [
+      "1. Read test file to identify test function",
+      "2. Locate mock object (type Mock*)",
+      "3. Add mockObj.On(\"Method\", ...).Return(...)",
+      "4. Ensure m.Called() is used in mock"
+    ],
+    "example_code": "mockRepo.On(\"FindByRange\", ...).Return(...)",
+    "auto_fixable": false
+  }
+}
+```
+
+#### 11. Interactive Query Mode
+Allow agents to query specific issues:
+
+**Commands**:
+```bash
+# Explain a specific test failure
+.git/hooks/pre-commit --explain TestAggregatorService
+
+# Get fix suggestion for specific line
+.git/hooks/pre-commit --suggest-fix file.go:42
+
+# Check only specific tool
+.git/hooks/pre-commit --check-only golangci-lint
+```
+
+**Benefits**:
+- Targeted investigation
+- Faster debugging
+- Better integration with AI workflows
+
+#### 12. LSP-Compatible Diagnostics
+Export validation results for IDEs:
+
+**Output Format** (Language Server Protocol):
+```json
+[
+  {
+    "uri": "file:///path/to/file.go",
+    "range": {
+      "start": {"line": 41, "character": 0},
+      "end": {"line": 41, "character": 999}
+    },
+    "severity": 1,  // 1=error, 2=warning
+    "source": "pre-commit",
+    "message": "Test failed - 18 mock expectations not met",
+    "code": "test_mock_expectation"
+  }
+]
+```
+
+**Usage**:
+```bash
+.git/hooks/pre-commit --output-lsp > diagnostics.json
+```
+
+**Integration**:
+- VS Code can consume LSP diagnostics
+- Display issues inline in editor
+- Click to jump to problem location
+
+### Integration with DevSmith Services
+
+#### Logging Service Integration
+**New Database Schema** (`logs.validations`):
+```sql
+CREATE TABLE logs.validation_runs (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INT,
+    repository VARCHAR(255),
+    branch VARCHAR(100),
+    commit_sha VARCHAR(40),
+    mode VARCHAR(20),  -- 'quick', 'standard', 'thorough'
+    duration INT,      -- seconds
+    status VARCHAR(20), -- 'passed', 'failed'
+    issues_json JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_validation_user ON logs.validation_runs(user_id, created_at DESC);
+CREATE INDEX idx_validation_repo ON logs.validation_runs(repository, created_at DESC);
+CREATE INDEX idx_validation_status ON logs.validation_runs(status, created_at DESC);
+```
+
+**API Enhancements**:
+```
+POST   /api/logs/validation        - Submit validation results
+GET    /api/logs/validation/:id    - Get specific run details
+GET    /api/logs/validation/recent - Get recent validations
+WS     /ws/logs/validation         - Stream validation events
+```
+
+#### Analytics Service Integration
+**New Metrics**:
+- Validation success rate over time
+- Most common issue types
+- Average fix time per issue type
+- Auto-fix effectiveness rate
+- Validation performance trends
+
+**New API Endpoints**:
+```
+GET    /api/analytics/validation/trends      - Trend analysis
+GET    /api/analytics/validation/top-issues  - Most common problems
+GET    /api/analytics/validation/fix-time    - Time to fix by issue type
+GET    /api/analytics/validation/agent-stats - AI agent fix success rate
+```
+
+**Dashboard Visualizations**:
+- Validation pass/fail rate (time series)
+- Issue type distribution (pie chart)
+- Fix priority heatmap
+- Auto-fix vs manual fix ratio
+- Agent fix success rate by issue type
+
+#### Portal Service Integration
+**Validation Dashboard**:
+- Recent validation runs (last 10)
+- Overall pass rate (7-day trend)
+- Top 5 recurring issues
+- Quick links to detailed analytics
+
+**User Profile Enhancements**:
+- Validation statistics
+- Achievement badges ("No failures for 30 days")
+- Comparison with team average
+
+### Benefits for AI Agents
+
+#### For OpenHands
+1. **Structured Feedback**: JSON output is easily parsed
+2. **Priority Guidance**: Knows what to fix first
+3. **Fix Instructions**: Step-by-step remediation
+4. **Code Context**: No need to re-read entire files
+5. **Auto-fix Option**: Handle simple issues automatically
+
+**Workflow**:
+```
+1. OpenHands implements feature
+2. Runs: .git/hooks/pre-commit --json
+3. Parses JSON to identify issues
+4. Runs: .git/hooks/pre-commit --fix (handles 60% of issues)
+5. Uses agent guide to fix remaining issues
+6. Re-runs validation until passed
+7. Creates PR
+```
+
+#### For Claude/Copilot
+1. **Quick Assessment**: --quick mode for fast feedback
+2. **Explain Feature**: Get detailed issue explanations
+3. **Suggest-Fix**: Get targeted fix recommendations
+4. **LSP Integration**: Issues visible in IDE
+5. **Historical Context**: See similar fixes from git log
+
+### User Benefits
+
+#### For Developers
+1. **Faster Feedback**: 4x faster with parallel execution
+2. **Clear Priorities**: Know what's critical vs. optional
+3. **Actionable Guidance**: Specific fix instructions
+4. **Less Context Switching**: See code snippets inline
+5. **Learning Tool**: Understand common patterns
+
+#### For Teams
+1. **Consistent Standards**: Enforced via pre-commit hook
+2. **Quality Metrics**: Track improvement over time
+3. **Knowledge Sharing**: Common patterns documented
+4. **Reduced Review Time**: Fewer trivial issues in PRs
+5. **Better Collaboration**: Agents and humans use same system
+
+### Implementation Timeline
+
+**Week 1-2**: Core infrastructure
+- Logging service schema and API
+- Validation result ingestion
+- Basic analytics queries
+
+**Week 3-4**: Enhanced features
+- Dependency graph computation
+- Agent guide JSON finalization
+- Auto-fix improvements
+
+**Week 5-6**: Integration & UI
+- Portal dashboard widgets
+- Analytics visualizations
+- WebSocket streaming
+
+**Week 7-8**: Testing & Documentation
+- End-to-end testing
+- User documentation
+- Agent integration guides
+
+### Success Metrics
+
+**Adoption**:
+- % of commits using enhanced hook
+- % of teams using validation dashboard
+
+**Quality**:
+- Reduction in PR review cycles
+- Decrease in production bugs
+- Improvement in test coverage
+
+**Performance**:
+- Average validation time
+- Auto-fix success rate
+- Agent fix success rate
+
+**User Satisfaction**:
+- Developer feedback scores
+- Time saved per week
+- Learning effectiveness ratings
 
 ---
 

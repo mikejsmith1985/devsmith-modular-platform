@@ -322,6 +322,38 @@ go test ./...
 - ✅ With awareness: Write correct code → commit succeeds = 5 min
 - **25 minutes saved per commit × 20 commits per issue = 8+ hours saved**
 
+#### Understanding Pre-Commit Output
+
+**When commit is blocked, you'll see an intelligent dashboard:**
+
+```
+CHECK RESULTS:
+  ✓ fmt                  passed
+  ✗ tests                failed
+
+HIGH PRIORITY (Blocking): 4 issue(s)
+  • [test_mock_panic] aggregator_service_test.go:125 - missing mock expectation for FindAllServices
+    → Add Mock.On("FindAllServices").Return(...)
+
+LOW PRIORITY (Can defer): 21 issue(s)
+  • [style] Missing godoc comments
+  ... and 16 more
+```
+
+**What to do:**
+
+1. **Focus on HIGH PRIORITY first** - These block your commit
+2. **Fix in order shown** - The "FIX ORDER" section guides you
+3. **See all issues:** Run `.git/hooks/pre-commit --json` for complete list
+4. **LOW PRIORITY can wait** - Style issues won't block commit once tests pass
+
+**Common HIGH PRIORITY issues:**
+- `[test_mock_panic]` - Missing `Mock.On()` setup (see §5.1)
+- `[build_typecheck]` - Type errors or unused variables
+- `[test_assertion]` - Test expectations not met
+
+**Pro tip:** The hook shows you exactly what to fix and where. Trust the dashboard priority - it's designed to save you time!
+
 ---
 
 ### Step 3: Write Tests FIRST ✅ (TDD) - MANDATORY
