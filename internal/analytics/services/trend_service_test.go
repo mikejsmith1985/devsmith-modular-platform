@@ -64,9 +64,21 @@ func TestTrendService_GetTrends(t *testing.T) {
 	startTime := time.Date(2025, 10, 20, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 10, 21, 0, 0, 0, 0, time.UTC)
 
-	mockRepo.On("FindByMetric", mock.Anything, models.MetricType("error_rate"), "service", startTime, endTime).Return([]models.Aggregation{
-		{MetricType: "error_rate", Service: "service1", Value: 5},
-		{MetricType: "error_rate", Service: "service2", Value: 10},
+	mockRepo.On("FindByRange", mock.Anything, models.MetricType("error_rate"), "service", startTime, endTime).Return([]*models.Aggregation{
+		{
+			MetricType: "error_rate",
+			Service:    "service1",
+			Value:      5.0,
+			TimeBucket: startTime.Add(30 * time.Minute),
+			CreatedAt:  startTime.Add(30 * time.Minute),
+		},
+		{
+			MetricType: "error_rate",
+			Service:    "service2",
+			Value:      10.0,
+			TimeBucket: startTime.Add(1 * time.Hour),
+			CreatedAt:  startTime.Add(1 * time.Hour),
+		},
 	}, nil)
 
 	trends, err := service.GetTrends(context.Background(), models.MetricType("error_rate"), "service", startTime, endTime)

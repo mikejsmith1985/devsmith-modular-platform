@@ -1,3 +1,4 @@
+// Package db provides database interaction logic for analytics aggregations.
 package db
 
 import (
@@ -8,15 +9,19 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 )
 
+// AggregationRepository provides methods to interact with the aggregation data.
+// It implements the AggregationRepositoryInterface.
 type AggregationRepository struct {
 	db *pgxpool.Pool
 }
 
+// NewAggregationRepository creates a new instance of AggregationRepository.
 func NewAggregationRepository(db *pgxpool.Pool) *AggregationRepository {
 	return &AggregationRepository{db: db}
 }
 
-// Upsert creates or updates an aggregation for a time bucket
+// Upsert creates or updates an aggregation for a time bucket.
+// It ensures that the aggregation data remains up-to-date.
 func (r *AggregationRepository) Upsert(ctx context.Context, agg *models.Aggregation) error {
 	query := `
 		INSERT INTO analytics.aggregations (metric_type, service, value, time_bucket, created_at)
@@ -28,7 +33,8 @@ func (r *AggregationRepository) Upsert(ctx context.Context, agg *models.Aggregat
 	return err
 }
 
-// FindByRange retrieves aggregations within a time range
+// FindByRange retrieves aggregations within a specified time range.
+// It filters results by metric type and service.
 func (r *AggregationRepository) FindByRange(ctx context.Context, metricType models.MetricType, service string, start, end time.Time) ([]*models.Aggregation, error) {
 	query := `
 		SELECT id, metric_type, service, value, time_bucket, created_at
@@ -53,7 +59,8 @@ func (r *AggregationRepository) FindByRange(ctx context.Context, metricType mode
 	return aggregations, nil
 }
 
-// FindAllServices returns list of all services that have aggregations
+// FindAllServices returns a list of all services that have aggregations.
+// The services are returned in alphabetical order.
 func (r *AggregationRepository) FindAllServices(ctx context.Context) ([]string, error) {
 	query := `SELECT DISTINCT service FROM analytics.aggregations ORDER BY service`
 	rows, err := r.db.Query(ctx, query)
@@ -73,8 +80,8 @@ func (r *AggregationRepository) FindAllServices(ctx context.Context) ([]string, 
 	return services, nil
 }
 
-// Define AggregationRepositoryInterface to ensure compatibility with services
-// AggregationRepositoryInterface defines the contract for aggregation operations
+// AggregationRepositoryInterface defines the methods for aggregation repository operations.
+// This ensures compatibility with services.
 type AggregationRepositoryInterface interface {
 	Upsert(ctx context.Context, agg *models.Aggregation) error
 	FindByRange(ctx context.Context, metricType models.MetricType, service string, start, end time.Time) ([]*models.Aggregation, error)

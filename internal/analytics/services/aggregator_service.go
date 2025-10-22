@@ -63,12 +63,18 @@ func (s *AggregatorService) aggregateService(ctx context.Context, service string
 	start := end.Add(-1 * time.Hour)
 
 	s.logger.WithField("service", service).Debug("Starting aggregation for service")
+	// Add detailed debug logs to capture the flow and arguments passed to CountByServiceAndLevel and Upsert
+	// Add detailed logs to capture levels being processed
+	s.logger.WithFields(logrus.Fields{
+		"service": service,
+		"levels":  levels,
+	}).Debug("Processing levels for service")
 	for _, level := range levels {
 		s.logger.WithFields(logrus.Fields{
 			"service": service,
 			"level":   level,
-		}).Debug("Counting logs for level")
-		log.Printf("CountByServiceAndLevel called with service=%s, level=%s, start=%v, end=%v", service, level, start, end)
+		}).Debug("Processing log level")
+
 		count, err := s.logReader.CountByServiceAndLevel(ctx, service, level, start, end)
 		if err != nil {
 			s.logger.WithError(err).WithFields(logrus.Fields{
@@ -94,7 +100,7 @@ func (s *AggregatorService) aggregateService(ctx context.Context, service string
 		s.logger.WithFields(logrus.Fields{
 			"aggregation": agg,
 		}).Debug("Upserting aggregation")
-		log.Printf("Upsert called with aggregation=%+v", agg)
+
 		if err := s.aggregationRepo.Upsert(ctx, agg); err != nil {
 			s.logger.WithError(err).WithFields(logrus.Fields{
 				"aggregation": agg,
@@ -106,13 +112,30 @@ func (s *AggregatorService) aggregateService(ctx context.Context, service string
 	return nil
 }
 
-// Define FindAllServices as part of logReader
+// FindAllServices retrieves all services for aggregation.
+// It ensures that the returned list is non-nil.
+// Returns an error if the retrieval fails.
+//
+// Parameters:
+// - ctx: The context for the operation.
+//
+// Returns:
+// - A slice of service names.
+// - An error if the operation fails.
 func (s *AggregatorService) FindAllServices(ctx context.Context) ([]string, error) {
 	return s.logReader.FindAllServices(ctx)
 }
 
-// Define Upsert as part of aggregationRepo
-func (s *AggregatorService) Upsert(ctx context.Context, service string, level string, count int, timestamp time.Time) error {
+// Upsert inserts or updates an aggregation record.
+//
+// Parameters:
+// - ctx: The context for the operation.
+// - service: The name of the service.
+// - level: The aggregation level.
+//
+// Returns:
+// - An error if the operation fails.
+func (s *AggregatorService) Upsert(ctx context.Context, service, level string, count int, timestamp time.Time) error {
 	aggregation := &models.Aggregation{
 		MetricType: models.MetricType("log_count"),
 		Service:    service,
