@@ -1,3 +1,4 @@
+// Package services provides functionality for analytics services, including top issues analysis.
 package services
 
 import (
@@ -14,6 +15,14 @@ type TopIssuesService struct {
 	logger    *logrus.Logger
 }
 
+// NewTopIssuesService initializes a new TopIssuesService.
+//
+// Parameters:
+// - logReader: The log reader interface for accessing log data.
+// - logger: The logger instance for logging operations.
+//
+// Returns:
+// - A pointer to the initialized TopIssuesService.
 func NewTopIssuesService(logReader db.LogReaderInterface, logger *logrus.Logger) *TopIssuesService {
 	return &TopIssuesService{
 		logReader: logReader,

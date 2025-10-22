@@ -29,16 +29,16 @@ func TestTopIssuesService_GetTopIssues(t *testing.T) {
 			{Service: "service1", Level: "error", Message: "Error 1", Count: int(15), Value: 0.0, LastSeen: time.Now()},
 			{Service: "service2", Level: "error", Message: "Error 2", Count: int(10), Value: 0.0, LastSeen: time.Now()},
 		}, nil).Run(func(args mock.Arguments) {
-			// Add log to mock method to confirm invocation
-			logger.Debugf("Mock FindTopMessages invoked with args: %v", args)
-		})
+		// Add log to mock method to confirm invocation
+		logger.Debugf("Mock FindTopMessages invoked with args: %v", args)
+	})
 
 	// Add mock setup for FindAllServices
 	logger.Debug("Setting up mock for FindAllServices")
 	mockRepo.On("FindAllServices", mock.Anything).
 		Return([]string{"service1", "service2"}, nil).Run(func(args mock.Arguments) {
-			logger.Debugf("Mock FindAllServices invoked with args: %v", args)
-		})
+		logger.Debugf("Mock FindAllServices invoked with args: %v", args)
+	})
 
 	// Add debugging log to confirm mock invocation
 	logger.Debug("Starting TestTopIssuesService_GetTopIssues")

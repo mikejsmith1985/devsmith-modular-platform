@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
+
+	"path/filepath"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
@@ -32,7 +35,7 @@ func NewExportService(aggregationRepo db.AggregationRepositoryInterface, logger 
 // ExportToCSV exports aggregation data to a CSV file. It retrieves data from the repository
 // and writes it to the specified file path in CSV format.
 // func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.MetricType, service string, filePath string) error {
-func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.MetricType, service string, filePath string) error {
+func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.MetricType, service, filePath string) error {
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
 		"service":    service,
@@ -45,10 +48,25 @@ func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.Metri
 		return err
 	}
 
-	file, err := os.Create(filePath)
+	// Add validation for file paths to prevent potential file inclusion vulnerabilities.
+	if !isValidFilePath(filePath) || strings.Contains(filePath, "..") {
+		s.logger.WithField("filePath", filePath).Error("Invalid or unsafe file path")
+		return fmt.Errorf("invalid or unsafe file path: %s", filePath)
+	}
+
+	// Ensure the directory exists before creating the file.
+	dir := filepath.Dir(filePath)
+	// Resolve variable shadowing by renaming inner variables.
+	if errCreateDir := os.MkdirAll(dir, 0o700); errCreateDir != nil {
+		s.logger.WithField("dir", dir).Error("Failed to create directory")
+		return fmt.Errorf("failed to create directory: %s", dir)
+	}
+
+	// Use a secure method to create the file.
+	file, err := os.OpenFile(filepath.Clean(filePath), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
-		s.logger.WithError(err).Error("Failed to create CSV file")
-		return err
+		s.logger.WithField("filePath", filePath).Error("Failed to open file")
+		return fmt.Errorf("failed to open file: %s", filePath)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -82,8 +100,10 @@ func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.Metri
 	return nil
 }
 
+// ExportToJSON writes the provided data to a JSON file at the specified file path.
 // ExportToJSON exports aggregations to a JSON file
-func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.MetricType, service string, filePath string) error {
+func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.MetricType, serviceAndPath ...string) error {
+	service, filePath := serviceAndPath[0], serviceAndPath[1]
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
 		"service":    service,
@@ -96,10 +116,25 @@ func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.Metr
 		return err
 	}
 
-	file, err := os.Create(filePath)
+	// Add validation for file paths to prevent potential file inclusion vulnerabilities.
+	if !isValidFilePath(filePath) || strings.Contains(filePath, "..") {
+		s.logger.WithField("filePath", filePath).Error("Invalid or unsafe file path")
+		return fmt.Errorf("invalid or unsafe file path: %s", filePath)
+	}
+
+	// Ensure the directory exists before creating the file.
+	dir := filepath.Dir(filePath)
+	// Resolve variable shadowing by renaming inner variables.
+	if errCreateDir := os.MkdirAll(dir, 0o700); errCreateDir != nil {
+		s.logger.WithField("dir", dir).Error("Failed to create directory")
+		return fmt.Errorf("failed to create directory: %s", dir)
+	}
+
+	// Use a secure method to create the file.
+	file, err := os.OpenFile(filepath.Clean(filePath), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
-		s.logger.WithError(err).Error("Failed to create JSON file")
-		return err
+		s.logger.WithField("filePath", filePath).Error("Failed to open file")
+		return fmt.Errorf("failed to open file: %s", filePath)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -118,7 +153,7 @@ func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.Metr
 }
 
 // ExportData exports aggregations to a file (CSV or JSON) based on the file extension.
-func (s *ExportService) ExportData(ctx context.Context, metricType models.MetricType, service string, filePath string) error {
+func (s *ExportService) ExportData(ctx context.Context, metricType models.MetricType, service, filePath string) error {
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
 		"service":    service,
@@ -133,4 +168,15 @@ func (s *ExportService) ExportData(ctx context.Context, metricType models.Metric
 
 	s.logger.Error("Unsupported file extension")
 	return fmt.Errorf("unsupported file extension: %s", filePath)
+}
+
+// isValidFilePath validates the file path to prevent potential file inclusion vulnerabilities.
+func isValidFilePath(filePath string) bool {
+	// Example validation: Ensure the file path is within a specific directory
+	allowedDir := "/safe/export/directory"
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(absPath, allowedDir)
 }

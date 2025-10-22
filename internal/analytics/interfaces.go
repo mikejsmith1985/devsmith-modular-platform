@@ -1,3 +1,4 @@
+// Package analytics provides interfaces and services for analytics operations.
 package analytics
 
 import (
