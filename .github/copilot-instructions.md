@@ -590,6 +590,27 @@ See **[ARCHITECTURE.md Section 13 - Manual Testing Checklist](../ARCHITECTURE.md
 
 **Note:** Activity logging is automated via git hooks. Your commit message will automatically be logged to `.docs/devlog/copilot-activity.md` - no manual changelog updates needed!
 
+**🚨 CRITICAL: Always use `git commit -m "message"` format - NEVER run `git commit` without the `-m` flag!**
+
+Running `git commit` without `-m` opens an editor and requires manual input, breaking automation. Always provide the commit message inline:
+
+```bash
+# ✅ CORRECT - Message provided inline (no manual prompt)
+git commit -m "feat(auth): implement feature"
+
+# ❌ WRONG - Opens editor, requires manual input
+git commit
+
+# ✅ CORRECT - Multi-line message with inline format
+git commit -m "feat(auth): implement GitHub OAuth login
+
+Testing:
+- All tests passing
+- Coverage: 85%"
+```
+
+**Complete Commit Process:**
+
 ```bash
 # Commit with Conventional Commits format
 # Include testing details and acceptance criteria in commit body
