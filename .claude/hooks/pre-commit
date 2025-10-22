@@ -26,106 +26,159 @@ declare -a SUGGESTIONS=()
 ERROR_COUNT=0
 WARNING_COUNT=0
 
-# Parse build errors with intelligent categorization
-parse_build_error() {
-    local error_output="$1"
-    local context="${2:-build}"
+# Parse golangci-lint output (format: file:line:col: linter: message)
+parse_golangci_lint() {
+    local output="$1"
 
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
 
-        # Undefined reference/identifier
-        if [[ "$line" =~ undefined:\ ([^[:space:]]+) ]]; then
-            local identifier="${BASH_REMATCH[1]}"
-            local file=$(echo "$line" | grep -oP '^[^:]+' | head -1)
-            local linenum=$(echo "$line" | grep -oP '(?<=:)[0-9]+' | head -1)
+        # Pattern: file:line:col: linter: message
+        if [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):\ ([^:]+):\ (.+)$ ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local linenum="${BASH_REMATCH[2]}"
+            local linter="${BASH_REMATCH[4]}"
+            local message="${BASH_REMATCH[5]}"
+
+            # Categorize by linter severity
+            case "$linter" in
+                errcheck|typecheck|staticcheck)
+                    ERRORS+=("${file}:${linenum} - ${linter}: ${message}")
+                    SUGGESTIONS+=("Review code logic and error handling")
+                    ((ERROR_COUNT++))
+                    ;;
+                gofmt|gofumpt)
+                    WARNINGS+=("${file}:${linenum} - formatting: ${message}")
+                    SUGGESTIONS+=("Run: go fmt ${file}")
+                    ((WARNING_COUNT++))
+                    ;;
+                revive|golint|stylecheck|package-comments|exported)
+                    WARNINGS+=("${file}:${linenum} - style: ${message}")
+                    SUGGESTIONS+=("Add documentation or adjust code style")
+                    ((WARNING_COUNT++))
+                    ;;
+                goconst|fieldalignment)
+                    WARNINGS+=("${file}:${linenum} - optimization: ${message}")
+                    SUGGESTIONS+=("Consider optimization (non-blocking)")
+                    ((WARNING_COUNT++))
+                    ;;
+                *)
+                    WARNINGS+=("${file}:${linenum} - ${linter}: ${message}")
+                    SUGGESTIONS+=("Check golangci-lint documentation for ${linter}")
+                    ((WARNING_COUNT++))
+                    ;;
+            esac
+        fi
+    done <<< "$output"
+}
+
+# Parse go build errors (format: file:line:col: error: details)
+parse_build_error() {
+    local output="$1"
+
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+
+        # Undefined reference
+        if [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):\ undefined:\ (.+)$ ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local linenum="${BASH_REMATCH[2]}"
+            local identifier="${BASH_REMATCH[4]}"
 
             ERRORS+=("${file}:${linenum} - undefined: ${identifier}")
-            SUGGESTIONS+=("Implement ${identifier} function/method or add missing import")
+            SUGGESTIONS+=("Implement ${identifier} function or add missing import")
             ((ERROR_COUNT++))
 
-        # Import cycle detection
+        # Unused import
+        elif [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):\ imported\ and\ not\ used:\ \"(.+)\"$ ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local linenum="${BASH_REMATCH[2]}"
+            local pkg="${BASH_REMATCH[4]}"
+
+            WARNINGS+=("${file}:${linenum} - unused import: ${pkg}")
+            SUGGESTIONS+=("Remove unused import or run: goimports -w ${file}")
+            ((WARNING_COUNT++))
+
+        # Declared but not used
+        elif [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):\ ([^\ ]+)\ declared\ (and|but)\ not\ used$ ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local linenum="${BASH_REMATCH[2]}"
+            local identifier="${BASH_REMATCH[4]}"
+
+            WARNINGS+=("${file}:${linenum} - unused variable: ${identifier}")
+            SUGGESTIONS+=("Remove unused variable or use it")
+            ((WARNING_COUNT++))
+
+        # Import cycle
         elif [[ "$line" =~ import\ cycle|cycle\ not\ allowed ]]; then
             ERRORS+=("Import cycle detected in package dependencies")
             SUGGESTIONS+=("Break cycle by moving shared types to common/shared package")
             ((ERROR_COUNT++))
 
-        # Type mismatch
-        elif [[ "$line" =~ "cannot use".+"type ".*"as".+"type " ]]; then
-            local file=$(echo "$line" | grep -oP '^[^:]+' | head -1)
+        # Generic error (file:line:col: message)
+        elif [[ "$line" =~ ^([^:]+):([0-9]+):([0-9]+):\ (.+)$ ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local linenum="${BASH_REMATCH[2]}"
+            local message="${BASH_REMATCH[4]}"
 
-            ERRORS+=("${file} - type mismatch in assignment or function call")
-            SUGGESTIONS+=("Check types match or adjust function signature")
-            ((ERROR_COUNT++))
-
-        # Missing return statement
-        elif [[ "$line" =~ missing\ return ]]; then
-            local file=$(echo "$line" | grep -oP '^[^:]+' | head -1)
-            local linenum=$(echo "$line" | grep -oP '(?<=:)[0-9]+' | head -1)
-
-            ERRORS+=("${file}:${linenum} - missing return statement")
-            SUGGESTIONS+=("Add return statement for all code paths")
-            ((ERROR_COUNT++))
-
-        # Unused variable/import (warning)
-        elif [[ "$line" =~ ([^[:space:]]+)\ declared\ (and|but)\ not\ used ]] || [[ "$line" =~ imported\ and\ not\ used:\ \"([^\"]+)\" ]]; then
-            local item="${BASH_REMATCH[1]}"
-            [[ -n "${BASH_REMATCH[3]:-}" ]] && item="${BASH_REMATCH[3]}"
-            local file=$(echo "$line" | grep -oP '^[^:]+' | head -1)
-
-            WARNINGS+=("${file} - unused: ${item}")
-            SUGGESTIONS+=("Remove unused code or run: goimports -w .")
-            ((WARNING_COUNT++))
-
-        # Syntax errors
-        elif [[ "$line" =~ syntax\ error ]]; then
-            local file=$(echo "$line" | grep -oP '^[^:]+' | head -1)
-            local linenum=$(echo "$line" | grep -oP '(?<=:)[0-9]+' | head -1)
-
-            ERRORS+=("${file}:${linenum} - syntax error")
-            SUGGESTIONS+=("Check for missing brackets, semicolons, or malformed expressions")
+            ERRORS+=("${file}:${linenum} - ${message}")
+            SUGGESTIONS+=("Review build error and fix syntax or type issues")
             ((ERROR_COUNT++))
         fi
-    done <<< "$error_output"
+    done <<< "$output"
 }
 
 # Parse test failures with intelligent diagnostics
 parse_test_error() {
     local test_output="$1"
     local current_test=""
-    local in_failure=0
+    local mock_failures=0
 
     while IFS= read -r line; do
-        # Test failure header
-        if [[ "$line" =~ ---\ FAIL:\ ([^[:space:]]+) ]]; then
+        # Test failure header: --- FAIL: TestName (0.00s)
+        if [[ "$line" =~ ^---\ FAIL:\ ([^\ ]+) ]]; then
             current_test="${BASH_REMATCH[1]}"
-            in_failure=1
+            mock_failures=0
 
-        # Mock-related failures
-        elif [[ "$in_failure" -eq 1 ]] && [[ "$line" =~ (mock|Mock).*(assert|call|expect|Called) ]]; then
-            ERRORS+=("Test '${current_test}' - mock expectation failure")
+        # Mock panic (unexpected call)
+        elif [[ "$line" =~ panic.*mock.*unexpected ]]; then
+            ERRORS+=("Test '${current_test}' - unexpected mock method call (panic)")
+            SUGGESTIONS+=("Add Mock.On() expectation for the method - see .docs/copilot-instructions.md §5.1")
+            ((ERROR_COUNT++))
+
+        # Mock expectation summary: "X out of Y expectation(s) were met"
+        elif [[ "$line" =~ FAIL:\ ([0-9]+)\ out\ of\ ([0-9]+)\ expectation ]]; then
+            local met="${BASH_REMATCH[1]}"
+            local total="${BASH_REMATCH[2]}"
+            local unmet=$((total - met))
+
+            ERRORS+=("Test '${current_test}' - ${unmet} mock expectation(s) not met")
             SUGGESTIONS+=("Check mock setup - see .docs/copilot-instructions.md §5.1")
             SUGGESTIONS+=("Ensure m.Called() is used and return values match expectations")
             ((ERROR_COUNT++))
-            in_failure=0
 
-        # Panic in test
-        elif [[ "$line" =~ panic:\ (.+) ]]; then
-            local panic_msg="${BASH_REMATCH[1]}"
-            ERRORS+=("Test panic: ${panic_msg}")
-            SUGGESTIONS+=("Check for nil pointer dereference or uninitialized variables")
+        # Individual mock failure: file.go:line: FAIL: MethodName(...)
+        elif [[ "$current_test" != "" ]] && [[ "$line" =~ ^[[:space:]]*([^:]+):([0-9]+):.*FAIL:.*\b([A-Z][a-zA-Z0-9_]*)\( ]]; then
+            ((mock_failures++))
+            # Only report first 2 individual failures to avoid spam (summary is more useful)
+            if [[ $mock_failures -le 2 ]]; then
+                local file="${BASH_REMATCH[1]}"
+                local linenum="${BASH_REMATCH[2]}"
+                local method="${BASH_REMATCH[3]}"
+
+                ERRORS+=("Test '${current_test}' - mock '${method}' call mismatch at ${file}:${linenum}")
+                SUGGESTIONS+=("Verify mock expectations match actual calls")
+                ((ERROR_COUNT++))
+            fi
+
+        # Generic assertion failure
+        elif [[ "$current_test" != "" ]] && [[ "$line" =~ ^[[:space:]]*([^:]+):([0-9]+):.*Error ]]; then
+            local file="${BASH_REMATCH[1]}"
+            local linenum="${BASH_REMATCH[2]}"
+
+            ERRORS+=("Test '${current_test}' - assertion failed at ${file}:${linenum}")
+            SUGGESTIONS+=("Check test assertions and expected values")
             ((ERROR_COUNT++))
-
-        # Assertion failures with expected vs actual
-        elif [[ "$in_failure" -eq 1 ]] && [[ "$line" =~ (Expected|expected|got|want) ]]; then
-            ERRORS+=("Test '${current_test}' - assertion mismatch")
-            SUGGESTIONS+=("Review test expectations: ${line:0:80}")
-            ((ERROR_COUNT++))
-            in_failure=0
-
-        # Test ended
-        elif [[ "$line" =~ PASS|FAIL ]]; then
-            in_failure=0
         fi
     done <<< "$test_output"
 }
@@ -237,7 +290,7 @@ echo "🔍 Step 3/7: Running golangci-lint..."
 LINT_OUTPUT=$(golangci-lint run ./... 2>&1 || true)
 if [ -n "$LINT_OUTPUT" ]; then
   echo -e "${RED}✗ golangci-lint found issues${NC}"
-  parse_build_error "$LINT_OUTPUT" "lint"
+  parse_golangci_lint "$LINT_OUTPUT"
   FAILED=1
 else
   echo -e "${GREEN}✓ golangci-lint passed${NC}"
