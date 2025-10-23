@@ -1,0 +1,140 @@
+# Local Pre-Commit Configuration Override Example
+# Copy this file to: .git/hooks/pre-commit-local.yaml
+# Settings here override team defaults in .pre-commit-config.yaml
+#
+# Example use cases:
+# - Junior devs: More lenient coverage thresholds
+# - Senior devs: Stricter quality standards
+# - Offline work: Disable network-dependent checks
+# - Fast iteration: Use quick mode by default
+
+# Uncomment and modify settings you want to override:
+
+# # Override coverage thresholds (useful for learning/prototyping)
+# coverage:
+#   error_threshold: 30    # Lower than team default (40%)
+#   warning_threshold: 60  # Lower than team default (70%)
+#   blocking: false        # Make coverage non-blocking for rapid prototyping
+
+# # Disable security scanning for offline work
+# security:
+#   enabled: false
+#   govulncheck:
+#     enabled: false
+
+# # Skip race detection for faster commits
+# race_detection:
+#   enabled: false
+
+# # Use quick mode by default (override with --standard flag)
+# default_mode: "quick"
+
+# # More verbose output for debugging
+# output:
+#   verbose: true
+#   show_context: true
+
+# # Enable auto-fix by default
+# auto_fix:
+#   enabled: true
+
+# # Stricter linting for experienced developers
+# linting:
+#   blocking_linters:
+#     - errcheck
+#     - typecheck
+#     - staticcheck
+#     - gosec       # Add security as blocking
+#     - unused      # Add unused code as blocking
+#     - ineffassign # Add ineffectual assignments as blocking
+
+# # TDD preferences
+# tdd:
+#   red_phase_behavior: "skip"  # Skip all checks in RED phase
+
+# # Performance tuning
+# performance:
+#   max_duration: 60  # Stricter time budget
+#   timeout_per_check: 20
+
+# EXAMPLE PROFILES:
+
+# ============================================================================
+# PROFILE: Beginner Developer
+# ============================================================================
+# coverage:
+#   error_threshold: 20
+#   warning_threshold: 50
+#   blocking: false
+# security:
+#   govulncheck:
+#     enabled: false
+# race_detection:
+#   enabled: false
+# linting:
+#   blocking_linters:
+#     - errcheck
+#     - typecheck
+# output:
+#   verbose: true
+
+# ============================================================================
+# PROFILE: Senior Developer / Strict Mode
+# ============================================================================
+# coverage:
+#   error_threshold: 60
+#   warning_threshold: 80
+#   blocking: true
+# linting:
+#   blocking_linters:
+#     - errcheck
+#     - typecheck
+#     - staticcheck
+#     - gosec
+#     - unused
+#     - ineffassign
+#     - govet
+# race_detection:
+#   mode: "always"
+
+# ============================================================================
+# PROFILE: Offline/Airplane Mode
+# ============================================================================
+# security:
+#   enabled: false
+#   govulncheck:
+#     enabled: false
+#     allow_offline: true
+# coverage:
+#   enabled: false  # Skip if working offline without tests
+
+# ============================================================================
+# PROFILE: Fast Iteration / Prototyping
+# ============================================================================
+# default_mode: "quick"
+# coverage:
+#   enabled: false
+# security:
+#   enabled: false
+# race_detection:
+#   enabled: false
+# linting:
+#   blocking_linters:
+#     - typecheck  # Only block on type errors
+# auto_fix:
+#   enabled: true
+
+# ============================================================================
+# PROFILE: Pre-Production / Release Branch
+# ============================================================================
+# default_mode: "thorough"
+# coverage:
+#   error_threshold: 70
+#   warning_threshold: 85
+#   blocking: true
+# security:
+#   gosec:
+#     blocking: true
+# race_detection:
+#   mode: "always"
+#   blocking: true

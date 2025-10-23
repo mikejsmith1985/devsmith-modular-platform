@@ -1,0 +1,235 @@
+# DevSmith Pre-Commit Hook Configuration (Team Defaults)
+# This file is committed to the repo and applies to all team members
+# Individual developers can override settings in .git/hooks/pre-commit-local.yaml
+
+version: "2.0"
+
+# Performance budget (seconds)
+performance:
+  max_duration: 90  # Maximum acceptable pre-commit time
+  timeout_per_check: 30  # Timeout for individual checks
+
+# Test coverage requirements
+coverage:
+  enabled: true
+  error_threshold: 40    # Block commit if below this percentage
+  warning_threshold: 70  # Warn if below this percentage
+  blocking: true         # false = warn only, true = enforce error_threshold
+  cache_duration: 300    # Cache coverage results for 5 minutes
+
+# Security vulnerability scanning
+security:
+  enabled: true
+  govulncheck:
+    enabled: true
+    mode: "standard"     # Run in standard mode (every commit)
+    cache_duration: 86400  # Cache results for 24 hours
+    allow_offline: true  # Don't fail if offline/network unavailable
+  gosec:
+    enabled: true
+    blocking: false      # Warn but don't block on security issues
+    confidence: "medium" # Minimum confidence level: low, medium, high
+
+# Race condition detection
+race_detection:
+  enabled: true
+  mode: "conditional"    # "always", "conditional" (only if goroutines detected), "never"
+  timeout: 30           # Timeout in seconds
+  blocking: true
+
+# Linting configuration
+linting:
+  enabled: true
+
+  # Linters that BLOCK commits (critical issues)
+  blocking_linters:
+    - errcheck      # Unchecked errors
+    - typecheck     # Type errors
+    - staticcheck   # Static analysis bugs
+
+  # Linters that generate WARNINGS (should fix)
+  warning_linters:
+    - gosec         # Security issues
+    - unused        # Unused code
+    - ineffassign   # Ineffectual assignments
+    - govet         # Suspicious constructs
+    - gocritic      # Code quality
+    - gocyclo       # Cyclomatic complexity
+    - dupl          # Duplicate code
+    - goconst       # Repeated constants
+
+  # Linters that generate INFO (nice to fix)
+  info_linters:
+    - stylecheck    # Style issues
+    - revive        # Go linting
+    - golint        # Deprecated but still useful
+
+# Import cycle detection
+import_cycles:
+  enabled: true
+  early_detection: true  # Check before build to fail fast
+  blocking: true
+
+# TDD workflow awareness
+tdd:
+  enabled: true
+  detect_red_phase: true  # Auto-detect if in RED phase
+  red_phase_behavior: "warn"  # "block", "warn", "skip"
+
+  # Indicators that suggest RED phase
+  red_phase_indicators:
+    - "tests failing with undefined references"
+    - "declared and not used"
+    - "imported and not used"
+    - "undefined: "
+
+  # Checks to run in RED phase (but not block)
+  red_phase_checks:
+    - format
+    - imports
+    - cycles
+
+  # Checks to skip entirely in RED phase
+  red_phase_skip:
+    - coverage      # Coverage meaningless in RED
+    - unused_code   # Expected in RED phase
+
+# Build validation
+build:
+  enabled: true
+  services:
+    - portal
+    - review
+    - logs
+    - analytics
+  parallel: true       # Build services in parallel
+  cache_builds: true   # Cache successful builds
+
+# Test execution
+tests:
+  enabled: true
+  mode: "short"        # "short", "full", "integration"
+  parallel: true
+  timeout: 60
+  verbose_failures: true
+
+# Formatting
+formatting:
+  enabled: true
+  auto_fix: true       # Auto-fix formatting issues
+  tools:
+    - gofmt
+    - goimports
+
+# Check execution modes
+modes:
+  quick:
+    enabled_checks:
+      - format
+      - imports
+      - build_critical
+    skip_checks:
+      - coverage
+      - security
+      - race
+      - full_lint
+
+  standard:
+    enabled_checks:
+      - format
+      - imports
+      - build
+      - tests
+      - lint
+      - coverage
+      - security
+      - cycles
+    skip_checks:
+      - race  # Race detection in conditional mode (only if goroutines)
+
+  strict:
+    enabled_checks:
+      - format
+      - imports
+      - build
+      - tests
+      - lint
+      - coverage
+      - security
+      - cycles
+      - race
+      - complexity
+      - duplication
+
+  thorough:
+    enabled_checks:
+      - format
+      - imports
+      - build
+      - tests
+      - lint
+      - coverage
+      - security
+      - cycles
+      - race
+      - complexity
+      - duplication
+      - integration_markers
+    test_mode: "full"  # Run full tests, not just short
+
+# Output formatting
+output:
+  default_format: "human"  # "human", "json", "lsp"
+  colors: true
+  verbose: false
+  show_context: true       # Show code context for issues
+  max_issues_display: 50   # Limit displayed issues
+
+# Caching
+cache:
+  enabled: true
+  directory: ".git/pre-commit-cache"
+  file_level: true         # Cache results per file
+  invalidate_on_change: true
+
+# Auto-fix capabilities
+auto_fix:
+  enabled: false           # Disabled by default, use --fix flag
+  safe_only: true          # Only auto-fix safe transformations
+  max_iterations: 3        # Maximum fix iterations
+  allowed_fixes:
+    - formatting
+    - imports
+    - comments  # Add missing godoc comments
+
+# Agent/Copilot integration
+agent:
+  guide_file: ".git/hooks/pre-commit-agent-guide.json"
+  provide_context: true
+  suggest_fixes: true
+  lsp_output: false
+
+# Notifications
+notifications:
+  enabled: false
+  on_failure: false
+  on_success: false
+
+# Git integration
+git:
+  check_staged_only: true
+  allow_bypass: true       # Allow --no-verify
+  pre_push_checks: []      # Additional checks for pre-push hook
+
+# Error handling
+error_handling:
+  fail_fast: false         # Continue all checks even if one fails
+  show_all_errors: true
+  group_by_priority: true
+
+# Experimental features (may change)
+experimental:
+  mock_validation: false
+  contract_testing: false
+  performance_regression: false
+  dependency_graph_viz: false
