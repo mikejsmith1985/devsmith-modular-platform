@@ -550,6 +550,231 @@ export const authService = {
 - Enables confident refactoring (tests protect against regressions)
 - Aligns with platform mission (supervising AI, not trusting blindly)
 
+### Step 3.5: Docker Validation Workflow 🐳 (NEW)
+
+**CRITICAL: Services run in Docker containers. Never run them locally with `go run`.**
+
+#### Understanding the Architecture
+
+**Port Layout:**
+```
+Port 3000  → Nginx Gateway (USER-FACING - use this for testing)
+Port 8080  → Portal service (INTERNAL - don't access directly)
+Port 8081  → Review service (INTERNAL - don't access directly)
+Port 8082  → Logs service (INTERNAL - don't access directly)
+Port 8083  → Analytics service (INTERNAL - don't access directly)
+```
+
+**Key Rule:** Users access everything through `http://localhost:3000`. Direct service ports are internal only.
+
+#### Validation Workflow
+
+**1. After making code changes:**
+```bash
+# Check if containers are running
+docker-compose ps
+
+# Run validation
+./scripts/docker-validate.sh
+```
+
+**2. If validation fails:**
+```bash
+# Read the detailed issues
+cat .validation/status.json | jq '.validation.issuesByFile'
+
+# This shows issues grouped by file with:
+# - Exact file to fix
+# - Whether rebuild or restart needed
+# - Command to run after fixing
+```
+
+**3. Fix issues by file:**
+```json
+{
+  "docker/nginx/nginx.conf": {
+    "issues": [...],
+    "requiresRebuild": false,
+    "restartCommand": "docker-compose restart nginx"
+  },
+  "cmd/portal/main.go": {
+    "issues": [...],
+    "requiresRebuild": true,
+    "rebuildCommand": "docker-compose up -d --build portal"
+  }
+}
+```
+
+**4. After fixing files:**
+```bash
+# If config file changed (nginx.conf, docker-compose.yml):
+docker-compose restart [service]  # Fast (5s)
+
+# If code changed (main.go, any .go file):
+docker-compose up -d --build [service]  # Slower (30s)
+```
+
+**5. Quick re-validation:**
+```bash
+# Only re-test what failed (5-10x faster)
+./scripts/docker-validate.sh --retest-failed
+```
+
+#### Common Mistakes to Avoid
+
+**❌ WRONG - Running Services Locally:**
+```bash
+# DON'T DO THIS
+cd cmd/portal
+go run main.go  # ❌ Port 8080 already used by Docker!
+
+# Service starts but:
+# - Can't bind to port (Docker is using it)
+# - Not connected to database
+# - Not connected to nginx
+# - Not using actual Docker config
+```
+
+**✅ CORRECT - Testing Through Docker:**
+```bash
+# Make code change
+vim cmd/portal/main.go
+
+# Rebuild container
+docker-compose up -d --build portal
+
+# Validate
+./scripts/docker-validate.sh --retest-failed
+
+# Test through gateway
+curl http://localhost:3000/
+```
+
+**❌ WRONG - Testing Direct Ports:**
+```bash
+# Don't test service ports directly
+curl http://localhost:8080/api/users  # ❌ Users never access this
+```
+
+**✅ CORRECT - Test Through Gateway:**
+```bash
+# Test user-facing routes
+curl http://localhost:3000/api/users  # ✅ Through nginx
+```
+
+#### Docker-Aware Debugging
+
+**When tests fail:**
+```bash
+# 1. Check validation results
+cat .validation/status.json | jq '.validation.summary'
+
+# 2. Check container logs
+docker-compose logs [service] --tail=50
+
+# 3. Check if container is healthy
+docker-compose ps
+
+# 4. Check if container is actually running your code
+docker-compose restart [service]
+```
+
+**When routes return 404:**
+- If through port 3000 → Check `docker/nginx/nginx.conf` routing
+- If through port 8080-8083 → Check service's `main.go` routes
+
+**File Change Matrix:**
+
+| File Changed | Requires Rebuild? | Command | Speed |
+|--------------|------------------|---------|-------|
+| `nginx.conf` | ❌ No | `docker-compose restart nginx` | 5s |
+| `docker-compose.yml` | ❌ No | `docker-compose restart [service]` | 5s |
+| `*.go` (any Go code) | ✅ Yes | `docker-compose up -d --build [service]` | 30s |
+| `Dockerfile` | ✅ Yes | `docker-compose up -d --build [service]` | 30s |
+| `*.jsx` (React) | ❌ No | Hot reload in container | <1s |
+
+#### Integration with TDD Workflow
+
+**TDD + Docker Workflow:**
+
+```bash
+# 1. RED: Write failing test
+vim internal/review/services/scan_service_test.go
+go test ./internal/review/services/...
+# → FAIL (expected)
+
+# 2. Commit RED phase
+git commit -m "test: add scan service tests (RED)"
+
+# 3. GREEN: Implement feature
+vim internal/review/services/scan_service.go
+go test ./internal/review/services/...
+# → PASS
+
+# 4. Rebuild Docker container
+docker-compose up -d --build review
+
+# 5. Validate in Docker environment
+./scripts/docker-validate.sh --retest-failed
+
+# 6. Commit GREEN phase
+git commit -m "feat: implement scan service (GREEN)"
+```
+
+**Key Insight:** Tests run locally (fast iteration), but final validation happens in Docker (production-like environment).
+
+#### When to Use Each Command
+
+**Quick status check:**
+```bash
+./scripts/docker-validate.sh  # 1-2s
+```
+
+**After fixing issues (re-test only what failed):**
+```bash
+./scripts/docker-validate.sh --retest-failed  # 0.3s
+```
+
+**Start everything from scratch:**
+```bash
+./scripts/dev.sh  # Stops, rebuilds, starts, validates
+```
+
+**Check what needs fixing:**
+```bash
+cat .validation/status.json | jq '.validation.issuesByFile'
+```
+
+#### Troubleshooting
+
+**"Port already in use" error:**
+```bash
+# This means Docker is using the port (correct)
+# Don't try to free the port - that's where Docker should be!
+# Access through nginx gateway instead (port 3000)
+```
+
+**"Container unhealthy" message:**
+```bash
+# Check logs first
+docker-compose logs [service] --tail=50
+
+# Check health endpoint
+curl http://localhost:8080/health  # For portal
+
+# Restart if needed
+docker-compose restart [service]
+```
+
+**"404 Not Found" through gateway:**
+```bash
+# Check nginx routing
+cat docker/nginx/nginx.conf | grep -A5 "location"
+
+# Verify nginx restarted after config change
+docker-compose restart nginx
+```
+
 ### Step 4: Implement Feature 💻
 
 Follow **[ARCHITECTURE.md Section 13: DevSmith Coding Standards](../ARCHITECTURE.md#devsmith-coding-standards)** exactly.

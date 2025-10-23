@@ -12,19 +12,36 @@ services:
       - "5432:5432"
     networks:
       - devsmith-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devsmith -d devsmith"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   nginx:
     image: nginx:latest
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./apps/portal/static/:/usr/share/nginx/html
     ports:
       - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
     depends_on:
-      - portal
-      - review
-      - logs
-      - analytics
+      portal:
+        condition: service_healthy
+      review:
+        condition: service_healthy
+      logs:
+        condition: service_healthy
+      analytics:
+        condition: service_healthy
     networks:
       - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
   portal:
     build:
       context: .
@@ -35,7 +52,8 @@ services:
       - PORT=8080
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
@@ -43,6 +61,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
   review:
     build:
       context: .
@@ -54,7 +73,8 @@ services:
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
@@ -62,6 +82,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
   logs:
     build:
       context: .
@@ -72,7 +93,8 @@ services:
       - PORT=8082
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
@@ -80,6 +102,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
   analytics:
     build:
       context: .
@@ -90,7 +113,8 @@ services:
       - PORT=8083
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
@@ -98,6 +122,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
 
 
 networks:

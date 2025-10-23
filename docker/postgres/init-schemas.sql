@@ -33,3 +33,18 @@ CREATE TABLE IF NOT EXISTS portal.users (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Create logs.entries table
+CREATE TABLE IF NOT EXISTS logs.entries (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INT,
+    service VARCHAR(50),      -- 'portal', 'review', 'logging', etc.
+    level VARCHAR(20),        -- 'debug', 'info', 'warn', 'error'
+    message TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_logs_service_level ON logs.entries(service, level, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_user ON logs.entries(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_logs_created ON logs.entries(created_at DESC);

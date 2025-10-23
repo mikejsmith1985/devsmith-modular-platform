@@ -1,0 +1,41 @@
+# Optional monitoring stack for Docker container and website health monitoring
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: devsmith-uptime-kuma
+    volumes:
+      - uptime-kuma:/app/data
+    ports:
+      - "3001:3001"
+    networks:
+      - devsmith-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  autoheal:
+    image: willfarrell/autoheal
+    container_name: devsmith-autoheal
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=all
+      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_START_PERIOD=30
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+    networks:
+      - devsmith-network
+
+volumes:
+  uptime-kuma:
+
+networks:
+  devsmith-network:
+    external: true

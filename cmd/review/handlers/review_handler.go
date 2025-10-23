@@ -129,3 +129,12 @@ func (h *ReviewHandler) GetSkimAnalysis(c *gin.Context) {
 
 	c.JSON(http.StatusOK, output)
 }
+
+// ListReviewSessions handles GET /api/review/sessions
+func (h *ReviewHandler) ListReviewSessions(c *gin.Context) {
+	// TODO: Replace with real DB query
+	sessions := []gin.H{
+		{"id": 1, "title": "Example Session", "user_id": 42},
+	}
+	c.JSON(http.StatusOK, gin.H{"sessions": sessions})
+}

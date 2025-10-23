@@ -12,4 +12,12 @@ for svc in portal review logs analytics; do
   fi
 done
 
+# Include tests from the apps directory
+for app in portal review; do
+  if [ -d "apps/$app" ]; then
+    echo "[DevSmith] Testing $app..."
+    (cd apps/$app && go test ./...)
+  fi
+done
+
 echo "[DevSmith] All tests complete."

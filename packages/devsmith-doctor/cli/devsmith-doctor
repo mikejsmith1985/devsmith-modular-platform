@@ -1,0 +1,359 @@
+#!/usr/bin/env python3
+"""
+DevSmith Doctor CLI
+
+Command-line interface for diagnosing and fixing Docker/nginx configuration issues.
+Can run standalone or integrate with the API service.
+"""
+
+import sys
+import json
+import requests
+import subprocess
+from pathlib import Path
+from typing import List, Dict, Optional
+import argparse
+from dataclasses import dataclass
+from enum import Enum
+
+
+class Color:
+    """ANSI color codes"""
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+
+
+class Mode(Enum):
+    AUTO = "auto"
+    INTERACTIVE = "interactive"
+    LEARN = "learn"
+    DRY_RUN = "dry-run"
+
+
+@dataclass
+class CLIConfig:
+    project_root: Path
+    api_url: str
+    mode: Mode
+    verbose: bool
+
+
+class DoctorCLI:
+    """Main CLI class"""
+    
+    def __init__(self, config: CLIConfig):
+        self.config = config
+        self.api_available = self._check_api()
+    
+    def _check_api(self) -> bool:
+        """Check if API service is available"""
+        try:
+            response = requests.get(f"{self.config.api_url}/health", timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+    
+    def print_header(self):
+        """Print CLI header"""
+        print(f"\n{Color.CYAN}{Color.BOLD}🏥 DevSmith Doctor{Color.RESET}")
+        print(f"{Color.CYAN}{'=' * 70}{Color.RESET}\n")
+    
+    def print_status(self, message: str, status: str = "info"):
+        """Print colored status message"""
+        colors = {
+            "info": Color.BLUE,
+            "success": Color.GREEN,
+            "warning": Color.YELLOW,
+            "error": Color.RED
+        }
+        icons = {
+            "info": "ℹ️ ",
+            "success": "✅",
+            "warning": "⚠️ ",
+            "error": "❌"
+        }
+        color = colors.get(status, Color.RESET)
+        icon = icons.get(status, "")
+        print(f"{color}{icon} {message}{Color.RESET}")
+    
+    def diagnose(self) -> Optional[Dict]:
+        """Run diagnosis"""
+        self.print_status("Reading validation status...", "info")
+        
+        validation_file = self.config.project_root / ".validation" / "status.json"
+        if not validation_file.exists():
+            self.print_status(
+                "Validation file not found. Run ./scripts/docker-validate.sh first",
+                "error"
+            )
+            return None
+        
+        if self.api_available:
+            # Use API
+            try:
+                response = requests.post(f"{self.config.api_url}/api/diagnose")
+                return response.json()
+            except Exception as e:
+                self.print_status(f"API error: {e}", "error")
+                return None
+        else:
+            # Read file directly
+            with open(validation_file) as f:
+                data = json.load(f)
+            
+            issues = data.get("validation", {}).get("issues", [])
+            
+            if not issues:
+                return {"status": "healthy", "total_issues": 0, "issues_with_fixes": []}
+            
+            return {
+                "status": "issues_found",
+                "total_issues": len(issues),
+                "high_priority": sum(1 for i in issues if i.get("severity") == "high"),
+                "issues_with_fixes": [{"issue": i, "fix": self._generate_basic_fix(i)} for i in issues]
+            }
+    
+    def _generate_basic_fix(self, issue: Dict) -> Dict:
+        """Generate a basic fix when API is not available"""
+        # This is a simplified version - the API has more sophisticated pattern matching
+        commands = [
+            f"# Fix for {issue['type']} on {issue['service']}",
+            f"docker-compose logs {issue['service']} | tail -20",
+            f"docker-compose restart {issue['service']}"
+        ]
+        
+        return {
+            "commands": commands,
+            "explanation": f"Basic troubleshooting for {issue['type']}",
+            "safe_to_auto_apply": False,
+            "confidence": 0.5
+        }
+    
+    def display_diagnosis(self, diagnosis: Dict):
+        """Display diagnosis results"""
+        if diagnosis["status"] == "healthy":
+            self.print_status("No issues found! All systems healthy.", "success")
+            return
+        
+        total = diagnosis["total_issues"]
+        high = diagnosis.get("high_priority", 0)
+        
+        print(f"\n{Color.YELLOW}📊 Found {total} issue(s) - {high} high priority{Color.RESET}\n")
+        
+        for idx, item in enumerate(diagnosis["issues_with_fixes"], 1):
+            issue = item["issue"]
+            fix = item["fix"]
+            
+            # Issue header
+            severity_color = Color.RED if issue["severity"] == "high" else Color.YELLOW
+            print(f"{severity_color}{Color.BOLD}[{idx}] {issue['service']}: {issue['type']}{Color.RESET}")
+            print(f"    {issue['message']}")
+            
+            if self.config.mode == Mode.LEARN:
+                # In learn mode, explain the issue in detail
+                self._explain_issue(issue, fix)
+            else:
+                # Show fix summary
+                print(f"\n    {Color.CYAN}Fix: {fix['explanation']}{Color.RESET}")
+                print(f"    Confidence: {fix['confidence'] * 100:.0f}%")
+            
+            print()
+    
+    def _explain_issue(self, issue: Dict, fix: Dict):
+        """Explain an issue in learning mode"""
+        print(f"\n    {Color.MAGENTA}📚 What this means:{Color.RESET}")
+        
+        explanations = {
+            "health_unhealthy": "The health check endpoint is failing. The service started but something's wrong.",
+            "http_502": "nginx cannot reach the upstream service. Network or service issue.",
+            "http_404": "The requested endpoint doesn't exist. Check nginx routing or service handlers.",
+            "http_5xx": "The service is returning a server error. Check application logs.",
+            "container_stopped": "The container is not running. It may have crashed or was stopped.",
+        }
+        
+        explanation = explanations.get(issue["type"], "Unknown issue type")
+        print(f"       {explanation}")
+        
+        print(f"\n    {Color.MAGENTA}🔍 Common causes:{Color.RESET}")
+        causes = {
+            "health_unhealthy": [
+                "Database connection not ready",
+                "Missing environment variables",
+                "Dependency services not started"
+            ],
+            "http_502": [
+                "Upstream service crashed",
+                "Wrong service name in nginx config",
+                "Network connectivity issue"
+            ],
+            "http_404": [
+                "Missing nginx location block",
+                "Wrong proxy_pass URL",
+                "Service endpoint not implemented"
+            ]
+        }
+        
+        for cause in causes.get(issue["type"], ["Check logs for details"]):
+            print(f"       • {cause}")
+        
+        print(f"\n    {Color.MAGENTA}🔧 How to fix:{Color.RESET}")
+        for cmd in fix["commands"]:
+            if not cmd.startswith("#"):
+                print(f"       $ {cmd}")
+    
+    def apply_fixes(self, diagnosis: Dict):
+        """Apply fixes based on mode"""
+        issues_with_fixes = diagnosis["issues_with_fixes"]
+        
+        for idx, item in enumerate(issues_with_fixes, 1):
+            issue = item["issue"]
+            fix = item["fix"]
+            
+            print(f"\n{Color.CYAN}{'─' * 70}{Color.RESET}")
+            print(f"{Color.BOLD}Fix {idx}/{len(issues_with_fixes)}: {issue['service']} - {issue['type']}{Color.RESET}")
+            print(f"{fix['explanation']}")
+            
+            # Show commands
+            print(f"\n{Color.YELLOW}Commands:{Color.RESET}")
+            for cmd in fix["commands"]:
+                if not cmd.startswith("#"):
+                    print(f"  $ {cmd}")
+            
+            # Decide whether to apply
+            should_apply = False
+            
+            if self.config.mode == Mode.AUTO:
+                if fix["safe_to_auto_apply"] and fix["confidence"] >= 0.8:
+                    should_apply = True
+                    self.print_status("Auto-applying (safe and high confidence)", "info")
+                else:
+                    self.print_status("Skipping (not safe for auto-apply)", "warning")
+            
+            elif self.config.mode == Mode.INTERACTIVE:
+                response = input(f"\n{Color.YELLOW}Apply this fix? [y/N/s(kip all)]: {Color.RESET}").lower()
+                if response == 'y':
+                    should_apply = True
+                elif response == 's':
+                    self.print_status("Skipping remaining fixes", "info")
+                    break
+            
+            elif self.config.mode == Mode.DRY_RUN:
+                self.print_status("Dry run - not executing", "info")
+                continue
+            
+            # Apply fix
+            if should_apply:
+                success = self._execute_commands(fix["commands"])
+                if success:
+                    self.print_status("Fix applied successfully", "success")
+                else:
+                    self.print_status("Fix failed", "error")
+    
+    def _execute_commands(self, commands: List[str]) -> bool:
+        """Execute fix commands"""
+        for cmd in commands:
+            if cmd.startswith("#"):
+                # Comment - print it
+                print(f"\n{Color.CYAN}{cmd}{Color.RESET}")
+                continue
+            
+            print(f"\n{Color.BLUE}▶️  {cmd}{Color.RESET}")
+            
+            try:
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    cwd=self.config.project_root
+                )
+                
+                if result.stdout:
+                    print(result.stdout)
+                
+                if result.returncode != 0:
+                    if result.stderr:
+                        print(f"{Color.RED}{result.stderr}{Color.RESET}")
+                    return False
+            
+            except Exception as e:
+                print(f"{Color.RED}Error executing command: {e}{Color.RESET}")
+                return False
+        
+        return True
+    
+    def run(self):
+        """Main entry point"""
+        self.print_header()
+        
+        # Check API availability
+        if self.api_available:
+            self.print_status("API service available ✓", "success")
+        else:
+            self.print_status("API service not available - using local mode", "warning")
+        
+        # Run diagnosis
+        diagnosis = self.diagnose()
+        if not diagnosis:
+            sys.exit(1)
+        
+        # Display results
+        self.display_diagnosis(diagnosis)
+        
+        # Apply fixes if issues found
+        if diagnosis["status"] != "healthy" and self.config.mode != Mode.LEARN:
+            self.apply_fixes(diagnosis)
+        
+        print(f"\n{Color.CYAN}{'=' * 70}{Color.RESET}")
+        print(f"{Color.GREEN}🎉 Doctor session complete!{Color.RESET}")
+        print(f"{Color.CYAN}Re-run docker-validate.sh to verify fixes.{Color.RESET}\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="DevSmith Doctor - Intelligent Docker/nginx configuration fixer"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["auto", "interactive", "learn", "dry-run"],
+        default="interactive",
+        help="Fix application mode (default: interactive)"
+    )
+    parser.add_argument(
+        "--project-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Project root directory (default: current directory)"
+    )
+    parser.add_argument(
+        "--api-url",
+        default="http://localhost:8084",
+        help="Doctor API URL (default: http://localhost:8084)"
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Verbose output"
+    )
+    
+    args = parser.parse_args()
+    
+    config = CLIConfig(
+        project_root=args.project_root,
+        api_url=args.api_url,
+        mode=Mode(args.mode),
+        verbose=args.verbose
+    )
+    
+    cli = DoctorCLI(config)
+    cli.run()
+
+
+if __name__ == "__main__":
+    main()

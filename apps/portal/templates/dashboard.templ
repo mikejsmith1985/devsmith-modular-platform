@@ -1,0 +1,73 @@
+package templates
+
+templ Dashboard(user DashboardUser) {
+	@Layout("Dashboard") {
+		<div class="dashboard-container">
+			<header class="dashboard-header">
+				<div class="user-info">
+					<img src={user.AvatarURL} alt={user.Username} class="avatar"/>
+					<div class="user-details">
+						<h2>{user.Username}</h2>
+						<p class="user-email">{user.Email}</p>
+					</div>
+				</div>
+				<button id="logout-btn" class="btn-logout">Logout</button>
+			</header>
+
+			<main class="dashboard-main">
+				<h1>DevSmith Platform</h1>
+				<p class="subtitle">AI-assisted code review and development analytics</p>
+
+				<div class="services-grid">
+					@ServiceCard(ServiceInfo{
+						Name: "Review",
+						Description: "Code review with 5 reading modes",
+						URL: "http://localhost:8081",
+						Icon: "📖",
+						Status: "ready",
+					})
+
+					@ServiceCard(ServiceInfo{
+						Name: "Logs",
+						Description: "Real-time development logs",
+						URL: "http://localhost:8082",
+						Icon: "📝",
+						Status: "ready",
+					})
+
+					@ServiceCard(ServiceInfo{
+						Name: "Analytics",
+						Description: "Trends and insights",
+						URL: "http://localhost:8083",
+						Icon: "📊",
+						Status: "ready",
+					})
+				</div>
+			</main>
+		</div>
+	}
+}
+
+templ ServiceCard(service ServiceInfo) {
+	<div class="service-card">
+		<div class="service-icon">{service.Icon}</div>
+		<h3>{service.Name}</h3>
+		<p class="service-description">{service.Description}</p>
+		<span class={"service-status " + service.Status}>{service.Status}</span>
+		<a href={templ.SafeURL(service.URL)} class="btn-primary">Open {service.Name}</a>
+	</div>
+}
+
+type DashboardUser struct {
+	Username  string
+	Email     string
+	AvatarURL string
+}
+
+type ServiceInfo struct {
+	Name        string
+	Description string
+	URL         string
+	Icon        string
+	Status      string
+}
