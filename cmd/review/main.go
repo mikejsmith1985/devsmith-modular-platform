@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/review/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
@@ -50,6 +51,11 @@ func main() {
 			"status":  "healthy",
 		})
 	})
+	router.HEAD("/health", func(c *gin.Context) {
+		// Add logging for HEAD /health requests
+		log.Println("HEAD /health endpoint hit")
+		c.Status(http.StatusOK)
+	})
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"service": "DevSmith Review",
@@ -57,6 +63,9 @@ func main() {
 			"message": "Review service is running",
 		})
 	})
+
+	// Register debug routes (development only)
+	debug.RegisterDebugRoutes(router, "review")
 
 	// --- Database connection (PostgreSQL, pgx) ---
 	dbURL := os.Getenv("REVIEW_DB_URL")
@@ -96,6 +105,9 @@ func main() {
 
 	// Create review session endpoint
 	router.POST("/api/review/sessions", reviewHandler.CreateReviewSession)
+
+	// List review sessions endpoint (GET)
+	router.GET("/api/review/sessions", reviewHandler.ListReviewSessions)
 
 	port := os.Getenv("PORT")
 	if port == "" {

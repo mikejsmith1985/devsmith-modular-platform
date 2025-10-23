@@ -93,3 +93,16 @@ func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID
 func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisResult) error {
 	return nil
 }
+
+func TestLoginFlow_EndToEnd(t *testing.T) {
+	// Act
+	resp, err := http.Get("http://localhost:3000/auth/github/login")
+
+	// Assert
+	assert.NoError(t, err, "Request to /auth/github/login should not error")
+	assert.Equal(t, http.StatusFound, resp.StatusCode, "Should redirect to GitHub OAuth")
+
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "https://github.com/login/oauth/authorize", "Should redirect to GitHub OAuth URL")
+	assert.Contains(t, location, "client_id=", "Should include client ID in redirect URL")
+}
