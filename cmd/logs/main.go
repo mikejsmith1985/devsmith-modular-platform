@@ -28,14 +28,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("[ERROR] Failed to close database connection: %v", err)
-		}
-	}()
 
 	// Verify connection
 	if err := db.Ping(); err != nil {
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[ERROR] Failed to close database: %v", closeErr)
+		}
 		log.Fatal("Failed to ping database:", err)
 	}
 
@@ -75,6 +73,9 @@ func main() {
 	}
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("[ERROR] Failed to close database: %v", closeErr)
+		}
 		log.Fatalf("[ERROR] Failed to start server: %v", err)
 	}
 }

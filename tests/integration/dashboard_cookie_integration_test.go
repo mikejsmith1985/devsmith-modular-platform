@@ -40,7 +40,7 @@ func TestDashboardWithOAuthCookies(t *testing.T) {
 	}
 
 	// Simulate request with cookies set as by OAuth callback
-	req := httptest.NewRequest("GET", "/dashboard", nil)
+	req := httptest.NewRequest("GET", "/dashboard", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "devsmith_token", Value: signedToken})
 	req.AddCookie(&http.Cookie{Name: "devsmith_user", Value: "testuser"})
 	req.AddCookie(&http.Cookie{Name: "devsmith_avatar", Value: "https://avatars.githubusercontent.com/u/123456?v=4"})

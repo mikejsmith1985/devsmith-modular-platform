@@ -39,8 +39,6 @@ func TestReview_Struct(t *testing.T) {
 		GithubRepo:   "test/repo",
 		GithubBranch: "main",
 		PastedCode:   "package main",
-		CreatedAt:    "2025-01-01",
-		LastAccessed: "2025-01-02",
 	}
 
 	assert.Equal(t, int64(1), review.ID)

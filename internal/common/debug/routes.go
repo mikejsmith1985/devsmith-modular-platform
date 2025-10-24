@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const debugRoutesPath = "/debug/routes"
+
 // RouteInfo represents a single route in the application
 type RouteInfo struct {
 	Method      string `json:"method"`
@@ -20,8 +22,8 @@ type RouteInfo struct {
 // RoutesResponse is the JSON response for the debug routes endpoint
 type RoutesResponse struct {
 	Service string      `json:"service"`
-	Count   int         `json:"count"`
 	Routes  []RouteInfo `json:"routes"`
+	Count   int         `json:"count"`
 }
 
 // RegisterDebugRoutes adds debug endpoints to the router
@@ -34,7 +36,7 @@ func RegisterDebugRoutes(router *gin.Engine, serviceName string) {
 	}
 
 	// Register the debug routes endpoint
-	router.GET("/debug/routes", func(c *gin.Context) {
+	router.GET(debugRoutesPath, func(c *gin.Context) {
 		GetRoutesHandler(c, router, serviceName)
 	})
 }
@@ -46,7 +48,7 @@ func GetRoutesHandler(c *gin.Context, router *gin.Engine, serviceName string) {
 	routeInfos := make([]RouteInfo, 0, len(routes))
 	for _, route := range routes {
 		// Skip the debug endpoint itself to avoid confusion
-		if route.Path == "/debug/routes" {
+		if route.Path == debugRoutesPath {
 			continue
 		}
 
