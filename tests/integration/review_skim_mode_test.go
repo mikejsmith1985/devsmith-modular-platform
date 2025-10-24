@@ -93,3 +93,32 @@ func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID
 func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisResult) error {
 	return nil
 }
+
+func TestLoginFlow_EndToEnd(t *testing.T) {
+	// This is an end-to-end test that requires the portal service to be running
+	// Check if service is available first
+	healthResp, err := http.Get("http://localhost:3000/health")
+	if err != nil || healthResp.StatusCode != http.StatusOK {
+		t.Skip("Portal service not running on localhost:3000, skipping E2E test")
+	}
+	defer healthResp.Body.Close()
+
+	// Create HTTP client that doesn't follow redirects
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects
+		},
+	}
+
+	// Act - Make request to GitHub login endpoint
+	resp, err := client.Get("http://localhost:3000/auth/github/login")
+	assert.NoError(t, err, "Request to /auth/github/login should not error")
+	defer resp.Body.Close()
+
+	// Assert
+	assert.Equal(t, http.StatusFound, resp.StatusCode, "Should redirect to GitHub OAuth")
+
+	location := resp.Header.Get("Location")
+	assert.Contains(t, location, "https://github.com/login/oauth/authorize", "Should redirect to GitHub OAuth URL")
+	assert.Contains(t, location, "client_id=", "Should include client ID in redirect URL")
+}

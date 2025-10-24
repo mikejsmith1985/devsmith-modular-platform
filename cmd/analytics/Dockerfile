@@ -7,7 +7,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bin/analytics ./cmd/analytics
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata wget
+RUN apk --no-cache add ca-certificates tzdata wget curl
 RUN addgroup -g 1000 appuser && \
 	adduser -D -u 1000 -G appuser appuser
 WORKDIR /home/appuser
