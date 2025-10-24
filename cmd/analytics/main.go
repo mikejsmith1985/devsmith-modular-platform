@@ -11,6 +11,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,6 +59,9 @@ func main() {
 	})
 
 	handler.RegisterRoutes(router)
+
+	// Register debug routes (development only)
+	debug.RegisterDebugRoutes(router, "analytics")
 
 	port := os.Getenv("PORT")
 	if port == "" {
