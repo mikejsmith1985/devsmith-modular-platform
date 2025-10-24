@@ -1,19 +1,20 @@
-{{ define "layout" }}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ .Title }}</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-  <header class="bg-blue-700 text-white p-4 mb-6">
-    <h1 class="text-3xl font-bold">DevSmith Review Service</h1>
-  </header>
-  <main class="container mx-auto">
-    {{ template "content" . }}
-  </main>
-</body>
-</html>
-{{ end }}
+package templates
+
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } - DevSmith Review</title>
+			<link rel="stylesheet" href="/static/css/review.css"/>
+		</head>
+		<body>
+			<div class="app-container">
+				{ children... }
+			</div>
+			<script src="/static/js/review.js"></script>
+			<script src="/static/js/analysis.js"></script>
+		</body>
+	</html>
+}
