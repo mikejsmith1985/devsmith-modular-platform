@@ -7,6 +7,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -44,26 +45,29 @@ func main() {
 		})
 	})
 
-	// Root endpoint
+	// Root endpoint: render login page
 	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "DevSmith Portal",
-			"version": "0.1.0",
-			"message": "Portal service is running",
-		})
+		c.HTML(http.StatusOK, "login.html", nil)
 	})
 
 	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	dbConn, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Printf("Failed to connect to database: %v", err)
+		return
 	}
 	defer func() {
 		if err := dbConn.Close(); err != nil {
 			log.Printf("Error closing DB connection: %v", err)
 		}
 	}()
+
+	// Ping the database to verify connection
+	if err := dbConn.Ping(); err != nil {
+		log.Printf("Failed to ping database: %v", err)
+		return
+	}
 
 	// Register authentication routes
 	// Import handlers package
@@ -77,20 +81,18 @@ func main() {
 	// Register dashboard routes
 	authenticated := router.Group("/")
 	authenticated.Use(middleware.JWTAuthMiddleware())
-	{
-		authenticated.GET("/dashboard", handlers.DashboardHandler)
-		authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
-	}
+	authenticated.GET("/dashboard", handlers.DashboardHandler)
+	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
 
 	// Load templates (path works in both local dev and Docker)
-	templatePath := "apps/portal/templates/*.templ"
+	templatePath := "apps/portal/templates/*.html"
 	if _, err := os.Stat("./templates"); err == nil {
 		// Running in Docker container
-		templatePath = "./templates/*.templ"
+		templatePath = "./templates/*.html"
 	}
 	router.LoadHTMLGlob(templatePath)
 	router.GET("/login", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.templ", nil)
+		c.HTML(http.StatusOK, "login.html", nil)
 	})
 
 	// Serve static files (path works in both local dev and Docker)
@@ -107,6 +109,13 @@ func main() {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
 	})
 
+	// Validate required OAuth environment variables
+	if err := validateOAuthEnvironment(); err != nil {
+		log.Printf("FATAL: %v", err)
+		os.Exit(1)
+	}
+	log.Printf("OAuth configured: redirect_uri=%s", os.Getenv("REDIRECT_URI"))
+
 	// Replace fmt.Printf with log.Printf for better logging consistency
 	log.Printf("Portal service starting on port %s...", port)
 	if err := router.Run(":" + port); err != nil {
@@ -114,4 +123,14 @@ func main() {
 		log.Printf("Failed to start server: %v", err)
 		os.Exit(1) // Ensure the application exits with a non-zero status
 	}
+}
+
+func validateOAuthEnvironment() error {
+	required := []string{"GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "REDIRECT_URI"}
+	for _, key := range required {
+		if os.Getenv(key) == "" {
+			return fmt.Errorf("%s environment variable not set", key)
+		}
+	}
+	return nil
 }

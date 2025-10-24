@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -11,6 +13,16 @@ import (
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
+		if tokenString == "" {
+			// Try to get token from cookie
+			var err error
+			tokenString, err = c.Cookie("devsmith_token")
+			if err != nil {
+				log.Printf("[ERROR] Failed to retrieve token from cookie: %v", err)
+			} else {
+				log.Printf("[DEBUG] Retrieved token from cookie: %s", tokenString)
+			}
+		}
 		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
 			c.Abort()
