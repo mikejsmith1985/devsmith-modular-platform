@@ -57,15 +57,13 @@ func main() {
 		log.Printf("Failed to connect to database: %v", err)
 		return
 	}
-	defer func() {
-		if err := dbConn.Close(); err != nil {
-			log.Printf("Error closing DB connection: %v", err)
-		}
-	}()
 
 	// Ping the database to verify connection
 	if err := dbConn.Ping(); err != nil {
 		log.Printf("Failed to ping database: %v", err)
+		if closeErr := dbConn.Close(); closeErr != nil {
+			log.Printf("Error closing DB connection: %v", closeErr)
+		}
 		return
 	}
 
@@ -112,6 +110,9 @@ func main() {
 	// Validate required OAuth environment variables
 	if err := validateOAuthEnvironment(); err != nil {
 		log.Printf("FATAL: %v", err)
+		if closeErr := dbConn.Close(); closeErr != nil {
+			log.Printf("Error closing DB connection: %v", closeErr)
+		}
 		os.Exit(1)
 	}
 	log.Printf("OAuth configured: redirect_uri=%s", os.Getenv("REDIRECT_URI"))
@@ -121,6 +122,9 @@ func main() {
 	if err := router.Run(":" + port); err != nil {
 		// Replace os.Exit with proper error handling
 		log.Printf("Failed to start server: %v", err)
+		if closeErr := dbConn.Close(); closeErr != nil {
+			log.Printf("Error closing DB connection: %v", closeErr)
+		}
 		os.Exit(1) // Ensure the application exits with a non-zero status
 	}
 }

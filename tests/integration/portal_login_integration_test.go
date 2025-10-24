@@ -46,7 +46,7 @@ func TestPortalLoginFlow(t *testing.T) {
 	authenticated.GET("/dashboard", handlers.DashboardHandler)
 
 	// Simulate user visiting /auth/login
-	req := httptest.NewRequest("GET", "/auth/login", nil)
+	req := httptest.NewRequest("GET", "/auth/login", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -56,7 +56,7 @@ func TestPortalLoginFlow(t *testing.T) {
 	assert.Contains(t, location, "github.com/login/oauth/authorize", "Should redirect to GitHub OAuth")
 
 	// Simulate dashboard access without authentication
-	dashReq := httptest.NewRequest("GET", "/dashboard", nil)
+	dashReq := httptest.NewRequest("GET", "/dashboard", http.NoBody)
 	dashW := httptest.NewRecorder()
 	router.ServeHTTP(dashW, dashReq)
 
@@ -82,7 +82,7 @@ func TestPortalLoginFlow(t *testing.T) {
 	token := testLoginResp.Token
 
 	// Create a NEW request for authenticated dashboard access
-	authDashReq := httptest.NewRequest("GET", "/dashboard", nil)
+	authDashReq := httptest.NewRequest("GET", "/dashboard", http.NoBody)
 	authDashReq.AddCookie(&http.Cookie{
 		Name:  "devsmith_token",
 		Value: token,

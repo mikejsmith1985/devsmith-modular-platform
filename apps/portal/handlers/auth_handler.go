@@ -201,7 +201,7 @@ func HandleTestLogin(c *gin.Context) {
 	})
 }
 
-// Exported function to validate OAuth configuration
+// ValidateOAuthConfig validates the OAuth configuration by checking environment variables.
 func ValidateOAuthConfig() bool {
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
@@ -209,7 +209,7 @@ func ValidateOAuthConfig() bool {
 	return clientID != "" && clientSecret != "" && redirectURI != ""
 }
 
-// Exported type for user information
+// UserInfo represents user information retrieved from GitHub OAuth.
 type UserInfo struct {
 	Login     string `json:"login"`
 	Name      string `json:"name"`
@@ -218,7 +218,7 @@ type UserInfo struct {
 	ID        string `json:"id"`
 }
 
-// Exported function to create JWT for a user
+// CreateJWTForUser creates a JWT token for the given user information.
 func CreateJWTForUser(user *UserInfo) (string, error) {
 	jwtKey := []byte("your-secret-key")
 	claims := UserClaims{
@@ -232,7 +232,7 @@ func CreateJWTForUser(user *UserInfo) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// Exported function to validate OAuth parameters
+// ValidateOAuthParams validates OAuth parameters including client ID and redirect URI.
 func ValidateOAuthParams(clientID, redirectURI string) error {
 	if clientID == "" {
 		return fmt.Errorf("github_client_id not set")
@@ -249,7 +249,7 @@ func ValidateOAuthParams(clientID, redirectURI string) error {
 	return nil
 }
 
-// Exported function to set test user defaults
+// SetTestUserDefaults sets default values for test user information.
 func SetTestUserDefaults(user *UserInfo) {
 	if user.Login == "" {
 		user.Login = "test-user"
@@ -315,7 +315,7 @@ func exchangeCodeForToken(code string) (string, error) {
 
 var githubAPI = "https://api.github.com/user"
 
-// fetchUserInfo fetches the user info from GitHub
+// FetchUserInfo fetches the user info from GitHub using the provided access token.
 func FetchUserInfo(accessToken string) (UserInfo, error) {
 	if accessToken == "" {
 		return UserInfo{}, errors.New("access token is empty")
@@ -335,8 +335,8 @@ func FetchUserInfo(accessToken string) (UserInfo, error) {
 		return UserInfo{}, err
 	}
 	defer func() {
-		if err := userResp.Body.Close(); err != nil {
-			log.Printf("[ERROR] Failed to close user response body: %v", err)
+		if closeErr := userResp.Body.Close(); closeErr != nil {
+			log.Printf("[ERROR] Failed to close user response body: %v", closeErr)
 		}
 	}()
 

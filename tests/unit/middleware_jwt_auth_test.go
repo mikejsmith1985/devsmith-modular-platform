@@ -49,7 +49,7 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	log.Printf("[DEBUG] Generated token: %s", signedToken)
 
 	// Create a request with the token in the Authorization header
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	// Remove the Bearer prefix from the Authorization header
 	req.Header.Set("Authorization", signedToken)
 
