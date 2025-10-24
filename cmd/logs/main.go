@@ -39,6 +39,16 @@ func main() {
 		log.Fatal("Failed to ping database:", err)
 	}
 
+	// OAuth2 configuration (for GitHub)
+	required := []string{"GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "REDIRECT_URI"}
+	for _, key := range required {
+		if os.Getenv(key) == "" {
+			log.Printf("FATAL: %s environment variable not set", key)
+			return
+		}
+	}
+	log.Printf("OAuth configured: redirect_uri=%s", os.Getenv("REDIRECT_URI"))
+
 	// Create route registry for debug endpoint
 	routeRegistry := debug.NewHTTPRouteRegistry("logs")
 
@@ -72,16 +82,16 @@ func main() {
 // Health check endpoint (REQUIRED for docker-validate)
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connectivity
-	if err := db.Ping(); err != nil {
+	pingErr := db.Ping()
+	if pingErr != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		jsonErr := json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "unhealthy",
-			"error":  err.Error(),
-			"checks": map[string]bool{
-				"database": false,
-			},
-		}); err != nil {
-			log.Printf("[ERROR] Failed to write health check response: %v", err)
+			"error":  pingErr.Error(),
+			"checks": map[string]bool{},
+		})
+		if jsonErr != nil {
+			log.Printf("Failed to write JSON response: %v", jsonErr)
 		}
 		return
 	}

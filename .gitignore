@@ -65,10 +65,13 @@ lerna-debug.log*
 
 # Testing
 .coverage
+coverage.html
+coverage.out
 htmlcov/
 .pytest_cache/
 .tox/
 .hypothesis/
+test-results/
 
 # Build artifacts
 *.build

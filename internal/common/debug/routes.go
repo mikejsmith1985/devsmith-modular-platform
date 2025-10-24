@@ -1,3 +1,4 @@
+// Package debug provides utilities for debugging and inspecting application state.
 package debug
 
 import (
