@@ -68,6 +68,7 @@ func TestUser_MultipleInstances(t *testing.T) {
 	assert.NotEqual(t, user1.ID, user2.ID)
 	assert.NotEqual(t, user2.ID, user3.ID)
 	assert.NotEqual(t, user1.Username, user2.Username)
+	assert.NotEqual(t, user2.Username, user3.Username)
 }
 
 func TestUser_Timestamps(t *testing.T) {

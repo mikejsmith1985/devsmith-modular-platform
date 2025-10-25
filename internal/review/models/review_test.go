@@ -44,6 +44,8 @@ func TestAnalysisResult_Fields(t *testing.T) {
 	}
 
 	assert.Equal(t, "skim", result.Mode)
+	assert.Equal(t, "Analyze this code", result.Prompt)
+	assert.Equal(t, "Code summary", result.Summary)
 }
 
 func TestSkimModeOutput_Structure(t *testing.T) {
@@ -76,6 +78,7 @@ func TestInterfaceInfo_Structure(t *testing.T) {
 	}
 
 	assert.Equal(t, "Reader", iface.Name)
+	assert.Equal(t, "Define reading behavior", iface.Purpose)
 	assert.Len(t, iface.Methods, 2)
 }
 
@@ -87,6 +90,7 @@ func TestDataModelInfo_Structure(t *testing.T) {
 	}
 
 	assert.Equal(t, "User", model.Name)
+	assert.Equal(t, "Store user data", model.Purpose)
 	assert.Len(t, model.Fields, 3)
 }
 
@@ -107,6 +111,7 @@ func TestCriticalModeOutput_Structure(t *testing.T) {
 	}
 
 	assert.Equal(t, "B+", output.OverallGrade)
+	assert.Equal(t, "Good code quality", output.Summary)
 }
 
 func TestCodeIssue_Structure(t *testing.T) {
@@ -121,7 +126,13 @@ func TestCodeIssue_Structure(t *testing.T) {
 		Line:          55,
 	}
 
+	assert.Equal(t, "High", issue.Impact)
+	assert.Equal(t, "Use mutex", issue.FixSuggestion)
+	assert.Equal(t, "Race condition", issue.Description)
+	assert.Equal(t, "globalVar++", issue.CodeSnippet)
+	assert.Equal(t, "security", issue.Category)
 	assert.Equal(t, "critical", issue.Severity)
+	assert.Equal(t, "main.go", issue.File)
 	assert.Equal(t, 55, issue.Line)
 }
 
@@ -133,6 +144,7 @@ func TestReview_Structure(t *testing.T) {
 	}
 
 	assert.Equal(t, "My Review", review.Title)
+	assert.Equal(t, "github", review.CodeSource)
 	assert.Equal(t, int64(1), review.ID)
 }
 
@@ -156,6 +168,7 @@ func TestZeroValueStructs(t *testing.T) {
 
 func TestMultipleMatches(t *testing.T) {
 	output := ScanModeOutput{
+		Summary: "Found 3 matches",
 		Matches: []CodeMatch{
 			{FilePath: "a.go", Line: 1},
 			{FilePath: "b.go", Line: 2},
@@ -163,6 +176,7 @@ func TestMultipleMatches(t *testing.T) {
 		},
 	}
 
+	assert.Equal(t, "Found 3 matches", output.Summary)
 	assert.Len(t, output.Matches, 3)
 	assert.Equal(t, "a.go", output.Matches[0].FilePath)
 	assert.Equal(t, "c.go", output.Matches[2].FilePath)
@@ -170,6 +184,8 @@ func TestMultipleMatches(t *testing.T) {
 
 func TestMultipleIssues(t *testing.T) {
 	output := CriticalModeOutput{
+		OverallGrade: "A",
+		Summary:      "Excellent code",
 		Issues: []CodeIssue{
 			{Severity: "critical"},
 			{Severity: "high"},
@@ -177,5 +193,7 @@ func TestMultipleIssues(t *testing.T) {
 		},
 	}
 
+	assert.Equal(t, "A", output.OverallGrade)
 	assert.Len(t, output.Issues, 3)
+	assert.Equal(t, "Excellent code", output.Summary)
 }
