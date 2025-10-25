@@ -1,4 +1,5 @@
 // Package services provides WebSocket handler implementation for real-time log streaming.
+// It implements the WebSocket upgrade, filter parsing, and authentication for the Logs service.
 package services
 
 import (
@@ -11,23 +12,29 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
-// WebSocketHandler handles WebSocket connections for real-time log streaming.
+// WebSocketHandler handles HTTP to WebSocket upgrade and connection setup.
 type WebSocketHandler struct {
 	hub *WebSocketHub
 }
 
-// NewWebSocketHandler creates a new WebSocket handler.
+// NewWebSocketHandler creates a new WebSocket handler with the given hub.
 func NewWebSocketHandler(hub *WebSocketHub) *WebSocketHandler {
 	return &WebSocketHandler{hub: hub}
 }
 
-// RegisterWebSocketRoutes registers the WebSocket routes on a Gin router.
+// RegisterWebSocketRoutes registers the WebSocket endpoint on a Gin router.
 func RegisterWebSocketRoutes(router *gin.Engine, hub *WebSocketHub) {
 	handler := NewWebSocketHandler(hub)
 	router.GET("/ws/logs", handler.HandleWebSocket)
 }
 
-// HandleWebSocket handles WebSocket upgrade and client connection.
+// HandleWebSocket upgrades an HTTP connection to WebSocket and registers the client.
+// Supports the following query parameters for filtering:
+//   - level: Log level filter (e.g., ERROR, WARN, INFO)
+//   - service: Service name filter (e.g., portal, review)
+//   - tags: Tag filter (exact match, single tag)
+//
+// Authentication is checked via the Authorization header (Bearer token).
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Parse and validate authentication
 	authHeader := c.GetHeader("Authorization")
@@ -36,12 +43,12 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Parse filter parameters from query string
 	filters := h.parseFilterParams(c)
 
-	// Parse visibility based on authentication
+	// Determine visibility: authenticated users see all logs, others see only public
 	isPublic := !isAuthenticated
 
 	// Upgrade HTTP connection to WebSocket
 	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
+		CheckOrigin:     func(r *http.Request) bool { return true },
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
@@ -52,7 +59,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Create client with filters
+	// Create client with filters and auth info
 	client := &Client{
 		Conn:         conn,
 		Send:         make(chan *models.LogEntry, 256),
@@ -62,21 +69,21 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		LastActivity: time.Now(),
 	}
 
-	// Register client with hub
+	// Register client with hub and start message pumps
 	h.hub.Register(client)
-
-	// Start client read and write pumps
 	go client.ReadPump(h.hub)
 	go client.WritePump(h.hub)
 }
 
-// validateAuth checks if authentication header is valid JWT.
+// validateAuth checks if authentication header contains a valid Bearer token.
+// Returns true if a valid Bearer token is present, false otherwise.
+// Does NOT validate JWT signature (placeholder for future JWT validation).
 func (h *WebSocketHandler) validateAuth(authHeader string) bool {
 	if authHeader == "" {
 		return false
 	}
 
-	// Check for Bearer token
+	// Check for Bearer token format
 	if !strings.HasPrefix(authHeader, "Bearer ") {
 		return false
 	}
@@ -86,12 +93,12 @@ func (h *WebSocketHandler) validateAuth(authHeader string) bool {
 		return false
 	}
 
-	// TODO: Validate JWT token signature and expiry
-	// For now, accept any non-empty Bearer token
+	// Reject explicitly expired tokens (placeholder for full JWT validation)
 	return token != "expired_token"
 }
 
-// parseFilterParams extracts filter parameters from query string.
+// parseFilterParams extracts and returns filter parameters from the request query string.
+// Supports: level, service, tags
 func (h *WebSocketHandler) parseFilterParams(c *gin.Context) map[string]string {
 	filters := make(map[string]string)
 
