@@ -29,6 +29,9 @@ func TestCodeMatch_Structure(t *testing.T) {
 	}
 
 	assert.Equal(t, "handler.go", match.FilePath)
+	assert.Equal(t, "func Handler() {}", match.CodeSnippet)
+	assert.Equal(t, "HTTP handler", match.Context)
+	assert.Equal(t, "func Handler", match.Snippet)
 	assert.Equal(t, 42, match.Line)
 	assert.Equal(t, 0.95, match.Relevance)
 }

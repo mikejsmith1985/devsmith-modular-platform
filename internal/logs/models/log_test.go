@@ -118,6 +118,7 @@ func TestLogEntry_MultipleInstances(t *testing.T) {
 	assert.NotEqual(t, entry1.ID, entry2.ID)
 	assert.NotEqual(t, entry2.ID, entry3.ID)
 	assert.NotEqual(t, entry1.Service, entry2.Service)
+	assert.NotEqual(t, entry2.Service, entry3.Service)
 }
 
 func TestLogEntry_EmptyMessage(t *testing.T) {

@@ -76,6 +76,8 @@ func TestLogEntry_Structure(t *testing.T) {
 
 	assert.Equal(t, now, entry.CreatedAt)
 	assert.Equal(t, "analytics", entry.Service)
+	assert.Equal(t, "ERROR", entry.Level)
+	assert.Equal(t, "Test message", entry.Message)
 }
 
 func TestTrendResponse_Structure(t *testing.T) {
