@@ -102,14 +102,14 @@ jobs:
       - name: Extract metrics from PR
         id: metrics
         run: |
-          BODY="${{ github.event.pull_request.body }}"
+          BODY='${{ github.event.pull_request.body }}'
           
           # Look for coverage percentage
-          COVERAGE=$(echo "$BODY" | grep -oE 'Coverage[:\s]*([0-9]+\.?[0-9]*)%' | grep -oE '[0-9]+\.?[0-9]*' | head -1)
+          COVERAGE=$(echo "$BODY" | grep -oE 'Coverage[:\s]*([0-9]+\.?[0-9]*)%' | grep -oE '[0-9]+\.?[0-9]*' | head -1 || true)
           if [ -z "$COVERAGE" ]; then COVERAGE="Not reported"; fi
           
           # Look for tests
-          TESTS=$(echo "$BODY" | grep -oE '[0-9]+/[0-9]+ (tests?|passing)' | head -1)
+          TESTS=$(echo "$BODY" | grep -oE '[0-9]+/[0-9]+ (tests?|passing)' | head -1 || true)
           if [ -z "$TESTS" ]; then TESTS="Not reported"; fi
           
           echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
@@ -173,7 +173,7 @@ jobs:
         if: steps.issue.outputs.issue_found == 'true'
         run: |
           ISSUE_NUM=${{ steps.issue.outputs.issue_num }}
-          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_BODY='${{ github.event.pull_request.body }}'
           
           # Check if issue is already referenced with "Closes"
           if echo "$PR_BODY" | grep -q "Closes #$ISSUE_NUM"; then
