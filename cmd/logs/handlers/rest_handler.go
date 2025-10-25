@@ -56,6 +56,13 @@ func parseFilters(c *gin.Context) map[string]interface{} {
 	if to := c.Query("to"); to != "" {
 		filters["to"] = to
 	}
+	if sort := c.Query("sort"); sort != "" {
+		if sort == "asc" || sort == "desc" {
+			filters["sort"] = sort
+		}
+	} else {
+		filters["sort"] = "desc"
+	}
 	return filters
 }
 

@@ -387,3 +387,175 @@ func TestDeleteLogs_Error(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
+
+// RED PHASE: Tests for stats endpoint aggregation (SHOULD FAIL until implemented)
+func TestGetStats_ReturnsCountByLevel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	mockSvc := &MockLogService{
+		StatsFn: func(ctx context.Context) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"total": 150,
+				"by_level": map[string]interface{}{
+					"debug": float64(10),
+					"info":  float64(80),
+					"warn":  float64(40),
+					"error": float64(20),
+				},
+			}, nil
+		},
+	}
+
+	router.GET("/api/logs/stats", GetStats(mockSvc))
+	req := httptest.NewRequest("GET", "/api/logs/stats", http.NoBody)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	assert.Equal(t, float64(150), resp["total"])
+	byLevel := resp["by_level"].(map[string]interface{})
+	assert.Equal(t, float64(80), byLevel["info"])
+	assert.Equal(t, float64(20), byLevel["error"])
+}
+
+func TestGetStats_ReturnsCountByService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	mockSvc := &MockLogService{
+		StatsFn: func(ctx context.Context) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"total": 250,
+				"by_service": map[string]interface{}{
+					"portal":    float64(100),
+					"review":    float64(80),
+					"analytics": float64(50),
+					"logs":      float64(20),
+				},
+			}, nil
+		},
+	}
+
+	router.GET("/api/logs/stats", GetStats(mockSvc))
+	req := httptest.NewRequest("GET", "/api/logs/stats", http.NoBody)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	assert.Equal(t, float64(250), resp["total"])
+	byService := resp["by_service"].(map[string]interface{})
+	assert.Equal(t, float64(100), byService["portal"])
+	assert.Equal(t, float64(80), byService["review"])
+}
+
+func TestGetStats_ReturnsLevelAndServiceCombined(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	mockSvc := &MockLogService{
+		StatsFn: func(ctx context.Context) (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"total": 300,
+				"by_level": map[string]interface{}{
+					"info":  float64(150),
+					"error": float64(150),
+				},
+				"by_service": map[string]interface{}{
+					"portal": float64(200),
+					"review": float64(100),
+				},
+			}, nil
+		},
+	}
+
+	router.GET("/api/logs/stats", GetStats(mockSvc))
+	req := httptest.NewRequest("GET", "/api/logs/stats", http.NoBody)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	assert.NotNil(t, resp["by_level"])
+	assert.NotNil(t, resp["by_service"])
+	assert.Equal(t, float64(300), resp["total"])
+}
+
+// RED PHASE: Tests for sorting support (SHOULD FAIL until implemented)
+func TestGetLogs_SortByTimestampAsc(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	mockSvc := &MockLogService{
+		QueryFn: func(ctx context.Context, filters map[string]interface{}, page map[string]int) ([]interface{}, error) {
+			sortDir, ok := filters["sort"]
+			assert.True(t, ok, "sort parameter should be in filters")
+			assert.Equal(t, "asc", sortDir)
+			return []interface{}{}, nil
+		},
+	}
+
+	router.GET("/api/logs", GetLogs(mockSvc))
+	req := httptest.NewRequest("GET", "/api/logs?sort=asc", http.NoBody)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestGetLogs_SortByTimestampDesc(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	mockSvc := &MockLogService{
+		QueryFn: func(ctx context.Context, filters map[string]interface{}, page map[string]int) ([]interface{}, error) {
+			sortDir, ok := filters["sort"]
+			assert.True(t, ok, "sort parameter should be in filters")
+			assert.Equal(t, "desc", sortDir)
+			return []interface{}{}, nil
+		},
+	}
+
+	router.GET("/api/logs", GetLogs(mockSvc))
+	req := httptest.NewRequest("GET", "/api/logs?sort=desc", http.NoBody)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestGetLogs_DefaultSortIsDesc(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	mockSvc := &MockLogService{
+		QueryFn: func(ctx context.Context, filters map[string]interface{}, page map[string]int) ([]interface{}, error) {
+			sortDir, ok := filters["sort"]
+			if ok {
+				assert.Equal(t, "desc", sortDir, "default sort should be desc")
+			}
+			return []interface{}{}, nil
+		},
+	}
+
+	router.GET("/api/logs", GetLogs(mockSvc))
+	req := httptest.NewRequest("GET", "/api/logs", http.NoBody)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}

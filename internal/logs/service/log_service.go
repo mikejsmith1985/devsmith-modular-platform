@@ -12,6 +12,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id int64) (interface{}, error)
 	DeleteByID(ctx context.Context, id int64) error
 	DeleteBefore(ctx context.Context, ts interface{}) (int64, error)
+	Stats(ctx context.Context) (map[string]interface{}, error)
 }
 
 // LogService provides business logic for logs.
@@ -41,8 +42,8 @@ func (s *LogService) GetByID(ctx context.Context, id int64) (interface{}, error)
 
 // Stats returns aggregated log statistics.
 func (s *LogService) Stats(ctx context.Context) (map[string]interface{}, error) {
-	// TODO: Implement stats aggregation
-	return map[string]interface{}{}, nil
+	// Call repository to get stats
+	return s.repo.Stats(ctx)
 }
 
 // DeleteByID removes a log entry.

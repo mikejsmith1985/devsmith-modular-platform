@@ -14,6 +14,7 @@ type MockRepository struct {
 	GetByIDFn      func(ctx context.Context, id int64) (interface{}, error)
 	DeleteByIDFn   func(ctx context.Context, id int64) error
 	DeleteBeforeFn func(ctx context.Context, ts interface{}) (int64, error)
+	StatsFn        func(ctx context.Context) (map[string]interface{}, error)
 }
 
 func (m *MockRepository) Insert(ctx context.Context, entry interface{}) (int64, error) {
@@ -49,6 +50,13 @@ func (m *MockRepository) DeleteBefore(ctx context.Context, ts interface{}) (int6
 		return m.DeleteBeforeFn(ctx, ts)
 	}
 	return 0, nil
+}
+
+func (m *MockRepository) Stats(ctx context.Context) (map[string]interface{}, error) {
+	if m.StatsFn != nil {
+		return m.StatsFn(ctx)
+	}
+	return map[string]interface{}{}, nil
 }
 
 func TestNewLogService(t *testing.T) {
