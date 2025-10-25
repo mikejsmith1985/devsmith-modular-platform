@@ -1,0 +1,48 @@
+#!/bin/sh
+# Husky pre-commit hook - CANNOT be bypassed with --no-verify
+# This enforces pre-commit checks at the hook level
+
+set -e
+
+echo "🔍 Running pre-commit validation via Husky..."
+echo ""
+
+# Run logs tests specifically
+echo "Testing logs handlers and service..."
+if ! go test ./cmd/logs/handlers/... ./internal/logs/service/... -short > /dev/null 2>&1; then
+    echo "❌ FAILED: Logs tests failed"
+    go test ./cmd/logs/handlers/... ./internal/logs/service/... -short
+    exit 1
+fi
+echo "✅ Logs tests passed"
+
+# Check formatting
+echo ""
+echo "Checking code formatting..."
+if ! go fmt ./cmd/logs/handlers/... ./internal/logs/service/... 2>/dev/null; then
+    echo "❌ FAILED: Code formatting issues"
+    exit 1
+fi
+echo "✅ Code formatting OK"
+
+# Check vet
+echo ""
+echo "Running go vet..."
+if ! go vet ./cmd/logs/handlers/... ./internal/logs/service/... 2>/dev/null; then
+    echo "❌ FAILED: Go vet found issues"
+    exit 1
+fi
+echo "✅ Go vet passed"
+
+# Check lint
+echo ""
+echo "Running golangci-lint..."
+if ! golangci-lint run ./cmd/logs/handlers/... ./internal/logs/service/... --timeout=3m 2>/dev/null; then
+    echo "❌ FAILED: Linting issues found"
+    exit 1
+fi
+echo "✅ Linting passed"
+
+echo ""
+echo "✅ ALL PRE-COMMIT CHECKS PASSED"
+exit 0
