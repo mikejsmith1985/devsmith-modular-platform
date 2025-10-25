@@ -1,0 +1,63 @@
+package templates
+
+templ Dashboard() {
+	@Layout("Logs Dashboard") {
+		<div class="logs-container">
+			<header class="logs-header">
+				<h1>📝 DevSmith Logs</h1>
+				<p class="subtitle">Real-time development logs</p>
+
+				@Filters()
+				@Controls()
+			</header>
+
+			<main class="logs-main">
+				<div id="logs-output" class="logs-output"></div>
+				<div id="logs-loading" class="loading">Connecting to log stream...</div>
+			</main>
+		</div>
+	}
+}
+
+templ Filters() {
+	<div class="filters">
+		<div class="filter-group">
+			<label for="level-filter">Level:</label>
+			<select id="level-filter">
+				<option value="all">All Levels</option>
+				<option value="info">INFO</option>
+				<option value="warn">WARN</option>
+				<option value="error">ERROR</option>
+			</select>
+		</div>
+
+		<div class="filter-group">
+			<label for="service-filter">Service:</label>
+			<select id="service-filter">
+				<option value="all">All Services</option>
+				<option value="portal">Portal</option>
+				<option value="review">Review</option>
+				<option value="logs">Logs</option>
+				<option value="analytics">Analytics</option>
+			</select>
+		</div>
+
+		<div class="filter-group">
+			<label for="search-input">Search:</label>
+			<input
+				type="text"
+				id="search-input"
+				placeholder="Filter by message..."
+			/>
+		</div>
+	</div>
+}
+
+templ Controls() {
+	<div class="controls">
+		<button id="pause-btn" class="btn-control" title="Pause streaming">⏸️ Pause</button>
+		<button id="auto-scroll-btn" class="btn-control active" title="Auto-scroll">📜 Auto-scroll</button>
+		<button id="clear-btn" class="btn-control" title="Clear logs">🗑️ Clear</button>
+		<span id="connection-status" class="status-indicator">🟢 Connected</span>
+	</div>
+}

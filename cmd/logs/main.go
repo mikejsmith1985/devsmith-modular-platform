@@ -3,14 +3,16 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
+	"github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/sirupsen/logrus"
 )
 
 var db *sql.DB
@@ -18,8 +20,12 @@ var db *sql.DB
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8082"
 	}
+
+	// Initialize logger
+	logger := logrus.New()
+	logger.SetLevel(logrus.InfoLevel)
 
 	// Initialize database
 	dbURL := os.Getenv("DATABASE_URL")
@@ -47,25 +53,29 @@ func main() {
 	}
 	log.Printf("OAuth configured: redirect_uri=%s", os.Getenv("REDIRECT_URI"))
 
+	// Initialize Gin router
+	router := gin.Default()
+
+	// Serve static files for logs dashboard
+	router.Static("/static", "./apps/logs/static")
+
+	// Register UI routes for dashboard
+	handlers.RegisterUIRoutes(router, logger)
+
 	// Create route registry for debug endpoint
 	routeRegistry := debug.NewHTTPRouteRegistry("logs")
 
-	// Register handlers
-	http.HandleFunc("/health", healthHandler)
-	routeRegistry.Register("GET", "/health")
-
-	http.HandleFunc("/", rootHandler)
-	routeRegistry.Register("GET", "/")
-
 	// Register debug routes endpoint (development only)
-	http.HandleFunc("/debug/routes", routeRegistry.Handler())
+	router.GET("/debug/routes", func(c *gin.Context) {
+		routeRegistry.Handler().ServeHTTP(c.Writer, c.Request)
+	})
 
-	log.Printf("Starting service on port %s", port)
+	log.Printf("Starting logs service on port %s", port)
 
 	// Create an HTTP server with timeouts
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           nil,
+		Handler:           router,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
@@ -77,42 +87,5 @@ func main() {
 			log.Printf("[ERROR] Failed to close database: %v", closeErr)
 		}
 		log.Fatalf("[ERROR] Failed to start server: %v", err)
-	}
-}
-
-// Health check endpoint (REQUIRED for docker-validate)
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connectivity
-	pingErr := db.Ping()
-	if pingErr != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		jsonErr := json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "unhealthy",
-			"error":  pingErr.Error(),
-			"checks": map[string]bool{},
-		})
-		if jsonErr != nil {
-			log.Printf("Failed to write JSON response: %v", jsonErr)
-		}
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "healthy",
-		"checks": map[string]bool{
-			"database": true,
-		},
-	}); err != nil {
-		log.Printf("[ERROR] Failed to write health check response: %v", err)
-	}
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	if err := json.NewEncoder(w).Encode(map[string]string{
-		"service": "logs",
-		"status":  "running",
-	}); err != nil {
-		log.Printf("[ERROR] Failed to write root handler response: %v", err)
 	}
 }
