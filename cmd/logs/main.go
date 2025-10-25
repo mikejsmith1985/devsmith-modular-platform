@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,6 +65,13 @@ func main() {
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "logs")
+
+	// Initialize WebSocket hub
+	hub := services.NewWebSocketHub()
+	go hub.Run()
+
+	// Register WebSocket routes
+	services.RegisterWebSocketRoutes(router, hub)
 
 	log.Printf("Starting logs service on port %s", port)
 

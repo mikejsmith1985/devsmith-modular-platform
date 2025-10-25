@@ -11,6 +11,7 @@ type LogEntry struct {
 	Level     string    `json:"level"`      // 16 bytes
 	Message   string    `json:"message"`    // 16 bytes
 	Metadata  []byte    `json:"metadata"`   // 8 bytes
+	Tags      []string  `json:"tags"`       // 24 bytes (slice)
 	ID        int64     `json:"id"`         // 8 bytes
 	UserID    int64     `json:"user_id"`    // 8 bytes
 }
