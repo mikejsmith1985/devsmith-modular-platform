@@ -135,5 +135,5 @@ func TestUser_EmailValidation(t *testing.T) {
 func TestGitHubProfile_AvatarURLFormat(t *testing.T) {
 	profile := GitHubProfile{AvatarURL: "https://avatars.githubusercontent.com/u/123?v=4"}
 	assert.NotEmpty(t, profile.AvatarURL)
-	assert.True(t, len(profile.AvatarURL) > 0)
+	assert.True(t, profile.AvatarURL != "")
 }

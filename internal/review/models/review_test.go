@@ -35,17 +35,12 @@ func TestCodeMatch_Structure(t *testing.T) {
 
 func TestAnalysisResult_Fields(t *testing.T) {
 	result := AnalysisResult{
-		Mode:      "skim",
-		Prompt:    "Analyze this code",
-		Summary:   "Code summary",
-		Metadata:  "meta",
-		ModelUsed: "gpt-4",
-		RawOutput: "raw output",
-		ReviewID:  123,
+		Mode:    "skim",
+		Prompt:  "Analyze this code",
+		Summary: "Code summary",
 	}
 
 	assert.Equal(t, "skim", result.Mode)
-	assert.Equal(t, int64(123), result.ReviewID)
 }
 
 func TestSkimModeOutput_Structure(t *testing.T) {
@@ -62,9 +57,8 @@ func TestSkimModeOutput_Structure(t *testing.T) {
 
 func TestFunctionSignature_Fields(t *testing.T) {
 	sig := FunctionSignature{
-		Name:        "Calculate",
-		Signature:   "func Calculate(a, b int) int",
-		Description: "Calculates sum",
+		Name:      "Calculate",
+		Signature: "func Calculate(a, b int) int",
 	}
 
 	assert.Equal(t, "Calculate", sig.Name)
@@ -73,10 +67,9 @@ func TestFunctionSignature_Fields(t *testing.T) {
 
 func TestInterfaceInfo_Structure(t *testing.T) {
 	iface := InterfaceInfo{
-		Name:        "Reader",
-		Description: "Reads data",
-		Purpose:     "Define reading behavior",
-		Methods:     []string{"Read", "Close"},
+		Name:    "Reader",
+		Purpose: "Define reading behavior",
+		Methods: []string{"Read", "Close"},
 	}
 
 	assert.Equal(t, "Reader", iface.Name)
@@ -85,10 +78,9 @@ func TestInterfaceInfo_Structure(t *testing.T) {
 
 func TestDataModelInfo_Structure(t *testing.T) {
 	model := DataModelInfo{
-		Name:        "User",
-		Description: "Represents a user",
-		Purpose:     "Store user data",
-		Fields:      []string{"ID", "Name", "Email"},
+		Name:    "User",
+		Purpose: "Store user data",
+		Fields:  []string{"ID", "Name", "Email"},
 	}
 
 	assert.Equal(t, "User", model.Name)
@@ -109,7 +101,6 @@ func TestCriticalModeOutput_Structure(t *testing.T) {
 	output := CriticalModeOutput{
 		OverallGrade: "B+",
 		Summary:      "Good code quality",
-		Issues:       []CodeIssue{},
 	}
 
 	assert.Equal(t, "B+", output.OverallGrade)
@@ -133,11 +124,9 @@ func TestCodeIssue_Structure(t *testing.T) {
 
 func TestReview_Structure(t *testing.T) {
 	review := Review{
-		Title:        "My Review",
-		CodeSource:   "github",
-		CreatedAt:    "2025-10-24T12:00:00Z",
-		LastAccessed: "2025-10-24T13:00:00Z",
-		ID:           1,
+		Title:      "My Review",
+		CodeSource: "github",
+		ID:         1,
 	}
 
 	assert.Equal(t, "My Review", review.Title)

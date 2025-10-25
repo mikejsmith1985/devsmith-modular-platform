@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
 // MockAuthService implements AuthService for testing

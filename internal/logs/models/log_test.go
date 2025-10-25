@@ -44,10 +44,9 @@ func TestLogEntry_ZeroValues(t *testing.T) {
 func TestLogEntry_DifferentLevels(t *testing.T) {
 	levels := []string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"}
 
-	for i, level := range levels {
+	for _, level := range levels {
 		entry := LogEntry{
 			Level: level,
-			ID:    int64(i),
 		}
 		assert.Equal(t, level, entry.Level)
 	}
@@ -56,10 +55,9 @@ func TestLogEntry_DifferentLevels(t *testing.T) {
 func TestLogEntry_DifferentServices(t *testing.T) {
 	services := []string{"portal", "review", "logs", "analytics"}
 
-	for i, service := range services {
+	for _, service := range services {
 		entry := LogEntry{
 			Service: service,
-			ID:      int64(i),
 		}
 		assert.Equal(t, service, entry.Service)
 	}
