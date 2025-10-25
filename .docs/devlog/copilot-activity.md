@@ -1731,3 +1731,21 @@ This reverts commit c601c361026dda70822ca9385dc133c2aa9d4209.
 
 ---
 
+
+## 2025-10-25 07:59 - docs: Add comprehensive Claude AI instructions
+**Branch:** development
+**Files Changed:**  2 files changed, 154 insertions(+)
+- `.claude-instructions.md`
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** docs: Add comprehensive Claude AI instructions
+
+**Commit:** `6f213ca`
+
+**Commit Message:**
+```
+docs: Add comprehensive Claude AI instructions
+```
+
+---
+
