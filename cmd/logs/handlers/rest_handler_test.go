@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// nolint:dupl // MockLogService implements LogService interface - dupl is expected
 type MockLogService struct {
 	InsertFn     func(ctx context.Context, entry map[string]interface{}) (int64, error)
 	QueryFn      func(ctx context.Context, filters map[string]interface{}, page map[string]int) ([]interface{}, error)

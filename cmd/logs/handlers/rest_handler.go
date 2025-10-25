@@ -11,6 +11,7 @@ import (
 )
 
 // LogService defines the interface for log operations.
+// nolint:dupl // Interface duplicated in mock for testing - expected pattern
 type LogService interface {
 	Insert(ctx context.Context, entry map[string]interface{}) (int64, error)
 	Query(ctx context.Context, filters map[string]interface{}, page map[string]int) ([]interface{}, error)
