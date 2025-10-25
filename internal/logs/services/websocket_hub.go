@@ -169,21 +169,25 @@ func (h *WebSocketHub) matchesFilters(client *Client, log *models.LogEntry) bool
 
 	// Check tags filter
 	if tagFilter, ok := client.Filters["tags"]; ok {
-		tagFound := false
-		if log.Tags != nil {
-			for _, tag := range log.Tags {
-				if tag == tagFilter {
-					tagFound = true
-					break
-				}
-			}
-		}
-		if !tagFound {
+		if !h.logHasTag(log, tagFilter) {
 			return false
 		}
 	}
 
 	return true
+}
+
+// logHasTag checks if a log entry contains a specific tag.
+func (h *WebSocketHub) logHasTag(log *models.LogEntry, tag string) bool {
+	if log.Tags == nil {
+		return false
+	}
+	for _, t := range log.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // isPublicLog checks if a log entry should be visible to unauthenticated users.
