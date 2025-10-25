@@ -1675,3 +1675,59 @@ Fixed docker validation failures by adding GET support to POST-only endpoints. T
 
 ---
 
+
+## 2025-10-25 07:35 - Merge development: Fix portal authentication and docker validation
+**Branch:** main
+**Files Changed:**  281 files changed, 66531 insertions(+), 103 deletions(-)
+- ``
+
+**Action:** Merge development: Fix portal authentication and docker validation
+
+**Commit:** `5a307ec`
+
+**Commit Message:**
+```
+Merge development: Fix portal authentication and docker validation
+```
+
+---
+
+
+## 2025-10-25 07:44 - docs: Add comprehensive Claude AI instructions
+**Branch:** development
+**Files Changed:**  1 file changed, 287 insertions(+)
+- `.claude-instructions.md`
+
+**Action:** docs: Add comprehensive Claude AI instructions
+
+**Commit:** `c601c36`
+
+**Commit Message:**
+```
+docs: Add comprehensive Claude AI instructions
+```
+
+---
+
+
+## 2025-10-25 07:54 - Revert "docs: Add comprehensive Claude AI instructions"
+**Branch:** development
+**Files Changed:**  1 file changed, 287 deletions(-)
+- `.claude-instructions.md`
+
+**Action:** Revert "docs: Add comprehensive Claude AI instructions"
+
+**Commit:** `18fa111`
+
+**Commit Message:**
+```
+Revert "docs: Add comprehensive Claude AI instructions"
+```
+
+**Details:**
+```
+This reverts commit c601c361026dda70822ca9385dc133c2aa9d4209.
+```
+
+---
+
