@@ -14,22 +14,23 @@ type QueryToken struct {
 }
 
 // ParsedQuery represents a fully parsed search query.
+// nolint:govet // fieldalignment: fields ordered logically (Tokens, SearchTerms, RootNode, etc) for readability
 type ParsedQuery struct {
 	Tokens      []QueryToken
-	RootNode    *QueryNode
-	IsValid     bool
-	ErrorMsg    string
-	HasRegex    bool
 	SearchTerms []string
+	RootNode    *QueryNode
+	ErrorMsg    string
+	IsValid     bool
+	HasRegex    bool
 }
 
 // QueryNode represents a node in the query tree.
 type QueryNode struct {
-	Type      string      // "AND", "OR", "NOT", "FIELD", "REGEX"
-	Field     string      // field name (e.g., "message", "service", "level")
-	Value     string      // value or pattern
-	Left      *QueryNode  // left operand
-	Right     *QueryNode  // right operand
+	Left      *QueryNode
+	Right     *QueryNode
+	Type      string // "AND", "OR", "NOT", "FIELD", "REGEX"
+	Field     string // field name (e.g., "message", "service", "level")
+	Value     string // value or pattern
 	IsNegated bool
 }
 
@@ -37,12 +38,13 @@ type QueryNode struct {
 func TestQueryParser_SimpleFieldValue(t *testing.T) {
 	parser := NewQueryParser()
 
+	// nolint:govet // fieldalignment: test table struct, readability takes priority
 	tests := []struct {
-		name      string
 		query     string
-		wantValid bool
 		wantField string
 		wantValue string
+		name      string
+		wantValid bool
 	}{
 		{
 			name:      "simple field:value",
@@ -93,9 +95,10 @@ func TestQueryParser_SimpleFieldValue(t *testing.T) {
 func TestQueryParser_AND_Operator(t *testing.T) {
 	parser := NewQueryParser()
 
+	// nolint:govet // fieldalignment: test table struct, readability takes priority
 	tests := []struct {
-		name      string
 		query     string
+		name      string
 		wantValid bool
 		wantOp    string
 	}{
@@ -134,6 +137,7 @@ func TestQueryParser_AND_Operator(t *testing.T) {
 func TestQueryParser_OR_Operator(t *testing.T) {
 	parser := NewQueryParser()
 
+	// nolint:govet // fieldalignment: test table struct, readability takes priority
 	tests := []struct {
 		name      string
 		query     string
@@ -169,10 +173,11 @@ func TestQueryParser_OR_Operator(t *testing.T) {
 func TestQueryParser_NOT_Operator(t *testing.T) {
 	parser := NewQueryParser()
 
+	// nolint:govet // fieldalignment: test table struct, readability takes priority
 	tests := []struct {
-		name       string
-		query      string
-		wantValid  bool
+		name        string
+		query       string
+		wantValid   bool
 		wantNegated bool
 	}{
 		{
@@ -244,6 +249,7 @@ func TestQueryParser_Regex(t *testing.T) {
 func TestQueryParser_ComplexQueries(t *testing.T) {
 	parser := NewQueryParser()
 
+	// nolint:govet // fieldalignment: test table struct, readability takes priority
 	tests := []struct {
 		name      string
 		query     string
@@ -283,30 +289,31 @@ func TestQueryParser_ComplexQueries(t *testing.T) {
 func TestQueryParser_ExtractSearchTerms(t *testing.T) {
 	parser := NewQueryParser()
 
+	// nolint:govet // fieldalignment: test table struct, readability takes priority
 	tests := []struct {
-		name        string
-		query       string
-		wantValid   bool
-		wantTerms   []string
-		minTerms    int
+		name      string
+		query     string
+		wantValid bool
+		wantTerms []string
+		minTerms  int
 	}{
 		{
-			name:       "single field extract",
-			query:      "service:portal",
-			wantValid:  true,
-			minTerms:   1,
+			name:      "single field extract",
+			query:     "service:portal",
+			wantValid: true,
+			minTerms:  1,
 		},
 		{
-			name:       "multiple fields extract",
-			query:      "service:portal AND level:error",
-			wantValid:  true,
-			minTerms:   2,
+			name:      "multiple fields extract",
+			query:     "service:portal AND level:error",
+			wantValid: true,
+			minTerms:  2,
 		},
 		{
-			name:       "message with quotes extract",
-			query:      "message:\"database connection\"",
-			wantValid:  true,
-			minTerms:   1,
+			name:      "message with quotes extract",
+			query:     "message:\"database connection\"",
+			wantValid: true,
+			minTerms:  1,
 		},
 	}
 

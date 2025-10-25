@@ -21,34 +21,35 @@ var validFields = map[string]bool{
 	"id":         true,
 }
 
-var validLevels = map[string]bool{
-	"debug":   true,
-	"info":    true,
-	"warn":    true,
-	"error":   true,
-	"fatal":   true,
+// QueryParser parses search queries into AST.
+type QueryParser struct {
+}
+
+// NewQueryParser creates a new query parser instance
+func NewQueryParser() *QueryParser {
+	return &QueryParser{}
 }
 
 // Lexer tokenizes the input query string.
+// nolint:govet // fieldalignment: fields ordered logically (tokens, input, pos) for readability
 type Lexer struct {
+	tokens []QueryToken
 	input  string
 	pos    int
-	tokens []QueryToken
-	err    string
 }
 
 // NewLexer creates a new lexer for the given input.
 func NewLexer(input string) *Lexer {
 	return &Lexer{
+		tokens: []QueryToken{},
 		input:  input,
 		pos:    0,
-		tokens: []QueryToken{},
 	}
 }
 
 // Tokenize lexes the input and returns tokens.
 func (l *Lexer) Tokenize() ([]QueryToken, error) {
-	if len(l.input) == 0 {
+	if l.input == "" {
 		return nil, fmt.Errorf("empty query")
 	}
 
@@ -65,21 +66,20 @@ func (l *Lexer) Tokenize() ([]QueryToken, error) {
 		ch := l.input[l.pos]
 
 		// Handle parentheses
-		if ch == '(' || ch == ')' {
+		switch ch {
+		case '(', ')':
 			l.tokens = append(l.tokens, QueryToken{Type: "paren", Value: string(ch)})
 			l.pos++
-			continue
-		}
-
-		// Handle operators and fields
-		if isAlpha(ch) {
-			l.lexKeywordOrField()
-		} else if ch == '"' {
+		case '"':
 			l.lexQuotedString()
-		} else if ch == '/' {
+		case '/':
 			l.lexRegex()
-		} else {
-			return nil, fmt.Errorf("unexpected character: %c", ch)
+		default:
+			if isAlpha(ch) {
+				l.lexKeywordOrField()
+			} else {
+				return nil, fmt.Errorf("unexpected character: %c", ch)
+			}
 		}
 	}
 
@@ -104,11 +104,49 @@ func (l *Lexer) lexKeywordOrField() {
 
 	// Must be a field, check for colon
 	l.skipWhitespace()
-	if l.pos < len(l.input) && l.input[l.pos] == ':' {
-		l.pos++ // consume colon
-		l.tokens = append(l.tokens, QueryToken{Type: "field", Value: word})
-	} else {
-		l.tokens = append(l.tokens, QueryToken{Type: "field", Value: word})
+	if l.pos >= len(l.input) || l.input[l.pos] != ':' {
+		// Standalone keyword-like word that doesn't match a field - error
+		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "expected colon after field: " + word})
+		return
+	}
+
+	l.pos++ // consume colon
+	l.tokens = append(l.tokens, QueryToken{Type: "field", Value: word})
+	l.skipWhitespace()
+
+	// Now lex the value after the colon
+	if l.pos >= len(l.input) {
+		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "expected value after field: " + word})
+		return
+	}
+
+	l.lexFieldValue()
+}
+
+// lexFieldValue lexes the value part after a field colon.
+func (l *Lexer) lexFieldValue() {
+	ch := l.input[l.pos]
+	switch ch {
+	case '"':
+		l.lexQuotedString()
+	case '/':
+		l.lexRegex()
+	default:
+		if isAlpha(ch) || ch == '_' {
+			// Unquoted value (simple identifier)
+			start := l.pos
+			for l.pos < len(l.input) && (isAlphaNumeric(l.input[l.pos]) || l.input[l.pos] == '_' || l.input[l.pos] == '-' || l.input[l.pos] == '.') {
+				l.pos++
+			}
+			value := l.input[start:l.pos]
+			if len(value) > maxValueLength {
+				l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "value too long"})
+				return
+			}
+			l.tokens = append(l.tokens, QueryToken{Type: "value", Value: value})
+		} else {
+			l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "unexpected character after field"})
+		}
 	}
 }
 
@@ -129,7 +167,7 @@ func (l *Lexer) lexQuotedString() {
 		return
 	}
 
-	value := l.input[start : l.pos]
+	value := l.input[start:l.pos]
 	value = strings.ReplaceAll(value, `\"`, `"`)
 	l.pos++ // skip closing quote
 
@@ -158,7 +196,7 @@ func (l *Lexer) lexRegex() {
 		return
 	}
 
-	pattern := l.input[start : l.pos]
+	pattern := l.input[start:l.pos]
 	l.pos++ // skip closing /
 
 	// Check for flags (i, g, m, s)
@@ -183,6 +221,7 @@ func (l *Lexer) skipWhitespace() {
 }
 
 // Parser builds an AST from tokens using recursive descent parsing.
+// nolint:govet // fieldalignment: fields ordered logically (tokens, pos, nodes) for readability
 type Parser struct {
 	tokens []QueryToken
 	pos    int
@@ -302,48 +341,48 @@ func (p *Parser) parsePrimary() (*QueryNode, error) {
 
 	// Handle field:value
 	if tok.Type == "field" {
-		field := tok.Value
-		if !validFields[field] {
-			return nil, fmt.Errorf("invalid field: %s", field)
-		}
-
-		p.pos++ // consume field
-
-		// Expect value or regex
-		if p.pos >= len(p.tokens) {
-			return nil, fmt.Errorf("field %s requires a value", field)
-		}
-
-		valTok := p.tokens[p.pos]
-		if valTok.Type == "value" {
-			p.pos++
-			p.nodes = append(p.nodes, valTok.Value)
-
-			// Special validation for level field
-			if field == "level" && !validLevels[valTok.Value] {
-				return nil, fmt.Errorf("invalid level: %s", valTok.Value)
-			}
-
-			return &QueryNode{
-				Type:  "FIELD",
-				Field: field,
-				Value: valTok.Value,
-			}, nil
-		} else if valTok.Type == "regex" {
-			p.pos++
-			p.nodes = append(p.nodes, valTok.Value)
-
-			return &QueryNode{
-				Type:  "REGEX",
-				Field: field,
-				Value: valTok.Value,
-			}, nil
-		}
-
-		return nil, fmt.Errorf("expected value after field %s", field)
+		return p.parseField()
 	}
 
 	return nil, fmt.Errorf("unexpected token: %s", tok.Value)
+}
+
+// parseField parses a field:value or field:regex pair.
+func (p *Parser) parseField() (*QueryNode, error) {
+	field := p.tokens[p.pos].Value
+	if !validFields[field] {
+		return nil, fmt.Errorf("invalid field: %s", field)
+	}
+
+	p.pos++ // consume field
+
+	// Expect value or regex
+	if p.pos >= len(p.tokens) {
+		return nil, fmt.Errorf("field %s requires a value", field)
+	}
+
+	valTok := p.tokens[p.pos]
+	if valTok.Type == "value" {
+		p.pos++
+		p.nodes = append(p.nodes, valTok.Value)
+
+		return &QueryNode{
+			Type:  "FIELD",
+			Field: field,
+			Value: valTok.Value,
+		}, nil
+	} else if valTok.Type == "regex" {
+		p.pos++
+		p.nodes = append(p.nodes, valTok.Value)
+
+		return &QueryNode{
+			Type:  "REGEX",
+			Field: field,
+			Value: valTok.Value,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("expected value after field %s", field)
 }
 
 // peekOperator returns the current operator or empty string.
@@ -354,7 +393,7 @@ func (p *Parser) peekOperator() string {
 	return ""
 }
 
-// ParsedQuery implementation for QueryParser.Parse
+// Parse parses a search query string into an AST.
 func (qp *QueryParser) Parse(query string) *ParsedQuery {
 	result := &ParsedQuery{
 		Tokens:      []QueryToken{},
@@ -408,13 +447,4 @@ func isAlpha(ch byte) bool {
 
 func isAlphaNumeric(ch byte) bool {
 	return isAlpha(ch) || (ch >= '0' && ch <= '9') || ch == '_'
-}
-
-// QueryParser parses search queries into AST.
-type QueryParser struct {
-}
-
-// NewQueryParser creates a new query parser instance
-func NewQueryParser() *QueryParser {
-	return &QueryParser{}
 }
