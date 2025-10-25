@@ -7,33 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// QueryToken represents a parsed token from a search query.
-type QueryToken struct {
-	Type  string // "field", "operator", "value", "paren"
-	Value string
-}
-
-// ParsedQuery represents a fully parsed search query.
-// nolint:govet // fieldalignment: fields ordered logically (Tokens, SearchTerms, RootNode, etc) for readability
-type ParsedQuery struct {
-	Tokens      []QueryToken
-	SearchTerms []string
-	RootNode    *QueryNode
-	ErrorMsg    string
-	IsValid     bool
-	HasRegex    bool
-}
-
-// QueryNode represents a node in the query tree.
-type QueryNode struct {
-	Left      *QueryNode
-	Right     *QueryNode
-	Type      string // "AND", "OR", "NOT", "FIELD", "REGEX"
-	Field     string // field name (e.g., "message", "service", "level")
-	Value     string // value or pattern
-	IsNegated bool
-}
-
 // TestQueryParser_SimpleFieldValue tests basic "field:value" queries
 func TestQueryParser_SimpleFieldValue(t *testing.T) {
 	parser := NewQueryParser()

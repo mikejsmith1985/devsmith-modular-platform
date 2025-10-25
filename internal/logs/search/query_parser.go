@@ -11,6 +11,17 @@ const (
 	maxQueryLength = 5000
 	maxFieldLength = 100
 	maxValueLength = 1000
+
+	operatorAND = "AND"
+	operatorOR  = "OR"
+	operatorNOT = "NOT"
+
+	tokenTypeOperator = "operator"
+	tokenTypeField    = "field"
+	tokenTypeValue    = "value"
+	tokenTypeParen    = "paren"
+	tokenTypeError    = "error"
+	tokenTypeRegex    = "regex"
 )
 
 var validFields = map[string]bool{
@@ -65,10 +76,9 @@ func (l *Lexer) Tokenize() ([]QueryToken, error) {
 
 		ch := l.input[l.pos]
 
-		// Handle parentheses
 		switch ch {
 		case '(', ')':
-			l.tokens = append(l.tokens, QueryToken{Type: "paren", Value: string(ch)})
+			l.tokens = append(l.tokens, QueryToken{Type: tokenTypeParen, Value: string(ch)})
 			l.pos++
 		case '"':
 			l.lexQuotedString()
@@ -97,8 +107,8 @@ func (l *Lexer) lexKeywordOrField() {
 	upper := strings.ToUpper(word)
 
 	// Check for operators
-	if upper == "AND" || upper == "OR" || upper == "NOT" {
-		l.tokens = append(l.tokens, QueryToken{Type: "operator", Value: upper})
+	if upper == operatorAND || upper == operatorOR || upper == operatorNOT {
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeOperator, Value: upper})
 		return
 	}
 
@@ -106,17 +116,17 @@ func (l *Lexer) lexKeywordOrField() {
 	l.skipWhitespace()
 	if l.pos >= len(l.input) || l.input[l.pos] != ':' {
 		// Standalone keyword-like word that doesn't match a field - error
-		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "expected colon after field: " + word})
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "expected colon after field: " + word})
 		return
 	}
 
 	l.pos++ // consume colon
-	l.tokens = append(l.tokens, QueryToken{Type: "field", Value: word})
+	l.tokens = append(l.tokens, QueryToken{Type: tokenTypeField, Value: word})
 	l.skipWhitespace()
 
 	// Now lex the value after the colon
 	if l.pos >= len(l.input) {
-		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "expected value after field: " + word})
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "expected value after field: " + word})
 		return
 	}
 
@@ -140,12 +150,12 @@ func (l *Lexer) lexFieldValue() {
 			}
 			value := l.input[start:l.pos]
 			if len(value) > maxValueLength {
-				l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "value too long"})
+				l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "value too long"})
 				return
 			}
-			l.tokens = append(l.tokens, QueryToken{Type: "value", Value: value})
+			l.tokens = append(l.tokens, QueryToken{Type: tokenTypeValue, Value: value})
 		} else {
-			l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "unexpected character after field"})
+			l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "unexpected character after field"})
 		}
 	}
 }
@@ -163,7 +173,7 @@ func (l *Lexer) lexQuotedString() {
 	}
 
 	if l.pos >= len(l.input) {
-		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "unterminated string"})
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "unterminated string"})
 		return
 	}
 
@@ -172,11 +182,11 @@ func (l *Lexer) lexQuotedString() {
 	l.pos++ // skip closing quote
 
 	if len(value) > maxValueLength {
-		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "value too long"})
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "value too long"})
 		return
 	}
 
-	l.tokens = append(l.tokens, QueryToken{Type: "value", Value: value})
+	l.tokens = append(l.tokens, QueryToken{Type: tokenTypeValue, Value: value})
 }
 
 // lexRegex lexes a regex pattern /.../
@@ -192,7 +202,7 @@ func (l *Lexer) lexRegex() {
 	}
 
 	if l.pos >= len(l.input) {
-		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "unterminated regex"})
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "unterminated regex"})
 		return
 	}
 
@@ -206,11 +216,11 @@ func (l *Lexer) lexRegex() {
 
 	// Validate regex
 	if _, err := regexp.Compile(pattern); err != nil {
-		l.tokens = append(l.tokens, QueryToken{Type: "error", Value: "invalid regex: " + err.Error()})
+		l.tokens = append(l.tokens, QueryToken{Type: tokenTypeError, Value: "invalid regex: " + err.Error()})
 		return
 	}
 
-	l.tokens = append(l.tokens, QueryToken{Type: "regex", Value: pattern})
+	l.tokens = append(l.tokens, QueryToken{Type: tokenTypeRegex, Value: pattern})
 }
 
 // skipWhitespace skips whitespace characters.
@@ -245,7 +255,7 @@ func (p *Parser) Parse() (*QueryNode, error) {
 
 	// Check for errors in token list
 	for _, tok := range p.tokens {
-		if tok.Type == "error" {
+		if tok.Type == tokenTypeError {
 			return nil, fmt.Errorf("token error: %s", tok.Value)
 		}
 	}
@@ -269,13 +279,13 @@ func (p *Parser) parseOR() (*QueryNode, error) {
 		return nil, err
 	}
 
-	for p.pos < len(p.tokens) && p.peekOperator() == "OR" {
+	for p.pos < len(p.tokens) && p.peekOperator() == operatorOR {
 		p.pos++ // consume OR
 		right, err := p.parseAND()
 		if err != nil {
 			return nil, err
 		}
-		left = &QueryNode{Type: "OR", Left: left, Right: right}
+		left = &QueryNode{Type: operatorOR, Left: left, Right: right}
 	}
 
 	return left, nil
@@ -288,13 +298,13 @@ func (p *Parser) parseAND() (*QueryNode, error) {
 		return nil, err
 	}
 
-	for p.pos < len(p.tokens) && p.peekOperator() == "AND" {
+	for p.pos < len(p.tokens) && p.peekOperator() == operatorAND {
 		p.pos++ // consume AND
 		right, err := p.parseNOT()
 		if err != nil {
 			return nil, err
 		}
-		left = &QueryNode{Type: "AND", Left: left, Right: right}
+		left = &QueryNode{Type: operatorAND, Left: left, Right: right}
 	}
 
 	return left, nil
@@ -302,7 +312,7 @@ func (p *Parser) parseAND() (*QueryNode, error) {
 
 // parseNOT parses NOT expressions (high precedence).
 func (p *Parser) parseNOT() (*QueryNode, error) {
-	if p.peekOperator() == "NOT" {
+	if p.peekOperator() == operatorNOT {
 		p.pos++ // consume NOT
 		node, err := p.parseNOT()
 		if err != nil {
@@ -324,14 +334,14 @@ func (p *Parser) parsePrimary() (*QueryNode, error) {
 	tok := p.tokens[p.pos]
 
 	// Handle parenthesized expressions
-	if tok.Type == "paren" && tok.Value == "(" {
+	if tok.Type == tokenTypeParen && tok.Value == "(" {
 		p.pos++ // consume (
 		node, err := p.parseOR()
 		if err != nil {
 			return nil, err
 		}
 
-		if p.pos >= len(p.tokens) || p.tokens[p.pos].Type != "paren" || p.tokens[p.pos].Value != ")" {
+		if p.pos >= len(p.tokens) || p.tokens[p.pos].Type != tokenTypeParen || p.tokens[p.pos].Value != ")" {
 			return nil, fmt.Errorf("missing closing parenthesis")
 		}
 		p.pos++ // consume )
@@ -340,7 +350,7 @@ func (p *Parser) parsePrimary() (*QueryNode, error) {
 	}
 
 	// Handle field:value
-	if tok.Type == "field" {
+	if tok.Type == tokenTypeField {
 		return p.parseField()
 	}
 
@@ -362,7 +372,7 @@ func (p *Parser) parseField() (*QueryNode, error) {
 	}
 
 	valTok := p.tokens[p.pos]
-	if valTok.Type == "value" {
+	if valTok.Type == tokenTypeValue {
 		p.pos++
 		p.nodes = append(p.nodes, valTok.Value)
 
@@ -371,7 +381,7 @@ func (p *Parser) parseField() (*QueryNode, error) {
 			Field: field,
 			Value: valTok.Value,
 		}, nil
-	} else if valTok.Type == "regex" {
+	} else if valTok.Type == tokenTypeRegex {
 		p.pos++
 		p.nodes = append(p.nodes, valTok.Value)
 
@@ -387,7 +397,7 @@ func (p *Parser) parseField() (*QueryNode, error) {
 
 // peekOperator returns the current operator or empty string.
 func (p *Parser) peekOperator() string {
-	if p.pos < len(p.tokens) && p.tokens[p.pos].Type == "operator" {
+	if p.pos < len(p.tokens) && p.tokens[p.pos].Type == tokenTypeOperator {
 		return p.tokens[p.pos].Value
 	}
 	return ""
