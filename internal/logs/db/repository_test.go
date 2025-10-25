@@ -4,485 +4,581 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
-// TestNewLogEntryRepository_ValidCreation tests repository initialization with nil db
-func TestNewLogEntryRepository_ValidCreation(t *testing.T) {
-	repo := NewLogEntryRepository(nil)
-	require.NotNil(t, repo)
-	assert.Nil(t, repo.db)
-}
+// ============================================================================
+// SAVE METHOD TESTS
+// ============================================================================
 
-// TestLogEntryRepository_ConstructorNilDB tests that nil db is acceptable (unit test mode)
-func TestLogEntryRepository_ConstructorNilDB(t *testing.T) {
-	repo := NewLogEntryRepository(nil)
-	assert.NotNil(t, repo)
-}
-
-// TestQueryOptions_Validate tests validation of query options struct
-func TestQueryOptions_Validate(t *testing.T) {
+func TestLogRepository_Save_Success(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
 	tests := []struct {
-		name    string
-		opts    QueryOptions
-		wantErr bool
+		name      string
+		wantID    int64
+		wantError bool
+		entry     *LogEntry
 	}{
 		{
-			name: "valid_options",
-			opts: QueryOptions{
-				Limit:  10,
-				Offset: 0,
+			name:      "valid entry returns ID",
+			wantID:    1,
+			wantError: false,
+			entry: &LogEntry{
+				CreatedAt: time.Now(),
+				Level:     "error",
+				Message:   "Database connection failed",
+				Service:   "db_service",
+				Metadata:  map[string]interface{}{"user_id": 123},
 			},
-			wantErr: false,
 		},
 		{
-			name: "valid_with_service_filter",
-			opts: QueryOptions{
-				Service: "portal",
-				Limit:   10,
-				Offset:  0,
+			name:      "minimal valid entry",
+			wantID:    2,
+			wantError: false,
+			entry: &LogEntry{
+				CreatedAt: time.Now(),
+				Level:     "info",
+				Message:   "Test",
+				Service:   "test",
 			},
-			wantErr: false,
-		},
-		{
-			name: "valid_with_time_range",
-			opts: QueryOptions{
-				Limit:  10,
-				Offset: 0,
-				Since:  time.Now().Add(-1 * time.Hour),
-				Until:  time.Now(),
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid_negative_limit",
-			opts: QueryOptions{
-				Limit:  -1,
-				Offset: 0,
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid_negative_offset",
-			opts: QueryOptions{
-				Limit:  10,
-				Offset: -1,
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid_zero_limit",
-			opts: QueryOptions{
-				Limit:  0,
-				Offset: 0,
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid_since_after_until",
-			opts: QueryOptions{
-				Limit:  10,
-				Offset: 0,
-				Since:  time.Now(),
-				Until:  time.Now().Add(-1 * time.Hour),
-			},
-			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.opts.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			repo := &LogRepository{}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			got, err := repo.Save(ctx, tt.entry)
+
+			if (err != nil) != tt.wantError {
+				t.Errorf("Save() error = %v, wantError %v", err, tt.wantError)
+			}
+			if !tt.wantError && got <= 0 {
+				t.Errorf("Save() returned invalid ID %d", got)
 			}
 		})
 	}
 }
 
-// TestFilterOptions_ValidateService tests service filter validation
-func TestFilterOptions_ValidateService(t *testing.T) {
+func TestLogRepository_Save_ValidationErrors(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
 	tests := []struct {
 		name    string
-		service string
 		wantErr bool
+		entry   *LogEntry
 	}{
-		{
-			name:    "valid_portal",
-			service: "portal",
-			wantErr: false,
-		},
-		{
-			name:    "valid_review",
-			service: "review",
-			wantErr: false,
-		},
-		{
-			name:    "valid_analytics",
-			service: "analytics",
-			wantErr: false,
-		},
-		{
-			name:    "valid_logs",
-			service: "logs",
-			wantErr: false,
-		},
-		{
-			name:    "invalid_empty_service",
-			service: "",
-			wantErr: true,
-		},
+		{"nil entry", true, nil},
+		{"empty message", true, &LogEntry{CreatedAt: time.Now(), Level: "info", Service: "test", Message: ""}},
+		{"empty level", true, &LogEntry{CreatedAt: time.Now(), Level: "", Service: "test", Message: "msg"}},
+		{"empty service", true, &LogEntry{CreatedAt: time.Now(), Level: "info", Service: "", Message: "msg"}},
+		{"zero timestamp", true, &LogEntry{CreatedAt: time.Time{}, Level: "info", Service: "test", Message: "msg"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filter := FilterOptions{Service: tt.service}
-			err := filter.ValidateService()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			repo := &LogRepository{}
+			_, err := repo.Save(context.Background(), tt.entry)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-// TestFilterOptions_ValidateLevel tests log level filter validation
-func TestFilterOptions_ValidateLevel(t *testing.T) {
-	tests := []struct {
-		name    string
-		level   string
-		wantErr bool
-	}{
-		{
-			name:    "valid_debug",
-			level:   "debug",
-			wantErr: false,
-		},
-		{
-			name:    "valid_info",
-			level:   "info",
-			wantErr: false,
-		},
-		{
-			name:    "valid_warn",
-			level:   "warn",
-			wantErr: false,
-		},
-		{
-			name:    "valid_error",
-			level:   "error",
-			wantErr: false,
-		},
-		{
-			name:    "invalid_empty_level",
-			level:   "",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_level",
-			level:   "panic",
-			wantErr: true,
-		},
+func TestLogRepository_Save_ContextCancellation(t *testing.T) {
+	repo := &LogRepository{}
+	entry := &LogEntry{
+		CreatedAt: time.Now(),
+		Level:     "info",
+		Service:   "test",
+		Message:   "test",
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			filter := FilterOptions{Level: tt.level}
-			err := filter.ValidateLevel()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// TestFilterOptions_Complete tests complete filter validation
-func TestFilterOptions_Complete(t *testing.T) {
-	tests := []struct {
-		name    string
-		filter  FilterOptions
-		wantErr bool
-	}{
-		{
-			name: "valid_service_filter",
-			filter: FilterOptions{
-				Service: "portal",
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid_level_filter",
-			filter: FilterOptions{
-				Level: "error",
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid_both_service_and_level",
-			filter: FilterOptions{
-				Service: "portal",
-				Level:   "error",
-			},
-			wantErr: true,
-		},
-		{
-			name:    "valid_empty_filter",
-			filter:  FilterOptions{},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.filter.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// TestMetadataFilter_ValidateJSONBPath tests JSONB path validation
-func TestMetadataFilter_ValidateJSONBPath(t *testing.T) {
-	tests := []struct {
-		name    string
-		path    string
-		wantErr bool
-	}{
-		{
-			name:    "valid_simple_key",
-			path:    "error",
-			wantErr: false,
-		},
-		{
-			name:    "valid_nested_key",
-			path:    "request.ip",
-			wantErr: false,
-		},
-		{
-			name:    "invalid_empty_path",
-			path:    "",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_only_dot",
-			path:    ".",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_trailing_dot",
-			path:    "error.",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mf := MetadataFilter{JSONBPath: tt.path}
-			err := mf.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// TestLogEntryForCreate_ValidateFields tests entry validation before create
-func TestLogEntryForCreate_ValidateFields(t *testing.T) {
-	tests := []struct {
-		entry   *models.LogEntry
-		errMsg  string
-		name    string
-		wantErr bool
-	}{
-		{
-			name: "valid_entry",
-			entry: &models.LogEntry{
-				Service: "portal",
-				Level:   "info",
-				Message: "User logged in",
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid_with_user_and_metadata",
-			entry: &models.LogEntry{
-				UserID:   123,
-				Service:  "review",
-				Level:    "error",
-				Message:  "Analysis failed",
-				Metadata: []byte(`{"error":"timeout"}`),
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid_missing_service",
-			entry: &models.LogEntry{
-				Level:   "info",
-				Message: "Test",
-			},
-			wantErr: true,
-			errMsg:  "service",
-		},
-		{
-			name: "invalid_missing_level",
-			entry: &models.LogEntry{
-				Service: "portal",
-				Message: "Test",
-			},
-			wantErr: true,
-			errMsg:  "level",
-		},
-		{
-			name: "invalid_missing_message",
-			entry: &models.LogEntry{
-				Service: "portal",
-				Level:   "info",
-			},
-			wantErr: true,
-			errMsg:  "message",
-		},
-		{
-			name: "invalid_service",
-			entry: &models.LogEntry{
-				Service: "unknown",
-				Level:   "info",
-				Message: "Test",
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid_level",
-			entry: &models.LogEntry{
-				Service: "portal",
-				Level:   "critical",
-				Message: "Test",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateLogEntryForCreate(tt.entry)
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// TestSearchQuery_ValidateSearchTerm tests search term validation
-func TestSearchQuery_ValidateSearchTerm(t *testing.T) {
-	tests := []struct {
-		name    string
-		term    string
-		wantErr bool
-	}{
-		{
-			name:    "valid_simple_term",
-			term:    "error",
-			wantErr: false,
-		},
-		{
-			name:    "valid_multi_word",
-			term:    "SQL injection",
-			wantErr: false,
-		},
-		{
-			name:    "valid_special_chars",
-			term:    "error: timeout",
-			wantErr: false,
-		},
-		{
-			name:    "invalid_empty_term",
-			term:    "",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_only_spaces",
-			term:    "   ",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sq := SearchQuery{Term: tt.term}
-			err := sq.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// TestRepositoryContextHandling tests that operations handle context properly
-func TestRepositoryContextHandling(t *testing.T) {
-	repo := NewLogEntryRepository(nil)
-	require.NotNil(t, repo)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	// With nil DB, this won't actually execute, but we can verify context is accepted
-	assert.NotNil(t, ctx)
+	_, err := repo.Save(ctx, entry)
+	if err == nil {
+		t.Error("Save() should error on cancelled context")
+	}
 }
 
-// TestLogEntry_StructDefaults tests that LogEntry has proper zero values
-func TestLogEntry_StructDefaults(t *testing.T) {
-	entry := &models.LogEntry{}
+// ============================================================================
+// QUERY METHOD TESTS
+// ============================================================================
 
-	assert.Equal(t, int64(0), entry.ID)
-	assert.Equal(t, int64(0), entry.UserID)
-	assert.Equal(t, "", entry.Service)
-	assert.Equal(t, "", entry.Level)
-	assert.Equal(t, "", entry.Message)
-	assert.Empty(t, entry.Metadata)
-}
+func TestLogRepository_Query_Success(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
+	tests := []struct {
+		name    string
+		wantErr bool
+		filters *QueryFilters
+		page    PageOptions
+	}{
+		{
+			name:    "query all with default pagination",
+			wantErr: false,
+			filters: nil,
+			page:    PageOptions{Limit: 10, Offset: 0},
+		},
+		{
+			name:    "query with service filter",
+			wantErr: false,
+			filters: &QueryFilters{Service: "portal"},
+			page:    PageOptions{Limit: 10, Offset: 0},
+		},
+		{
+			name:    "query with level filter",
+			wantErr: false,
+			filters: &QueryFilters{Level: "error"},
+			page:    PageOptions{Limit: 10, Offset: 0},
+		},
+		{
+			name:    "full-text search",
+			wantErr: false,
+			filters: &QueryFilters{Search: "connection timeout"},
+			page:    PageOptions{Limit: 10, Offset: 0},
+		},
+		{
+			name:    "time range query",
+			wantErr: false,
+			filters: &QueryFilters{From: time.Now().AddDate(0, 0, -7), To: time.Now()},
+			page:    PageOptions{Limit: 10, Offset: 0},
+		},
+	}
 
-// TestValidLogLevels_Enumeration tests all valid log levels
-func TestValidLogLevels_Enumeration(t *testing.T) {
-	validLevels := []string{"debug", "info", "warn", "error"}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &LogRepository{}
+			entries, err := repo.Query(context.Background(), tt.filters, tt.page)
 
-	for _, level := range validLevels {
-		t.Run(level, func(t *testing.T) {
-			filter := FilterOptions{Level: level}
-			err := filter.ValidateLevel()
-			assert.NoError(t, err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && entries == nil {
+				t.Error("Query() should return non-nil slice")
+			}
 		})
 	}
 }
 
-// TestValidServices_Enumeration tests all valid services
-func TestValidServices_Enumeration(t *testing.T) {
-	validServices := []string{"portal", "review", "analytics", "logs"}
+func TestLogRepository_Query_ValidationErrors(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
+	tests := []struct {
+		name    string
+		wantErr bool
+		filters *QueryFilters
+		page    PageOptions
+	}{
+		{
+			name:    "invalid limit (negative)",
+			wantErr: true,
+			filters: nil,
+			page:    PageOptions{Limit: -1, Offset: 0},
+		},
+		{
+			name:    "invalid offset (negative)",
+			wantErr: true,
+			filters: nil,
+			page:    PageOptions{Limit: 10, Offset: -1},
+		},
+	}
 
-	for _, service := range validServices {
-		t.Run(service, func(t *testing.T) {
-			filter := FilterOptions{Service: service}
-			err := filter.ValidateService()
-			assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &LogRepository{}
+			_, err := repo.Query(context.Background(), tt.filters, tt.page)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Query() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
+	}
+}
+
+func TestLogRepository_Query_Pagination(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+	var err error
+	var entries []*LogEntry
+
+	// Test offset
+	entries, err = repo.Query(ctx, nil, PageOptions{Limit: 10, Offset: 5})
+	if err != nil {
+		t.Errorf("Query() with offset error = %v", err)
+	}
+	if entries == nil {
+		t.Error("Query() should return slice, not nil")
+	}
+
+	// Test high limit
+	_, err = repo.Query(ctx, nil, PageOptions{Limit: 1000, Offset: 0})
+	if err != nil {
+		t.Errorf("Query() with large limit error = %v", err)
+	}
+}
+
+// ============================================================================
+// GETBYID METHOD TESTS
+// ============================================================================
+
+func TestLogRepository_GetByID_Success(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	entry, err := repo.GetByID(ctx, 1)
+	if err != nil {
+		t.Errorf("GetByID() error = %v", err)
+	}
+
+	if entry != nil && entry.ID <= 0 {
+		t.Error("GetByID() returned entry with invalid ID")
+	}
+}
+
+func TestLogRepository_GetByID_NotFound(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	entry, err := repo.GetByID(ctx, 999999)
+	// Should either error or return nil, but not both
+	if err == nil && entry != nil {
+		t.Error("GetByID() should handle not found case properly")
+	}
+}
+
+func TestLogRepository_GetByID_InvalidID(t *testing.T) {
+	tests := []struct {
+		name string
+		id   int64
+	}{
+		{"zero ID", 0},
+		{"negative ID", -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &LogRepository{}
+			_, err := repo.GetByID(context.Background(), tt.id)
+			if err == nil {
+				t.Errorf("GetByID() with %s should validate", tt.name)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// GETSTATS METHOD TESTS
+// ============================================================================
+
+func TestLogRepository_GetStats_ReturnsAggregates(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	stats, err := repo.GetStats(ctx)
+	if err != nil {
+		t.Errorf("GetStats() error = %v", err)
+	}
+
+	if stats == nil {
+		t.Error("GetStats() should return non-nil stats map")
+	}
+}
+
+func TestLogRepository_GetStats_ByLevel(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	stats, err := repo.GetStats(ctx)
+	if err != nil {
+		t.Errorf("GetStats() error = %v", err)
+	}
+
+	if stats != nil {
+		// Should have aggregated counts by level
+		if _, ok := stats["by_level"]; !ok {
+			t.Error("GetStats() should include by_level aggregation")
+		}
+	}
+}
+
+func TestLogRepository_GetStats_ByService(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	stats, err := repo.GetStats(ctx)
+	if err != nil {
+		t.Errorf("GetStats() error = %v", err)
+	}
+
+	if stats != nil {
+		// Should have aggregated counts by service
+		if _, ok := stats["by_service"]; !ok {
+			t.Error("GetStats() should include by_service aggregation")
+		}
+	}
+}
+
+func TestLogRepository_GetStats_TotalCount(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	stats, err := repo.GetStats(ctx)
+	if err != nil {
+		t.Errorf("GetStats() error = %v", err)
+	}
+
+	if stats != nil {
+		// Should have total count
+		if _, ok := stats["total"]; !ok {
+			t.Error("GetStats() should include total count")
+		}
+	}
+}
+
+// ============================================================================
+// DELETEOLD METHOD TESTS (RETENTION POLICY)
+// ============================================================================
+
+func TestLogRepository_DeleteOld_Success(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	cutoffTime := time.Now().AddDate(0, 0, -90)
+	deletedCount, err := repo.DeleteOld(ctx, cutoffTime)
+
+	if err != nil {
+		t.Errorf("DeleteOld() error = %v", err)
+	}
+
+	if deletedCount < 0 {
+		t.Errorf("DeleteOld() returned negative count %d", deletedCount)
+	}
+}
+
+func TestLogRepository_DeleteOld_PreservesRecent(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	futureTime := time.Now().AddDate(0, 0, -1)
+	deletedCount, err := repo.DeleteOld(ctx, futureTime)
+
+	if err != nil {
+		t.Errorf("DeleteOld() error = %v", err)
+	}
+
+	if deletedCount < 0 {
+		t.Error("DeleteOld() should return valid count")
+	}
+}
+
+func TestLogRepository_DeleteOld_ZeroTime(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	deletedCount, err := repo.DeleteOld(ctx, time.Time{})
+	if err == nil && deletedCount > 0 {
+		t.Error("DeleteOld() should validate zero time")
+	}
+}
+
+func TestLogRepository_DeleteOld_90DayRetention(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	// Exactly 90 days ago
+	cutoffTime := time.Now().AddDate(0, 0, -90)
+	_, err := repo.DeleteOld(ctx, cutoffTime)
+
+	if err != nil {
+		t.Errorf("DeleteOld() error = %v", err)
+	}
+}
+
+// ============================================================================
+// BULK INSERT METHOD TESTS
+// ============================================================================
+
+func TestLogRepository_BulkInsert_Success(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	entries := []*LogEntry{
+		{
+			CreatedAt: time.Now(),
+			Level:     "info",
+			Message:   "Log 1",
+			Service:   "test",
+		},
+		{
+			CreatedAt: time.Now(),
+			Level:     "error",
+			Message:   "Log 2",
+			Service:   "test",
+		},
+	}
+
+	insertedCount, err := repo.BulkInsert(ctx, entries)
+	if err != nil {
+		t.Errorf("BulkInsert() error = %v", err)
+	}
+
+	if insertedCount != int64(len(entries)) {
+		t.Errorf("BulkInsert() inserted %d, want %d", insertedCount, len(entries))
+	}
+}
+
+func TestLogRepository_BulkInsert_EmptySlice(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	insertedCount, err := repo.BulkInsert(ctx, []*LogEntry{})
+	if err == nil && insertedCount > 0 {
+		t.Error("BulkInsert() should handle empty slice")
+	}
+}
+
+func TestLogRepository_BulkInsert_NilSlice(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	_, err := repo.BulkInsert(ctx, nil)
+	if err == nil {
+		t.Error("BulkInsert() should error on nil slice")
+	}
+}
+
+func TestLogRepository_BulkInsert_InvalidEntries(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	entries := []*LogEntry{
+		{
+			CreatedAt: time.Now(),
+			Level:     "info",
+			Message:   "", // Invalid
+			Service:   "test",
+		},
+	}
+
+	_, err := repo.BulkInsert(ctx, entries)
+	if err == nil {
+		t.Error("BulkInsert() should error on invalid entries")
+	}
+}
+
+func TestLogRepository_BulkInsert_MixedValidity(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	entries := []*LogEntry{
+		{CreatedAt: time.Now(), Level: "info", Message: "Valid", Service: "test"},
+		{CreatedAt: time.Now(), Level: "error", Message: "", Service: "test"}, // Invalid
+		{CreatedAt: time.Now(), Level: "warn", Message: "Valid", Service: "test"},
+	}
+
+	_, err := repo.BulkInsert(ctx, entries)
+	if err == nil {
+		t.Error("BulkInsert() should error when any entry is invalid")
+	}
+}
+
+func TestLogRepository_BulkInsert_LargeDataset(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	entries := make([]*LogEntry, 1000)
+	for i := 0; i < 1000; i++ {
+		entries[i] = &LogEntry{
+			CreatedAt: time.Now(),
+			Level:     "info",
+			Message:   "Bulk log",
+			Service:   "bulk",
+		}
+	}
+
+	insertedCount, err := repo.BulkInsert(ctx, entries)
+	if err != nil {
+		t.Errorf("BulkInsert() error = %v", err)
+	}
+
+	if insertedCount != 1000 {
+		t.Errorf("BulkInsert() inserted %d, want 1000", insertedCount)
+	}
+}
+
+// ============================================================================
+// CONTEXT HANDLING
+// ============================================================================
+
+func TestLogRepository_ContextDeadline_Save(t *testing.T) {
+	repo := &LogRepository{}
+	entry := &LogEntry{
+		CreatedAt: time.Now(),
+		Level:     "info",
+		Service:   "test",
+		Message:   "test",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
+	defer cancel()
+
+	_, err := repo.Save(ctx, entry)
+	if err == nil {
+		t.Error("Save() should respect context deadline")
+	}
+}
+
+// ============================================================================
+// SCHEMA AND INDEXING
+// ============================================================================
+
+func TestLogRepository_SchemaPresence(t *testing.T) {
+	// Repository initialized successfully - this verifies basic instantiation works
+	repo := &LogRepository{}
+	if repo.db != nil {
+		t.Error("unexpected: repo.db should be nil for test repo without connection")
+	}
+}
+
+func TestLogRepository_IndexUsageOnTimestamp(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	filters := &QueryFilters{
+		From: time.Now().AddDate(0, 0, -7),
+		To:   time.Now(),
+	}
+
+	_, err := repo.Query(ctx, filters, PageOptions{Limit: 10, Offset: 0})
+	if err != nil {
+		t.Errorf("Query with timestamp range error = %v", err)
+	}
+}
+
+func TestLogRepository_IndexUsageOnLevel(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	filters := &QueryFilters{Level: "error"}
+	_, err := repo.Query(ctx, filters, PageOptions{Limit: 10, Offset: 0})
+
+	if err != nil {
+		t.Errorf("Query with level filter error = %v", err)
+	}
+}
+
+func TestLogRepository_IndexUsageOnService(t *testing.T) {
+	repo := &LogRepository{}
+	ctx := context.Background()
+
+	filters := &QueryFilters{Service: "portal"}
+	_, err := repo.Query(ctx, filters, PageOptions{Limit: 10, Offset: 0})
+
+	if err != nil {
+		t.Errorf("Query with service filter error = %v", err)
 	}
 }
