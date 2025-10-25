@@ -7,7 +7,7 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 - **Tech Stack**: Go 1.21+ with Templ templates, HTMX for interactivity, TailwindCSS + DaisyUI
 - **Database**: PostgreSQL 15+ with pgx driver, schema isolation per app
 - **Infrastructure**: Docker + Docker Compose, Nginx gateway, GitHub Actions CI/CD
-- **AI Integration**: Claude Code (architecture & planning), GitHub Copilot (implementation)
+- **AI Integration**: Claude Haiku for documentation cleanup and workflow creation & planning), Cursor/Copilot (implementation)
 
 ## Roles and Responsibilities
 
@@ -16,8 +16,8 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 - **Responsibilities**:
   - Define and prioritize features based on `Requirements.md`.
   - Create GitHub issues with clear, single-feature tasks and acceptance criteria using issue templates.
-  - **Trigger Claude Code** for architecture and planning sessions.
-  - **Implement features** using GitHub Copilot based on Claude's specs.
+  - **Trigger Claude Haiku for documentation cleanup and workflow creation and planning sessions.
+  - **Implement features** using Cursor/Copilot based on Claude's specs.
   - Review and test code as it's built.
   - Create pull requests and manage code reviews.
   - Merge approved PRs into the `development` branch and manage releases to `main`.
@@ -27,8 +27,8 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 - **Tools**:
   - GitHub for issue tracking, PR management, and repo operations.
   - GitHub Projects for sprint planning.
-  - Claude Code CLI for architecture sessions.
-  - GitHub Copilot in VS Code for implementation.
+  - Claude Haiku for documentation cleanup and workflow creation sessions.
+  - Cursor/Copilot in VS Code for implementation.
   - Git for version control.
 
 ### 2. Primary Architect and Planner (Claude Code)
@@ -83,7 +83,7 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
   - Recovery branches (`claude-recovery-YYYYMMDD`) with auto-commits
   - Session logs (`.claude/recovery-logs/`) for resuming work
 
-### 3. Primary Implementation Assistant (GitHub Copilot)
+### 3. Primary Implementation Assistant (Cursor/Copilot)
 - **Role**: **AI-powered code completion and generation** - assists Mike with 70-80% of development work.
 - **Responsibilities**:
   - **Generate code** based on specs from Claude.
@@ -149,8 +149,8 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
     - Light/dark mode compatibility (if applicable).
     - Responsive design for mobile/tablet (if applicable).
 - **Tools**:
-  - GitHub Copilot extension in VS Code.
-  - GitHub Copilot Chat for explanations and refactoring.
+  - Cursor/Copilot extension in VS Code.
+  - Cursor/Copilot Chat for explanations and refactoring.
   - Go toolchain: `go test`, `go build`, `air` (hot reload).
 - **Strengths**:
   - **Real-time assistance** - instant suggestions as Mike types.
