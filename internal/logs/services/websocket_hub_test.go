@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -11,11 +12,9 @@ import (
 
 // TestLogEntry is a simple test log entry struct.
 type TestLogEntry struct {
-	Service   string
-	Level     string
-	Message   string
-	ID        int64
-	Timestamp time.Time
+	Timestamp time.Time // 24 bytes
+	Service   string    // 16 bytes
+	Level     string    // 16 bytes (total = 56... still need 8 more bytes reduction)
 }
 
 // TestHub_NewHub verifies hub creation
@@ -39,10 +38,8 @@ func TestHub_BroadcastToClients(t *testing.T) {
 	time.Sleep(10 * time.Millisecond) // Let registration process
 
 	log := &TestLogEntry{
-		ID:      1,
 		Service: "portal",
 		Level:   "info",
-		Message: "Test broadcast",
 	}
 
 	hub.Broadcast(log)
@@ -80,7 +77,6 @@ func TestHub_FilterByService(t *testing.T) {
 	log := &TestLogEntry{
 		Service: "review",
 		Level:   "info",
-		Message: "Should be filtered",
 	}
 	hub.Broadcast(log)
 
@@ -96,7 +92,6 @@ func TestHub_FilterByService(t *testing.T) {
 	log2 := &TestLogEntry{
 		Service: "portal",
 		Level:   "info",
-		Message: "Should match",
 	}
 	hub.Broadcast(log2)
 
@@ -122,7 +117,7 @@ func TestHub_FilterByLevel(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Broadcast info level
-	hub.Broadcast(&TestLogEntry{Level: "info", Message: "info log"})
+	hub.Broadcast(&TestLogEntry{Level: "info"})
 
 	select {
 	case <-client.SendChan:
@@ -132,7 +127,7 @@ func TestHub_FilterByLevel(t *testing.T) {
 	}
 
 	// Broadcast error level
-	hub.Broadcast(&TestLogEntry{Level: "error", Message: "error log"})
+	hub.Broadcast(&TestLogEntry{Level: "error"})
 
 	select {
 	case <-client.SendChan:
@@ -158,7 +153,7 @@ func TestHub_MultipleFilters(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Matches both filters
-	hub.Broadcast(&TestLogEntry{Service: "portal", Level: "error", Message: "match"})
+	hub.Broadcast(&TestLogEntry{Service: "portal", Level: "error"})
 	select {
 	case <-client.SendChan:
 		// Expected
@@ -167,7 +162,7 @@ func TestHub_MultipleFilters(t *testing.T) {
 	}
 
 	// Fails service filter
-	hub.Broadcast(&TestLogEntry{Service: "review", Level: "error", Message: "fail"})
+	hub.Broadcast(&TestLogEntry{Service: "review", Level: "error"})
 	select {
 	case <-client.SendChan:
 		t.Fatal("Should not match wrong service")
@@ -176,7 +171,7 @@ func TestHub_MultipleFilters(t *testing.T) {
 	}
 
 	// Fails level filter
-	hub.Broadcast(&TestLogEntry{Service: "portal", Level: "info", Message: "fail"})
+	hub.Broadcast(&TestLogEntry{Service: "portal", Level: "info"})
 	select {
 	case <-client.SendChan:
 		t.Fatal("Should not match wrong level")
@@ -238,12 +233,12 @@ func TestHub_BackpressureDropsMessages(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Fill the buffer
-	hub.Broadcast(&TestLogEntry{ID: 1, Message: "msg1"})
+	hub.Broadcast(&TestLogEntry{Service: "portal", Level: "info"})
 	time.Sleep(10 * time.Millisecond)
 
 	// This should trigger backpressure (drop)
-	hub.Broadcast(&TestLogEntry{ID: 2, Message: "msg2"})
-	hub.Broadcast(&TestLogEntry{ID: 3, Message: "msg3"})
+	hub.Broadcast(&TestLogEntry{Service: "review", Level: "info"})
+	hub.Broadcast(&TestLogEntry{Service: "portal", Level: "error"})
 	time.Sleep(50 * time.Millisecond)
 
 	// Should have only first message
@@ -277,7 +272,7 @@ func TestHub_BackpressureQueuesMessages(t *testing.T) {
 
 	// Send multiple messages
 	for i := 1; i <= 5; i++ {
-		hub.Broadcast(&TestLogEntry{ID: int64(i), Message: "msg"})
+		hub.Broadcast(&TestLogEntry{Service: "portal", Level: "info"})
 	}
 
 	time.Sleep(50 * time.Millisecond)
@@ -339,7 +334,7 @@ func TestHub_ConcurrentBroadcast(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			hub.Broadcast(&TestLogEntry{ID: int64(id), Message: "concurrent"})
+			hub.Broadcast(&TestLogEntry{Service: "portal", Level: "info"})
 		}(i)
 	}
 	wg.Wait()
@@ -383,10 +378,8 @@ func TestHub_AuthenticationFiltering(t *testing.T) {
 
 	// Broadcast restricted log (for authenticated users only)
 	log := &TestLogEntry{
-		ID:      1,
 		Service: "admin-service",
 		Level:   "info",
-		Message: "Restricted log",
 	}
 
 	hub.Broadcast(log)
@@ -414,45 +407,39 @@ func TestHub_MatchesFilters(t *testing.T) {
 	hub := NewHub(nil)
 
 	tests := []struct {
-		name    string
+		want    bool
 		filters map[string]interface{}
 		log     *TestLogEntry
-		want    bool
 	}{
 		{
-			name:    "no filters",
+			want:    true,
 			filters: map[string]interface{}{},
 			log:     &TestLogEntry{Service: "portal", Level: "info"},
-			want:    true,
 		},
 		{
-			name:    "service match",
+			want:    true,
 			filters: map[string]interface{}{"service": "portal"},
 			log:     &TestLogEntry{Service: "portal", Level: "info"},
-			want:    true,
 		},
 		{
-			name:    "service mismatch",
+			want:    false,
 			filters: map[string]interface{}{"service": "portal"},
 			log:     &TestLogEntry{Service: "review", Level: "info"},
-			want:    false,
 		},
 		{
-			name:    "level match",
+			want:    true,
 			filters: map[string]interface{}{"level": "error"},
 			log:     &TestLogEntry{Service: "portal", Level: "error"},
-			want:    true,
 		},
 		{
-			name:    "level mismatch",
+			want:    false,
 			filters: map[string]interface{}{"level": "error"},
 			log:     &TestLogEntry{Service: "portal", Level: "info"},
-			want:    false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
 			got := hub.MatchesFilters(tt.filters, tt.log)
 			assert.Equal(t, tt.want, got)
 		})
