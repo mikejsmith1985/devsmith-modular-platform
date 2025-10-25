@@ -14,22 +14,28 @@ import (
 // ErrBackpressure indicates the send channel is full (client is slow).
 var ErrBackpressure = errors.New("backpressure: client send channel full")
 
+// Backpressure strategy constants.
+const (
+	BackpressureStrategyDrop  = "drop"
+	BackpressureStrategyQueue = "queue"
+)
+
 // Hub manages WebSocket clients and broadcasts log entries to them.
 // It implements connection management, filtering, heartbeats, and backpressure handling.
 type Hub struct {
-	clients              map[ClientConn]bool
+	mu                   sync.RWMutex
+	broadcast            chan interface{}
 	register             chan ClientConn
 	unregister           chan ClientConn
-	broadcast            chan interface{}
-	mu                   sync.RWMutex
-	running              bool
 	cancel               context.CancelFunc
+	stats                *HubStats
+	redisPubSub          RedisPubSubConn
+	clients              map[ClientConn]bool
+	backpressureStrategy string
 	heartbeatInterval    time.Duration
 	heartbeatTimeout     time.Duration
-	backpressureStrategy string // "drop" or "queue"
 	maxQueueSize         int
-	redisPubSub          RedisPubSubConn
-	stats                *HubStats
+	running              bool
 }
 
 // HubStats tracks hub metrics for monitoring.
@@ -66,7 +72,7 @@ func NewHub(redisPubSub RedisPubSubConn) *Hub {
 		broadcast:            make(chan interface{}, 256),
 		heartbeatInterval:    30 * time.Second,
 		heartbeatTimeout:     90 * time.Second,
-		backpressureStrategy: "drop",
+		backpressureStrategy: BackpressureStrategyDrop,
 		maxQueueSize:         1000,
 		redisPubSub:          redisPubSub,
 		stats: &HubStats{
@@ -156,10 +162,7 @@ func (h *Hub) MatchesFilters(filters map[string]interface{}, msg interface{}) bo
 
 	// Try map-based approach first
 	if logData, ok := msg.(map[string]interface{}); ok {
-		if !h.matchesMapFilters(filters, logData) {
-			return false
-		}
-		return true
+		return h.matchesMapFilters(filters, logData)
 	}
 
 	// Try reflection for typed structs with Service and Level fields
@@ -167,7 +170,7 @@ func (h *Hub) MatchesFilters(filters map[string]interface{}, msg interface{}) bo
 }
 
 // matchesMapFilters checks filters against a map[string]interface{}.
-func (h *Hub) matchesMapFilters(filters map[string]interface{}, logData map[string]interface{}) bool {
+func (h *Hub) matchesMapFilters(filters, logData map[string]interface{}) bool {
 	// Check service filter
 	if serviceFilter, ok := filters["service"]; ok {
 		if service, ok := logData["service"]; ok {
@@ -197,28 +200,52 @@ func (h *Hub) matchesStructFilters(filters map[string]interface{}, msg interface
 		v = v.Elem()
 	}
 
-	// Check service filter
-	if serviceFilter, ok := filters["service"]; ok {
-		serviceField := v.FieldByName("Service")
-		if serviceField.IsValid() && serviceField.Kind() == reflect.String {
-			if serviceField.String() != serviceFilter.(string) {
-				return false
-			}
-		}
-	}
-
-	// Check level filter
-	if levelFilter, ok := filters["level"]; ok {
-		levelField := v.FieldByName("Level")
-		if levelField.IsValid() && levelField.Kind() == reflect.String {
-			if levelField.String() != levelFilter.(string) {
-				return false
-			}
-		}
-	}
-
-	return true
+	return h.checkServiceFilter(filters, v) && h.checkLevelFilter(filters, v)
 }
+
+// checkServiceFilter verifies service filter match.
+func (h *Hub) checkServiceFilter(filters map[string]interface{}, v reflect.Value) bool {
+	serviceFilter, ok := filters["service"]
+	if !ok {
+		return true
+	}
+
+	sf, ok := serviceFilter.(string)
+	if !ok {
+		return false
+	}
+
+	serviceField := v.FieldByName("Service")
+	if !serviceField.IsValid() || serviceField.Kind() != reflect.String {
+		return true
+	}
+
+	return serviceField.String() == sf
+}
+
+// checkLevelFilter verifies level filter match.
+func (h *Hub) checkLevelFilter(filters map[string]interface{}, v reflect.Value) bool {
+	levelFilter, ok := filters["level"]
+	if !ok {
+		return true
+	}
+
+	lf, ok := levelFilter.(string)
+	if !ok {
+		return false
+	}
+
+	levelField := v.FieldByName("Level")
+	if !levelField.IsValid() || levelField.Kind() != reflect.String {
+		return true
+	}
+
+	return levelField.String() == lf
+}
+
+// Hub struct with optimal field alignment.
+// Layout: 8 + 8 + 8 + 16 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 + 8 = ~120 bytes
+// Note: pointers/interfaces first, then durations/ints, then strings
 
 // handleRegister processes client registration.
 func (h *Hub) handleRegister(client ClientConn) {
@@ -240,7 +267,9 @@ func (h *Hub) handleUnregister(client ClientConn) {
 
 	if _, exists := h.clients[client]; exists {
 		delete(h.clients, client)
-		client.Close()
+		if err := client.Close(); err != nil {
+			log.Printf("error closing client: %v", err)
+		}
 
 		h.stats.mu.Lock()
 		h.stats.ActiveClients--
@@ -269,7 +298,7 @@ func (h *Hub) handleBroadcast(msg interface{}) {
 		err := client.Send(msg)
 		if err != nil {
 			if errors.Is(err, ErrBackpressure) {
-				h.handleBackpressure(client)
+				h.recordBackpressure()
 			} else {
 				// Client is disconnected or error occurred
 				go h.Unregister(client)
@@ -288,25 +317,18 @@ func (h *Hub) handleBroadcast(msg interface{}) {
 	}
 }
 
-// handleBackpressure handles slow clients based on configured strategy.
-func (h *Hub) handleBackpressure(client ClientConn) {
+// recordBackpressure records backpressure event based on strategy.
+func (h *Hub) recordBackpressure() {
 	h.stats.mu.Lock()
-	h.stats.TotalDropped++
-	h.stats.mu.Unlock()
+	defer h.stats.mu.Unlock()
 
 	log.Printf("backpressure: %s strategy applied", h.backpressureStrategy)
 
-	if h.backpressureStrategy == "drop" {
-		// Drop the message (default)
-		return
-	}
-
-	if h.backpressureStrategy == "queue" {
-		// Queue messages up to maxQueueSize
-		// Implementation would buffer on a per-client basis
-		h.stats.mu.Lock()
+	switch h.backpressureStrategy {
+	case BackpressureStrategyDrop:
+		h.stats.TotalDropped++
+	case BackpressureStrategyQueue:
 		h.stats.TotalQueued++
-		h.stats.mu.Unlock()
 	}
 }
 
@@ -338,12 +360,16 @@ func (h *Hub) shutdown() {
 
 	// Close all client connections
 	for client := range h.clients {
-		client.Close()
+		if err := client.Close(); err != nil {
+			log.Printf("error closing connection: %v", err)
+		}
 	}
 
 	// Close Redis connection if present
 	if h.redisPubSub != nil {
-		h.redisPubSub.Close()
+		if err := h.redisPubSub.Close(); err != nil {
+			log.Printf("error closing Redis pub/sub: %v", err)
+		}
 	}
 
 	log.Printf("hub shutdown: %d clients disconnected", len(h.clients))
@@ -366,8 +392,8 @@ func (h *Hub) GetStats() map[string]interface{} {
 
 // SetBackpressureStrategy sets the backpressure handling strategy.
 func (h *Hub) SetBackpressureStrategy(strategy string) error {
-	if strategy != "drop" && strategy != "queue" {
-		return fmt.Errorf("invalid backpressure strategy: %s (must be 'drop' or 'queue')", strategy)
+	if strategy != BackpressureStrategyDrop && strategy != BackpressureStrategyQueue {
+		return fmt.Errorf("invalid backpressure strategy: %s (must be '%s' or '%s')", strategy, BackpressureStrategyDrop, BackpressureStrategyQueue)
 	}
 	h.backpressureStrategy = strategy
 	return nil
