@@ -16,11 +16,9 @@ func TestAggregation_Structure(t *testing.T) {
 	now := time.Now()
 	agg := Aggregation{
 		TimeBucket: now,
-		CreatedAt:  now,
 		MetricType: ErrorFrequency,
 		Service:    "portal",
 		Value:      42.5,
-		ID:         1,
 	}
 
 	assert.Equal(t, now, agg.TimeBucket)
@@ -38,12 +36,13 @@ func TestTrend_Structure(t *testing.T) {
 		MetricType: ServiceActivity,
 		Service:    "review",
 		Direction:  "increasing",
-		ID:         1,
 		Confidence: 0.95,
 	}
 
 	assert.Equal(t, start, trend.StartTime)
 	assert.Equal(t, end, trend.EndTime)
+	assert.Equal(t, ServiceActivity, trend.MetricType)
+	assert.Equal(t, "review", trend.Service)
 	assert.Equal(t, "increasing", trend.Direction)
 }
 
@@ -51,17 +50,18 @@ func TestAnomaly_Structure(t *testing.T) {
 	now := time.Now()
 	anomaly := Anomaly{
 		TimeBucket: now,
-		DetectedAt: now,
 		MetricType: ErrorFrequency,
 		Service:    "logs",
 		Severity:   "high",
-		ID:         1,
 		Value:      100.5,
 		ZScore:     3.2,
 	}
 
 	assert.Equal(t, now, anomaly.TimeBucket)
+	assert.Equal(t, ErrorFrequency, anomaly.MetricType)
+	assert.Equal(t, "logs", anomaly.Service)
 	assert.Equal(t, "high", anomaly.Severity)
+	assert.Equal(t, 100.5, anomaly.Value)
 	assert.Equal(t, 3.2, anomaly.ZScore)
 }
 
@@ -72,7 +72,6 @@ func TestLogEntry_Structure(t *testing.T) {
 		Service:   "analytics",
 		Level:     "ERROR",
 		Message:   "Test message",
-		ID:        1,
 	}
 
 	assert.Equal(t, now, entry.CreatedAt)
