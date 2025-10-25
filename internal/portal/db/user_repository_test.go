@@ -12,8 +12,14 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("postgres", "postgres://devsmith:devsmith@localhost:5432/devsmith_test?sslmode=disable")
 	if err != nil {
-		t.Fatalf("failed to connect to test db: %v", err)
+		t.Skipf("skipping: failed to connect to test db: %v", err)
 	}
+
+	// Ping to verify connection
+	if err := db.Ping(); err != nil {
+		t.Skipf("skipping: test database not available: %v", err)
+	}
+
 	return db
 }
 

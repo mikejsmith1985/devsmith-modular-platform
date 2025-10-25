@@ -1,0 +1,31 @@
+package components
+
+import "fmt"
+
+templ AnomalyCard(anomaly Anomaly) {
+	<div class={ "anomaly-card", anomaly.Severity }>
+		<div class="anomaly-header">
+			<span class={ "severity-badge", anomaly.Severity }>{ anomaly.Severity }</span>
+			<span class="anomaly-time">{ anomaly.DetectedAt }</span>
+		</div>
+		<div class="anomaly-content">
+			<h4>{ anomaly.Metric }</h4>
+			<p class="anomaly-description">{ anomaly.Description }</p>
+			<div class="anomaly-stats">
+				<span>Expected: { fmt.Sprintf("%.2f", anomaly.ExpectedValue) }</span>
+				<span>Actual: { fmt.Sprintf("%.2f", anomaly.ActualValue) }</span>
+				<span>Deviation: { fmt.Sprintf("%.1f", anomaly.Deviation) }σ</span>
+			</div>
+		</div>
+	</div>
+}
+
+type Anomaly struct {
+	Severity      string
+	DetectedAt    string
+	Metric        string
+	Description   string
+	ExpectedValue float64
+	ActualValue   float64
+	Deviation     float64
+}
