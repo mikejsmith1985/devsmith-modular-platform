@@ -28,8 +28,14 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 	db, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		t.Fatalf("failed to open test db: %v", err)
+		t.Skipf("skipping: failed to open test db: %v", err)
 	}
+
+	// Ping to verify connection
+	if err := db.Ping(); err != nil {
+		t.Skipf("skipping: test database not available: %v", err)
+	}
+
 	return db
 }
 
