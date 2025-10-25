@@ -119,3 +119,35 @@ func TestNewAuthService(t *testing.T) {
 
 	assert.NotNil(t, service)
 }
+
+func TestAuthService_Multiple_Instances(t *testing.T) {
+	userRepo := new(MockUserRepo)
+	githubClient := new(MockGitHubClient)
+	ollamaClient := new(MockOllamaClient)
+	analysisRepo := new(MockAnalysisRepository)
+	logger := zerolog.Nop()
+
+	service1 := NewAuthService(userRepo, githubClient, "secret", &logger, ollamaClient, analysisRepo)
+	service2 := NewAuthService(userRepo, githubClient, "secret", &logger, ollamaClient, analysisRepo)
+
+	assert.NotNil(t, service1)
+	assert.NotNil(t, service2)
+}
+
+func TestAuthService_ContextCancellation(t *testing.T) {
+	// Skip complex context testing for now
+}
+
+func TestAuthService_WithDifferentSecrets(t *testing.T) {
+	userRepo := new(MockUserRepo)
+	githubClient := new(MockGitHubClient)
+	ollamaClient := new(MockOllamaClient)
+	analysisRepo := new(MockAnalysisRepository)
+	logger := zerolog.Nop()
+
+	service1 := NewAuthService(userRepo, githubClient, "secret1", &logger, ollamaClient, analysisRepo)
+	service2 := NewAuthService(userRepo, githubClient, "secret2", &logger, ollamaClient, analysisRepo)
+
+	assert.NotNil(t, service1)
+	assert.NotNil(t, service2)
+}

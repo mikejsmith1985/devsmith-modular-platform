@@ -130,7 +130,7 @@ func TestAuthRoutes_LoginRedirect_ValidGitHubURL(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	location := w.Header().Get("Location")
-	assert.True(t, len(location) > 0, "Location header is empty")
+	assert.True(t, location != "", "Location header is empty")
 	assert.Contains(t, location, "github.com")
 	assert.Contains(t, location, "https://")
 }
