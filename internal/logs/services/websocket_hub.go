@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -16,28 +17,28 @@ var ErrBackpressure = errors.New("backpressure: client send channel full")
 // Hub manages WebSocket clients and broadcasts log entries to them.
 // It implements connection management, filtering, heartbeats, and backpressure handling.
 type Hub struct {
-	clients               map[ClientConn]bool
-	register              chan ClientConn
-	unregister            chan ClientConn
-	broadcast             chan interface{}
-	mu                    sync.RWMutex
-	running               bool
-	cancel                context.CancelFunc
-	heartbeatInterval     time.Duration
-	heartbeatTimeout      time.Duration
-	backpressureStrategy  string // "drop" or "queue"
-	maxQueueSize          int
-	redisPubSub           RedisPubSubConn
-	stats                 *HubStats
+	clients              map[ClientConn]bool
+	register             chan ClientConn
+	unregister           chan ClientConn
+	broadcast            chan interface{}
+	mu                   sync.RWMutex
+	running              bool
+	cancel               context.CancelFunc
+	heartbeatInterval    time.Duration
+	heartbeatTimeout     time.Duration
+	backpressureStrategy string // "drop" or "queue"
+	maxQueueSize         int
+	redisPubSub          RedisPubSubConn
+	stats                *HubStats
 }
 
 // HubStats tracks hub metrics for monitoring.
 type HubStats struct {
-	TotalBroadcasts  int64
-	TotalDropped     int64
-	TotalQueued      int64
-	ActiveClients    int
-	mu               sync.RWMutex
+	TotalBroadcasts int64
+	TotalDropped    int64
+	TotalQueued     int64
+	ActiveClients   int
+	mu              sync.RWMutex
 }
 
 // ClientConn represents a WebSocket client connection.
@@ -153,46 +154,67 @@ func (h *Hub) MatchesFilters(filters map[string]interface{}, msg interface{}) bo
 		return true
 	}
 
-	// Type assert to check fields (works with any struct with Service/Level fields)
-	// For simplicity, we'll use a map-based approach
-	logData, ok := msg.(map[string]interface{})
-	if ok {
-		// Check service filter
-		if serviceFilter, ok := filters["service"]; ok {
-			if service, ok := logData["service"]; ok {
-				if service != serviceFilter {
-					return false
-				}
-			}
+	// Try map-based approach first
+	if logData, ok := msg.(map[string]interface{}); ok {
+		if !h.matchesMapFilters(filters, logData) {
+			return false
 		}
-
-		// Check level filter
-		if levelFilter, ok := filters["level"]; ok {
-			if level, ok := logData["level"]; ok {
-				if level != levelFilter {
-					return false
-				}
-			}
-		}
-
 		return true
 	}
 
-	// Try reflection for typed structs
-	// For TestLogEntry: check Service and Level fields
-	switch v := msg.(type) {
-	case *TestLogEntry:
-		if serviceFilter, ok := filters["service"]; ok {
-			if v.Service != serviceFilter.(string) {
+	// Try reflection for typed structs with Service and Level fields
+	return h.matchesStructFilters(filters, msg)
+}
+
+// matchesMapFilters checks filters against a map[string]interface{}.
+func (h *Hub) matchesMapFilters(filters map[string]interface{}, logData map[string]interface{}) bool {
+	// Check service filter
+	if serviceFilter, ok := filters["service"]; ok {
+		if service, ok := logData["service"]; ok {
+			if service != serviceFilter {
 				return false
 			}
 		}
-		if levelFilter, ok := filters["level"]; ok {
-			if v.Level != levelFilter.(string) {
+	}
+
+	// Check level filter
+	if levelFilter, ok := filters["level"]; ok {
+		if level, ok := logData["level"]; ok {
+			if level != levelFilter {
 				return false
 			}
 		}
-		return true
+	}
+
+	return true
+}
+
+// matchesStructFilters checks filters against a struct by reflection.
+func (h *Hub) matchesStructFilters(filters map[string]interface{}, msg interface{}) bool {
+	// Extract service and level using reflection (generic approach)
+	v := reflect.ValueOf(msg)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// Check service filter
+	if serviceFilter, ok := filters["service"]; ok {
+		serviceField := v.FieldByName("Service")
+		if serviceField.IsValid() && serviceField.Kind() == reflect.String {
+			if serviceField.String() != serviceFilter.(string) {
+				return false
+			}
+		}
+	}
+
+	// Check level filter
+	if levelFilter, ok := filters["level"]; ok {
+		levelField := v.FieldByName("Level")
+		if levelField.IsValid() && levelField.Kind() == reflect.String {
+			if levelField.String() != levelFilter.(string) {
+				return false
+			}
+		}
 	}
 
 	return true
@@ -333,11 +355,11 @@ func (h *Hub) GetStats() map[string]interface{} {
 	defer h.stats.mu.RUnlock()
 
 	return map[string]interface{}{
-		"active_clients":   h.stats.ActiveClients,
-		"total_broadcasts": h.stats.TotalBroadcasts,
-		"total_dropped":    h.stats.TotalDropped,
-		"total_queued":     h.stats.TotalQueued,
-		"heartbeat_interval": h.heartbeatInterval.String(),
+		"active_clients":        h.stats.ActiveClients,
+		"total_broadcasts":      h.stats.TotalBroadcasts,
+		"total_dropped":         h.stats.TotalDropped,
+		"total_queued":          h.stats.TotalQueued,
+		"heartbeat_interval":    h.heartbeatInterval.String(),
 		"backpressure_strategy": h.backpressureStrategy,
 	}
 }

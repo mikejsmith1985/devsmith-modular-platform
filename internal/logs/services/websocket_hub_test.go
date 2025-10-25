@@ -477,12 +477,12 @@ type TestClient struct {
 func NewTestClient(t *testing.T) *TestClient {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TestClient{
-		SendChan:       make(chan interface{}, 256),
-		Filters:        make(map[string]interface{}),
-		ctx:            ctx,
-		cancel:         cancel,
-		lastHeartbeat:  time.Now(),
-		pongReceived:   true,
+		SendChan:      make(chan interface{}, 256),
+		Filters:       make(map[string]interface{}),
+		ctx:           ctx,
+		cancel:        cancel,
+		lastHeartbeat: time.Now(),
+		pongReceived:  true,
 	}
 }
 
