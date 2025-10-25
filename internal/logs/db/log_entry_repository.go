@@ -1,4 +1,4 @@
-// Package db provides database access for log entries.
+// Package db provides database access and repository implementations for log entries.
 package db
 
 import (
@@ -6,9 +6,156 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
+
+// QueryOptions holds options for querying log entries
+type QueryOptions struct {
+	Since   time.Time
+	Until   time.Time
+	Service string
+	Limit   int
+	Offset  int
+}
+
+// Validate validates query options
+func (q *QueryOptions) Validate() error {
+	if q.Limit <= 0 {
+		return fmt.Errorf("db: limit must be positive")
+	}
+	if q.Offset < 0 {
+		return fmt.Errorf("db: offset cannot be negative")
+	}
+	if !q.Since.IsZero() && !q.Until.IsZero() && q.Since.After(q.Until) {
+		return fmt.Errorf("db: since must be before until")
+	}
+	return nil
+}
+
+// FilterOptions holds filter criteria for log queries
+type FilterOptions struct {
+	Service string
+	Level   string
+}
+
+// Validate validates filter options (can only specify one filter type)
+func (f *FilterOptions) Validate() error {
+	if f.Service != "" && f.Level != "" {
+		return fmt.Errorf("db: cannot filter by both service and level")
+	}
+	if f.Service != "" {
+		return f.ValidateService()
+	}
+	if f.Level != "" {
+		return f.ValidateLevel()
+	}
+	return nil
+}
+
+// ValidateService validates service name
+func (f *FilterOptions) ValidateService() error {
+	if f.Service == "" {
+		return fmt.Errorf("db: service cannot be empty")
+	}
+	validServices := map[string]bool{
+		"portal":    true,
+		"review":    true,
+		"analytics": true,
+		"logs":      true,
+	}
+	if !validServices[f.Service] {
+		return fmt.Errorf("db: invalid service '%s'", f.Service)
+	}
+	return nil
+}
+
+// ValidateLevel validates log level
+func (f *FilterOptions) ValidateLevel() error {
+	if f.Level == "" {
+		return fmt.Errorf("db: level cannot be empty")
+	}
+	validLevels := map[string]bool{
+		"debug": true,
+		"info":  true,
+		"warn":  true,
+		"error": true,
+	}
+	if !validLevels[f.Level] {
+		return fmt.Errorf("db: invalid level '%s'", f.Level)
+	}
+	return nil
+}
+
+// MetadataFilter holds JSONB metadata filter criteria
+type MetadataFilter struct {
+	Value     interface{}
+	JSONBPath string
+}
+
+// Validate validates metadata filter
+func (m *MetadataFilter) Validate() error {
+	if m.JSONBPath == "" {
+		return fmt.Errorf("db: jsonb path cannot be empty")
+	}
+	if m.JSONBPath == "." || strings.HasSuffix(m.JSONBPath, ".") {
+		return fmt.Errorf("db: invalid jsonb path format")
+	}
+	return nil
+}
+
+// SearchQuery holds search parameters
+type SearchQuery struct {
+	Term string
+}
+
+// Validate validates search query
+func (s *SearchQuery) Validate() error {
+	if strings.TrimSpace(s.Term) == "" {
+		return fmt.Errorf("db: search term cannot be empty")
+	}
+	return nil
+}
+
+// ValidateLogEntryForCreate validates a log entry before creation
+func ValidateLogEntryForCreate(entry *models.LogEntry) error {
+	if entry == nil {
+		return fmt.Errorf("db: log entry cannot be nil")
+	}
+	if entry.Service == "" {
+		return fmt.Errorf("db: service is required")
+	}
+	if entry.Level == "" {
+		return fmt.Errorf("db: level is required")
+	}
+	if entry.Message == "" {
+		return fmt.Errorf("db: message is required")
+	}
+
+	validServices := map[string]bool{
+		"portal":    true,
+		"review":    true,
+		"analytics": true,
+		"logs":      true,
+	}
+	if !validServices[entry.Service] {
+		return fmt.Errorf("db: invalid service '%s'", entry.Service)
+	}
+
+	validLevels := map[string]bool{
+		"debug": true,
+		"info":  true,
+		"warn":  true,
+		"error": true,
+	}
+	if !validLevels[entry.Level] {
+		return fmt.Errorf("db: invalid level '%s'", entry.Level)
+	}
+
+	return nil
+}
 
 // LogEntryRepository handles CRUD operations for log entries.
 type LogEntryRepository struct {

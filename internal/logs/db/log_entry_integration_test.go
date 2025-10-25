@@ -96,11 +96,11 @@ func TestIntegration_LogEntryRepository_Create(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	entry := &models.LogEntry{
-		UserID:    1,
-		Service:   "portal",
-		Level:     "info",
-		Message:   "User logged in",
-		Metadata:  []byte(`{"ip": "192.168.1.1"}`),
+		UserID:   1,
+		Service:  "portal",
+		Level:    "info",
+		Message:  "User logged in",
+		Metadata: []byte(`{"ip": "192.168.1.1"}`),
 	}
 
 	created, err := repo.Create(ctx, entry)
