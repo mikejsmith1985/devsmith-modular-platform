@@ -1,0 +1,128 @@
+================================================================================
+DETAILED FILE-BY-FILE CLEANUP LIST
+================================================================================
+
+HIGH PRIORITY - LIKELY DELETABLE:
+================================================================================
+
+1. ./cmd/portal/templates/
+   Type: Directory
+   Size: 2 files
+   Files: layout.templ, home.templ
+   Status: DUPLICATE of ./apps/portal/templates/
+   Action: DELETE if confirmed identical
+   Risk: LOW
+
+2. ./cmd/logs/handlers/
+   Type: Directory  
+   Size: 2 files
+   Files: websocket_handler.go, websocket_handler_test.go
+   Status: DUPLICATE of ./apps/logs/handlers/
+   Action: DELETE if confirmed identical
+   Risk: LOW
+
+3. ./tests/integration/setup_test.go
+   Type: File
+   Size: Contains setup code but NO test functions
+   Issue: Should be named setup.go not *_test.go
+   Action: RENAME to setup.go or test_setup.go
+   Risk: NONE (just naming issue)
+
+================================================================================
+MEDIUM PRIORITY - REVIEW BEFORE DELETE:
+================================================================================
+
+4. ./cmd/logs/handlers/websocket_handler.go
+   Type: File
+   Issue: Contains TODO comment: "// TODO: Restrict in production"
+   Status: INCOMPLETE
+   Action: Complete implementation OR DELETE if moved to apps/
+   Risk: MEDIUM (verify functionality location)
+
+5. ./cmd/review/handlers/review_handler.go
+   Type: File
+   Issue: Contains TODO: "// TODO: Replace with real DB query"
+   Status: INCOMPLETE  
+   Action: Complete implementation OR DELETE if functionality elsewhere
+   Risk: MEDIUM (verify functionality location)
+
+6. ./internal/review/services/review_service.go
+   Type: File
+   Lines: 44
+   Status: Small implementation, verify if intentional
+   Action: Review for completeness
+   Risk: LOW (likely intentional stub)
+
+7. ./internal/review/services/preview_service_test.go
+   Type: File
+   Lines: 23
+   Status: Stub test file
+   Action: Expand with real tests or mark as placeholder
+   Risk: LOW
+
+8. ./cmd/review/handlers/preview_handler.go
+   Type: File
+   Lines: 38
+   Status: Small handler implementation
+   Action: Verify if complete or stub
+   Risk: LOW
+
+================================================================================
+OPTIONAL CLEANUP - LOWER PRIORITY:
+================================================================================
+
+9. ./node_modules/
+   Type: Directory
+   Size: 16MB
+   Status: Check if committed to git
+   Action: If in .git → DELETE and update .gitignore
+   Risk: LOW (shouldn't be committed anyway)
+
+================================================================================
+FILES TO KEEP (NOT PROBLEMATIC):
+================================================================================
+
+✓ ./internal/review/services/interfaces.go (23 lines)
+  - Intentional: Interface definitions only
+  - KEEP
+
+✓ ./go.mod and ./go.sum
+  - Dependency files, correctly placed
+  - KEEP
+
+✓ All ./.docs/ files
+  - Documentation, intentional
+  - KEEP
+
+✓ All ./apps/*/templates/ directories
+  - Current structure, in use
+  - KEEP
+
+✓ All ./apps/*/handlers/ directories  
+  - Current structure, in use
+  - KEEP
+
+================================================================================
+CLEANUP SUMMARY:
+================================================================================
+
+DEFINITELY DELETE (3 items):
+  - ./cmd/portal/templates/ (if identical to apps/)
+  - ./cmd/logs/handlers/ (if identical to apps/)
+  - Rename ./tests/integration/setup_test.go
+
+REVIEW & DECIDE (5 items):
+  - ./cmd/logs/handlers/websocket_handler.go (TODO - incomplete)
+  - ./cmd/review/handlers/review_handler.go (TODO - incomplete)
+  - ./internal/review/services/review_service.go (44 lines - verify)
+  - ./internal/review/services/preview_service_test.go (23 lines - stub)
+  - ./cmd/review/handlers/preview_handler.go (38 lines - verify)
+
+OPTIONAL (1 item):
+  - ./node_modules/ (if committed - should be in .gitignore)
+
+TOTAL ITEMS TO CLEAN UP: 9 items (3 definite, 5 to review, 1 optional)
+
+ESTIMATED TIME: 20-30 minutes
+
+================================================================================
