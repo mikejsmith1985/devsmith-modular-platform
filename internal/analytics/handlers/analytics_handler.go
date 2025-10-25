@@ -34,10 +34,16 @@ func NewAnalyticsHandler(aggregatorService *services.AggregatorService, trendSer
 
 // RegisterRoutes registers the HTTP routes for the analytics handler.
 func (h *AnalyticsHandler) RegisterRoutes(router *gin.Engine) {
+	// Aggregate endpoint - accept both GET (trigger) and POST (with payload)
+	router.Group("/api/analytics").GET("/aggregate", h.RunAggregation)
 	router.Group("/api/analytics").POST("/aggregate", h.RunAggregation)
+	
 	router.Group("/api/analytics").GET("/trends", h.GetTrends)
 	router.Group("/api/analytics").GET("/anomalies", h.GetAnomalies)
 	router.Group("/api/analytics").GET("/top-issues", h.GetTopIssues)
+	
+	// Export endpoint - accept both GET (download) and POST (with options)
+	router.Group("/api/analytics").GET("/export", h.ExportData)
 	router.Group("/api/analytics").POST("/export", h.ExportData)
 }
 
