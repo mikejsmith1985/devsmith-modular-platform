@@ -974,6 +974,147 @@ func TestLogging_QueryLogs_FilteredByService(t *testing.T) {
 
 ---
 
+### 3.3. Production-Ready Logging Service Tests
+
+#### Test 3.3: REST API Log Ingestion
+```go
+func TestLogging_IngestLog_Success(t *testing.T) {
+    // GIVEN: Valid log entry
+    logEntry := models.LogEntry{
+        Level:   "error",
+        Message: "Database connection failed",
+        Service: "review",
+        Context: map[string]interface{}{"user_id": 123},
+        Tags:    []string{"database", "connection"},
+    }
+
+    // WHEN: Posting to /api/logs
+    resp := makeRequest(t, "POST", "/api/logs", logEntry)
+
+    // THEN: Log stored successfully
+    assert.Equal(t, http.StatusCreated, resp.StatusCode)
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    assert.NotNil(t, result["id"])
+    assert.NotZero(t, result["timestamp"])
+}
+```
+
+#### Test 3.4: Advanced Filtering & Search
+```go
+func TestLogging_FullTextSearch_FindsRelevantLogs(t *testing.T) {
+    // GIVEN: Multiple logs with different messages
+    createTestLogs(t, []models.LogEntry{
+        {Message: "Authentication failed for user john"},
+        {Message: "Database connection timeout"},
+        {Message: "User john logged in successfully"},
+    })
+
+    // WHEN: Searching for "authentication user john"
+    resp := makeRequest(t, "GET", "/api/logs?search=authentication user john", nil)
+
+    // THEN: Returns logs matching search terms (ranked by relevance)
+    var logs []models.LogEntry
+    json.NewDecoder(resp.Body).Decode(&logs)
+    assert.Greater(t, len(logs), 0)
+    assert.Contains(t, logs[0].Message, "Authentication")
+    assert.Contains(t, logs[0].Message, "john")
+}
+```
+
+#### Test 3.5: Log Retention & Archiving
+```go
+func TestLogging_RetentionPolicy_DeletesOldLogs(t *testing.T) {
+    // GIVEN: Logs older than retention period (90 days)
+    oldTime := time.Now().AddDate(0, 0, -95)
+    recentTime := time.Now().AddDate(0, 0, -10)
+
+    createLogAtTime(t, "Old log", oldTime)
+    createLogAtTime(t, "Recent log", recentTime)
+
+    // WHEN: Running retention cleanup job
+    err := logsService.CleanupOldLogs(context.Background(), 90)
+    assert.NoError(t, err)
+
+    // THEN: Old logs deleted, recent logs retained
+    allLogs := logsRepo.GetAll(context.Background())
+    assert.Len(t, allLogs, 1)
+    assert.Equal(t, "Recent log", allLogs[0].Message)
+}
+```
+
+#### Test 3.6: Correlation ID Tracking
+```go
+func TestLogging_CorrelationID_GroupsRelatedLogs(t *testing.T) {
+    // GIVEN: Multiple logs with same correlation ID
+    correlationID := "req-123-xyz"
+    createTestLogs(t, []models.LogEntry{
+        {Message: "Request started", CorrelationID: correlationID, Service: "portal"},
+        {Message: "Calling review service", CorrelationID: correlationID, Service: "portal"},
+        {Message: "Analysis started", CorrelationID: correlationID, Service: "review"},
+        {Message: "Unrelated log", CorrelationID: "other-id", Service: "logs"},
+    })
+
+    // WHEN: Querying by correlation ID
+    resp := makeRequest(t, "GET", fmt.Sprintf("/api/logs?correlation_id=%s", correlationID), nil)
+
+    // THEN: Returns all logs for that request
+    var logs []models.LogEntry
+    json.NewDecoder(resp.Body).Decode(&logs)
+    assert.Len(t, logs, 3)
+    for _, log := range logs {
+        assert.Equal(t, correlationID, log.CorrelationID)
+    }
+}
+```
+
+#### Test 3.7: Performance - Bulk Ingestion
+```go
+func BenchmarkLogging_BulkInsert_1000Logs(b *testing.B) {
+    // GIVEN: 1000 log entries to insert
+    logs := make([]models.LogEntry, 1000)
+    for i := 0; i < 1000; i++ {
+        logs[i] = models.LogEntry{
+            Level:   "info",
+            Message: fmt.Sprintf("Log entry %d", i),
+            Service: "test",
+        }
+    }
+
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        // WHEN: Bulk inserting 1000 logs
+        err := logsRepo.BulkInsert(context.Background(), logs)
+
+        // THEN: Completes in <100ms
+        assert.NoError(b, err)
+    }
+    // Target: <100ms per 1000 logs
+}
+```
+
+#### Test 3.8: WebSocket Filtering
+```go
+func TestLogging_WebSocket_FiltersByLevel(t *testing.T) {
+    // GIVEN: WebSocket connection with level filter
+    conn := setupWebSocket(t, "/ws/logs?level=ERROR")
+    defer conn.Close()
+
+    // WHEN: Creating logs of different levels
+    createLogEntry(t, models.LogEntry{Level: "INFO", Message: "Info log"})
+    createLogEntry(t, models.LogEntry{Level: "ERROR", Message: "Error log"})
+    createLogEntry(t, models.LogEntry{Level: "WARN", Message: "Warning log"})
+
+    // THEN: Only ERROR logs received via WebSocket
+    received := readWebSocketMessages(t, conn, 1*time.Second)
+    assert.Len(t, received, 1)
+    assert.Equal(t, "ERROR", received[0].Level)
+    assert.Equal(t, "Error log", received[0].Message)
+}
+```
+
+---
+
 ### 4. Analytics Service - Pattern Detection
 
 #### Test 4.1: Trend Analysis
