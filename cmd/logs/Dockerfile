@@ -12,6 +12,7 @@ RUN addgroup -g 1000 appuser && \
 	adduser -D -u 1000 -G appuser appuser
 WORKDIR /home/appuser
 COPY --from=builder /app/bin/logs ./logs
+COPY --from=builder /app/apps/logs/static ./apps/logs/static
 RUN chown -R appuser:appuser /home/appuser
 USER appuser
 EXPOSE 8082
