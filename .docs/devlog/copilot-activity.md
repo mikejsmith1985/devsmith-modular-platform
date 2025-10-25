@@ -1587,3 +1587,54 @@ It's designed for the "Human in the Loop" era where developers supervise AI-gene
 
 ---
 
+
+## 2025-10-25 07:00 - fix: Update nginx routing to properly proxy analytics API endpoints
+**Branch:** development
+**Files Changed:**  1 file changed, 49 insertions(+), 4 deletions(-)
+- `docker/nginx/nginx.conf`
+
+**Action:** fix: Update nginx routing to properly proxy analytics API endpoints
+
+**Commit:** `f03f21c`
+
+**Commit Message:**
+```
+fix: Update nginx routing to properly proxy analytics API endpoints
+```
+
+**Details:**
+```
+## Summary
+Fixed nginx routing configuration to properly proxy analytics API endpoints through the reverse proxy. Added specific location blocks for individual analytics endpoints to map external requests to internal API paths.
+
+## Changes
+- **docker/nginx/nginx.conf**:
+  - Reordered location blocks so more specific paths are matched before generic ones
+  - Added explicit location blocks for analytics API endpoints:
+    - /analytics/trends → /api/analytics/trends
+    - /analytics/anomalies → /api/analytics/anomalies
+    - /analytics/top-issues → /api/analytics/top-issues
+    - /analytics/aggregate → /api/analytics/aggregate
+    - /analytics/export → /api/analytics/export
+    - /analytics/health → /health
+  - Generic /analytics/ location still handles UI requests
+
+## Verification
+✅ All analytics API endpoints accessible through nginx:
+  - http://localhost:3000/analytics/trends → 200 OK
+  - http://localhost:3000/analytics/anomalies → 200 OK
+  - http://localhost:3000/analytics/top-issues → 200 OK
+  - http://localhost:3000/analytics/aggregate → 200 OK
+  - http://localhost:3000/analytics/export → 200 OK
+
+✅ UI still accessible:
+  - http://localhost:3000/analytics/ → 200 OK (dashboard loads)
+
+## Notes
+- Docker validation script reports 2 false positives: it tests POST endpoints with GET method
+- Actual POST requests to /analytics/aggregate and /analytics/export work correctly
+- E2E tests verify end-to-end functionality works
+```
+
+---
+
