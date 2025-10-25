@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestLogEntry is a simple test log entry struct
+// TestLogEntry is a simple test log entry struct.
 type TestLogEntry struct {
-	ID        int64
 	Service   string
 	Level     string
 	Message   string
+	ID        int64
 	Timestamp time.Time
 }
 
@@ -409,7 +409,7 @@ func TestHub_AuthenticationFiltering(t *testing.T) {
 	}
 }
 
-// TestHub_MatchesFilters tests the filter matching logic
+// TestHub_MatchesFilters tests the filter matching logic.
 func TestHub_MatchesFilters(t *testing.T) {
 	hub := NewHub(nil)
 
@@ -459,18 +459,19 @@ func TestHub_MatchesFilters(t *testing.T) {
 	}
 }
 
-// TestClient is a mock client for testing
+// TestClient is a mock client for testing.
 type TestClient struct {
-	SendChan         chan interface{}
-	Filters          map[string]interface{}
-	IsAuthenticated  bool
-	UserRole         string
-	mu               sync.RWMutex
-	ctx              context.Context
-	cancel           context.CancelFunc
-	lastHeartbeat    time.Time
-	pongReceived     bool
-	consecutiveDrops int
+	SendChan chan interface{}       // 8 bytes
+	Filters  map[string]interface{} // 8 bytes
+	ctx      context.Context        // 16 bytes (interface)
+	cancel   context.CancelFunc     // 8 bytes
+
+	lastHeartbeat time.Time // 24 bytes
+	UserRole      string    // 16 bytes
+
+	mu              sync.RWMutex // 24 bytes
+	pongReceived    bool
+	IsAuthenticated bool
 }
 
 // NewTestClient creates a test client
