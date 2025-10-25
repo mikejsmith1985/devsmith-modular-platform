@@ -11,11 +11,14 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
+	restHandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/service"
 	"github.com/sirupsen/logrus"
 )
 
-var db *sql.DB
+var dbConn *sql.DB
 
 func main() {
 	port := os.Getenv("PORT")
@@ -30,14 +33,14 @@ func main() {
 	// Initialize database
 	dbURL := os.Getenv("DATABASE_URL")
 	var err error
-	db, err = sql.Open("postgres", dbURL)
+	dbConn, err = sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
 	// Verify connection
-	if err := db.Ping(); err != nil {
-		if closeErr := db.Close(); closeErr != nil {
+	if err := dbConn.Ping(); err != nil {
+		if closeErr := dbConn.Close(); closeErr != nil {
 			log.Printf("[ERROR] Failed to close database: %v", closeErr)
 		}
 		log.Fatal("Failed to ping database:", err)
@@ -55,6 +58,17 @@ func main() {
 
 	// Initialize Gin router
 	router := gin.Default()
+
+	// Setup repository and service for logs REST API
+	logRepo := db.NewLogRepository(dbConn)
+	logService := service.NewLogService(logRepo)
+
+	// Register REST API routes
+	router.POST("/api/logs", restHandlers.PostLogs(logService))
+	router.GET("/api/logs", restHandlers.GetLogs(logService))
+	router.GET("/api/logs/:id", restHandlers.GetLogByID(logService))
+	router.GET("/api/logs/stats", restHandlers.GetStats(logService))
+	router.DELETE("/api/logs", restHandlers.DeleteLogs(logService))
 
 	// Serve static files for logs dashboard
 	router.Static("/static", "./apps/logs/static")
@@ -78,7 +92,7 @@ func main() {
 	}
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		if closeErr := db.Close(); closeErr != nil {
+		if closeErr := dbConn.Close(); closeErr != nil {
 			log.Printf("[ERROR] Failed to close database: %v", closeErr)
 		}
 		log.Fatalf("[ERROR] Failed to start server: %v", err)

@@ -48,15 +48,32 @@ func NewLogRepository(db *sql.DB) *LogRepository {
 }
 
 // Insert adds a new log entry and returns its ID.
-func (r *LogRepository) Insert(ctx context.Context, e *LogEntry) (int64, error) {
-	if e == nil {
-		return 0, fmt.Errorf("db: log entry cannot be nil")
+func (r *LogRepository) Insert(ctx context.Context, entry interface{}) (int64, error) {
+	// Convert interface{} to map[string]interface{}
+	entryMap, ok := entry.(map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("db: entry must be map[string]interface{}")
 	}
 
+	service, ok := entryMap["service"].(string)
+	if !ok || service == "" {
+		return 0, fmt.Errorf("db: service is required")
+	}
+
+	level, ok := entryMap["level"].(string)
+	if !ok || level == "" {
+		return 0, fmt.Errorf("db: level is required")
+	}
+
+	message, ok := entryMap["message"].(string)
+	if !ok || message == "" {
+		return 0, fmt.Errorf("db: message is required")
+	}
+
+	// Extract metadata if provided
 	metadataJSON := "{}"
-	if len(e.Metadata) > 0 {
-		// Marshal metadata map to JSON
-		b, err := json.Marshal(e.Metadata)
+	if metadata, ok := entryMap["metadata"].(map[string]interface{}); ok && len(metadata) > 0 {
+		b, err := json.Marshal(metadata)
 		if err != nil {
 			return 0, fmt.Errorf("db: failed to marshal metadata: %w", err)
 		}
@@ -68,7 +85,7 @@ func (r *LogRepository) Insert(ctx context.Context, e *LogEntry) (int64, error) 
 
 	var id int64
 	var createdAt time.Time
-	err := r.db.QueryRowContext(ctx, query, e.Service, e.Level, e.Message, metadataJSON).Scan(&id, &createdAt)
+	err := r.db.QueryRowContext(ctx, query, service, level, message, metadataJSON).Scan(&id, &createdAt)
 	if err != nil {
 		return 0, fmt.Errorf("db: failed to insert log entry: %w", err)
 	}
@@ -124,7 +141,67 @@ func buildWhereClause(filters *QueryFilters) (fragments []string, args []interfa
 }
 
 // Query retrieves log entries matching the filters with pagination.
-func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page PageOptions) ([]*LogEntry, error) {
+func (r *LogRepository) Query(ctx context.Context, filters interface{}, page interface{}) ([]interface{}, error) {
+	// Convert interface{} to QueryFilters
+	var queryFilters *QueryFilters
+	if filters != nil {
+		if filtersMap, ok := filters.(map[string]interface{}); ok {
+			queryFilters = &QueryFilters{
+				Service: getStringValue(filtersMap, "service"),
+				Level:   getStringValue(filtersMap, "level"),
+				Search:  getStringValue(filtersMap, "search"),
+				From:    getTimeValue(filtersMap, "from"),
+				To:      getTimeValue(filtersMap, "to"),
+				Sort:    getStringValue(filtersMap, "sort"),
+			}
+			// Handle metadata filters
+			if meta, ok := filtersMap["metadata"].(map[string]string); ok {
+				queryFilters.MetaEquals = meta
+			}
+		} else {
+			queryFilters = &QueryFilters{}
+		}
+	} else {
+		queryFilters = &QueryFilters{}
+	}
+
+	// Convert interface{} to PageOptions
+	pageOpts := PageOptions{Limit: 100, Offset: 0}
+	if page != nil {
+		if pageMap, ok := page.(map[string]int); ok {
+			if limit, ok := pageMap["limit"]; ok && limit > 0 {
+				pageOpts.Limit = limit
+			}
+			if offset, ok := pageMap["offset"]; ok && offset >= 0 {
+				pageOpts.Offset = offset
+			}
+		}
+	}
+
+	// Call internal query with strongly-typed parameters
+	entries, err := r.queryInternal(ctx, queryFilters, pageOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert []*LogEntry to []interface{}
+	result := make([]interface{}, len(entries))
+	for i, entry := range entries {
+		result[i] = map[string]interface{}{
+			"id":         entry.ID,
+			"service":    entry.Service,
+			"level":      entry.Level,
+			"message":    entry.Message,
+			"created_at": entry.CreatedAt,
+			"metadata":   entry.Metadata,
+		}
+	}
+
+	return result, nil
+}
+
+// queryInternal is the internal implementation that works with strongly-typed parameters.
+func (r *LogRepository) queryInternal(ctx context.Context, filters *QueryFilters, page PageOptions) ([]*LogEntry, error) {
 	if page.Limit <= 0 {
 		return nil, fmt.Errorf("db: limit must be positive")
 	}
@@ -188,6 +265,26 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 	return entries, nil
 }
 
+// Helper functions for type conversion
+func getStringValue(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getTimeValue(m map[string]interface{}, key string) time.Time {
+	if v, ok := m[key].(time.Time); ok {
+		return v
+	}
+	if v, ok := m[key].(string); ok {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 // DeleteByID removes a log entry by ID.
 func (r *LogRepository) DeleteByID(ctx context.Context, id int64) error {
 	result, err := r.db.ExecContext(ctx, "DELETE FROM logs.entries WHERE id = $1", id)
@@ -207,9 +304,65 @@ func (r *LogRepository) DeleteByID(ctx context.Context, id int64) error {
 	return nil
 }
 
+// GetByID retrieves a single log entry by ID.
+func (r *LogRepository) GetByID(ctx context.Context, id int64) (interface{}, error) {
+	query := "SELECT id, service, level, message, metadata, created_at FROM logs.entries WHERE id = $1"
+
+	var entryID int64
+	var service, level, message string
+	var metadataJSON sql.NullString
+	var createdAt time.Time
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&entryID, &service, &level, &message, &metadataJSON, &createdAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("db: log entry not found")
+		}
+		return nil, fmt.Errorf("db: failed to query log entry: %w", err)
+	}
+
+	entry := map[string]interface{}{
+		"id":         entryID,
+		"service":    service,
+		"level":      level,
+		"message":    message,
+		"created_at": createdAt,
+		"metadata":   make(map[string]interface{}),
+	}
+
+	if metadataJSON.Valid {
+		var metadata map[string]interface{}
+		if err := json.Unmarshal([]byte(metadataJSON.String), &metadata); err == nil {
+			entry["metadata"] = metadata
+		}
+	}
+
+	return entry, nil
+}
+
 // DeleteBefore removes all log entries created before the specified timestamp.
-func (r *LogRepository) DeleteBefore(ctx context.Context, ts time.Time) (int64, error) {
-	result, err := r.db.ExecContext(ctx, "DELETE FROM logs.entries WHERE created_at < $1", ts)
+func (r *LogRepository) DeleteBefore(ctx context.Context, ts interface{}) (int64, error) {
+	if ts == nil {
+		return 0, fmt.Errorf("db: timestamp cannot be nil")
+	}
+
+	// Convert interface{} to time.Time
+	var deleteTime time.Time
+	switch v := ts.(type) {
+	case time.Time:
+		deleteTime = v
+	case string:
+		// Try to parse string timestamp
+		parsedTime, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			return 0, fmt.Errorf("db: invalid timestamp format: %w", err)
+		}
+		deleteTime = parsedTime
+	default:
+		return 0, fmt.Errorf("db: timestamp must be time.Time or string, got %T", ts)
+	}
+
+	result, err := r.db.ExecContext(ctx, "DELETE FROM logs.entries WHERE created_at < $1", deleteTime)
 	if err != nil {
 		return 0, fmt.Errorf("db: failed to delete old log entries: %w", err)
 	}
