@@ -1,187 +1,136 @@
 name: Validate Issue Workflow Standards
 
 on:
-  issues:
-    types: [opened, edited]
   pull_request:
-    types: [opened, edited]
+    types: [opened, edited, labeled, unlabeled]
     branches:
       - development
       - main
 
 jobs:
-  validate-issue-standards:
-    name: Validate Issue Standards
+  validate-issue-workflow:
+    name: Validate Issue Workflow
     runs-on: ubuntu-latest
-    if: github.event_name == 'issues'
     permissions:
-      issues: write
       pull-requests: read
+      contents: read
 
     steps:
-      - name: Check issue has required sections
-        id: validation
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const issue = context.payload.issue;
-            const body = issue.body || '';
-            
-            const checks = {
-              'Title prefix': /^\[.*\]/.test(issue.title),
-              'Description': body.length > 50,
-              'Acceptance Criteria': body.includes('Acceptance Criteria') || body.includes('acceptance criteria'),
-              'Test Requirements': body.includes('Test') || body.includes('test'),
-              'Coverage Target': body.includes('coverage') || body.includes('Coverage')
-            };
-            
-            const passed = Object.values(checks).filter(v => v).length;
-            const total = Object.keys(checks).length;
-            
-            let report = `## Issue Workflow Validation\n\n`;
-            let allPassed = true;
-            
-            for (const [check, result] of Object.entries(checks)) {
-              const icon = result ? '✅' : '⚠️';
-              report += `${icon} ${check}\n`;
-              if (!result) allPassed = false;
-            }
-            
-            report += `\n**Completeness:** ${passed}/${total}`;
-            
-            if (!allPassed) {
-              report += `\n\n### Recommendations:\n`;
-              if (!checks['Title prefix']) {
-                report += `- Add service prefix to title: \`[Service]\`\n`;
-              }
-              if (!checks['Acceptance Criteria']) {
-                report += `- Add ## Acceptance Criteria section\n`;
-              }
-              if (!checks['Test Requirements']) {
-                report += `- Add test requirements and coverage target\n`;
-              }
-            }
-            
-            core.setOutput('report', report);
-            core.setOutput('passed', allPassed);
+      - name: Check PR meets issue workflow standards
+        id: check_workflow
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_LABELS="${{ toJson(github.event.pull_request.labels) }}"
+          
+          # Check for issue reference (Closes #XX)
+          if echo "$PR_BODY" | grep -qE "Closes #[0-9]+"; then
+            echo "✅ Found issue reference"
+            has_issue_ref=true
+          else
+            echo "⚠️  No issue reference found"
+            has_issue_ref=false
+          fi
+          
+          # Check for required sections
+          has_implementation=false
+          has_tests=false
+          has_quality=false
+          has_checklist=false
+          
+          if echo "$PR_BODY" | grep -qi "## Implementation"; then
+            has_implementation=true
+          fi
+          if echo "$PR_BODY" | grep -qi "## Tests"; then
+            has_tests=true
+          fi
+          if echo "$PR_BODY" | grep -qi "## Quality"; then
+            has_quality=true
+          fi
+          if echo "$PR_BODY" | grep -qi "- \[x\]"; then
+            has_checklist=true
+          fi
+          
+          echo "implementation=$has_implementation" >> $GITHUB_OUTPUT
+          echo "tests=$has_tests" >> $GITHUB_OUTPUT
+          echo "quality=$has_quality" >> $GITHUB_OUTPUT
+          echo "checklist=$has_checklist" >> $GITHUB_OUTPUT
+          echo "issue_ref=$has_issue_ref" >> $GITHUB_OUTPUT
 
-      - name: Post validation comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const report = `${{ steps.validation.outputs.report }}`;
-            const passed = '${{ steps.validation.outputs.passed }}' === 'true';
-            
-            if (!passed) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: report + `\n\nSee [Issue Workflow Standard](.docs/ISSUE_WORKFLOW_STANDARD.md) for full requirements.`
-              });
-            }
+      - name: Check enforce-workflows label
+        id: check_enforce
+        run: |
+          PR_LABELS="${{ toJson(github.event.pull_request.labels.*.name) }}"
+          if echo "$PR_LABELS" | grep -q "enforce-workflows"; then
+            echo "strict_mode=true" >> $GITHUB_OUTPUT
+          else
+            echo "strict_mode=false" >> $GITHUB_OUTPUT
+          fi
 
-  validate-pr-completeness:
-    name: Validate PR Completeness
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      pull-requests: write
+      - name: Enforce strict mode (when label present and target is development)
+        if: |
+          steps.check_enforce.outputs.strict_mode == 'true' &&
+          github.base_ref == 'development'
+        run: |
+          ERRORS=0
+          
+          if [ "${{ steps.check_workflow.outputs.issue_ref }}" != "true" ]; then
+            echo "❌ FAIL: PR body must contain 'Closes #XX'"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.implementation }}" != "true" ]; then
+            echo "❌ FAIL: PR must have '## Implementation' section"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.tests }}" != "true" ]; then
+            echo "❌ FAIL: PR must have '## Tests' section"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.quality }}" != "true" ]; then
+            echo "❌ FAIL: PR must have '## Quality' section"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.checklist }}" != "true" ]; then
+            echo "❌ FAIL: PR must have acceptance criteria checklist with completed items"
+            ERRORS=$((ERRORS + 1))
+          fi
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo ""
+            echo "Strict mode enforcement: $ERRORS requirement(s) not met"
+            exit 1
+          fi
+          
+          echo "✅ All strict mode requirements met"
 
-    steps:
-      - name: Check PR requirements
-        id: pr_check
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const body = pr.body || '';
-            
-            const checks = {
-              'Issue linked': body.includes('Closes #') || body.includes('Fixes #'),
-              'Implementation section': body.includes('## Implementation') || body.includes('## Changes'),
-              'Test section': body.includes('## Test') || body.includes('## Tests'),
-              'Quality section': body.includes('## Quality') || body.includes('✅'),
-              'Acceptance criteria': body.includes('[x]') || body.includes('[X]')
-            };
-            
-            const passed = Object.values(checks).filter(v => v).length;
-            const total = Object.keys(checks).length;
-            
-            core.setOutput('passed', passed);
-            core.setOutput('total', total);
-            core.setOutput('issue_linked', checks['Issue linked']);
-
-      - name: Require issue link
-        if: steps.pr_check.outputs.issue_linked == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            console.log(
-              '⚠️ PR should reference an issue with "Closes #NUMBER" in the description. ' +
-              'This enables issue tracking and auto-close functionality.'
-            );
-
-      - name: Post helpful PR comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const passed = parseInt('${{ steps.pr_check.outputs.passed }}');
-            const total = parseInt('${{ steps.pr_check.outputs.total }}');
-            
-            if (passed < total) {
-              const pr = context.payload.pull_request;
-              
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                body: `📋 **PR Completeness: ${passed}/${total}**\n\n` +
-                      `Your PR is missing some standard sections. Consider adding:\n` +
-                      `- Issue reference: \`Closes #NUMBER\`\n` +
-                      `- ## Implementation section\n` +
-                      `- ## Test Results section\n` +
-                      `- ## Quality section with ✅ checkmarks\n` +
-                      `- Acceptance criteria checklist\n\n` +
-                      `See [PR Description Template](.docs/ISSUE_WORKFLOW_STANDARD.md#pr-description-template) for details.`
-              });
-            }
-
-  enforce-issue-closure:
-    name: Enforce Issue Closure on PR Merge
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'opened'
-    permissions:
-      issues: write
-      pull-requests: read
-
-    steps:
-      - name: Extract and validate issue closure
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const body = pr.body || '';
-            
-            // Find "Closes #NUMBER"
-            const match = body.match(/(Closes|Fixes|Resolves)\s+#(\d+)/i);
-            
-            if (!match) {
-              console.log('⚠️ No issue closure found in PR');
-              return;
-            }
-            
-            const issueNum = match[2];
-            console.log(`✅ PR will close issue #${issueNum} on merge`);
-            
-            // Verify issue exists
-            try {
-              const issue = await github.rest.issues.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNum
-              });
-              console.log(`✅ Issue #${issueNum} confirmed: "${issue.data.title}"`);
-            } catch (error) {
-              core.warning(`Issue #${issueNum} not found`);
-            }
+      - name: Advisory mode (when label absent or target is not development)
+        if: |
+          steps.check_enforce.outputs.strict_mode == 'false' ||
+          github.base_ref != 'development'
+        run: |
+          echo "ℹ️  Running in advisory mode"
+          
+          if [ "${{ steps.check_workflow.outputs.issue_ref }}" != "true" ]; then
+            echo "⚠️  Advisory: PR should contain 'Closes #XX'"
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.implementation }}" != "true" ]; then
+            echo "⚠️  Advisory: PR should have '## Implementation' section"
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.tests }}" != "true" ]; then
+            echo "⚠️  Advisory: PR should have '## Tests' section"
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.quality }}" != "true" ]; then
+            echo "⚠️  Advisory: PR should have '## Quality' section"
+          fi
+          
+          if [ "${{ steps.check_workflow.outputs.checklist }}" != "true" ]; then
+            echo "⚠️  Advisory: PR should have acceptance criteria checklist"
+          fi
+          
+          echo "✅ Advisory mode completed (non-blocking)"
