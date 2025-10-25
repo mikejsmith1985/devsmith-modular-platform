@@ -44,6 +44,7 @@ func TestTrend_Structure(t *testing.T) {
 	assert.Equal(t, ServiceActivity, trend.MetricType)
 	assert.Equal(t, "review", trend.Service)
 	assert.Equal(t, "increasing", trend.Direction)
+	assert.Equal(t, 0.95, trend.Confidence)
 }
 
 func TestAnomaly_Structure(t *testing.T) {
@@ -95,6 +96,7 @@ func TestTrendResponse_Structure(t *testing.T) {
 
 	assert.NotNil(t, response.Trend)
 	assert.Equal(t, ErrorFrequency, response.MetricType)
+	assert.Equal(t, "portal", response.Service)
 }
 
 func TestAggregationDataPoint_Structure(t *testing.T) {
@@ -116,6 +118,7 @@ func TestTrendSummary_Structure(t *testing.T) {
 	}
 
 	assert.Equal(t, "decreasing", summary.Direction)
+	assert.Equal(t, "Error rates are decreasing", summary.Summary)
 	assert.Greater(t, summary.Confidence, 0.0)
 }
 
@@ -142,8 +145,12 @@ func TestIssueItem_Structure(t *testing.T) {
 		Value:    25.0,
 	}
 
+	assert.Equal(t, now, item.LastSeen)
 	assert.Equal(t, "review", item.Service)
+	assert.Equal(t, "WARN", item.Level)
+	assert.Equal(t, "Low memory", item.Message)
 	assert.Equal(t, 5, item.Count)
+	assert.Equal(t, 25.0, item.Value)
 }
 
 func TestTopIssuesResponse_Structure(t *testing.T) {
@@ -184,7 +191,12 @@ func TestTrendAnalysis_Structure(t *testing.T) {
 		PercentageChange: 12.5,
 	}
 
+	assert.Equal(t, start, analysis.Start)
+	assert.True(t, analysis.End.After(start))
+	assert.Equal(t, ServiceActivity, analysis.MetricType)
+	assert.Equal(t, "analytics", analysis.Service)
 	assert.Equal(t, "increasing", analysis.Direction)
+	assert.Equal(t, 15.0, analysis.Change)
 	assert.Equal(t, 12.5, analysis.PercentageChange)
 }
 
