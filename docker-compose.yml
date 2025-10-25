@@ -1,0 +1,140 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: devsmith
+      POSTGRES_PASSWORD: devsmith
+      POSTGRES_DB: devsmith
+    volumes:
+      - ./docker/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devsmith -d devsmith"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./apps/portal/static/:/usr/share/nginx/html
+    ports:
+      - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
+    depends_on:
+      portal:
+        condition: service_healthy
+      review:
+        condition: service_healthy
+      logs:
+        condition: service_healthy
+      analytics:
+        condition: service_healthy
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+  portal:
+    build:
+      context: .
+      dockerfile: cmd/portal/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
+      - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
+      - REDIRECT_URI=http://localhost:3000/auth/github/callback
+      - ENABLE_TEST_AUTH=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+  review:
+    build:
+      context: .
+      dockerfile: cmd/review/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+  logs:
+    build:
+      context: .
+      dockerfile: cmd/logs/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
+      - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
+      - REDIRECT_URI=http://localhost:3000/auth/github/callback
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+  analytics:
+    build:
+      context: .
+      dockerfile: cmd/analytics/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+
+networks:
+  devsmith-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

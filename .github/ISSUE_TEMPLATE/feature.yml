@@ -1,0 +1,114 @@
+name: Feature Request
+description: Request a new feature for the platform
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature Request
+        Use this template to request a new feature. Claude will review and create detailed implementation specifications.
+
+  - type: input
+    id: feature-name
+    attributes:
+      label: Feature Name
+      description: Short, descriptive name for the feature
+      placeholder: "GitHub OAuth Login"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app does this feature belong to?
+      options:
+        - Portal
+        - Review
+        - Logs
+        - Analytics
+        - Build
+        - Shared/Multiple
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: What should this feature do and why is it needed?
+      placeholder: |
+        Users should be able to login using their GitHub account for seamless authentication...
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: Describe the feature from a user's perspective
+      placeholder: |
+        As a developer,
+        I want to login with my GitHub account,
+        So that I don't need to manage another password.
+    validations:
+      required: false
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements
+      description: Any specific requirements or constraints?
+      placeholder: |
+        - Must support GitHub OAuth 2.0
+        - Should store JWT token for session management
+        - Must work through nginx gateway
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria (Draft)
+      description: Initial thoughts on what "done" looks like (Claude will refine these)
+      placeholder: |
+        - User can click "Login with GitHub"
+        - After OAuth flow, user is redirected to dashboard
+        - Token persists across page refreshes
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical (blocking)
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other information, mockups, or references
+      placeholder: |
+        Related to Requirements.md Section X.X
+        See existing implementation in old platform at...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have checked that this feature doesn't already exist
+          required: true
+        - label: This is a single feature (not multiple features bundled)
+          required: true
+        - label: I have provided enough context for implementation
+          required: true

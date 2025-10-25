@@ -1,0 +1,45 @@
+# DevSmith Platform - Ultra Budget Mode ($50/month)
+
+## Cost Target: Under $50/month (including Copilot Pro)
+
+### Model Selection Strategy
+- PRIMARY: Use Ollama local models (qwen2.5-coder:32b) for ALL code tasks
+- FALLBACK: Use Claude Haiku ONLY when Ollama unavailable
+- SONNET: Use maximum 1-2 times per week (PR reviews only)
+- NEVER: Use Opus for any reason
+
+### Task Routing
+1. Code completion → Ollama qwen2.5-coder:32b (local, free)
+2. Chat/explanation → Ollama qwen2.5-coder:32b (local, free)
+3. Multi-file edits → Ollama qwen2.5-coder:32b (local, free)
+4. Test generation → Ollama qwen2.5-coder:32b (local, free)
+5. Architecture planning → Claude Haiku (when Ollama insufficient)
+6. Critical review → Claude Sonnet (max 1x/week)
+
+### Claude API Usage Limits
+- Daily budget: $1.50/day max
+- Weekly budget: $10/week max
+- Sonnet quota: 2 uses per week max
+- Track usage in Cursor dashboard
+
+### Cost Optimization Techniques
+- Batch similar requests together
+- Use short, focused prompts
+- Leverage Ollama context window (4K tokens)
+- Cache common responses
+- Use Haiku for 90%+ of Claude API calls
+
+### Workflow
+1. Try Ollama first for everything
+2. Only use Claude if Ollama fails or architecture needed
+3. Use Sonnet only for Friday afternoon PR reviews
+4. Monitor usage daily in Cursor dashboard
+
+### Copilot Pro Integration
+- Keep Copilot Pro active ($10/month)
+- Use Copilot for inline suggestions
+- Use Ollama for complex tasks
+- Use Cursor Haiku for architecture
+
+
+

@@ -1,0 +1,143 @@
+name: CI
+
+# Purpose: Lightweight safety net for things pre-commit hook can't catch
+# Philosophy: Pre-commit is the quality gate, CI validates deployment artifacts
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+jobs:
+  # Job 1: Verify code builds (catches --no-verify commits)
+  build:
+    name: Build Services
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [portal, review, logs, analytics]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build ${{ matrix.service }}
+        run: |
+          echo "Building ${{ matrix.service }} service..."
+
+          # Check if service has any Go files (skip if TDD RED phase)
+          if ! ls cmd/${{ matrix.service }}/*.go >/dev/null 2>&1; then
+            echo "⚠️  No Go files in cmd/${{ matrix.service }} (TDD RED phase - OK to skip)"
+            exit 0
+          fi
+
+          go build -v -o bin/${{ matrix.service }} ./cmd/${{ matrix.service }}
+          echo "✓ Build successful"
+
+      - name: Verify binary exists
+        run: |
+          # Skip verification if no Go files (TDD RED phase)
+          if ! ls cmd/${{ matrix.service }}/*.go >/dev/null 2>&1; then
+            echo "⚠️  Skipping binary verification (no Go files)"
+            exit 0
+          fi
+
+          test -f bin/${{ matrix.service }}
+          file bin/${{ matrix.service }}
+
+  # Job 2: Validate Docker images build (can't easily do this in pre-commit)
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [portal, review, logs, analytics]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check if service has Go files
+        id: check_files
+        run: |
+          if ls cmd/${{ matrix.service }}/*.go >/dev/null 2>&1; then
+            echo "has_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_files=false" >> $GITHUB_OUTPUT
+            echo "⚠️  No Go files in cmd/${{ matrix.service }} (TDD RED phase - skipping Docker build)"
+          fi
+
+      - name: Build ${{ matrix.service }} Docker image
+        if: steps.check_files.outputs.has_files == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./cmd/${{ matrix.service }}/Dockerfile
+          push: false
+          tags: devsmith-${{ matrix.service }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Job 3: Quick lint pass (fast, catches bypassed pre-commit)
+  lint:
+    name: Quick Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=3m --fast
+
+  # Summary job (optional, useful for branch protection rules)
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [build, docker, lint]
+    if: always()
+
+    steps:
+      - name: Check results
+        run: |
+          echo "Build: ${{ needs.build.result }}"
+          echo "Docker: ${{ needs.docker.result }}"
+          echo "Lint: ${{ needs.lint.result }}"
+
+          if [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.docker.result }}" != "success" ] || \
+             [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "❌ CI failed"
+            exit 1
+          fi
+
+          echo "✅ All CI checks passed"
