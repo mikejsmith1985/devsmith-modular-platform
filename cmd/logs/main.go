@@ -62,13 +62,8 @@ func main() {
 	// Register UI routes for dashboard
 	handlers.RegisterUIRoutes(router, logger)
 
-	// Create route registry for debug endpoint
-	routeRegistry := debug.NewHTTPRouteRegistry("logs")
-
-	// Register debug routes endpoint (development only)
-	router.GET("/debug/routes", func(c *gin.Context) {
-		routeRegistry.Handler().ServeHTTP(c.Writer, c.Request)
-	})
+	// Register debug routes (development only)
+	debug.RegisterDebugRoutes(router, "logs")
 
 	log.Printf("Starting logs service on port %s", port)
 
