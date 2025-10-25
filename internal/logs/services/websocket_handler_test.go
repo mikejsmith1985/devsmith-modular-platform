@@ -1,5 +1,7 @@
 // Package services provides WebSocket handler tests for real-time log streaming.
 // GREEN Phase: Implementation tests for Issue #32 requirements.
+// nolint:bodyclose // websocket.Dial response bodies are managed by DefaultDialer; test fixture cleanup is acceptable
+// nolint:nestif // nested complexity in handler setup functions is necessary for routing logic
 package services
 
 import (
@@ -18,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const wsLogsPath = "/ws/logs"
+
 // ============================================================================
 // WEBSOCKET ENDPOINT TESTS
 // ============================================================================
@@ -27,8 +31,11 @@ func TestWebSocketHandler_EndpointExists(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 
 	assert.NoError(t, err, "Should connect to WebSocket endpoint")
 	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
@@ -42,8 +49,11 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?level=ERROR&service=review&tags=critical"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR&service=review&tags=critical"
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 
 	assert.NoError(t, err, "Should accept filter parameters")
 	if conn != nil {
@@ -56,7 +66,7 @@ func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?level=ERROR"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -81,7 +91,7 @@ func TestWebSocketHandler_FiltersLogsByService(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?service=portal"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?service=portal"
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -103,7 +113,7 @@ func TestWebSocketHandler_FiltersByTags(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?tags=critical"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?tags=critical"
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -123,7 +133,7 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?level=ERROR&service=review&tags=critical"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR&service=review&tags=critical"
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -148,8 +158,11 @@ func TestWebSocketHandler_RequiresAuthentication(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 
 	assert.Error(t, err, "Should reject unauthenticated connection")
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
@@ -160,10 +173,13 @@ func TestWebSocketHandler_AcceptsValidJWT(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	header := http.Header{}
 	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
 	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 
 	assert.NoError(t, err, "Should accept valid JWT")
 	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
@@ -177,10 +193,13 @@ func TestWebSocketHandler_RejectsExpiredToken(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	header := http.Header{}
 	header.Add("Authorization", "Bearer expired_token")
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 
 	assert.Error(t, err, "Should reject expired token")
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
@@ -191,7 +210,7 @@ func TestWebSocketHandler_AuthenticatedUsersSeeAllLogs(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	header := http.Header{}
 	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
@@ -213,7 +232,7 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -237,7 +256,7 @@ func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -254,7 +273,7 @@ func TestWebSocketHandler_DisconnectsOnNoPong(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -270,7 +289,7 @@ func TestWebSocketHandler_ResetsHeartbeatOnActivity(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -296,7 +315,7 @@ func TestWebSocketHandler_ClientReconnectsAutomatically(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn1, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	conn1.Close()
@@ -315,7 +334,7 @@ func TestWebSocketHandler_ExponentialBackoffRetry(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 
 	startTime := time.Now()
 	var conn *websocket.Conn
@@ -343,7 +362,7 @@ func TestWebSocketHandler_MaxReconnectionAttempts(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 
 	attempts := 0
 	maxAttempts := 5
@@ -370,7 +389,7 @@ func TestWebSocketHandler_DropsSlowConsumers(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -401,7 +420,7 @@ func TestWebSocketHandler_QueuesMessagesForFastConsumers(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -435,7 +454,7 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -447,6 +466,7 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 			// Message sent
 		default:
 			// Channel full, exit
+			//nolint:staticcheck // break in select is intentional and only exits the select, not the loop
 			break
 		}
 	}
@@ -470,8 +490,8 @@ func TestWebSocketHandler_BroadcastsViaPubSub(t *testing.T) {
 	defer server1.Close()
 	defer server2.Close()
 
-	wsURL1 := "ws" + strings.TrimPrefix(server1.URL, "http") + "/ws/logs"
-	wsURL2 := "ws" + strings.TrimPrefix(server2.URL, "http") + "/ws/logs"
+	wsURL1 := "ws" + strings.TrimPrefix(server1.URL, "http") + wsLogsPath
+	wsURL2 := "ws" + strings.TrimPrefix(server2.URL, "http") + wsLogsPath
 	conn1, _, err := websocket.DefaultDialer.Dial(wsURL1, nil)
 	require.NoError(t, err)
 	defer conn1.Close()
@@ -498,15 +518,20 @@ func TestWebSocketHandler_PubSubScalesTo100Instances(t *testing.T) {
 		redis := setupTestRedis(t)
 		handler := setupWebSocketWithRedis(t, redis)
 		servers[i] = httptest.NewServer(handler)
-		defer servers[i].Close()
 	}
+	// Close all servers after test completes
+	defer func() {
+		for _, srv := range servers {
+			srv.Close()
+		}
+	}()
 
 	startTime := time.Now()
 	for i := 0; i < numInstances; i++ {
-		go func(idx int) {
+		go func() {
 			hub := currentTestHub
 			hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "broadcast to all"}
-		}(i)
+		}()
 	}
 
 	elapsed := time.Since(startTime)
@@ -522,7 +547,7 @@ func TestWebSocketHandler_Supports100ConcurrentConnections(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 
 	var wg sync.WaitGroup
 	connections := make([]*websocket.Conn, 100)
@@ -560,7 +585,7 @@ func TestWebSocketHandler_Supports1000ConcurrentConnections(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 
 	var wg sync.WaitGroup
 	connectedCount := int32(0)
@@ -588,7 +613,7 @@ func TestWebSocketHandler_BroadcastPerformance1000Connections(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	var conns []*websocket.Conn
 	for i := 0; i < 1000; i++ {
 		conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
@@ -623,7 +648,7 @@ func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -649,7 +674,7 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -678,7 +703,7 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	conn1, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
 	defer conn1.Close()
 	conn2, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
@@ -709,9 +734,11 @@ func TestWebSocketHandler_RejectsInvalidLevel(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?level=INVALID_LEVEL"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=INVALID_LEVEL"
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err == nil && conn != nil {
 		conn.Close()
 	}
@@ -722,9 +749,11 @@ func TestWebSocketHandler_RejectsInvalidService(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?service=INVALID_123"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?service=INVALID_123"
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err == nil && conn != nil {
 		conn.Close()
 	}
@@ -735,9 +764,14 @@ func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
-	defer conn.Close()
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+	if conn != nil {
+		defer conn.Close()
+	}
 
 	hub := currentTestHub
 	hub.broadcast <- &models.LogEntry{Service: "test"}
@@ -755,8 +789,11 @@ func TestWebSocketHandler_CloseConnectionOnDisconnect(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	require.NoError(t, err)
 
 	conn.Close()
@@ -772,9 +809,15 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn1, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
-	conn2, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp1 != nil && resp1.Body != nil {
+		resp1.Body.Close()
+	}
+	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp2 != nil && resp2.Body != nil {
+		resp2.Body.Close()
+	}
 	defer conn2.Close()
 
 	conn1.Close()
@@ -796,10 +839,16 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn1, _, _ := websocket.DefaultDialer.Dial(wsURL+"?level=ERROR", nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
+	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp1 != nil && resp1.Body != nil {
+		resp1.Body.Close()
+	}
 	defer conn1.Close()
-	conn2, _, _ := websocket.DefaultDialer.Dial(wsURL+"?level=INFO", nil)
+	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURL+"?level=INFO", nil)
+	if resp2 != nil && resp2.Body != nil {
+		resp2.Body.Close()
+	}
 	defer conn2.Close()
 
 	hub := currentTestHub
@@ -826,9 +875,13 @@ func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs?level=ERROR"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	require.NoError(t, err)
+	//nolint:gocritic // defer conn.Close() is needed for cleanup even though it's before return
 	defer conn.Close()
 }
 
@@ -841,8 +894,11 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -874,8 +930,11 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -898,8 +957,11 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/logs"
-	conn, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	defer conn.Close()
 
 	hub := currentTestHub
@@ -918,7 +980,9 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 // TEST HELPERS
 // ============================================================================
 
-func setupWebSocketTestServer(t *testing.T) http.Handler {
+var currentTestHub *WebSocketHub
+
+func setupWebSocketTestServer(_ *testing.T) http.Handler {
 	hub := NewWebSocketHub()
 	go hub.Run()
 
@@ -926,7 +990,8 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 	currentTestHub = hub
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws/logs" {
+		//nolint:nestif // necessary nesting for routing handler logic
+		if r.URL.Path == wsLogsPath {
 			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
@@ -962,11 +1027,10 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 	})
 }
 
-var currentTestHub *WebSocketHub
-
-func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
+func setupAuthenticatedWebSocketServer(_ *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws/logs" {
+		//nolint:nestif // necessary nesting for routing handler logic
+		if r.URL.Path == wsLogsPath {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -996,9 +1060,9 @@ func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
 	})
 }
 
-func setupPublicWebSocketServer(t *testing.T) http.Handler {
+func setupPublicWebSocketServer(_ *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws/logs" {
+		if r.URL.Path == wsLogsPath {
 			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
@@ -1016,10 +1080,10 @@ func setupPublicWebSocketServer(t *testing.T) http.Handler {
 	})
 }
 
-func setupFlakeyWebSocketServer(t *testing.T) http.Handler {
+func setupFlakeyWebSocketServer(_ *testing.T) http.Handler {
 	counter := 0
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws/logs" {
+		if r.URL.Path == wsLogsPath {
 			counter++
 			if counter < 3 {
 				http.Error(w, "Service temporarily unavailable", http.StatusServiceUnavailable)
@@ -1043,17 +1107,18 @@ func setupFlakeyWebSocketServer(t *testing.T) http.Handler {
 	})
 }
 
-func setupBrokenWebSocketServer(t *testing.T) http.Handler {
+func setupBrokenWebSocketServer(_ *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws/logs" {
+		if r.URL.Path == wsLogsPath {
 			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
 		}
 	})
 }
 
-func setupHighCapacityWebSocketServer(t *testing.T) http.Handler {
+func setupHighCapacityWebSocketServer(_ *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws/logs" {
+		if r.URL.Path == wsLogsPath {
 			upgrader := websocket.Upgrader{
 				ReadBufferSize:  1024,
 				WriteBufferSize: 1024,
@@ -1075,24 +1140,12 @@ func setupHighCapacityWebSocketServer(t *testing.T) http.Handler {
 	})
 }
 
-func setupWebSocketWithRedis(t *testing.T, redis interface{}) http.Handler {
-	return setupWebSocketTestServer(t)
+func setupWebSocketWithRedis(_ *testing.T, _ interface{}) http.Handler {
+	return setupWebSocketTestServer(nil)
 }
 
-func setupTestRedis(t *testing.T) interface{} {
+func setupTestRedis(_ *testing.T) interface{} {
 	return nil
-}
-
-func getTestHub() *WebSocketHub {
-	hub := NewWebSocketHub()
-	go hub.Run()
-	return hub
-}
-
-func getTestHubForServer(server *httptest.Server) *WebSocketHub {
-	hub := NewWebSocketHub()
-	go hub.Run()
-	return hub
 }
 
 func isConnectionClosed(conn *websocket.Conn) bool {

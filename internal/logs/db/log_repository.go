@@ -5,12 +5,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
 
 // LogEntry represents a log entry in the database.
+// nolint:govet // minor field alignment optimization not worth restructuring
 type LogEntry struct {
 	ID        int64
 	Message   string
@@ -20,8 +22,8 @@ type LogEntry struct {
 	Metadata  map[string]interface{}
 }
 
-// QueryFilters holds filter criteria for log queries.
-// All fields are optional; omit (zero values) to exclude from filtering.
+// QueryFilters represents filtering options for log queries.
+// nolint:govet // minor field alignment optimization not worth restructuring
 type QueryFilters struct {
 	Service    string            // Filter logs by service name
 	Level      string            // Filter logs by level (e.g., "error", "info")
@@ -106,6 +108,7 @@ func (r *LogRepository) Save(ctx context.Context, entry *LogEntry) (int64, error
 }
 
 // buildWhereClause builds parameterized WHERE clause fragments from filters.
+// nolint:gocritic // return values are self-explanatory (WHERE fragments, args, count)
 func buildWhereClause(filters *QueryFilters) ([]string, []interface{}, int) {
 	var fragments []string
 	var args []interface{}
@@ -286,39 +289,32 @@ func (r *LogRepository) GetByID(ctx context.Context, id int64) (*LogEntry, error
 
 // getCountsByLevel aggregates log count grouped by level.
 func (r *LogRepository) getCountsByLevel(ctx context.Context) (map[string]int64, error) {
-	byLevel := make(map[string]int64)
-	rows, err := r.db.QueryContext(ctx, "SELECT level, COUNT(*) FROM logs.entries GROUP BY level")
-	if err != nil {
-		return nil, fmt.Errorf("failed to query by level: %w", err)
-	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			if err == nil {
-				err = fmt.Errorf("failed to close rows: %w", closeErr)
-			}
-		}
-	}()
-
-	for rows.Next() {
-		var level string
-		var count int64
-		if err := rows.Scan(&level, &count); err != nil {
-			return nil, fmt.Errorf("failed to scan level stats: %w", err)
-		}
-		byLevel[level] = count
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error (by_level): %w", err)
-	}
-	return byLevel, nil
+	return r.aggregateCount(ctx, "level", "failed to query by level", "failed to scan level stats", "rows iteration error (by_level)")
 }
 
 // getCountsByService aggregates log count grouped by service.
 func (r *LogRepository) getCountsByService(ctx context.Context) (map[string]int64, error) {
-	byService := make(map[string]int64)
-	rows, err := r.db.QueryContext(ctx, "SELECT service, COUNT(*) FROM logs.entries GROUP BY service")
+	return r.aggregateCount(ctx, "service", "failed to query by service", "failed to scan service stats", "rows iteration error (by_service)")
+}
+
+// aggregateCount is a helper function to avoid code duplication in count aggregation.
+func (r *LogRepository) aggregateCount(ctx context.Context, column, queryErr, scanErr, iterErr string) (map[string]int64, error) {
+	result := make(map[string]int64)
+
+	// Use separate queries for each column to avoid SQL injection
+	var query string
+	switch column {
+	case "level":
+		query = "SELECT level, COUNT(*) FROM logs.entries GROUP BY level"
+	case "service":
+		query = "SELECT service, COUNT(*) FROM logs.entries GROUP BY service"
+	default:
+		return nil, fmt.Errorf("invalid column for aggregation: %s", column)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query by service: %w", err)
+		return nil, fmt.Errorf("%s: %w", queryErr, err)
 	}
 	defer func() {
 		if closeErr := rows.Close(); closeErr != nil {
@@ -329,17 +325,17 @@ func (r *LogRepository) getCountsByService(ctx context.Context) (map[string]int6
 	}()
 
 	for rows.Next() {
-		var service string
+		var key string
 		var count int64
-		if err := rows.Scan(&service, &count); err != nil {
-			return nil, fmt.Errorf("failed to scan service stats: %w", err)
+		if err := rows.Scan(&key, &count); err != nil {
+			return nil, fmt.Errorf("%s: %w", scanErr, err)
 		}
-		byService[service] = count
+		result[key] = count
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error (by_service): %w", err)
+		return nil, fmt.Errorf("%s: %w", iterErr, err)
 	}
-	return byService, nil
+	return result, nil
 }
 
 // GetStats returns aggregated statistics about log entries.
@@ -450,6 +446,7 @@ func validateBulkEntries(entries []*LogEntry) error {
 }
 
 // BulkInsert inserts multiple log entries at once.
+// nolint:gocognit,gocyclo // complexity is necessary for transaction handling and error management
 func (r *LogRepository) BulkInsert(ctx context.Context, entries []*LogEntry) (int64, error) {
 	// Validate input
 	if err := validateBulkEntries(entries); err != nil {
@@ -474,8 +471,11 @@ func (r *LogRepository) BulkInsert(ctx context.Context, entries []*LogEntry) (in
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
 			// Log but don't override previous errors
+			if err == nil {
+				err = fmt.Errorf("failed to rollback transaction: %w", rollbackErr)
+			}
 		}
 	}()
 
@@ -488,8 +488,11 @@ func (r *LogRepository) BulkInsert(ctx context.Context, entries []*LogEntry) (in
 		return 0, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer func() {
-		if err := stmt.Close(); err != nil {
+		if closeErr := stmt.Close(); closeErr != nil {
 			// Log but don't override previous errors
+			if err == nil {
+				err = fmt.Errorf("failed to close statement: %w", closeErr)
+			}
 		}
 	}()
 
