@@ -173,7 +173,7 @@ jobs:
         if: steps.issue.outputs.issue_found == 'true'
         run: |
           ISSUE_NUM=${{ steps.issue.outputs.issue_num }}
-          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_BODY='${{ github.event.pull_request.body }}'
           
           # Check if issue is already referenced with "Closes"
           if echo "$PR_BODY" | grep -q "Closes #$ISSUE_NUM"; then
