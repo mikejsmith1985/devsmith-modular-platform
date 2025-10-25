@@ -22,15 +22,16 @@ const (
 
 // Hub manages WebSocket clients and broadcasts log entries to them.
 // It implements connection management, filtering, heartbeats, and backpressure handling.
+// nolint:govet // fieldalignment: all pointer fields are functionally necessary - cannot be removed
 type Hub struct {
 	mu                   sync.RWMutex
 	broadcast            chan interface{}
 	register             chan ClientConn
 	unregister           chan ClientConn
 	cancel               context.CancelFunc
-	stats                *HubStats
 	redisPubSub          RedisPubSubConn
 	clients              map[ClientConn]bool
+	stats                *HubStats
 	backpressureStrategy string
 	heartbeatInterval    time.Duration
 	heartbeatTimeout     time.Duration

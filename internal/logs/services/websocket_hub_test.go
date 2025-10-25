@@ -332,7 +332,7 @@ func TestHub_ConcurrentBroadcast(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
-		go func(id int) {
+		go func(_ int) {
 			defer wg.Done()
 			hub.Broadcast(&TestLogEntry{Service: "portal", Level: "info"})
 		}(i)
@@ -406,6 +406,7 @@ func TestHub_AuthenticationFiltering(t *testing.T) {
 func TestHub_MatchesFilters(t *testing.T) {
 	hub := NewHub(nil)
 
+	// nolint:govet // fieldalignment: test struct fields (want, filters, log) are all functionally necessary
 	tests := []struct {
 		want    bool
 		filters map[string]interface{}
