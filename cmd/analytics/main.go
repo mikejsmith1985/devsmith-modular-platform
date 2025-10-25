@@ -3,13 +3,13 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
+	analytics_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/sirupsen/logrus"
@@ -39,26 +39,21 @@ func main() {
 	topIssuesService := services.NewTopIssuesService(logReader, logger)
 	exportService := services.NewExportService(aggregationRepo, logger)
 
-	handler := handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
+	apiHandler := analytics_handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
 
 	router := gin.Default()
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "analytics",
-			"status":  "healthy",
-		})
-	})
+	// Serve static files (CSS, JS)
+	router.Static("/static", "./apps/analytics/static")
 
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "DevSmith Analytics",
-			"version": "0.1.0",
-			"message": "Analytics service is running",
-		})
-	})
+	// Register API routes
+	apiHandler.RegisterRoutes(router)
 
-	handler.RegisterRoutes(router)
+	// Register UI routes
+	handlers.RegisterUIRoutes(router, logger)
+
+	// Register debug routes (development only)
+	debug.RegisterDebugRoutes(router, "analytics")
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "analytics")
