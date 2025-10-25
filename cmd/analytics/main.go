@@ -55,9 +55,6 @@ func main() {
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "analytics")
 
-	// Register debug routes (development only)
-	debug.RegisterDebugRoutes(router, "analytics")
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8083"
