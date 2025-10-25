@@ -1766,3 +1766,71 @@ activity: Update copilot activity log
 
 ---
 
+
+## 2025-10-25 08:01 - activity: Update activity log
+**Branch:** development
+**Files Changed:**  1 file changed, 17 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** activity: Update activity log
+
+**Commit:** `384d09e`
+
+**Commit Message:**
+```
+activity: Update activity log
+```
+
+---
+
+
+## 2025-10-25 08:37 - add production-ready Logs service test specifications
+**Branch:** development
+**Files Changed:**  1 file changed, 141 insertions(+)
+- `DevsmithTDD.md`
+
+**Action:** add production-ready Logs service test specifications
+
+**Commit:** `0852d43`
+
+**Commit Message:**
+```
+docs(tdd): add production-ready Logs service test specifications
+```
+
+**Details:**
+```
+Added comprehensive test specifications for production-ready Logs service
+features to support the 20 new GitHub issues created for Review and Logs
+applications.
+
+**New Test Section: 3.3 Production-Ready Logging Service Tests**
+
+Tests added:
+- Test 3.3: REST API Log Ingestion
+- Test 3.4: Advanced Filtering & Search (full-text search)
+- Test 3.5: Log Retention & Archiving (90-day policy)
+- Test 3.6: Correlation ID Tracking (distributed tracing)
+- Test 3.7: Performance - Bulk Ingestion (1000 logs benchmark)
+- Test 3.8: WebSocket Filtering (real-time filtered streams)
+
+These tests align with production-ready issues #30-39 for Logs service,
+ensuring comprehensive test coverage for REST API, database persistence,
+WebSocket streaming, filtering, search, retention, and performance.
+
+Related Issues:
+- #30: REST API for Log Management
+- #31: Database Schema & Repository Layer
+- #32: Enhanced WebSocket Streaming
+- #34: Advanced Filtering & Search
+- #36: Log Retention & Archiving
+- #38: Log Context & Correlation
+- #39: Performance Optimization & Load Testing
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+---
+
