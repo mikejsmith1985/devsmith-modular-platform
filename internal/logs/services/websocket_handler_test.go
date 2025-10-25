@@ -19,7 +19,7 @@ import (
 )
 
 // ============================================================================
-// WEBSOCKET ENDPOINT TESTS  
+// WEBSOCKET ENDPOINT TESTS
 // ============================================================================
 
 func TestWebSocketHandler_EndpointExists(t *testing.T) {
@@ -444,7 +444,9 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	for i := 0; i < 500; i++ {
 		select {
 		case hub.broadcast <- &models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:
+			// Message sent
 		default:
+			// Channel full, exit
 			break
 		}
 	}
@@ -919,10 +921,10 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 func setupWebSocketTestServer(t *testing.T) http.Handler {
 	hub := NewWebSocketHub()
 	go hub.Run()
-	
+
 	// Store for access in tests
 	currentTestHub = hub
-	
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ws/logs" {
 			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
@@ -930,7 +932,7 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 			if err != nil {
 				return
 			}
-			
+
 			// Create client
 			filters := make(map[string]string)
 			if level := r.URL.Query().Get("level"); level != "" {
@@ -942,7 +944,7 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 			if tags := r.URL.Query().Get("tags"); tags != "" {
 				filters["tags"] = tags
 			}
-			
+
 			client := &Client{
 				Conn:         conn,
 				Send:         make(chan *models.LogEntry, 256),
@@ -951,7 +953,7 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 				IsPublic:     true,
 				LastActivity: time.Now(),
 			}
-			
+
 			// Register and run pumps
 			hub.Register(client)
 			go client.WritePump(hub)
