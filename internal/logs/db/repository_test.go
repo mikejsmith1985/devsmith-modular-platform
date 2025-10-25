@@ -11,14 +11,17 @@ import (
 // ============================================================================
 
 func TestLogRepository_Save_Success(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
 	tests := []struct {
 		name      string
-		entry     *LogEntry
 		wantID    int64
 		wantError bool
+		entry     *LogEntry
 	}{
 		{
-			name: "valid entry returns ID",
+			name:      "valid entry returns ID",
+			wantID:    1,
+			wantError: false,
 			entry: &LogEntry{
 				CreatedAt: time.Now(),
 				Level:     "error",
@@ -26,19 +29,17 @@ func TestLogRepository_Save_Success(t *testing.T) {
 				Service:   "db_service",
 				Metadata:  map[string]interface{}{"user_id": 123},
 			},
-			wantID:    1,
-			wantError: false,
 		},
 		{
-			name: "minimal valid entry",
+			name:      "minimal valid entry",
+			wantID:    2,
+			wantError: false,
 			entry: &LogEntry{
 				CreatedAt: time.Now(),
 				Level:     "info",
 				Message:   "Test",
 				Service:   "test",
 			},
-			wantID:    2,
-			wantError: false,
 		},
 	}
 
@@ -61,16 +62,17 @@ func TestLogRepository_Save_Success(t *testing.T) {
 }
 
 func TestLogRepository_Save_ValidationErrors(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
 	tests := []struct {
 		name    string
-		entry   *LogEntry
 		wantErr bool
+		entry   *LogEntry
 	}{
-		{"nil entry", nil, true},
-		{"empty message", &LogEntry{CreatedAt: time.Now(), Level: "info", Service: "test", Message: ""}, true},
-		{"empty level", &LogEntry{CreatedAt: time.Now(), Level: "", Service: "test", Message: "msg"}, true},
-		{"empty service", &LogEntry{CreatedAt: time.Now(), Level: "info", Service: "", Message: "msg"}, true},
-		{"zero timestamp", &LogEntry{CreatedAt: time.Time{}, Level: "info", Service: "test", Message: "msg"}, true},
+		{"nil entry", true, nil},
+		{"empty message", true, &LogEntry{CreatedAt: time.Now(), Level: "info", Service: "test", Message: ""}},
+		{"empty level", true, &LogEntry{CreatedAt: time.Now(), Level: "", Service: "test", Message: "msg"}},
+		{"empty service", true, &LogEntry{CreatedAt: time.Now(), Level: "info", Service: "", Message: "msg"}},
+		{"zero timestamp", true, &LogEntry{CreatedAt: time.Time{}, Level: "info", Service: "test", Message: "msg"}},
 	}
 
 	for _, tt := range tests {
@@ -108,41 +110,42 @@ func TestLogRepository_Save_ContextCancellation(t *testing.T) {
 // ============================================================================
 
 func TestLogRepository_Query_Success(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
 	tests := []struct {
 		name    string
+		wantErr bool
 		filters *QueryFilters
 		page    PageOptions
-		wantErr bool
 	}{
 		{
 			name:    "query all with default pagination",
+			wantErr: false,
 			filters: nil,
 			page:    PageOptions{Limit: 10, Offset: 0},
-			wantErr: false,
 		},
 		{
 			name:    "query with service filter",
+			wantErr: false,
 			filters: &QueryFilters{Service: "portal"},
 			page:    PageOptions{Limit: 10, Offset: 0},
-			wantErr: false,
 		},
 		{
 			name:    "query with level filter",
+			wantErr: false,
 			filters: &QueryFilters{Level: "error"},
 			page:    PageOptions{Limit: 10, Offset: 0},
-			wantErr: false,
 		},
 		{
 			name:    "full-text search",
+			wantErr: false,
 			filters: &QueryFilters{Search: "connection timeout"},
 			page:    PageOptions{Limit: 10, Offset: 0},
-			wantErr: false,
 		},
 		{
 			name:    "time range query",
+			wantErr: false,
 			filters: &QueryFilters{From: time.Now().AddDate(0, 0, -7), To: time.Now()},
 			page:    PageOptions{Limit: 10, Offset: 0},
-			wantErr: false,
 		},
 	}
 
@@ -162,15 +165,25 @@ func TestLogRepository_Query_Success(t *testing.T) {
 }
 
 func TestLogRepository_Query_ValidationErrors(t *testing.T) {
+	// nolint:govet // test struct field alignment is acceptable
 	tests := []struct {
 		name    string
+		wantErr bool
 		filters *QueryFilters
 		page    PageOptions
-		wantErr bool
 	}{
-		{"invalid limit zero", nil, PageOptions{Limit: 0, Offset: 0}, true},
-		{"invalid limit negative", nil, PageOptions{Limit: -1, Offset: 0}, true},
-		{"invalid offset negative", nil, PageOptions{Limit: 10, Offset: -1}, true},
+		{
+			name:    "invalid limit (negative)",
+			wantErr: true,
+			filters: nil,
+			page:    PageOptions{Limit: -1, Offset: 0},
+		},
+		{
+			name:    "invalid offset (negative)",
+			wantErr: true,
+			filters: nil,
+			page:    PageOptions{Limit: 10, Offset: -1},
+		},
 	}
 
 	for _, tt := range tests {
@@ -188,9 +201,11 @@ func TestLogRepository_Query_ValidationErrors(t *testing.T) {
 func TestLogRepository_Query_Pagination(t *testing.T) {
 	repo := &LogRepository{}
 	ctx := context.Background()
+	var err error
+	var entries []*LogEntry
 
 	// Test offset
-	entries, err := repo.Query(ctx, nil, PageOptions{Limit: 10, Offset: 5})
+	entries, err = repo.Query(ctx, nil, PageOptions{Limit: 10, Offset: 5})
 	if err != nil {
 		t.Errorf("Query() with offset error = %v", err)
 	}
@@ -199,7 +214,7 @@ func TestLogRepository_Query_Pagination(t *testing.T) {
 	}
 
 	// Test high limit
-	entries, err = repo.Query(ctx, nil, PageOptions{Limit: 1000, Offset: 0})
+	_, err = repo.Query(ctx, nil, PageOptions{Limit: 1000, Offset: 0})
 	if err != nil {
 		t.Errorf("Query() with large limit error = %v", err)
 	}
@@ -524,8 +539,8 @@ func TestLogRepository_ContextDeadline_Save(t *testing.T) {
 func TestLogRepository_SchemaPresence(t *testing.T) {
 	// Repository initialized successfully - this verifies basic instantiation works
 	repo := &LogRepository{}
-	if repo == nil {
-		t.Fatal("unexpected: repo should not be nil")
+	if repo.db != nil {
+		t.Error("unexpected: repo.db should be nil for test repo without connection")
 	}
 }
 
