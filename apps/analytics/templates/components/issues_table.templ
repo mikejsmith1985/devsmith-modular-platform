@@ -1,0 +1,38 @@
+package components
+
+import "fmt"
+
+templ IssuesTable(issues []Issue) {
+	<table class="issues-table">
+		<thead>
+			<tr>
+				<th>Rank</th>
+				<th>Level</th>
+				<th>Message Pattern</th>
+				<th>Count</th>
+				<th>First Seen</th>
+				<th>Last Seen</th>
+			</tr>
+		</thead>
+		<tbody>
+			for i, issue := range issues {
+				<tr>
+					<td class="rank">{ fmt.Sprintf("#%d", i+1) }</td>
+					<td><span class={ "level-badge", issue.Level }>{ issue.Level }</span></td>
+					<td class="message">{ issue.MessagePattern }</td>
+					<td class="count">{ fmt.Sprintf("%d", issue.Count) }</td>
+					<td class="timestamp">{ issue.FirstSeen }</td>
+					<td class="timestamp">{ issue.LastSeen }</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+type Issue struct {
+	Level          string
+	MessagePattern string
+	Count          int
+	FirstSeen      string
+	LastSeen       string
+}

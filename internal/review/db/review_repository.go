@@ -1,0 +1,62 @@
+// Package db provides database access for review sessions and repositories.
+package db
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+)
+
+// Review represents a code review session in the database.
+type Review struct {
+	Title        string
+	CodeSource   string
+	GithubRepo   string
+	GithubBranch string
+	PastedCode   string
+	CreatedAt    string
+	LastAccessed string
+	ID           int64
+	UserID       int64
+}
+
+// ReviewRepository handles CRUD operations for Review sessions.
+type ReviewRepository struct {
+	DB *sql.DB
+}
+
+// NewReviewRepository creates a new ReviewRepository with the given database connection.
+func NewReviewRepository(db *sql.DB) *ReviewRepository {
+	return &ReviewRepository{DB: db}
+}
+
+// Create inserts a new review session and returns the created Review with ID
+func (r *ReviewRepository) Create(ctx context.Context, review *Review) (*Review, error) {
+	query := `INSERT INTO reviews.sessions (user_id, title, code_source, github_repo, github_branch, pasted_code) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at, last_accessed`
+	err := r.DB.QueryRowContext(ctx, query,
+		review.UserID,
+		review.Title,
+		review.CodeSource,
+		review.GithubRepo,
+		review.GithubBranch,
+		review.PastedCode,
+	).Scan(&review.ID, &review.CreatedAt, &review.LastAccessed)
+	if err != nil {
+		return nil, fmt.Errorf("db: failed to create review: %w", err)
+	}
+	return review, nil
+}
+
+// GetByID retrieves a Review by its ID.
+func (r *ReviewRepository) GetByID(ctx context.Context, id int64) (*Review, error) {
+	row := r.DB.QueryRowContext(ctx, `SELECT id, user_id, title, code_source, github_repo, github_branch, pasted_code, created_at, last_accessed FROM reviews.sessions WHERE id = $1`, id)
+	var review Review
+	err := row.Scan(&review.ID, &review.UserID, &review.Title, &review.CodeSource, &review.GithubRepo, &review.GithubBranch, &review.PastedCode, &review.CreatedAt, &review.LastAccessed)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("db: failed to get review by id: %w", err)
+	}
+	return &review, nil
+}

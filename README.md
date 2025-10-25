@@ -1,79 +1,55 @@
-# [Project Name]
+# DevSmith Modular Platform
 
-[Brief project description]
+AI-supervised code review and analytics platform with modular microservices architecture.
 
-## Features
+## 📚 Documentation
 
-- Feature 1
-- Feature 2
-- Feature 3
+### For Developers
+- **[Pre-Commit Hook Guide](.docs/PRE-COMMIT-HOOK.md)** - Understanding validation output and fixing issues
+- **[Architecture](ARCHITECTURE.md)** - System design and coding standards
+- **[TDD Workflow](DevsmithTDD.md)** - Test-driven development approach
+- **[Workflow Guide](.docs/WORKFLOW-GUIDE.md)** - Development process
 
-## Tech Stack
+### For AI Agents (Copilot)
+- **[Copilot Instructions](.github/copilot-instructions.md)** - Step-by-step implementation guide
+- **[Issue Templates](.docs/issues/)** - Feature specifications
 
-**Frontend:**
-- React 18
-- Vite
-- Bootstrap 5
+### Additional Resources
+- **[Troubleshooting](.docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Activity Log](.docs/devlog/copilot-activity.md)** - Development history
 
-**Backend:**
-- FastAPI
-- PostgreSQL
+## 🚀 Quick Start
 
-**Infrastructure:**
-- Docker
-- Docker Compose
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd devsmith-modular-platform
+   ```
 
-## Quick Start
+2. **Understand the pre-commit hook**
 
-```bash
-# Clone repository
-git clone https://github.com/mikejsmith1985/PROJECT-NAME.git
-cd PROJECT-NAME
+   Every commit is automatically validated. Read [Pre-Commit Hook Guide](.docs/PRE-COMMIT-HOOK.md) to understand:
+   - What gets checked (fmt, vet, lint, tests)
+   - How to interpret the dashboard output
+   - HIGH vs LOW priority issues
+   - Using `--json` for detailed analysis
 
-# Start with Docker
-docker-compose up -d
+3. **Start development**
 
-# Or develop locally
-cd frontend && npm install && npm run dev
-cd backend && pip install -r requirements.txt && uvicorn main:app --reload
-```
+   See [Copilot Instructions](.github/copilot-instructions.md) for the full workflow.
 
-## Development
+## 🛡️ Quality Gates
 
-See [STANDARDS.md](STANDARDS.md) for coding standards.
+All commits must pass:
+- ✅ Code formatting (`go fmt`)
+- ✅ Static analysis (`go vet`)
+- ✅ Linting (`golangci-lint`)
+- ✅ Tests (`go test -short`)
 
-### Branch Strategy
+The pre-commit hook blocks commits automatically if validation fails.
 
-- `main` - Production releases
-- `development` - Integration branch
-- `feature/*` - Feature branches
+## 📖 Key Documents
 
-### Making Changes
-
-1. Create feature branch: `git checkout -b feature/my-feature development`
-2. Make changes
-3. Update CLAUDE_CHANGELOG.md or AI_CHANGELOG.md
-4. Test changes
-5. Commit and push
-6. Create PR to `development`
-
-## Testing
-
-```bash
-# Frontend tests
-cd frontend && npm test
-
-# Backend tests
-cd backend && pytest
-```
-
-## Documentation
-
-- [STANDARDS.md](STANDARDS.md) - Coding standards
-- [STYLING_GUIDE.md](STYLING_GUIDE.md) - Design system
-- [CLAUDE_CHANGELOG.md](CLAUDE_CHANGELOG.md) - Claude AI changes
-- [AI_CHANGELOG.md](AI_CHANGELOG.md) - Copilot changes
-
-## License
-
-MIT
+- **PRE-COMMIT-HOOK.md** - You're here! Start here to understand validation
+- **ARCHITECTURE.md** - System design, standards, patterns
+- **copilot-instructions.md** - Step-by-step implementation guide

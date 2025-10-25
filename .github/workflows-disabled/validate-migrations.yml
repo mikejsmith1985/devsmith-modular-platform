@@ -1,0 +1,75 @@
+name: Validate Database Migrations
+
+on:
+  push:
+    branches: [development, main]
+    paths:
+      - '**/migrations/*.sql'
+      - 'docker/postgres/*.sql'
+  pull_request:
+    branches: [development, main]
+    paths:
+      - '**/migrations/*.sql'
+      - 'docker/postgres/*.sql'
+
+jobs:
+  validate:
+    name: Validate Migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: devsmith
+          POSTGRES_USER: devsmith
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run schema initialization
+        env:
+          PGPASSWORD: test_password
+        run: |
+          psql -h localhost -U devsmith -d devsmith -f docker/postgres/init-schemas.sql
+
+      - name: Verify schemas created
+        env:
+          PGPASSWORD: test_password
+        run: |
+          SCHEMA_COUNT=$(psql -h localhost -U devsmith -d devsmith -t -c "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name IN ('portal', 'reviews', 'logs', 'analytics');" | tr -d ' ')
+
+          if [ "$SCHEMA_COUNT" != "4" ]; then
+            echo "❌ Expected 4 schemas, found $SCHEMA_COUNT"
+            exit 1
+          fi
+
+          echo "✅ All schemas created successfully"
+
+      - name: Run migrations (if any)
+        env:
+          PGPASSWORD: test_password
+        run: |
+          # Run migrations for each service
+          # Example: for f in internal/portal/db/migrations/*.sql; do psql ... -f "$f"; done
+          echo "No migrations yet, but this will run them when they exist"
+
+      - name: List all tables
+        env:
+          PGPASSWORD: test_password
+        run: |
+          psql -h localhost -U devsmith -d devsmith -c "
+            SELECT schemaname, tablename
+            FROM pg_tables
+            WHERE schemaname IN ('portal', 'reviews', 'logs', 'analytics')
+            ORDER BY schemaname, tablename;
+          "

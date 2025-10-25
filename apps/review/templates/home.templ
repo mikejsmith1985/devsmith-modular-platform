@@ -1,0 +1,140 @@
+package templates
+
+type ModeInfo struct {
+	ID          string
+	Name        string
+	Icon        string
+	Description string
+	Duration    string
+	Cognitive   string
+}
+
+templ Home() {
+	@Layout("DevSmith Review - Code Analysis") {
+		<div class="review-container">
+			<header class="review-header">
+				<h1>🔍 DevSmith Review</h1>
+				<p class="subtitle">AI-powered code analysis with 5 reading modes</p>
+			</header>
+
+			<main class="review-main">
+				@ModeSelector()
+				@RepoInput()
+			</main>
+		</div>
+	}
+}
+
+templ ModeSelector() {
+	<div class="mode-selector">
+		<h2>Choose Your Reading Mode</h2>
+		<div class="modes-grid">
+			@ModeCard(ModeInfo{
+				ID:          "preview",
+				Name:        "Preview",
+				Icon:        "👁️",
+				Description: "Quick 2-minute overview of project structure and purpose",
+				Duration:    "2-3 min",
+				Cognitive:   "Low",
+			})
+
+			@ModeCard(ModeInfo{
+				ID:          "skim",
+				Name:        "Skim",
+				Icon:        "⚡",
+				Description: "Surface-level scan of architecture and key components",
+				Duration:    "5-7 min",
+				Cognitive:   "Low-Medium",
+			})
+
+			@ModeCard(ModeInfo{
+				ID:          "scan",
+				Name:        "Scan",
+				Icon:        "🔎",
+				Description: "Targeted search for specific patterns or issues",
+				Duration:    "3-5 min",
+				Cognitive:   "Medium",
+			})
+
+			@ModeCard(ModeInfo{
+				ID:          "detailed",
+				Name:        "Detailed",
+				Icon:        "📖",
+				Description: "Deep dive into implementation details and logic",
+				Duration:    "10-15 min",
+				Cognitive:   "High",
+			})
+
+			@ModeCard(ModeInfo{
+				ID:          "critical",
+				Name:        "Critical",
+				Icon:        "🔬",
+				Description: "Comprehensive review focusing on correctness and quality",
+				Duration:    "15-20 min",
+				Cognitive:   "Very High",
+			})
+		</div>
+	</div>
+}
+
+templ ModeCard(mode ModeInfo) {
+	<div class="mode-card" data-mode={ mode.ID }>
+		<div class="mode-icon">{ mode.Icon }</div>
+		<h3>{ mode.Name }</h3>
+		<p class="mode-description">{ mode.Description }</p>
+		<div class="mode-meta">
+			<span class="mode-duration">⏱️ { mode.Duration }</span>
+			<span class={ "cognitive-load " + mode.Cognitive }>🧠 { mode.Cognitive }</span>
+		</div>
+		<button class="btn-select-mode" data-mode={ mode.ID }>Select { mode.Name }</button>
+	</div>
+}
+
+templ RepoInput() {
+	<div id="repo-input-section" class="repo-input-section hidden">
+		<h2>Repository Details</h2>
+		<form id="review-form">
+			<div class="form-group">
+				<label for="repository-url">Repository URL</label>
+				<input
+					type="url"
+					id="repository-url"
+					name="repository_url"
+					placeholder="https://github.com/user/repo"
+					required
+				/>
+				<span class="form-help">Only GitHub repositories are supported in MVP</span>
+			</div>
+
+			<div class="form-row">
+				<div class="form-group">
+					<label for="branch">Branch</label>
+					<input
+						type="text"
+						id="branch"
+						name="branch"
+						placeholder="main"
+						value="main"
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="commit-sha">Commit SHA (optional)</label>
+					<input
+						type="text"
+						id="commit-sha"
+						name="commit_sha"
+						placeholder="abc123..."
+					/>
+				</div>
+			</div>
+
+			<input type="hidden" id="selected-mode" name="mode"/>
+
+			<div class="form-actions">
+				<button type="button" id="back-btn" class="btn-secondary">← Back to Modes</button>
+				<button type="submit" id="analyze-btn" class="btn-primary">Start Analysis</button>
+			</div>
+		</form>
+	</div>
+}

@@ -1,0 +1,154 @@
+name: Auto-Sync and Create Next Issue Branch
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - development
+
+jobs:
+  sync-and-create-next:
+    # Only run if PR was actually merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0
+
+      - name: Extract completed issue number
+        id: completed
+        run: |
+          # Get issue number from merged branch (e.g., feature/004-... -> 004)
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Branch: $BRANCH"
+
+          ISSUE_NUM=$(echo "$BRANCH" | sed 's/feature\/\([0-9]*\)-.*/\1/')
+          echo "completed_issue=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "Completed issue: #$ISSUE_NUM"
+
+      - name: Find next issue
+        id: next_issue
+        run: |
+          COMPLETED="${{ steps.completed.outputs.completed_issue }}"
+          echo "Looking for next issue after #$COMPLETED"
+
+          # Find next issue file (e.g., 004 -> 005)
+          NEXT_NUM=$(printf "%03d" $((10#$COMPLETED + 1)))
+          echo "Trying issue #$NEXT_NUM"
+
+          NEXT_FILE=$(ls .docs/issues/${NEXT_NUM}-*.md 2>/dev/null | head -1)
+
+          if [ -z "$NEXT_FILE" ]; then
+            echo "❌ No next issue found (tried $NEXT_NUM)"
+            echo "has_next=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ Found next issue file: $NEXT_FILE"
+
+          # Extract issue slug from filename (e.g., 005-review-skim-mode.md -> review-skim-mode)
+          SLUG=$(basename "$NEXT_FILE" .md | sed "s/^${NEXT_NUM}-//")
+
+          echo "next_num=$NEXT_NUM" >> $GITHUB_OUTPUT
+          echo "next_slug=$SLUG" >> $GITHUB_OUTPUT
+          echo "next_file=$NEXT_FILE" >> $GITHUB_OUTPUT
+          echo "has_next=true" >> $GITHUB_OUTPUT
+
+          echo "Next issue: #$NEXT_NUM ($SLUG)"
+
+      - name: Handle activity log merge
+        if: steps.next_issue.outputs.has_next == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if copilot-activity.md has uncommitted changes
+          if git status --porcelain | grep -q "copilot-activity.md"; then
+            echo "📝 Committing merged activity log changes"
+            git add .docs/devlog/copilot-activity.md
+            git commit -m "chore: merge activity log after PR #${{ github.event.pull_request.number }}"
+            git push origin development
+            echo "✅ Activity log merged and committed"
+          else
+            echo "ℹ️ No activity log changes to commit"
+          fi
+
+      - name: Create next feature branch
+        if: steps.next_issue.outputs.has_next == 'true'
+        run: |
+          NEXT_NUM="${{ steps.next_issue.outputs.next_num }}"
+          SLUG="${{ steps.next_issue.outputs.next_slug }}"
+          BRANCH_NAME="feature/${NEXT_NUM}-${SLUG}"
+
+          echo "🚀 Creating branch: $BRANCH_NAME"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create and push new branch from latest development
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+
+          echo "✅ Branch created and pushed: $BRANCH_NAME"
+
+      - name: Comment on merged PR
+        if: steps.next_issue.outputs.has_next == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const completedNum = '${{ steps.completed.outputs.completed_issue }}';
+            const nextNum = '${{ steps.next_issue.outputs.next_num }}';
+            const slug = '${{ steps.next_issue.outputs.next_slug }}';
+            const branchName = `feature/${nextNum}-${slug}`;
+            const issueFile = '${{ steps.next_issue.outputs.next_file }}';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `✅ **Issue #${completedNum} merged successfully!**\n\n` +
+                    `---\n\n` +
+                    `🚀 **Next up: Issue #${nextNum}** (\`${slug}\`)\n\n` +
+                    `Branch \`${branchName}\` has been automatically created and is ready for work.\n\n` +
+                    `**To start working:**\n` +
+                    `\`\`\`bash\n` +
+                    `git checkout development\n` +
+                    `git pull origin development\n` +
+                    `git checkout ${branchName}\n` +
+                    `\`\`\`\n\n` +
+                    `**Issue specification:** \`${issueFile}\`\n\n` +
+                    `---\n` +
+                    `🤖 Automated by [Auto-Sync Workflow](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/auto-sync-next-issue.yml)`
+            });
+
+      - name: No next issue found
+        if: steps.next_issue.outputs.has_next == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const completedNum = '${{ steps.completed.outputs.completed_issue }}';
+            const nextNum = String(parseInt(completedNum) + 1).padStart(3, '0');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `✅ **Issue #${completedNum} merged successfully!**\n\n` +
+                    `---\n\n` +
+                    `ℹ️ **No next issue found**\n\n` +
+                    `Looked for issue specification: \`.docs/issues/${nextNum}-*.md\`\n\n` +
+                    `Either:\n` +
+                    `- This was the last issue in the current batch\n` +
+                    `- The next issue specification hasn't been created yet\n\n` +
+                    `Create the next issue specification to continue the automated workflow.\n\n` +
+                    `---\n` +
+                    `🤖 Automated by [Auto-Sync Workflow](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/auto-sync-next-issue.yml)`
+            });

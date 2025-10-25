@@ -1,0 +1,68 @@
+// The analytics command starts the analytics service for the DevSmith platform.
+package main
+
+import (
+	"context"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
+	analytics_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/sirupsen/logrus"
+)
+
+func main() {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		logger.Fatal("DATABASE_URL environment variable is required")
+	}
+
+	dbPool, err := pgxpool.New(context.Background(), dbURL)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to connect to the database")
+	}
+	defer dbPool.Close()
+
+	aggregationRepo := db.NewAggregationRepository(dbPool)
+	logReader := db.NewLogReader(dbPool)
+
+	aggregatorService := services.NewAggregatorService(aggregationRepo, logReader, logger)
+	trendService := services.NewTrendService(aggregationRepo, logger)
+	anomalyService := services.NewAnomalyService(aggregationRepo, logger)
+	topIssuesService := services.NewTopIssuesService(logReader, logger)
+	exportService := services.NewExportService(aggregationRepo, logger)
+
+	apiHandler := analytics_handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
+
+	router := gin.Default()
+
+	// Serve static files (CSS, JS)
+	router.Static("/static", "./apps/analytics/static")
+
+	// Register API routes
+	apiHandler.RegisterRoutes(router)
+
+	// Register UI routes
+	handlers.RegisterUIRoutes(router, logger)
+
+	// Register debug routes (development only)
+	debug.RegisterDebugRoutes(router, "analytics")
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8083"
+	}
+
+	logger.Infof("Analytics service starting on port %s...", port)
+
+	if err := router.Run(":" + port); err != nil {
+		logger.WithError(err).Fatalf("Failed to start server: %v", err)
+	}
+}
