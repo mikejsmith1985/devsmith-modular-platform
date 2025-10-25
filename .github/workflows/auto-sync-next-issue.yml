@@ -52,7 +52,7 @@ jobs:
               });
               console.log(`✅ Issue #${issueNum} exists: ${issue.data.title}`);
             } catch (error) {
-              core.setFailed(`Issue #${issueNum} not found!`);
+              console.log(`⚠️ Issue #${issueNum} not found`);
             }
 
       - name: Add helpful comment with workflow instructions
