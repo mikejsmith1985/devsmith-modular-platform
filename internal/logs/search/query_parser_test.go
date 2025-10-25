@@ -382,21 +382,3 @@ func TestQueryParser_ValidFields(t *testing.T) {
 		})
 	}
 }
-
-// NewQueryParser creates a new query parser instance (stub for RED phase)
-func NewQueryParser() *QueryParser {
-	return &QueryParser{}
-}
-
-// QueryParser parses search queries into AST (stub for RED phase)
-type QueryParser struct {
-}
-
-// Parse parses a search query string (stub for RED phase)
-func (qp *QueryParser) Parse(query string) *ParsedQuery {
-	// This will be implemented in GREEN phase
-	return &ParsedQuery{
-		IsValid: false,
-		ErrorMsg: "not yet implemented",
-	}
-}
