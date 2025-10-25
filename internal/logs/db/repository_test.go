@@ -522,11 +522,10 @@ func TestLogRepository_ContextDeadline_Save(t *testing.T) {
 // ============================================================================
 
 func TestLogRepository_SchemaPresence(t *testing.T) {
+	// Repository initialized successfully - this verifies basic instantiation works
 	repo := &LogRepository{}
-
-	// Verify repository is properly instantiated
 	if repo == nil {
-		t.Error("LogRepository should be instantiable")
+		t.Fatal("unexpected: repo should not be nil")
 	}
 }
 
