@@ -12,28 +12,29 @@ import (
 
 // LogEntry represents a log entry in the database.
 type LogEntry struct {
-	Metadata  map[string]interface{}
+	ID        int64
 	Message   string
 	CreatedAt time.Time
 	Service   string
 	Level     string
-	ID        int64
+	Metadata  map[string]interface{}
 }
 
 // QueryFilters holds filter criteria for log queries.
+// All fields are optional; omit (zero values) to exclude from filtering.
 type QueryFilters struct {
-	MetaEquals map[string]string
-	From       time.Time
-	To         time.Time
-	Search     string
-	Service    string
-	Level      string
+	Service    string            // Filter logs by service name
+	Level      string            // Filter logs by level (e.g., "error", "info")
+	From       time.Time         // Filter logs created at or after this time
+	To         time.Time         // Filter logs created at or before this time
+	Search     string            // Full-text search on message field (ILIKE)
+	MetaEquals map[string]string // Filter logs where metadata keys equal given values
 }
 
-// PageOptions holds pagination parameters.
+// PageOptions holds pagination parameters for query results.
 type PageOptions struct {
-	Limit  int
-	Offset int
+	Limit  int // Number of results to return (must be > 0)
+	Offset int // Number of results to skip (must be >= 0)
 }
 
 // LogRepository handles CRUD operations for log entries.
