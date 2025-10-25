@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestLogEntry is a simple test log entry struct
@@ -232,10 +231,8 @@ func TestHub_BackpressureDropsMessages(t *testing.T) {
 	defer hub.Stop()
 
 	// Client with small buffer to simulate slow consumer
-	client := &TestClient{
-		SendChan: make(chan interface{}, 1), // Small buffer
-		Filters:  map[string]interface{}{},
-	}
+	client := NewTestClient(t)
+	client.SendChan = make(chan interface{}, 1) // Small buffer
 
 	hub.Register(client)
 	time.Sleep(10 * time.Millisecond)
@@ -272,10 +269,8 @@ func TestHub_BackpressureQueuesMessages(t *testing.T) {
 	go hub.Run()
 	defer hub.Stop()
 
-	client := &TestClient{
-		SendChan: make(chan interface{}, 1),
-		Filters:  map[string]interface{}{},
-	}
+	client := NewTestClient(t)
+	client.SendChan = make(chan interface{}, 1)
 
 	hub.Register(client)
 	time.Sleep(10 * time.Millisecond)
@@ -495,6 +490,10 @@ func NewTestClient(t *testing.T) *TestClient {
 func (c *TestClient) Send(msg interface{}) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if c.ctx == nil {
+		return ErrBackpressure
+	}
 
 	select {
 	case c.SendChan <- msg:
