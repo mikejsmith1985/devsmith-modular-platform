@@ -215,7 +215,7 @@ type UserInfo struct {
 	Name      string `json:"name"`
 	Email     string `json:"email"`
 	AvatarURL string `json:"avatar_url"`
-	ID        int64  `json:"id"`
+	ID        string `json:"id"`
 }
 
 // CreateJWTForUser creates a JWT token for the given user information.
@@ -225,7 +225,7 @@ func CreateJWTForUser(user *UserInfo) (string, error) {
 		Username:  user.Login,
 		Email:     user.Email,
 		AvatarURL: user.AvatarURL,
-		GithubID:  fmt.Sprintf("%d", user.ID),
+		GithubID:  user.ID,
 		CreatedAt: time.Now(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

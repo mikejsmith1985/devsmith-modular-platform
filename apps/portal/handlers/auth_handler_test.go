@@ -172,7 +172,7 @@ func TestCreateJWTForUser(t *testing.T) {
 		Login:     "testuser",
 		Email:     "testuser@example.com",
 		AvatarURL: "http://example.com/avatar.png",
-		ID:        12345,
+		ID:        "12345",
 	}
 
 	token, err := CreateJWTForUser(user)

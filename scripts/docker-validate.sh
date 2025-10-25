@@ -191,10 +191,6 @@ discover_go_routes() {
             # Skip debug endpoint itself
             [[ "$path" == "/debug/routes" ]] && continue
 
-            # Skip wildcard routes (e.g., /static/*filepath) - these are tested via E2E tests
-            # Wildcard routes cannot be tested with literal curl requests
-            [[ "$path" =~ \* ]] && continue
-
             local url="http://localhost:${service_port}${path}"
 
             # IMPORTANT: Only test health checks on direct service ports
