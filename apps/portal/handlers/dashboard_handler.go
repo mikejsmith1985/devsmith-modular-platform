@@ -115,6 +115,28 @@ func GetUserInfoHandler(c *gin.Context) {
 	log.Printf("Decoded JWT payload: %+v\n", userClaims)
 }
 
+// LogsDashboardHandler serves the logs dashboard page
+func LogsDashboardHandler(c *gin.Context) {
+	userClaims, err := getUserClaims(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	dashboardUser := templates.DashboardUser{
+		Username:  userClaims.Username,
+		Email:     userClaims.Email,
+		AvatarURL: userClaims.AvatarURL,
+	}
+
+	component := templates.LogsDashboard(dashboardUser)
+	if err := component.Render(c.Request.Context(), c.Writer); err != nil {
+		log.Printf("[ERROR] Failed to render logs dashboard component: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to render logs dashboard"})
+		return
+	}
+}
+
 // getJWTKey returns the shared JWT signing key.
 func getJWTKey() []byte {
 	return []byte("your-secret-key")
