@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -79,10 +81,10 @@ func (l *ServiceInstrumentationLogger) HasCircularDependencyPrevention() bool {
 // buildLogEntry constructs a log entry with context information.
 func (l *ServiceInstrumentationLogger) buildLogEntry(level, eventType string, metadata map[string]interface{}, ctx context.Context) map[string]interface{} {
 	logEntry := map[string]interface{}{
-		"service":   l.serviceName,
-		"level":     level,
-		"message":   eventType, // Use eventType as message for logs service compatibility
-		"metadata":  metadata,
+		"service":  l.serviceName,
+		"level":    level,
+		"message":  eventType, // Use eventType as message for logs service compatibility
+		"metadata": metadata,
 	}
 
 	// Extract request_id from context if available
@@ -139,12 +141,16 @@ func (l *ServiceInstrumentationLogger) sendAsync(logEntry map[string]interface{}
 			return // Can't marshal, give up silently
 		}
 
+		// DEBUG: Log to stderr so we can see if this is being called
+		fmt.Fprintf(os.Stderr, "[DEBUG] Sending log to %s from %s\n", l.logsServiceURL, l.serviceName)
+
 		// Create a context with timeout for the HTTP request
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
 		req, err := http.NewRequestWithContext(ctx, "POST", l.logsServiceURL+"/api/logs", bytes.NewReader(jsonData))
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] Failed to create request: %v\n", err)
 			return // Can't create request, give up silently
 		}
 
@@ -152,6 +158,7 @@ func (l *ServiceInstrumentationLogger) sendAsync(logEntry map[string]interface{}
 
 		resp, err := l.httpClient.Do(req)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] HTTP request failed: %v\n", err)
 			return // Network error, fail silently (don't block)
 		}
 
@@ -160,5 +167,7 @@ func (l *ServiceInstrumentationLogger) sendAsync(logEntry map[string]interface{}
 			//nolint:errcheck // Intentionally ignoring close errors in async logging
 			_ = resp.Body.Close()
 		}
+
+		fmt.Fprintf(os.Stderr, "[DEBUG] Log sent successfully\n")
 	}()
 }
