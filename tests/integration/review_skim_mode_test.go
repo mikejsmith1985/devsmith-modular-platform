@@ -13,11 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/review/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	reviewdb "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/stretchr/testify/assert"
 )
+
+// createTestInstrumentationLogger creates a dummy instrumentation logger for tests
+func createTestInstrumentationLogger() *instrumentation.ServiceInstrumentationLogger {
+	return instrumentation.NewServiceInstrumentationLogger("review-test", "http://localhost:8082")
+}
 
 func setupTestDB(t *testing.T) *sql.DB {
 	dbURL := os.Getenv("REVIEW_TEST_DB_URL")
@@ -57,7 +63,11 @@ func TestSkimMode_Integration(t *testing.T) {
 	reviewService := services.NewReviewService(skimService, reviewRepo)
 	previewService := services.NewPreviewService()
 	scanService := services.NewScanService(ollamaClient, analysisRepo)
-	handler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService)
+
+	// Create a dummy instrumentation logger for testing
+	instrLogger := createTestInstrumentationLogger()
+
+	handler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService, instrLogger)
 
 	r := gin.Default()
 	r.GET("/api/reviews/:id/skim", handler.GetSkimAnalysis)

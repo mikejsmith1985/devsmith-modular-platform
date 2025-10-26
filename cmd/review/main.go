@@ -13,6 +13,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/review/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
@@ -44,8 +45,34 @@ func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisRes
 func main() {
 	router := gin.Default()
 
+	// Initialize instrumentation logger for this service
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082" // Default for local development
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("review", logsServiceURL)
+
+	// Middleware: Log all requests (async, non-blocking)
+	router.Use(func(c *gin.Context) {
+		// Skip logging for health checks
+		if c.Request.URL.Path != "/health" {
+			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
+			// Log to instrumentation service asynchronously
+			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+				"method": c.Request.Method,
+				"path":   c.Request.URL.Path,
+			})
+		}
+		c.Next()
+	})
+
 	// Health and root endpoints
 	router.GET("/health", func(c *gin.Context) {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
+			"status": "healthy",
+		})
 		c.JSON(http.StatusOK, gin.H{
 			"service": "review",
 			"status":  "healthy",
@@ -95,7 +122,7 @@ func main() {
 	scanService := services.NewScanService(ollamaClient, analysisRepo)
 	reviewService := services.NewReviewService(skimService, reviewRepo)
 	previewService := services.NewPreviewService()
-	reviewHandler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService)
+	reviewHandler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService, instrLogger)
 
 	// Skim Mode endpoint
 	router.GET("/api/reviews/:id/skim", reviewHandler.GetSkimAnalysis)
