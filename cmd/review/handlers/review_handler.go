@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
@@ -17,15 +18,17 @@ type ReviewHandler struct {
 	skimService    *services.SkimService
 	reviewService  ReviewServiceInterface
 	previewService *services.PreviewService
+	instrLogger    *instrumentation.ServiceInstrumentationLogger
 }
 
 // NewReviewHandler creates a new instance of ReviewHandler.
-func NewReviewHandler(reviewService ReviewServiceInterface, previewService *services.PreviewService, skimService *services.SkimService, scanService ScanServiceInterface) *ReviewHandler {
+func NewReviewHandler(reviewService ReviewServiceInterface, previewService *services.PreviewService, skimService *services.SkimService, scanService ScanServiceInterface, instrLogger *instrumentation.ServiceInstrumentationLogger) *ReviewHandler {
 	return &ReviewHandler{
 		reviewService:  reviewService,
 		previewService: previewService,
 		skimService:    skimService,
 		scanService:    scanService,
+		instrLogger:    instrLogger,
 	}
 }
 
@@ -34,6 +37,8 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 	// Check and handle errors for ParseInt
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		h.instrLogger.LogValidationFailure(c.Request.Context(), "invalid_review_id", "review ID must be a valid integer", nil)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review ID"})
 		return
 	}
@@ -51,6 +56,11 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 	// Check and handle errors for GetReview
 	review, err := h.reviewService.GetReview(c.Request.Context(), id)
 	if err != nil {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		h.instrLogger.LogError(c.Request.Context(), "retrieve_review_failed", "failed to retrieve review from database", map[string]interface{}{
+			"review_id": id,
+			"error":     err.Error(),
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve review"})
 		return
 	}
@@ -58,9 +68,23 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 	// Check and handle errors for AnalyzeScan
 	output, err := h.scanService.AnalyzeScan(c.Request.Context(), review.ID, query)
 	if err != nil {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		h.instrLogger.LogError(c.Request.Context(), "scan_analysis_failed", "failed to perform scan analysis", map[string]interface{}{
+			"review_id": review.ID,
+			"query":     query,
+			"error":     err.Error(),
+		})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to analyze scan"})
 		return
 	}
+
+	// Log successful scan completion
+	//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+	h.instrLogger.LogEvent(c.Request.Context(), "scan_analysis_completed", map[string]interface{}{
+		"review_id":     review.ID,
+		"query":         query,
+		"reading_mode":  readingMode,
+	})
 
 	c.JSON(http.StatusOK, output)
 }
@@ -76,6 +100,8 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 		UserID       int64  `json:"user_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		h.instrLogger.LogValidationFailure(c.Request.Context(), "invalid_request_format", "request body could not be parsed as JSON", nil)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format"})
 		return
 	}
@@ -97,9 +123,26 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 	}
 	created, err := h.reviewService.CreateReview(c.Request.Context(), review)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create review"})
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		h.instrLogger.LogError(c.Request.Context(), "create_review_failed", "failed to create review session", map[string]interface{}{
+			"title":       req.Title,
+			"code_source": req.CodeSource,
+			"error":       err.Error(),
+		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create review session"})
 		return
 	}
+
+	// Log successful session creation
+	//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+	h.instrLogger.LogEvent(c.Request.Context(), "review_session_created", map[string]interface{}{
+		"review_id":     created.ID,
+		"user_id":       req.UserID,
+		"title":         req.Title,
+		"code_source":   req.CodeSource,
+		"code_size":     len(req.PastedCode),
+	})
+
 	c.JSON(http.StatusCreated, created)
 }
 
