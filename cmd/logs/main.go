@@ -89,6 +89,23 @@ func main() {
 		resthandlers.DeleteLogs(restSvc)(c)
 	})
 
+	// Also register /api/v1/logs routes (for consistency and direct access)
+	router.POST("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.PostLogs(restSvc)(c)
+	})
+	router.GET("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.GetLogs(restSvc)(c)
+	})
+	router.GET("/api/v1/logs/:id", func(c *gin.Context) {
+		resthandlers.GetLogByID(restSvc)(c)
+	})
+	router.GET("/api/v1/logs/stats", func(c *gin.Context) {
+		resthandlers.GetStats(restSvc)(c)
+	})
+	router.DELETE("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.DeleteLogs(restSvc)(c)
+	})
+
 	// Initialize WebSocket hub
 	hub := services.NewWebSocketHub()
 	go hub.Run()
