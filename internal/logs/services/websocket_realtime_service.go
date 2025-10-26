@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// WebSocketRealtimeService manages real-time WebSocket connections and broadcasts.
+// WebSocketRealtimeService implements real-time WebSocket updates.
 type WebSocketRealtimeService struct { //nolint:govet // Struct alignment optimized for memory efficiency
 	logger      *logrus.Logger
 	mu          sync.RWMutex
@@ -20,8 +20,8 @@ type WebSocketRealtimeService struct { //nolint:govet // Struct alignment optimi
 // NewWebSocketRealtimeService creates a new WebSocketRealtimeService.
 func NewWebSocketRealtimeService(logger *logrus.Logger) *WebSocketRealtimeService {
 	return &WebSocketRealtimeService{
-		connections: make(map[string]bool),
 		logger:      logger,
+		connections: make(map[string]bool),
 	}
 }
 
@@ -35,10 +35,7 @@ func (s *WebSocketRealtimeService) RegisterConnection(ctx context.Context, conne
 	defer s.mu.Unlock()
 
 	s.connections[connectionID] = true
-	s.logger.WithFields(logrus.Fields{
-		"connection_id":     connectionID,
-		"total_connections": len(s.connections),
-	}).Debug("WebSocket connection registered")
+	s.logger.Debugf("Registered WebSocket connection %s, total: %d", connectionID, len(s.connections))
 
 	return nil
 }
@@ -53,10 +50,7 @@ func (s *WebSocketRealtimeService) UnregisterConnection(ctx context.Context, con
 	defer s.mu.Unlock()
 
 	delete(s.connections, connectionID)
-	s.logger.WithFields(logrus.Fields{
-		"connection_id":     connectionID,
-		"total_connections": len(s.connections),
-	}).Debug("WebSocket connection unregistered")
+	s.logger.Debugf("Unregistered WebSocket connection %s, remaining: %d", connectionID, len(s.connections))
 
 	return nil
 }
@@ -71,13 +65,14 @@ func (s *WebSocketRealtimeService) BroadcastStats(ctx context.Context, stats *mo
 	connectionCount := len(s.connections)
 	s.mu.RUnlock()
 
-	s.logger.WithFields(logrus.Fields{
-		"connections": connectionCount,
-		"timestamp":   stats.GeneratedAt,
-	}).Debug("Broadcasting dashboard stats")
+	if connectionCount == 0 {
+		s.logger.Debugf("No connections to broadcast stats to")
+		return nil
+	}
 
-	// In a real implementation, this would send to actual WebSocket connections
-	// For now, we just log the broadcast
+	s.logger.Debugf("Broadcasting stats to %d connections", connectionCount)
+
+	// TODO: Implement actual WebSocket broadcasting
 
 	return nil
 }
@@ -92,15 +87,14 @@ func (s *WebSocketRealtimeService) BroadcastAlert(ctx context.Context, violation
 	connectionCount := len(s.connections)
 	s.mu.RUnlock()
 
-	s.logger.WithFields(logrus.Fields{
-		"connections": connectionCount,
-		"service":     violation.Service,
-		"level":       violation.Level,
-		"count":       violation.CurrentCount,
-	}).Info("Broadcasting alert to connected clients")
+	if connectionCount == 0 {
+		s.logger.Debugf("No connections to broadcast alert to")
+		return nil
+	}
 
-	// In a real implementation, this would send to actual WebSocket connections
-	// with higher priority than regular stats
+	s.logger.Debugf("Broadcasting alert to %d connections for service %s", connectionCount, violation.Service)
+
+	// TODO: Implement actual WebSocket broadcasting
 
 	return nil
 }
