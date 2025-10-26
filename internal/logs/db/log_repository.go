@@ -159,7 +159,8 @@ func buildWhereClause(filters *QueryFilters) ([]string, []interface{}, int) {
 	return fragments, args, argNum
 }
 
-// Query retrieves log entries matching the filters and pagination.
+// Query retrieves log entries matching specified filters with pagination support.
+// nolint:gocognit // complexity is necessary for comprehensive query building and filtering
 func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page PageOptions) ([]*LogEntry, error) {
 	// Validate pagination
 	if page.Limit <= 0 {
@@ -226,6 +227,12 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 			Metadata:  make(map[string]interface{}),
 		}
 
+		// Parse metadata JSON if it exists
+		if metadataJSON.Valid && metadataJSON.String != "" {
+			//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
+			_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+		}
+
 		entries = append(entries, entry)
 	}
 
@@ -282,6 +289,12 @@ func (r *LogRepository) GetByID(ctx context.Context, id int64) (*LogEntry, error
 		Message:   message,
 		CreatedAt: createdAt,
 		Metadata:  make(map[string]interface{}),
+	}
+
+	// Parse metadata JSON if it exists
+	if metadataJSON.Valid && metadataJSON.String != "" {
+		//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
+		_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
 	}
 
 	return entry, nil
