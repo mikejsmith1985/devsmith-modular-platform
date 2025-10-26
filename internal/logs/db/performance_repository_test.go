@@ -11,12 +11,42 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
+
+// Performance Testing Suite for Logs Service (Feature #39)
+//
+// This package contains comprehensive performance tests for the Logs service's
+// high-throughput logging capabilities. All tests are designed to validate the
+// acceptance criteria for Feature #39: Performance Optimization & Load Testing.
+//
+// Key Performance Targets:
+//   - Bulk insert: 1000+ logs in <500ms
+//   - Sustained throughput: 1000+ logs/second
+//   - Ingestion latency p95: <50ms
+//   - Query latency p95: <100ms
+//   - Concurrent WebSocket clients: 100+
+//   - Connection pool: 50-100 connections
+//
+// Test Database Setup:
+//   - PostgreSQL 15 with testcontainers (auto-managed lifecycle)
+//   - Indexes on all query fields for performance
+//   - WAL optimization for write performance
+//   - Parameterized queries (no SQL injection)
+//
+// Running Tests:
+//   - All tests: go test -v ./internal/logs/db/...
+//   - Short mode: go test -short ./internal/logs/db/...
+//   - Benchmarks: go test -bench=Performance ./internal/logs/db/...
+//
+// References:
+//   - DevsmithTDD.md: Performance tests (lines 1705+)
+//   - ARCHITECTURE.md: Mental models for performance optimization
+//   - Feature #39: Performance Optimization & Load Testing
 
 // TestPerformanceRepository_BulkInsert_1000Logs tests bulk insert functionality for 1000 logs
 func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
