@@ -201,11 +201,7 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 		return nil, fmt.Errorf("failed to query log entries: %w", err)
 	}
 	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			if err == nil {
-				err = fmt.Errorf("failed to close rows: %w", closeErr)
-			}
-		}
+		closeRows(rows)
 	}()
 
 	// Scan results
@@ -360,8 +356,7 @@ func (r *LogRepository) FindAllServices(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find services: %w", err)
 	}
-	//nolint:errcheck // Best effort to close rows
-	defer rows.Close()
+	defer closeRows(rows)
 
 	var services []string
 	for rows.Next() {
@@ -416,8 +411,7 @@ func (r *LogRepository) FindTopMessages(ctx context.Context, service, level stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to find top messages: %w", err)
 	}
-	//nolint:errcheck // Best effort to close rows
-	defer rows.Close()
+	defer closeRows(rows)
 
 	var messages []models.LogMessage
 	for rows.Next() {

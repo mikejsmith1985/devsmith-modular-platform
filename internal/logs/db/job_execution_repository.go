@@ -120,7 +120,7 @@ func (r *JobExecutionRepository) GetByJobType(ctx context.Context, jobType strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to query job executions: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var executions []JobExecution
 	for rows.Next() {
@@ -160,7 +160,7 @@ func (r *JobExecutionRepository) GetRecent(ctx context.Context, limit int) ([]Jo
 	if err != nil {
 		return nil, fmt.Errorf("failed to query recent job executions: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var executions []JobExecution
 	for rows.Next() {
@@ -200,7 +200,7 @@ func (r *JobExecutionRepository) GetFailures(ctx context.Context, start, end tim
 	if err != nil {
 		return nil, fmt.Errorf("failed to query job failures: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var executions []JobExecution
 	for rows.Next() {

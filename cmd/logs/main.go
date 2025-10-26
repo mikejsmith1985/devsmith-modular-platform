@@ -71,8 +71,7 @@ func main() {
 	// Middleware for logging requests (skip health checks in event log, but still track them)
 	router.Use(func(c *gin.Context) {
 		// Log all requests asynchronously (health checks too, for observability)
-		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+		instrLogger.SafeLogEvent(c.Request.Context(), "request_received", map[string]interface{}{
 			"method": c.Request.Method,
 			"path":   c.Request.URL.Path,
 		})

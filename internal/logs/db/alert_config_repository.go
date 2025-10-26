@@ -147,7 +147,7 @@ func (r *AlertConfigRepository) GetAll(ctx context.Context) ([]models.AlertConfi
 	if err != nil {
 		return nil, fmt.Errorf("failed to query alert configs: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var configs []models.AlertConfig
 	for rows.Next() {

@@ -89,7 +89,7 @@ func (r *AlertViolationRepository) GetByService(ctx context.Context, service str
 	if err != nil {
 		return nil, fmt.Errorf("failed to query violations: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var violations []models.AlertThresholdViolation
 	for rows.Next() {
@@ -130,7 +130,7 @@ func (r *AlertViolationRepository) GetUnsent(ctx context.Context) ([]models.Aler
 	if err != nil {
 		return nil, fmt.Errorf("failed to query unsent violations: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var violations []models.AlertThresholdViolation
 	for rows.Next() {
@@ -172,7 +172,7 @@ func (r *AlertViolationRepository) GetRecent(ctx context.Context, limit int) ([]
 	if err != nil {
 		return nil, fmt.Errorf("failed to query recent violations: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // close error ignored in defer
+	defer closeRows(rows)
 
 	var violations []models.AlertThresholdViolation
 	for rows.Next() {
