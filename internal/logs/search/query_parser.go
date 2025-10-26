@@ -317,6 +317,7 @@ func (p *QueryParser) GetSQLCondition(query *Query) (string, []interface{}, erro
 }
 
 // buildBooleanSQL builds SQL for boolean operations
+//
 //nolint:gocritic // return values are self-explanatory (sql, params, error)
 func (p *QueryParser) buildBooleanSQL(boolOp *BooleanOp) (string, []interface{}, error) {
 	var parts []string
