@@ -29,8 +29,8 @@ type EmailConfig struct { //nolint:govet // struct alignment optimized for reada
 
 // RetryConfig holds retry configuration for notifications.
 type RetryConfig struct {
-	MaxRetries      int
-	RetryDelay      time.Duration
+	MaxRetries        int
+	RetryDelay        time.Duration
 	BackoffMultiplier float64
 }
 
@@ -108,12 +108,12 @@ func (en *EmailNotifier) Send(ctx context.Context, violation *models.AlertThresh
 
 		lastErr = err
 		if attempt < en.retryConfig.MaxRetries {
-			en.logger.Warnf("Email send failed (attempt %d/%d): %v. Retrying...", 
+			en.logger.Warnf("Email send failed (attempt %d/%d): %v. Retrying...",
 				attempt+1, en.retryConfig.MaxRetries+1, err)
 		}
 	}
 
-	return fmt.Errorf("failed to send email after %d attempts: %w", 
+	return fmt.Errorf("failed to send email after %d attempts: %w",
 		en.retryConfig.MaxRetries+1, lastErr)
 }
 

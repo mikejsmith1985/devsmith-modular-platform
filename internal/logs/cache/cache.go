@@ -17,8 +17,8 @@ type Entry struct {
 	CreatedAt time.Time
 }
 
-// CacheStats holds cache performance metrics.
-type CacheStats struct {
+// Stats holds cache performance metrics.
+type Stats struct {
 	Hits          int64
 	Misses        int64
 	Evictions     int64
@@ -27,7 +27,7 @@ type CacheStats struct {
 }
 
 // HitRate returns the cache hit rate as a percentage.
-func (cs *CacheStats) HitRate() float64 {
+func (cs *Stats) HitRate() float64 {
 	if cs.TotalRequests == 0 {
 		return 0
 	}
@@ -36,11 +36,11 @@ func (cs *CacheStats) HitRate() float64 {
 
 // DashboardCache provides in-memory caching for dashboard stats.
 type DashboardCache struct { //nolint:govet // struct alignment optimized for readability
-	mu       sync.RWMutex
-	ttl      time.Duration
-	store    map[string]*Entry
-	stats    CacheStats
-	statsmu  sync.RWMutex
+	mu      sync.RWMutex
+	ttl     time.Duration
+	store   map[string]*Entry
+	stats   Stats
+	statsmu sync.RWMutex
 }
 
 // NewDashboardCache creates a new dashboard cache.
@@ -131,7 +131,7 @@ func (dc *DashboardCache) Clear(ctx context.Context) error {
 }
 
 // GetStats returns current cache statistics.
-func (dc *DashboardCache) GetStats() CacheStats {
+func (dc *DashboardCache) GetStats() Stats {
 	dc.statsmu.RLock()
 	defer dc.statsmu.RUnlock()
 
