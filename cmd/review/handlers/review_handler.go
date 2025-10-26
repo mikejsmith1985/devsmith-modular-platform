@@ -81,9 +81,9 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 	// Log successful scan completion
 	//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
 	h.instrLogger.LogEvent(c.Request.Context(), "scan_analysis_completed", map[string]interface{}{
-		"review_id":     review.ID,
-		"query":         query,
-		"reading_mode":  readingMode,
+		"review_id":    review.ID,
+		"query":        query,
+		"reading_mode": readingMode,
 	})
 
 	c.JSON(http.StatusOK, output)
@@ -136,11 +136,11 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 	// Log successful session creation
 	//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
 	h.instrLogger.LogEvent(c.Request.Context(), "review_session_created", map[string]interface{}{
-		"review_id":     created.ID,
-		"user_id":       req.UserID,
-		"title":         req.Title,
-		"code_source":   req.CodeSource,
-		"code_size":     len(req.PastedCode),
+		"review_id":   created.ID,
+		"user_id":     req.UserID,
+		"title":       req.Title,
+		"code_source": req.CodeSource,
+		"code_size":   len(req.PastedCode),
 	})
 
 	c.JSON(http.StatusCreated, created)
