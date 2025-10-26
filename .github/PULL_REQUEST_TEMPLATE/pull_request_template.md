@@ -2,7 +2,7 @@
 
 ## 🎯 Issue Reference (REQUIRED - DO NOT SKIP!)
 
-**Closes #<!-- issue number goes here - EXAMPLE: Closes #36 -->**
+**Closes #<!-- issue number goes here - EXAMPLE: Closes #38 -->**
 
 <!-- 
 🚨 CRITICAL: Replace the example above with your actual issue number!
@@ -10,23 +10,31 @@ This MUST be filled in for:
 1. Issue to auto-link to PR
 2. Issue to auto-close when PR merges
 
-Correct format: "Closes #36" (where 36 is your issue number)
+Correct format: "Closes #38" (where 38 is your issue number)
 Wrong formats that WON'T work:
-  ❌ Feature #36
-  ❌ Issue 36
-  ❌ #36
-  ❌ Closes Feature 36
+  ❌ Feature #38
+  ❌ Issue 38
+  ❌ #38
+  ❌ Closes Feature 38
 
-GitHub keywords that work:
-✓ Closes #36
-✓ Close #36  
-✓ Closed #36
-✓ Fixes #36
-✓ Fixed #36
-✓ Fix #36
-✓ Resolves #36
-✓ Resolved #36
-✓ Resolve #36
+GitHub keywords that work (use ONLY ONE):
+✓ Closes #38
+✓ Close #38  
+✓ Closed #38
+✓ Fixes #38
+✓ Fixed #38
+✓ Fix #38
+✓ Resolves #38
+✓ Resolved #38
+✓ Resolve #38
+
+VERIFICATION CHECKLIST:
+- ☐ Have you replaced the example number with your actual issue number?
+- ☐ Is your issue number correct? (Check: https://github.com/issues)
+- ☐ Did you use "Closes", "Fixes", or "Resolves"? (not "Issue", "Feature", or "PR #")
+- ☐ Is there exactly ONE number after the #?
+
+⚠️ PRs without valid "Closes #XX" will be REJECTED during review!
 -->
 
 ## Feature/Fix Description
