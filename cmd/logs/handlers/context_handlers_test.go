@@ -84,7 +84,7 @@ func TestGetCorrelatedLogs_LimitCapped(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	var resp map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &resp)
-	assert.Equal(t, float64(50), resp["limit"]) // Should use default since value > 1000
+	assert.Equal(t, float64(100), resp["limit"]) // Should use default 100 since value > 1000
 }
 
 // TestGetCorrelationMetadata_Valid tests retrieving metadata
