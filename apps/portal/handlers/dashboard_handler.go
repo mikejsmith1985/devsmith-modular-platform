@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -123,18 +126,75 @@ func LogsDashboardHandler(c *gin.Context) {
 		return
 	}
 
-	dashboardUser := templates.DashboardUser{
-		Username:  userClaims.Username,
-		Email:     userClaims.Email,
-		AvatarURL: userClaims.AvatarURL,
+	// Fetch dashboard data from logs service API
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082"
 	}
 
-	component := templates.LogsDashboard(dashboardUser)
+	// Fetch dashboard stats
+	stats, err := fetchLogsData(c.Request.Context(), logsServiceURL+"/api/logs/dashboard/stats")
+	if err != nil {
+		log.Printf("[WARN] Failed to fetch dashboard stats: %v", err)
+		stats = map[string]interface{}{}
+	}
+
+	// Fetch top errors
+	topErrors, err := fetchLogsData(c.Request.Context(), logsServiceURL+"/api/logs/validations/top-errors?limit=10&days=1")
+	if err != nil {
+		log.Printf("[WARN] Failed to fetch top errors: %v", err)
+		topErrors = []interface{}{}
+	}
+
+	// Fetch error trends
+	trends, err := fetchLogsData(c.Request.Context(), logsServiceURL+"/api/logs/validations/trends?days=1")
+	if err != nil {
+		log.Printf("[WARN] Failed to fetch trends: %v", err)
+		trends = []interface{}{}
+	}
+
+	dashboardData := templates.LogsDashboardData{
+		User:      templates.DashboardUser{Username: userClaims.Username, Email: userClaims.Email, AvatarURL: userClaims.AvatarURL},
+		Stats:     stats,
+		TopErrors: topErrors,
+		Trends:    trends,
+	}
+
+	component := templates.LogsDashboard(dashboardData)
 	if err := component.Render(c.Request.Context(), c.Writer); err != nil {
 		log.Printf("[ERROR] Failed to render logs dashboard component: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to render logs dashboard"})
 		return
 	}
+}
+
+// fetchLogsData fetches JSON data from logs service API
+func fetchLogsData(ctx context.Context, url string) (interface{}, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("[WARN] Failed to close response body: %v", closeErr)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var data interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 // getJWTKey returns the shared JWT signing key.
