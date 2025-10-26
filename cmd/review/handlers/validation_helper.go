@@ -3,8 +3,11 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
@@ -12,6 +15,7 @@ import (
 
 // ValidateRequest runs a series of validator functions and returns HTTP error if any fail.
 // This is a helper to streamline validation in handlers and provide consistent error responses.
+// Validation failures are logged to the logs service for visibility and debugging.
 //
 // Parameters:
 //   - c: The Gin context for writing HTTP responses
@@ -22,6 +26,9 @@ import (
 func ValidateRequest(c *gin.Context, validators ...func() error) bool {
 	for _, validator := range validators {
 		if err := validator(); err != nil {
+			// Log validation failure to logs service
+			logValidationFailure("validation_error", err.Error(), c)
+
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":  "validation error",
 				"detail": err.Error(),
@@ -117,4 +124,59 @@ func ValidateScanRequest(readingMode, query string) error {
 //   - error: nil if mode is valid, error otherwise
 func ValidateReadingModeRequest(mode string) error {
 	return services.ValidateReadingMode(mode)
+}
+
+// logValidationFailure sends a validation error log to the logs service.
+// This enables visibility into invalid inputs and security events.
+//
+// Parameters:
+//   - errorType: Classification of validation error (e.g., "validation_error", "security_violation")
+//   - message: Detailed error message
+//   - c: Gin context with request information
+func logValidationFailure(errorType, message string, c *gin.Context) {
+	// Get logs service URL from environment
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:3003" // Default for local development
+	}
+
+	// Prepare log entry
+	logEntry := map[string]interface{}{
+		"service": "review",
+		"level":   "warning",
+		"message": fmt.Sprintf("Validation failed: %s", message),
+		"metadata": map[string]interface{}{
+			"error_type":   errorType,
+			"method":       c.Request.Method,
+			"path":         c.Request.RequestURI,
+			"user_agent":   c.Request.UserAgent(),
+			"remote_ip":    c.ClientIP(),
+			"request_id":   c.GetString("X-Request-ID"),
+			"error_detail": message,
+		},
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(logEntry)
+	if err != nil {
+		return // Silently fail if logging fails - don't block validation
+	}
+
+	// Send to logs service asynchronously (non-blocking)
+	go func() {
+		resp, err := http.Post(
+			logsServiceURL+"/api/logs",
+			"application/json",
+			bytes.NewReader(jsonData),
+		)
+		if err != nil {
+			return // Network error, fail silently (don't block validation)
+		}
+		if resp != nil {
+			defer func() {
+				//nolint:errcheck,gosec // Ignore close errors for async logging
+				resp.Body.Close()
+			}()
+		}
+	}()
 }
