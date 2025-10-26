@@ -1,11 +1,40 @@
 # Pull Request
 
+## 🎯 Issue Reference (REQUIRED - DO NOT SKIP!)
+
+**Closes #<!-- issue number goes here - EXAMPLE: Closes #36 -->**
+
+<!-- 
+🚨 CRITICAL: Replace the example above with your actual issue number!
+This MUST be filled in for:
+1. Issue to auto-link to PR
+2. Issue to auto-close when PR merges
+
+Correct format: "Closes #36" (where 36 is your issue number)
+Wrong formats that WON'T work:
+  ❌ Feature #36
+  ❌ Issue 36
+  ❌ #36
+  ❌ Closes Feature 36
+
+GitHub keywords that work:
+✓ Closes #36
+✓ Close #36  
+✓ Closed #36
+✓ Fixes #36
+✓ Fixed #36
+✓ Fix #36
+✓ Resolves #36
+✓ Resolved #36
+✓ Resolve #36
+-->
+
 ## Feature/Fix Description
-**Issue:** Closes #<!-- issue number -->
 
 <!-- Brief description of what this PR implements -->
 
 ## Implementation Details
+
 <!-- List key changes made -->
 -
 -
@@ -43,7 +72,7 @@ Integration Tests: X/X passing
 - [ ] Follows naming conventions (ARCHITECTURE.md Section 13)
 - [ ] React components follow standard template
 - [ ] API calls follow error handling pattern
-- [ ] Backend endpoints follow FastAPI pattern
+- [ ] Backend endpoints follow Go patterns
 - [ ] No hardcoded URLs, ports, or credentials
 - [ ] All configuration in environment variables
 - [ ] .env.example updated (if new variables added)
@@ -52,6 +81,7 @@ Integration Tests: X/X passing
 - [ ] Comprehensive logging with context
 
 ## Acceptance Criteria
+
 <!-- Copy acceptance criteria from the GitHub issue and check them off -->
 
 From Issue #XXX:
@@ -66,7 +96,8 @@ From Issue #XXX:
 **ALL criteria must be checked before PR can be approved.**
 
 ## Changelog
-- [ ] AI_CHANGELOG.md updated with this change
+<!-- Activity logging is now automatic - no manual changelog needed! -->
+Activity logged automatically via git hooks.
 
 ## Screenshots
 <!-- If UI changes, include before/after screenshots -->
@@ -101,6 +132,7 @@ From Issue #XXX:
 - [ ] Every criterion from issue is met
 - [ ] No partial implementations
 - [ ] Feature is 100% complete
+- [ ] Issue will auto-close on merge (has "Closes #XXX")
 
 **Recommendation:** ☐ Approve  ☐ Request Changes
 

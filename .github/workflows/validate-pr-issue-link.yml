@@ -1,0 +1,107 @@
+name: 'Validate PR-Issue Linking'
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  validate-issue-link:
+    name: Check Issue Link
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR has issue link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            
+            // Check for GitHub auto-close keywords
+            const autoCloseKeywords = ['closes', 'closed', 'close', 'fixes', 'fixed', 'fix', 'resolves', 'resolved', 'resolve'];
+            const hasCloseKeyword = autoCloseKeywords.some(keyword => 
+              new RegExp(`${keyword}\\s+#\\d+`, 'i').test(body)
+            );
+            
+            if (!hasCloseKeyword) {
+              console.log('❌ PR does not contain issue link');
+              console.log('');
+              console.log('Required format in PR description:');
+              console.log('  Closes #123  (replace 123 with issue number)');
+              console.log('');
+              console.log('Valid keywords:');
+              console.log('  ✓ Closes, Close, Closed');
+              console.log('  ✓ Fixes, Fixed, Fix');
+              console.log('  ✓ Resolves, Resolved, Resolve');
+              console.log('');
+              
+              core.setFailed('PR must contain "Closes #XXX" or similar to link and auto-close issue');
+            } else {
+              console.log('✅ PR contains valid issue link');
+              
+              // Extract issue number
+              const match = body.match(/(?:closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve)\s+#(\d+)/i);
+              if (match) {
+                console.log(`   Issue #${match[1]} will auto-close on merge`);
+              }
+            }
+
+      - name: Link PR to Issue (if not auto-linked)
+        uses: actions/github-script@v7
+        if: success()
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            
+            // Extract issue number
+            const match = body.match(/(?:closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve)\s+#(\d+)/i);
+            if (match) {
+              const issueNumber = match[1];
+              console.log(`🔗 PR #${pr.number} will be linked to Issue #${issueNumber}`);
+              console.log(`📋 Issue #${issueNumber} will auto-close when PR merges`);
+            }
+
+  comment-on-issue:
+    name: Add Comment to Linked Issue
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Comment on linked issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            
+            // Extract issue number
+            const match = body.match(/(?:closes|closed|close|fixes|fixed|fix|resolves|resolved|resolve)\s+#(\d+)/i);
+            if (!match) {
+              return; // No issue link found
+            }
+            
+            const issueNumber = parseInt(match[1]);
+            
+            try {
+              // Check if issue exists
+              await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber
+              });
+              
+              // Add comment to issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `🔗 PR #${pr.number} has been created to implement this issue\n\n[View PR](${pr.html_url})\n\nThis issue will automatically close when the PR is merged.`
+              });
+              
+              console.log(`✅ Added linking comment to Issue #${issueNumber}`);
+            } catch (error) {
+              if (error.status === 404) {
+                core.warning(`Issue #${issueNumber} not found, but PR will still auto-close on merge`);
+              } else {
+                throw error;
+              }
+            }
