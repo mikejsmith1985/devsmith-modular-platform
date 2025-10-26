@@ -1,4 +1,5 @@
 // Package db provides database access for log entries.
+// This package implements repository pattern for correlation context operations.
 package db
 
 import (
@@ -12,17 +13,48 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
-// ContextRepository handles database operations for correlation context
+// Database constants for correlation queries
+const (
+	// DefaultRecentCorrelationWindow is the default time window for recent correlations in minutes
+	DefaultRecentCorrelationWindow = 5
+
+	// DefaultRecentCorrelationLimit is the default limit for recent correlations
+	DefaultRecentCorrelationLimit = 100
+
+	// PostgresArrayEmpty is the empty PostgreSQL array representation
+	PostgresArrayEmpty = "{}"
+
+	// PostgresArrayNullValue is the PostgreSQL null value in array context
+	PostgresArrayNullValue = "null"
+)
+
+// ContextRepository handles database operations for correlation context.
+// It provides methods to query and aggregate logs by correlation ID,
+// supporting both direct correlation_id column and JSONB context->>'correlation_id' lookups.
 type ContextRepository struct {
 	db *sql.DB
 }
 
-// NewContextRepository creates a new ContextRepository
+// NewContextRepository creates a new ContextRepository with the given database connection.
 func NewContextRepository(db *sql.DB) *ContextRepository {
 	return &ContextRepository{db: db}
 }
 
-// GetCorrelatedLogs retrieves all logs for a correlation ID with pagination
+// GetCorrelatedLogs retrieves all logs associated with a correlation ID.
+//
+// Supports dual-path lookup:
+// - Direct: correlation_id = $1
+// - JSONB: context->>'correlation_id' = $2
+//
+// This enables querying both legacy and new-style correlation tracking.
+//
+// Parameters:
+// - ctx: Request context for cancellation
+// - correlationID: Required - the correlation ID to query
+// - limit: Max results (capped at 1000, default 50)
+// - offset: Results to skip
+//
+// Returns logs ordered by timestamp DESC, then id DESC for chronological viewing.
 func (r *ContextRepository) GetCorrelatedLogs(
 	ctx context.Context,
 	correlationID string,
@@ -102,7 +134,8 @@ func (r *ContextRepository) GetCorrelatedLogs(
 	return logs, nil
 }
 
-// GetCorrelationCount returns the count of logs for a correlation ID
+// GetCorrelationCount returns the count of logs associated with a correlation ID.
+// Uses dual-path lookup (correlation_id column or context->>'correlation_id').
 func (r *ContextRepository) GetCorrelationCount(
 	ctx context.Context,
 	correlationID string,
@@ -130,7 +163,15 @@ func (r *ContextRepository) GetCorrelationCount(
 	return count, nil
 }
 
-// GetRecentCorrelations returns active correlation IDs from the last N minutes
+// GetRecentCorrelations returns active correlation IDs from the last N minutes.
+// Useful for discovering active traces in the system.
+//
+// Parameters:
+// - ctx: Request context for cancellation
+// - minutes: Time window in minutes (0 uses default)
+// - limit: Max correlations to return (0 uses default)
+//
+// Returns correlation IDs ordered by most recent first.
 func (r *ContextRepository) GetRecentCorrelations(
 	ctx context.Context,
 	minutes, limit int,
@@ -140,10 +181,10 @@ func (r *ContextRepository) GetRecentCorrelations(
 	}
 
 	if limit <= 0 {
-		limit = 100
+		limit = DefaultRecentCorrelationLimit
 	}
 	if minutes <= 0 {
-		minutes = 5
+		minutes = DefaultRecentCorrelationWindow
 	}
 
 	query := `
@@ -181,10 +222,18 @@ func (r *ContextRepository) GetRecentCorrelations(
 	return correlationIDs, nil
 }
 
-// parsePostgresArray extracts values from PostgreSQL array format {val1,val2,...}
+// parsePostgresArray extracts string values from PostgreSQL array format.
+// Converts PostgreSQL array format {val1,val2,...} to []string.
+//
+// Example:
+// - "{}" → []string{}
+// - "{foo,bar,baz}" → []string{"foo", "bar", "baz"}
+// - '{foo,"bar baz",null}' → []string{"foo", "bar baz"}
+//
+// Returns empty slice for invalid format.
 func parsePostgresArray(arrayStr string) []string {
 	var result []string
-	if arrayStr == "{}" || !strings.HasPrefix(arrayStr, "{") || !strings.HasSuffix(arrayStr, "}") {
+	if arrayStr == PostgresArrayEmpty || !strings.HasPrefix(arrayStr, "{") || !strings.HasSuffix(arrayStr, "}") {
 		return result
 	}
 
@@ -194,7 +243,7 @@ func parsePostgresArray(arrayStr string) []string {
 	}
 
 	for _, item := range strings.Split(inner, ",") {
-		if item != "" && item != "null" {
+		if item != "" && item != PostgresArrayNullValue {
 			result = append(result, strings.Trim(item, "\""))
 		}
 	}
@@ -202,7 +251,14 @@ func parsePostgresArray(arrayStr string) []string {
 	return result
 }
 
-// GetContextMetadata retrieves metadata aggregated from all logs for a correlation
+// GetContextMetadata retrieves aggregated metadata for a correlation.
+// Queries all logs for a correlation and returns:
+// - total_logs: Count of logs
+// - correlation_id: The queried correlation ID
+// - services: List of unique services involved
+// - trace_ids: List of unique OpenTelemetry trace IDs
+//
+// This provides a summary view suitable for distributed tracing dashboards.
 func (r *ContextRepository) GetContextMetadata(
 	ctx context.Context,
 	correlationID string,
@@ -215,7 +271,7 @@ func (r *ContextRepository) GetContextMetadata(
 		return make(map[string]interface{}), nil
 	}
 
-	// Get distinct services involved in this correlation
+	// Aggregate data from all logs in this correlation
 	query := `
 		SELECT ARRAY_AGG(DISTINCT context->>'service') as services,
 		       ARRAY_AGG(DISTINCT context->>'trace_id') as trace_ids,
