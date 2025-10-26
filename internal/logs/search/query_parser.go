@@ -1,4 +1,11 @@
 // Package search provides advanced filtering and search functionality for log entries.
+// This package implements a full query parsing engine with support for:
+// - Field-specific searches (e.g., message:error, service:portal)
+// - Boolean operators (AND, OR, NOT)
+// - Regex patterns with safety validation
+// - Field aliases for user convenience
+// - SQL WHERE clause generation for PostgreSQL
+// - Query optimization and validation
 package search
 
 import (
@@ -8,11 +15,17 @@ import (
 )
 
 // QueryParser handles parsing of search queries with boolean operators and field filters.
+// It validates query syntax and generates optimized SQL WHERE clauses.
 type QueryParser struct {
-	supportedFields map[string]string // field aliases mapping
+	supportedFields map[string]string // field aliases mapping (e.g., msg→message)
 }
 
-// NewQueryParser creates a new query parser instance.
+// NewQueryParser creates a new query parser instance with field aliases pre-configured.
+// Supported field aliases:
+//   - message, msg → message
+//   - service, svc → service
+//   - level, lvl → level
+//   - tags, tag → tags
 func NewQueryParser() *QueryParser {
 	return &QueryParser{
 		supportedFields: map[string]string{
@@ -29,6 +42,11 @@ func NewQueryParser() *QueryParser {
 }
 
 // Parse parses a query string into a Query structure without validation.
+// This method handles:
+// - Empty queries
+// - Regex patterns (e.g., /pattern/)
+// - Boolean operators (AND, OR, NOT)
+// - Field:value syntax
 func (p *QueryParser) Parse(queryString string) *Query {
 	if queryString == "" {
 		return &Query{
@@ -42,7 +60,7 @@ func (p *QueryParser) Parse(queryString string) *Query {
 		Fields: make(map[string]string),
 	}
 
-	// Check if it's a regex pattern
+	// Check if it's a regex pattern (enclosed in /)
 	if strings.HasPrefix(queryString, "/") && strings.LastIndex(queryString, "/") > 0 {
 		lastSlash := strings.LastIndex(queryString, "/")
 		query.IsRegex = true
@@ -56,15 +74,16 @@ func (p *QueryParser) Parse(queryString string) *Query {
 	return query
 }
 
-// parseFieldsAndOperators parses field:value pairs and boolean operators
+// parseFieldsAndOperators parses field:value pairs and boolean operators from query string.
+// Handles NOT operator prefix and boolean operator combinations.
 func (p *QueryParser) parseFieldsAndOperators(queryString string, query *Query) {
-	// Handle NOT operator
+	// Handle NOT operator prefix
 	if strings.HasPrefix(strings.TrimSpace(queryString), "NOT ") {
 		query.IsNegated = true
 		queryString = strings.TrimSpace(queryString[4:])
 	}
 
-	// Check for boolean operators
+	// Check for boolean operators (AND/OR)
 	if strings.Contains(queryString, " AND ") || strings.Contains(queryString, " OR ") {
 		query.BooleanOp = p.parseBooleanExpression(queryString)
 		return
@@ -74,7 +93,7 @@ func (p *QueryParser) parseFieldsAndOperators(queryString string, query *Query) 
 	p.parseFields(queryString, query)
 }
 
-// parseBooleanExpression parses AND/OR operators
+// parseBooleanExpression parses AND/OR operators with proper precedence (OR before AND).
 func (p *QueryParser) parseBooleanExpression(queryString string) *BooleanOp {
 	// Try OR first (lower precedence)
 	if strings.Contains(queryString, " OR ") {
@@ -109,10 +128,10 @@ func (p *QueryParser) parseBooleanExpression(queryString string) *BooleanOp {
 	return nil
 }
 
-// parseFields extracts field:value pairs from query string
+// parseFields extracts field:value pairs from query string.
+// Handles both quoted values (with spaces) and unquoted values.
 func (p *QueryParser) parseFields(queryString string, query *Query) {
 	// Handle quoted strings: field:"value with spaces"
-	// First extract quoted values
 	quotePattern := regexp.MustCompile(`(\w+):"([^"]*)"`)
 	matches := quotePattern.FindAllStringSubmatchIndex(queryString, -1)
 
@@ -127,7 +146,6 @@ func (p *QueryParser) parseFields(queryString string, query *Query) {
 	// Remove quoted sections from remaining string to avoid matching them again
 	remaining := queryString
 	for _, match := range matches {
-		// Remove the matched portion
 		start, end := match[0], match[1]
 		remaining = remaining[:start] + " " + remaining[end:]
 	}
@@ -140,7 +158,7 @@ func (p *QueryParser) parseFields(queryString string, query *Query) {
 			value := match[2]
 			// Unescape colons
 			value = strings.ReplaceAll(value, `\:`, ":")
-			// Skip if value is empty (field: with nothing after colon)
+			// Skip if value is empty or just a colon
 			if value != "" && value != ":" {
 				query.Fields[field] = value
 			}
@@ -149,7 +167,6 @@ func (p *QueryParser) parseFields(queryString string, query *Query) {
 
 	// If no fields found, treat as text search on message
 	if len(query.Fields) == 0 {
-		// Remove special characters and trim
 		text := strings.TrimSpace(queryString)
 		if text != "" && !strings.HasPrefix(text, "/") {
 			query.Fields["message"] = text
@@ -157,7 +174,8 @@ func (p *QueryParser) parseFields(queryString string, query *Query) {
 	}
 }
 
-// resolveFieldAlias resolves field name aliases to canonical names
+// resolveFieldAlias resolves field name aliases to canonical names.
+// For example: "msg" → "message", "svc" → "service"
 func (p *QueryParser) resolveFieldAlias(alias string) string {
 	if canonical, ok := p.supportedFields[strings.ToLower(alias)]; ok {
 		return canonical
@@ -166,6 +184,7 @@ func (p *QueryParser) resolveFieldAlias(alias string) string {
 }
 
 // ParseAndValidate parses and validates a query string.
+// Returns error if query exceeds size limits or has syntax errors.
 func (p *QueryParser) ParseAndValidate(queryString string) (*Query, error) {
 	if queryString == "" {
 		return &Query{Fields: make(map[string]string)}, nil
@@ -193,7 +212,8 @@ func (p *QueryParser) ParseAndValidate(queryString string) (*Query, error) {
 	return query, nil
 }
 
-// validateSyntax performs basic syntax validation
+// validateSyntax performs basic syntax validation on the query string.
+// Checks for: unmatched quotes, parentheses, unclosed regex, dangling operators, missing field values.
 func (p *QueryParser) validateSyntax(queryString string) error {
 	trimmed := strings.TrimSpace(queryString)
 
@@ -234,6 +254,7 @@ func (p *QueryParser) validateSyntax(queryString string) error {
 }
 
 // ValidateRegex checks if a regex pattern is safe from catastrophic backtracking.
+// Also verifies the pattern compiles successfully.
 func (p *QueryParser) ValidateRegex(pattern string) error {
 	// Check for catastrophic backtracking patterns
 	dangerousPatterns := []string{
@@ -260,6 +281,7 @@ func (p *QueryParser) ValidateRegex(pattern string) error {
 }
 
 // GetSQLCondition generates a SQL WHERE clause and parameters from a parsed query.
+// Returns the WHERE clause string, parameters for parameterized queries, and any error.
 //
 //nolint:gocritic // return values are self-explanatory (sql, params, error)
 func (p *QueryParser) GetSQLCondition(query *Query) (string, []interface{}, error) {
@@ -316,8 +338,7 @@ func (p *QueryParser) GetSQLCondition(query *Query) (string, []interface{}, erro
 	return sql, params, nil
 }
 
-// buildBooleanSQL builds SQL for boolean operations
-//
+// buildBooleanSQL recursively builds SQL for nested boolean operations.
 //nolint:gocritic // return values are self-explanatory (sql, params, error)
 func (p *QueryParser) buildBooleanSQL(boolOp *BooleanOp) (string, []interface{}, error) {
 	var parts []string
@@ -339,6 +360,7 @@ func (p *QueryParser) buildBooleanSQL(boolOp *BooleanOp) (string, []interface{},
 }
 
 // Optimize optimizes a parsed query by removing redundancies.
+// Currently removes duplicate conditions in boolean operations.
 func (p *QueryParser) Optimize(query *Query) *Query {
 	if query == nil {
 		return nil
