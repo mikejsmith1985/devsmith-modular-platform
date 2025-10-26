@@ -108,9 +108,6 @@ func main() {
 	router.GET("/api/logs", func(c *gin.Context) {
 		resthandlers.GetLogs(restSvc)(c)
 	})
-	router.GET("/api/logs/:id", func(c *gin.Context) {
-		resthandlers.GetLogByID(restSvc)(c)
-	})
 	router.GET("/api/logs/stats", func(c *gin.Context) {
 		resthandlers.GetStats(restSvc)(c)
 	})
@@ -118,24 +115,8 @@ func main() {
 		resthandlers.DeleteLogs(restSvc)(c)
 	})
 
-	// Also register /api/v1/logs routes (for consistency and direct access)
-	router.POST("/api/v1/logs", func(c *gin.Context) {
-		resthandlers.PostLogs(restSvc)(c)
-	})
-	router.GET("/api/v1/logs", func(c *gin.Context) {
-		resthandlers.GetLogs(restSvc)(c)
-	})
-	router.GET("/api/v1/logs/:id", func(c *gin.Context) {
-		resthandlers.GetLogByID(restSvc)(c)
-	})
-	router.GET("/api/v1/logs/stats", func(c *gin.Context) {
-		resthandlers.GetStats(restSvc)(c)
-	})
-	router.DELETE("/api/v1/logs", func(c *gin.Context) {
-		resthandlers.DeleteLogs(restSvc)(c)
-	})
-
 	// Issue #023: Production Enhancements - Dashboard & Alert Endpoints
+	// IMPORTANT: Register specific dashboard routes BEFORE the generic :id route
 	// Dashboard statistics endpoint
 	router.GET("/api/logs/dashboard/stats", func(c *gin.Context) {
 		resthandlers.GetDashboardStats(validationAgg)(c)
@@ -158,6 +139,36 @@ func main() {
 	})
 	router.PUT("/api/logs/alert-config/:service", func(c *gin.Context) {
 		resthandlers.UpdateAlertConfig(alertSvc)(c)
+	})
+	router.GET("/api/logs/alert-events", func(c *gin.Context) {
+		resthandlers.GetAlertEvents()(c)
+	})
+
+	// Log export endpoint
+	router.GET("/api/logs/export", func(c *gin.Context) {
+		resthandlers.ExportLogs()(c)
+	})
+
+	// GENERIC ROUTES - Must come AFTER specific routes to avoid conflicts
+	router.GET("/api/logs/:id", func(c *gin.Context) {
+		resthandlers.GetLogByID(restSvc)(c)
+	})
+
+	// Also register /api/v1/logs routes (for consistency and direct access)
+	router.POST("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.PostLogs(restSvc)(c)
+	})
+	router.GET("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.GetLogs(restSvc)(c)
+	})
+	router.GET("/api/v1/logs/:id", func(c *gin.Context) {
+		resthandlers.GetLogByID(restSvc)(c)
+	})
+	router.GET("/api/v1/logs/stats", func(c *gin.Context) {
+		resthandlers.GetStats(restSvc)(c)
+	})
+	router.DELETE("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.DeleteLogs(restSvc)(c)
 	})
 
 	// Initialize WebSocket hub
