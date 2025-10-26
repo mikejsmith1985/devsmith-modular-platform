@@ -358,6 +358,14 @@ func (r *LogEntryRepository) Count(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+// BulkInsert inserts multiple log entries in a single batch operation for improved performance.
+// This method optimizes database writes for high-throughput scenarios.
+func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*models.LogEntry) error {
+	// Implementation in GREEN phase
+	// For now, return NotImplemented error to allow RED phase tests to be defined
+	return fmt.Errorf("db: BulkInsert not yet implemented")
+}
+
 // Delete removes a log entry by ID.
 func (r *LogEntryRepository) Delete(ctx context.Context, id int64) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM logs.log_entries WHERE id = $1`, id)
