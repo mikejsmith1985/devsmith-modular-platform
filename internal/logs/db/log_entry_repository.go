@@ -359,11 +359,73 @@ func (r *LogEntryRepository) Count(ctx context.Context) (int64, error) {
 }
 
 // BulkInsert inserts multiple log entries in a single batch operation for improved performance.
-// This method optimizes database writes for high-throughput scenarios.
+// This method optimizes database writes for high-throughput scenarios using parameterized queries.
 func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*models.LogEntry) error {
-	// Implementation in GREEN phase
-	// For now, return NotImplemented error to allow RED phase tests to be defined
-	return fmt.Errorf("db: BulkInsert not yet implemented")
+	if len(entries) == 0 {
+		return nil
+	}
+
+	// Validate entries before bulk insert
+	for _, entry := range entries {
+		if err := ValidateLogEntryForCreate(entry); err != nil {
+			return err
+		}
+	}
+
+	// Use a transaction for atomic bulk insert
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("db: failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback() //nolint:errcheck // Error is already tracked, rollback failure not critical during error path
+		}
+	}()
+
+	// Insert entries using multi-row VALUES clause for better performance than individual inserts
+	valueStrings := make([]string, len(entries))
+	valueArgs := make([]interface{}, 0, len(entries)*7)
+
+	for i, entry := range entries {
+		// Prepare metadata as JSON bytes
+		metadataBytes := entry.Metadata
+		if metadataBytes == nil {
+			metadataBytes = []byte("{}")
+		}
+
+		// Each entry uses 7 placeholders: user_id, service, level, message, metadata, tags, timestamp
+		valueStrings[i] = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			i*7+1, i*7+2, i*7+3, i*7+4, i*7+5, i*7+6, i*7+7)
+
+		valueArgs = append(valueArgs,
+			entry.UserID,
+			entry.Service,
+			entry.Level,
+			entry.Message,
+			metadataBytes,
+			entry.Tags,
+			entry.Timestamp,
+		)
+	}
+
+	// Build query safely using parameterized placeholders (no SQL injection risk)
+	//nolint:gosec // All values are parameterized, no user input in query structure
+	query := fmt.Sprintf(`
+		INSERT INTO logs.log_entries (user_id, service, level, message, metadata, tags, timestamp)
+		VALUES %s
+	`, strings.Join(valueStrings, ","))
+
+	_, err = tx.ExecContext(ctx, query, valueArgs...)
+	if err != nil {
+		return fmt.Errorf("db: bulk insert failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("db: failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 // Delete removes a log entry by ID.
