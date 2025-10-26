@@ -19,18 +19,18 @@ type NotifierInterface interface {
 }
 
 // EmailConfig holds SMTP configuration.
-type EmailConfig struct {
+type EmailConfig struct { //nolint:govet // struct alignment optimized for readability
 	Host     string
-	Port     int
+	FromAddr string
 	Username string
 	Password string
-	FromAddr string
+	Port     int
 }
 
 // EmailNotifier sends alerts via email.
 type EmailNotifier struct { //nolint:govet // struct alignment optimized for readability
-	config EmailConfig
 	logger *logrus.Logger
+	config EmailConfig
 }
 
 // NewEmailNotifier creates a new email notifier.
@@ -84,9 +84,9 @@ func (en *EmailNotifier) Send(ctx context.Context, violation *models.AlertThresh
 }
 
 // WebhookNotifier sends alerts via webhook.
-type WebhookNotifier struct {
-	baseURL string
+type WebhookNotifier struct { //nolint:govet // struct alignment optimized for readability
 	logger  *logrus.Logger
+	baseURL string
 }
 
 // NewWebhookNotifier creates a new webhook notifier.

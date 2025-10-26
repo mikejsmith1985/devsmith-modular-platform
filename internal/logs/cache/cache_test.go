@@ -56,7 +56,10 @@ func TestCacheGet(t *testing.T) {
 	// THEN: It should retrieve the same stats
 	assert.NoError(t, err)
 	assert.NotNil(t, retrieved)
-	assert.Equal(t, originalStats.GeneratedAt, retrieved.GeneratedAt)
+
+	stats, ok := retrieved.(*models.DashboardStats)
+	require.True(t, ok)
+	assert.Equal(t, originalStats.GeneratedAt, stats.GeneratedAt)
 }
 
 // TestCacheMiss returns nil for non-existent key.

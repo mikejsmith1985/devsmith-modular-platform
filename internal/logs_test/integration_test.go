@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,10 @@ func (m *MockLogReader) FindAllServices(ctx context.Context) ([]string, error) {
 
 func (m *MockLogReader) CountByServiceAndLevel(ctx context.Context, service, level string, start, end time.Time) (int64, error) {
 	args := m.Called(ctx, service, level, start, end)
-	return int64(args.Int(0)), args.Error(1)
+	if args.Get(0) == nil {
+		return 0, args.Error(1)
+	}
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (m *MockLogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]services.LogMessage, error) {
@@ -49,7 +53,8 @@ func TestDashboardEndToEnd(t *testing.T) {
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(10), nil)
 	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]services.LogMessage{}, nil)
 
-	dashboardService := services.NewDashboardService(mockReader, nil)
+	logger := logrus.New()
+	dashboardService := services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Getting dashboard stats
 	stats, err := dashboardService.GetDashboardStats(context.Background())
@@ -70,7 +75,8 @@ func TestMultipleServicesDashboard(t *testing.T) {
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(50), nil)
 	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]services.LogMessage{}, nil)
 
-	dashboardService := services.NewDashboardService(mockReader, nil)
+	logger := logrus.New()
+	dashboardService := services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Getting dashboard stats
 	stats, err := dashboardService.GetDashboardStats(context.Background())
@@ -87,7 +93,8 @@ func TestErrorHandlingIntegration(t *testing.T) {
 	mockReader := new(MockLogReader)
 	mockReader.On("FindAllServices", mock.Anything).Return(nil, sql.ErrNoRows)
 
-	dashboardService := services.NewDashboardService(mockReader, nil)
+	logger := logrus.New()
+	dashboardService := services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Getting dashboard stats with error
 	stats, err := dashboardService.GetDashboardStats(context.Background())
@@ -121,7 +128,8 @@ func TestAggregationJobWorkflow(t *testing.T) {
 	mockReader.On("FindAllServices", mock.Anything).Return([]string{"api-service"}, nil)
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(100), nil)
 
-	aggregationService := services.NewLogAggregationService(mockReader, nil)
+	logger := logrus.New()
+	aggregationService := services.NewLogAggregationService(mockReader, logger)
 
 	// WHEN: Running hourly aggregation
 	err := aggregationService.AggregateLogsHourly(context.Background())
@@ -133,7 +141,8 @@ func TestAggregationJobWorkflow(t *testing.T) {
 // TestWebSocketRealtimeWorkflow tests real-time WebSocket updates.
 func TestWebSocketRealtimeWorkflow(t *testing.T) {
 	// GIVEN: WebSocket service with connected clients
-	wsService := services.NewWebSocketRealtimeService(nil)
+	logger := logrus.New()
+	wsService := services.NewWebSocketRealtimeService(logger)
 
 	// WHEN: Registering and unregistering connections
 	err1 := wsService.RegisterConnection(context.Background(), "client-1")
@@ -163,7 +172,8 @@ func TestConcurrentAccessWorkflow(t *testing.T) {
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(50), nil)
 	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]services.LogMessage{}, nil)
 
-	dashboardService := services.NewDashboardService(mockReader, nil)
+	logger := logrus.New()
+	dashboardService := services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Making concurrent requests
 	done := make(chan bool, 3)
