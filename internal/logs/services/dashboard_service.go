@@ -19,16 +19,7 @@ type DashboardService struct {
 type LogReaderInterface interface {
 	FindAllServices(ctx context.Context) ([]string, error)
 	CountByServiceAndLevel(ctx context.Context, service, level string, start, end time.Time) (int64, error)
-	FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]LogMessage, error)
-}
-
-// LogMessage represents a log message for dashboard display.
-type LogMessage struct {
-	LastSeen time.Time
-	Message  string
-	Service  string
-	Level    string
-	Count    int
+	FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.LogMessage, error)
 }
 
 // NewDashboardService creates a new DashboardService.

@@ -124,3 +124,12 @@ type LogExportOptions struct {
 	Service   string    `json:"service"`    // optional filter
 	ErrorType string    `json:"error_type"` // optional filter
 }
+
+// LogMessage represents a log message for dashboard display.
+type LogMessage struct {
+	LastSeen time.Time
+	Message  string
+	Service  string
+	Level    string
+	Count    int
+}
