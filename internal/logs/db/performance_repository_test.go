@@ -32,7 +32,7 @@ func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Test log entry %d", i),
-			Service:   "test-service",
+			Service:   "logs",
 			Tags:      []string{"test", "bulk"},
 		}
 	}
@@ -44,7 +44,7 @@ func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
 
 	// Verify all entries were inserted
 	var count int64
-	err = db.QueryRow("SELECT COUNT(*) FROM logs.log_entries WHERE service = 'test-service'").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM logs.log_entries WHERE service = 'logs'").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), count, "All 1000 entries should be persisted")
 }
@@ -62,7 +62,7 @@ func TestPerformanceRepository_BulkInsert_CompletesUnder500ms(t *testing.T) {
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Perf test %d", i),
-			Service:   "perf-test",
+			Service:   "portal",
 			Tags:      []string{"performance"},
 		}
 	}
@@ -169,7 +169,7 @@ func TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond(t *testing.T)
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   fmt.Sprintf("Throughput test %d", batch*batchSize+i),
-				Service:   "throughput-test",
+				Service:   "review",
 				Tags:      []string{"throughput"},
 			}
 		}
@@ -202,7 +202,7 @@ func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Latency test %d", i),
-			Service:   "latency-test",
+			Service:   "analytics",
 			Tags:      []string{"latency"},
 		}
 
@@ -234,7 +234,7 @@ func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Query test %d", i),
-			Service:   "query-test",
+			Service:   "portal",
 			Tags:      []string{"query"},
 		}
 	}
@@ -251,7 +251,7 @@ func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
 		query := `
 			SELECT id, timestamp, level, message, service
 			FROM logs.log_entries
-			WHERE service = 'query-test'
+			WHERE service = 'portal'
 			LIMIT 10
 		`
 		rows, err := db.QueryContext(ctx, query)
@@ -281,7 +281,7 @@ func BenchmarkPerformanceRepository_BulkInsert_1000Logs(b *testing.B) {
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Benchmark log %d", i),
-			Service:   "benchmark",
+			Service:   "review",
 			Tags:      []string{"bench"},
 		}
 	}
@@ -307,7 +307,7 @@ func BenchmarkPerformanceRepository_SingleInsert(b *testing.B) {
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Benchmark entry",
-		Service:   "benchmark",
+		Service:   "analytics",
 		Tags:      []string{"bench"},
 	}
 
@@ -348,7 +348,7 @@ func TestPerformanceRepository_WebSocket_100ConcurrentClients(t *testing.T) {
 					Timestamp: time.Now(),
 					Level:     "info",
 					Message:   fmt.Sprintf("Client %d log %d", id, i),
-					Service:   "websocket-test",
+					Service:   "logs",
 					Tags:      []string{"concurrent"},
 				}
 			}
