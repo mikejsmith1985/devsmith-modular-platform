@@ -40,8 +40,11 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 
 	query := c.Query("q") // GET /api/reviews/:id/scan?q=authentication
 
-	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter required"})
+	// Validate reading mode and query
+	readingMode := c.DefaultQuery("mode", "scan")
+	if !ValidateRequest(c, func() error {
+		return ValidateScanRequest(readingMode, query)
+	}) {
 		return
 	}
 
@@ -73,9 +76,17 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 		UserID       int64  `json:"user_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request format"})
 		return
 	}
+
+	// Validate all inputs
+	if !ValidateRequest(c, func() error {
+		return ValidateCreateReviewRequest(req.Title, req.CodeSource, req.PastedCode, req.GithubRepo, req.GithubBranch)
+	}) {
+		return
+	}
+
 	review := &db.Review{
 		UserID:       req.UserID,
 		Title:        req.Title,
@@ -86,7 +97,7 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 	}
 	created, err := h.reviewService.CreateReview(c.Request.Context(), review)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create review"})
 		return
 	}
 	c.JSON(http.StatusCreated, created)

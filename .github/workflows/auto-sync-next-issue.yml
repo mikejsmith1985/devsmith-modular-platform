@@ -102,7 +102,7 @@ jobs:
       - name: Extract metrics from PR
         id: metrics
         run: |
-          BODY='${{ github.event.pull_request.body }}'
+          BODY="${{ github.event.pull_request.body }}"
           
           # Look for coverage percentage
           COVERAGE=$(echo "$BODY" | grep -oE 'Coverage[:\s]*([0-9]+\.?[0-9]*)%' | grep -oE '[0-9]+\.?[0-9]*' | head -1 || true)
