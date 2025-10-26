@@ -85,12 +85,18 @@ async function loadHistoricalLogs() {
       params.append('to', currentFilters.dateTo);
     }
 
-    const response = await fetch(`/api/v1/logs?${params}`);
+    // Use the correct API path through nginx
+    // If accessed from /logs/, use /api/v1/logs
+    // window.location.pathname will be /logs/ or /logs/dashboard
+    const apiPath = `/api/v1/logs?${params}`;
+    const response = await fetch(apiPath);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const logs = await response.json();
+    const data = await response.json();
+    // Handle both direct array response and object with entries property
+    const logs = Array.isArray(data) ? data : (data.entries || []);
     if (Array.isArray(logs)) {
       const logsOutput = document.getElementById('logs-output');
       logsOutput.innerHTML = '';
