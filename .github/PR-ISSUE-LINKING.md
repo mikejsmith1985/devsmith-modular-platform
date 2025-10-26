@@ -88,7 +88,7 @@ PR Description:
 
 A GitHub Actions workflow validates every PR:
 
-**Workflow File:** `.github/workflows/validate-pr-issue-link.yml`
+**Workflow File:** `.github/workflows/issue-workflow-validation.yml`
 
 **What It Checks:**
 ✓ PR description contains valid "Closes #XXX" or similar
@@ -96,9 +96,15 @@ A GitHub Actions workflow validates every PR:
 ✓ Fails PR check if linking is missing
 
 **If Linking is Missing:**
-- ❌ GitHub Actions check fails
-- Message shows: "PR must contain 'Closes #XXX' or similar"
-- PR cannot be merged until fixed
+- ⚠️ GitHub Actions posts helpful comment on PR
+- Message suggests adding "Closes #XXX" format
+- Clear explanation of why linking matters
+
+**Note:** This workflow is advisory - it provides guidance but doesn't block merge.
+However, following the linking format ensures:
+- Issues auto-close when PR merges
+- Clear tracking in GitHub's UI
+- Better project management and velocity tracking
 
 ## Quick Checklist
 
@@ -214,7 +220,7 @@ gh issue view #XXX
 ## Reference
 
 - **Template:** `.github/PULL_REQUEST_TEMPLATE/pull_request_template.md`
-- **Workflow:** `.github/workflows/validate-pr-issue-link.yml`
+- **Workflow:** `.github/workflows/issue-workflow-validation.yml`
 - **Current PRs:** `gh pr list`
 - **Current Issues:** `gh issue list`
 
