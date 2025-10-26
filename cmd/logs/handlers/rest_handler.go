@@ -23,10 +23,11 @@ type LogService interface {
 }
 
 // AlertThresholdService defines the interface for alert threshold operations.
+// This interface matches the AlertService implementation in internal/logs/services
 type AlertThresholdService interface {
-	Create(ctx context.Context, config *models.AlertConfig) error
-	GetByID(ctx context.Context, service string) (*models.AlertConfig, error)
-	Update(ctx context.Context, config *models.AlertConfig) error
+	CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error
+	GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error)
+	UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error
 }
 
 // parsePagination extracts and validates pagination parameters.
@@ -355,7 +356,7 @@ func CreateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 			Enabled:                req.Enabled,
 		}
 
-		if err := svc.Create(c.Request.Context(), config); err != nil {
+		if err := svc.CreateAlertConfig(c.Request.Context(), config); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -373,7 +374,7 @@ func GetAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 			return
 		}
 
-		config, err := svc.GetByID(c.Request.Context(), service)
+		config, err := svc.GetAlertConfig(c.Request.Context(), service)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "alert config not found"})
 			return
@@ -414,7 +415,7 @@ func UpdateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 			Enabled:                req.Enabled,
 		}
 
-		if err := svc.Update(c.Request.Context(), config); err != nil {
+		if err := svc.UpdateAlertConfig(c.Request.Context(), config); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

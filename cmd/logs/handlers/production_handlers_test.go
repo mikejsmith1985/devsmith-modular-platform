@@ -40,12 +40,12 @@ type MockAlertThresholdService struct {
 	mock.Mock
 }
 
-func (m *MockAlertThresholdService) Create(ctx context.Context, config *models.AlertConfig) error {
+func (m *MockAlertThresholdService) CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
-func (m *MockAlertThresholdService) GetByID(ctx context.Context, service string) (*models.AlertConfig, error) {
+func (m *MockAlertThresholdService) GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error) {
 	args := m.Called(ctx, service)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -53,7 +53,7 @@ func (m *MockAlertThresholdService) GetByID(ctx context.Context, service string)
 	return args.Get(0).(*models.AlertConfig), args.Error(1)
 }
 
-func (m *MockAlertThresholdService) Update(ctx context.Context, config *models.AlertConfig) error {
+func (m *MockAlertThresholdService) UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
@@ -217,7 +217,7 @@ func TestCreateAlertConfig_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockService := &MockAlertThresholdService{}
-	mockService.On("Create", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *models.AlertConfig) bool {
+	mockService.On("CreateAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *models.AlertConfig) bool {
 		config.ID = 1
 		return true
 	})).Return(nil)
@@ -248,7 +248,7 @@ func TestGetAlertConfig_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockService := &MockAlertThresholdService{}
-	mockService.On("GetByID", mock.MatchedBy(func(ctx context.Context) bool { return true }), "review").
+	mockService.On("GetAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), "review").
 		Return(&models.AlertConfig{
 			ID:                     1,
 			Service:                "review",
@@ -277,7 +277,7 @@ func TestUpdateAlertConfig_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockService := &MockAlertThresholdService{}
-	mockService.On("Update", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *models.AlertConfig) bool { return true })).Return(nil)
+	mockService.On("UpdateAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *models.AlertConfig) bool { return true })).Return(nil)
 
 	router.PUT("/api/logs/alert-config/:service", UpdateAlertConfig(mockService))
 

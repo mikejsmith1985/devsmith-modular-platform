@@ -92,6 +92,16 @@ func main() {
 	logRepo := db.NewLogRepository(dbConn)
 	restSvc := services.NewRestLogService(logRepo, logger)
 
+	// Issue #023: Production Enhancements - Initialize alert and aggregation services
+	alertConfigRepo := db.NewAlertConfigRepository(dbConn)
+	alertViolationRepo := db.NewAlertViolationRepository(dbConn)
+
+	// Create alert service for threshold management (implements AlertThresholdService interface)
+	alertSvc := services.NewAlertService(alertViolationRepo, alertConfigRepo, logRepo, logger)
+
+	// Create validation aggregation service for analytics
+	validationAgg := services.NewValidationAggregation(logRepo, logger)
+
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
 		resthandlers.PostLogs(restSvc)(c)
@@ -124,6 +134,31 @@ func main() {
 	})
 	router.DELETE("/api/v1/logs", func(c *gin.Context) {
 		resthandlers.DeleteLogs(restSvc)(c)
+	})
+
+	// Issue #023: Production Enhancements - Dashboard & Alert Endpoints
+	// Dashboard statistics endpoint
+	router.GET("/api/logs/dashboard/stats", func(c *gin.Context) {
+		resthandlers.GetDashboardStats(validationAgg)(c)
+	})
+
+	// Validation analytics endpoints
+	router.GET("/api/logs/validations/top-errors", func(c *gin.Context) {
+		resthandlers.GetTopErrors(validationAgg)(c)
+	})
+	router.GET("/api/logs/validations/trends", func(c *gin.Context) {
+		resthandlers.GetErrorTrends(validationAgg)(c)
+	})
+
+	// Alert configuration management endpoints
+	router.POST("/api/logs/alert-config", func(c *gin.Context) {
+		resthandlers.CreateAlertConfig(alertSvc)(c)
+	})
+	router.GET("/api/logs/alert-config/:service", func(c *gin.Context) {
+		resthandlers.GetAlertConfig(alertSvc)(c)
+	})
+	router.PUT("/api/logs/alert-config/:service", func(c *gin.Context) {
+		resthandlers.UpdateAlertConfig(alertSvc)(c)
 	})
 
 	// Initialize WebSocket hub
