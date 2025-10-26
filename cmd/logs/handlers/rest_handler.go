@@ -49,10 +49,10 @@ func parsePagination(c *gin.Context) (limit, offset int) {
 // parseFilters extracts query filters from request.
 func parseFilters(c *gin.Context) map[string]interface{} {
 	filters := make(map[string]interface{})
-	if service := c.Query("service"); service != "" {
+	if service := c.Query("service"); service != "" && service != "all" {
 		filters["service"] = service
 	}
-	if level := c.Query("level"); level != "" {
+	if level := c.Query("level"); level != "" && level != "all" {
 		filters["level"] = level
 	}
 	if search := c.Query("search"); search != "" {
