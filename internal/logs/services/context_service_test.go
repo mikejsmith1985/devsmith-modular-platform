@@ -191,16 +191,16 @@ func TestContextService_GetCorrelatedLogs_Valid(t *testing.T) {
 // TestContextService_GetCorrelatedLogs_ValidatesLimit tests limit validation
 func TestContextService_GetCorrelatedLogs_ValidatesLimit(t *testing.T) {
 	mockRepo := NewMockContextRepository()
-	mockRepo.On("GetCorrelatedLogs", context.Background(), "test-123", 100, 0).
+	mockRepo.On("GetCorrelatedLogs", context.Background(), "test-123", 1000, 0).
 		Return([]models.LogEntry{}, nil)
 
 	service := NewContextService(mockRepo)
 
-	// Limit too high (> 1000)
+	// Limit too high (> 1000) should be capped at 1000
 	_, _ = service.GetCorrelatedLogs(context.Background(), "test-123", 5000, 0)
 
-	// Verify repository was called with capped limit
-	mockRepo.AssertCalled(t, "GetCorrelatedLogs", context.Background(), "test-123", 100, 0)
+	// Verify repository was called with capped limit (1000 max)
+	mockRepo.AssertCalled(t, "GetCorrelatedLogs", context.Background(), "test-123", 1000, 0)
 }
 
 // TestContextService_GetCorrelatedLogs_DefaultLimit tests default limit

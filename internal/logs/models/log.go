@@ -5,18 +5,19 @@ import "time"
 
 // LogEntry represents a log entry in the system.
 // Fields are ordered to optimize memory alignment.
+//
 //nolint:govet // fieldalignment: organized by type for readability
 type LogEntry struct {
-	Context   *CorrelationContext   `json:"context,omitempty"`
-	Metadata  []byte                `json:"metadata"`
-	Tags      []string              `json:"tags"`
-	ID        int64                 `json:"id"`
-	UserID    int64                 `json:"user_id"`
-	CreatedAt time.Time             `json:"created_at"`
-	Timestamp time.Time             `json:"timestamp"`
-	Service   string                `json:"service"`
-	Level     string                `json:"level"`
-	Message   string                `json:"message"`
+	Context   *CorrelationContext `json:"context,omitempty"`
+	Metadata  []byte              `json:"metadata"`
+	Tags      []string            `json:"tags"`
+	ID        int64               `json:"id"`
+	UserID    int64               `json:"user_id"`
+	CreatedAt time.Time           `json:"created_at"`
+	Timestamp time.Time           `json:"timestamp"`
+	Service   string              `json:"service"`
+	Level     string              `json:"level"`
+	Message   string              `json:"message"`
 }
 
 // LogStats represents aggregated statistics for logs in a time window.
