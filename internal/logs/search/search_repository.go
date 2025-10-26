@@ -74,6 +74,7 @@ func (r *SearchRepository) GetSavedSearch(ctx context.Context, searchID int64) (
 // ListUserSearches lists all saved searches for a specific user.
 // Returns an empty slice if the user has no saved searches.
 // Searches are ordered by most recent first.
+//
 //nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) ListUserSearches(ctx context.Context, userID int64) ([]*SavedSearch, error) {
 	query := `
@@ -163,6 +164,7 @@ func (r *SearchRepository) SaveSearchHistory(ctx context.Context, userID int64, 
 // GetSearchHistory retrieves search history for a user with limit.
 // Results are ordered by most recent searches first.
 // Limit of 0 returns all history (use with caution on large histories).
+//
 //nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) GetSearchHistory(ctx context.Context, userID int64, limit int) ([]*SearchHistory, error) {
 	query := `
@@ -199,6 +201,7 @@ func (r *SearchRepository) GetSearchHistory(ctx context.Context, userID int64, l
 // GetRecentSearches retrieves unique recent searches for a user with limit.
 // Deduplicates by query string, keeping only the most recent instance of each query.
 // Useful for showing "recent searches" in UI suggestions.
+//
 //nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) GetRecentSearches(ctx context.Context, userID int64, limit int) ([]*SearchHistory, error) {
 	query := `
@@ -268,6 +271,7 @@ func (r *SearchRepository) ShareSearch(ctx context.Context, searchID, ownerID, u
 
 // GetSharedSearches retrieves all searches shared with a specific user.
 // Returns the SavedSearch objects for all searches accessible to the user.
+//
 //nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) GetSharedSearches(ctx context.Context, userID int64) ([]*SavedSearch, error) {
 	query := `
