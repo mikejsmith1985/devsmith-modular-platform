@@ -389,7 +389,6 @@ func (r *LogEntryRepository) Count(ctx context.Context) (int64, error) {
 //		{Service: "review", Level: "error", Message: "API timeout", Timestamp: time.Now()},
 //	}
 //	err := repo.BulkInsert(ctx, entries)
-//
 func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*models.LogEntry) error {
 	if len(entries) == 0 {
 		return nil
