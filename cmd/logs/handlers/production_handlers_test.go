@@ -72,6 +72,25 @@ func TestGetDashboardStats_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockAgg := &MockValidationAggregation{}
+	
+	// Setup mock expectations
+	mockAgg.On("GetTopErrors", mock.Anything, "review", 10, 1).Return([]models.ValidationError{
+		{
+			ErrorType: "validation_error",
+			Message:   "Invalid input",
+			Count:     5,
+		},
+	}, nil)
+	mockAgg.On("GetErrorTrends", mock.Anything, "review", 1, "hourly").Return([]models.ErrorTrend{
+		{
+			Timestamp:        time.Now(),
+			ErrorCount:       5,
+			ErrorRatePercent: 0.1,
+			ByType: map[string]int64{
+				"validation_error": 5,
+			},
+		},
+	}, nil)
 
 	router.GET("/api/logs/dashboard/stats", GetDashboardStats(mockAgg))
 
@@ -92,6 +111,11 @@ func TestGetDashboardStats_InvalidTimeRange(t *testing.T) {
 	router := gin.New()
 
 	mockAgg := &MockValidationAggregation{}
+	
+	// Setup mock expectations (won't be called if validation catches error)
+	mockAgg.On("GetTopErrors", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.ValidationError{}, nil)
+	mockAgg.On("GetErrorTrends", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.ErrorTrend{}, nil)
+
 	router.GET("/api/logs/dashboard/stats", GetDashboardStats(mockAgg))
 
 	req := httptest.NewRequest("GET", "/api/logs/dashboard/stats?time_range=invalid", http.NoBody)
@@ -121,7 +145,7 @@ func TestGetTopErrors_Valid(t *testing.T) {
 
 	router.GET("/api/logs/validations/top-errors", GetTopErrors(mockAgg))
 
-	req := httptest.NewRequest("GET", "/api/logs/validations/top-errors?limit=10&days=7", http.NoBody)
+	req := httptest.NewRequest("GET", "/api/logs/validations/top-errors?service=review&limit=10&days=7", http.NoBody)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -152,7 +176,7 @@ func TestGetErrorTrends_Valid(t *testing.T) {
 
 	router.GET("/api/logs/validations/trends", GetErrorTrends(mockAgg))
 
-	req := httptest.NewRequest("GET", "/api/logs/validations/trends?days=7&interval=hourly", http.NoBody)
+	req := httptest.NewRequest("GET", "/api/logs/validations/trends?service=review&days=7&interval=hourly", http.NoBody)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
