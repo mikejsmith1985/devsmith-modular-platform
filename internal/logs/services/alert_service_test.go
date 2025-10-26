@@ -55,7 +55,7 @@ func (m *MockAlertService) SendAlert(ctx context.Context, violation *models.Aler
 }
 
 // TestCreateAlertConfig_CreatesNewConfig validates alert config creation.
-func TestCreateAlertConfig_CreatesNewConfig(t *testing.T) { //nolint:govet
+func TestCreateAlertConfig_CreatesNewConfig(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: An alert service and new alert config
 	mockService := new(MockAlertService)
 	config := &models.AlertConfig{
@@ -77,7 +77,7 @@ func TestCreateAlertConfig_CreatesNewConfig(t *testing.T) { //nolint:govet
 }
 
 // TestCreateAlertConfig_ValidatesRequiredFields validates required fields.
-func TestCreateAlertConfig_ValidatesRequiredFields(t *testing.T) { //nolint:govet
+func TestCreateAlertConfig_ValidatesRequiredFields(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert config with missing service
 	config := &models.AlertConfig{
 		ErrorThresholdPerMin: 100,
@@ -92,7 +92,7 @@ func TestCreateAlertConfig_ValidatesRequiredFields(t *testing.T) { //nolint:gove
 }
 
 // TestGetAlertConfig_ReturnsConfig validates config retrieval.
-func TestGetAlertConfig_ReturnsConfig(t *testing.T) { //nolint:govet
+func TestGetAlertConfig_ReturnsConfig(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: An alert service with existing config
 	mockService := new(MockAlertService)
 	now := time.Now()
@@ -123,7 +123,7 @@ func TestGetAlertConfig_ReturnsConfig(t *testing.T) { //nolint:govet
 }
 
 // TestGetAlertConfig_NotFound validates missing config handling.
-func TestGetAlertConfig_NotFound(t *testing.T) { //nolint:govet
+func TestGetAlertConfig_NotFound(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: An alert service with no config for service
 	mockService := new(MockAlertService)
 
@@ -138,7 +138,7 @@ func TestGetAlertConfig_NotFound(t *testing.T) { //nolint:govet
 }
 
 // TestUpdateAlertConfig_UpdatesExisting validates config updates.
-func TestUpdateAlertConfig_UpdatesExisting(t *testing.T) { //nolint:govet
+func TestUpdateAlertConfig_UpdatesExisting(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: An existing alert config to update
 	mockService := new(MockAlertService)
 	config := &models.AlertConfig{
@@ -161,7 +161,7 @@ func TestUpdateAlertConfig_UpdatesExisting(t *testing.T) { //nolint:govet
 }
 
 // TestCheckThresholds_DetectsViolations validates threshold checking.
-func TestCheckThresholds_DetectsViolations(t *testing.T) { //nolint:govet
+func TestCheckThresholds_DetectsViolations(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert service monitoring thresholds
 	mockService := new(MockAlertService)
 	now := time.Now()
@@ -199,7 +199,7 @@ func TestCheckThresholds_DetectsViolations(t *testing.T) { //nolint:govet
 }
 
 // TestCheckThresholds_NoViolations validates no violations detected.
-func TestCheckThresholds_NoViolations(t *testing.T) { //nolint:govet
+func TestCheckThresholds_NoViolations(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Services within thresholds
 	mockService := new(MockAlertService)
 
@@ -214,7 +214,7 @@ func TestCheckThresholds_NoViolations(t *testing.T) { //nolint:govet
 }
 
 // TestSendAlert_SendsEmail validates email alerts.
-func TestSendAlert_SendsEmail(t *testing.T) { //nolint:govet
+func TestSendAlert_SendsEmail(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert service with email config
 	mockService := new(MockAlertService)
 	now := time.Now()
@@ -238,7 +238,7 @@ func TestSendAlert_SendsEmail(t *testing.T) { //nolint:govet
 }
 
 // TestSendAlert_SendsWebhook validates webhook alerts.
-func TestSendAlert_SendsWebhook(t *testing.T) { //nolint:govet
+func TestSendAlert_SendsWebhook(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert service with webhook configured
 	mockService := new(MockAlertService)
 	now := time.Now()
@@ -268,7 +268,7 @@ func TestSendAlert_SendsWebhook(t *testing.T) { //nolint:govet
 }
 
 // TestAlertConfig_DisabledAlerts validates disabled alerts are not sent.
-func TestAlertConfig_DisabledAlerts(t *testing.T) { //nolint:govet
+func TestAlertConfig_DisabledAlerts(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert config that is disabled
 	mockService := new(MockAlertService)
 
@@ -289,7 +289,7 @@ func TestAlertConfig_DisabledAlerts(t *testing.T) { //nolint:govet
 }
 
 // TestAlertConfig_EnabledAlerts validates enabled alerts work correctly.
-func TestAlertConfig_EnabledAlerts(t *testing.T) { //nolint:govet
+func TestAlertConfig_EnabledAlerts(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert config that is enabled
 	mockService := new(MockAlertService)
 
@@ -310,7 +310,7 @@ func TestAlertConfig_EnabledAlerts(t *testing.T) { //nolint:govet
 }
 
 // TestCheckThresholds_MultipleServices validates multiple services checked.
-func TestCheckThresholds_MultipleServices(t *testing.T) { //nolint:govet
+func TestCheckThresholds_MultipleServices(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert service monitoring multiple services
 	mockService := new(MockAlertService)
 	now := time.Now()
@@ -332,7 +332,7 @@ func TestCheckThresholds_MultipleServices(t *testing.T) { //nolint:govet
 }
 
 // TestAlertThresholdViolation_AlertSentTracking validates alert sent tracking.
-func TestAlertThresholdViolation_AlertSentTracking(t *testing.T) { //nolint:govet //nolint:govet
+func TestAlertThresholdViolation_AlertSentTracking(t *testing.T) { //nolint:govet //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Violation initially without alert sent
 	now := time.Now()
 
@@ -359,7 +359,7 @@ func TestAlertThresholdViolation_AlertSentTracking(t *testing.T) { //nolint:gove
 }
 
 // TestSendAlert_ContextCancellation validates context cancellation handling.
-func TestSendAlert_ContextCancellation(t *testing.T) { //nolint:govet
+func TestSendAlert_ContextCancellation(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Cancelled context
 	mockService := new(MockAlertService)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -380,7 +380,7 @@ func TestSendAlert_ContextCancellation(t *testing.T) { //nolint:govet
 }
 
 // TestCreateAlertConfig_StoresMultipleConfigs validates multiple configs stored.
-func TestCreateAlertConfig_StoresMultipleConfigs(t *testing.T) { //nolint:govet
+func TestCreateAlertConfig_StoresMultipleConfigs(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert service
 	mockService := new(MockAlertService)
 
@@ -402,7 +402,7 @@ func TestCreateAlertConfig_StoresMultipleConfigs(t *testing.T) { //nolint:govet
 }
 
 // TestUpdateAlertConfig_UpdatesThreshold validates threshold updates.
-func TestUpdateAlertConfig_UpdatesThreshold(t *testing.T) { //nolint:govet
+func TestUpdateAlertConfig_UpdatesThreshold(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Existing config with initial threshold
 	mockService := new(MockAlertService)
 

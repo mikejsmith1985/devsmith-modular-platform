@@ -4,27 +4,47 @@ package services
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/sirupsen/logrus"
 )
 
-// AlertService manages alert configurations and threshold detection.
+// AlertService implements alert operations.
 type AlertService struct { //nolint:govet // Struct alignment optimized for memory efficiency
-	logger  *logrus.Logger
-	reader  LogReaderInterface
-	mu      sync.RWMutex
-	configs map[string]*models.AlertConfig
+	violationRepo AlertViolationRepositoryInterface
+	configRepo    AlertConfigRepositoryInterface
+	logReader     LogReaderInterface
+	logger        *logrus.Logger
+}
+
+// AlertViolationRepositoryInterface defines contract for violation persistence.
+type AlertViolationRepositoryInterface interface {
+	Create(ctx context.Context, violation *models.AlertThresholdViolation) error
+	UpdateAlertSent(ctx context.Context, id int64) error
+	GetUnsent(ctx context.Context) ([]models.AlertThresholdViolation, error)
+}
+
+// AlertConfigRepositoryInterface defines contract for alert config persistence.
+type AlertConfigRepositoryInterface interface {
+	Create(ctx context.Context, config *models.AlertConfig) error
+	Update(ctx context.Context, config *models.AlertConfig) error
+	GetByService(ctx context.Context, service string) (*models.AlertConfig, error)
+	GetAll(ctx context.Context) ([]models.AlertConfig, error)
 }
 
 // NewAlertService creates a new AlertService.
-func NewAlertService(reader LogReaderInterface, logger *logrus.Logger) *AlertService {
+func NewAlertService(
+	violationRepo AlertViolationRepositoryInterface,
+	configRepo AlertConfigRepositoryInterface,
+	logReader LogReaderInterface,
+	logger *logrus.Logger,
+) *AlertService {
 	return &AlertService{
-		configs: make(map[string]*models.AlertConfig),
-		logger:  logger,
-		reader:  reader,
+		violationRepo: violationRepo,
+		configRepo:    configRepo,
+		logReader:     logReader,
+		logger:        logger,
 	}
 }
 
@@ -38,25 +58,13 @@ func (s *AlertService) CreateAlertConfig(ctx context.Context, config *models.Ale
 		return fmt.Errorf("service name is required")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Set timestamps
-	now := time.Now()
-	config.CreatedAt = now
-	config.UpdatedAt = now
-
-	// Auto-generate ID if not set
-	if config.ID == 0 {
-		config.ID = int64(len(s.configs) + 1)
+	err := s.configRepo.Create(ctx, config)
+	if err != nil {
+		s.logger.WithError(err).Errorf("Failed to create alert config for service %s", config.Service)
+		return err
 	}
 
-	s.configs[config.Service] = config
-	s.logger.WithFields(logrus.Fields{
-		"service":         config.Service,
-		"error_threshold": config.ErrorThresholdPerMin,
-	}).Info("Alert config created")
-
+	s.logger.Infof("Created alert config for service %s", config.Service)
 	return nil
 }
 
@@ -66,34 +74,26 @@ func (s *AlertService) UpdateAlertConfig(ctx context.Context, config *models.Ale
 		return fmt.Errorf("alert config cannot be nil")
 	}
 
-	if config.Service == "" {
-		return fmt.Errorf("service name is required")
+	if config.ID == 0 {
+		return fmt.Errorf("alert config ID is required for update")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, exists := s.configs[config.Service]; !exists {
-		return fmt.Errorf("alert config for service %s not found", config.Service)
+	err := s.configRepo.Update(ctx, config)
+	if err != nil {
+		s.logger.WithError(err).Errorf("Failed to update alert config for service %s", config.Service)
+		return err
 	}
 
-	config.UpdatedAt = time.Now()
-	s.configs[config.Service] = config
-	s.logger.WithFields(logrus.Fields{
-		"service": config.Service,
-	}).Info("Alert config updated")
-
+	s.logger.Infof("Updated alert config for service %s", config.Service)
 	return nil
 }
 
 // GetAlertConfig retrieves alert configuration for a service.
 func (s *AlertService) GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	config, exists := s.configs[service]
-	if !exists {
-		return nil, fmt.Errorf("alert config for service %s not found", service)
+	config, err := s.configRepo.GetByService(ctx, service)
+	if err != nil {
+		s.logger.WithError(err).Warnf("Failed to get alert config for service %s", service)
+		return nil, err
 	}
 
 	return config, nil
@@ -101,22 +101,24 @@ func (s *AlertService) GetAlertConfig(ctx context.Context, service string) (*mod
 
 // CheckThresholds checks if current log counts exceed alert thresholds.
 func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThresholdViolation, error) {
-	s.mu.RLock()
-	configs := make([]*models.AlertConfig, 0, len(s.configs))
-	for _, config := range s.configs {
-		if config.Enabled {
-			configs = append(configs, config)
-		}
+	configs, err := s.configRepo.GetAll(ctx)
+	if err != nil {
+		s.logger.WithError(err).Error("Failed to get alert configs")
+		return []models.AlertThresholdViolation{}, nil
 	}
-	s.mu.RUnlock()
 
-	violations := make([]models.AlertThresholdViolation, 0)
+	violations := []models.AlertThresholdViolation{}
 	now := time.Now()
 	oneMinuteAgo := now.Add(-1 * time.Minute)
 
-	for _, config := range configs {
+	for i := range configs {
+		config := &configs[i]
+		if !config.Enabled {
+			continue
+		}
+
 		// Check error threshold
-		errorCount, err := s.reader.CountByServiceAndLevel(ctx, config.Service, "error", oneMinuteAgo, now)
+		errorCount, err := s.logReader.CountByServiceAndLevel(ctx, config.Service, "error", oneMinuteAgo, now)
 		if err != nil {
 			s.logger.WithError(err).Warnf("Failed to count errors for service %s", config.Service)
 			continue
@@ -128,14 +130,12 @@ func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThres
 				Level:          "error",
 				CurrentCount:   errorCount,
 				ThresholdValue: config.ErrorThresholdPerMin,
-				Timestamp:      now,
-				ID:             int64(len(violations) + 1),
 			}
 			violations = append(violations, violation)
 		}
 
 		// Check warning threshold
-		warningCount, err := s.reader.CountByServiceAndLevel(ctx, config.Service, "warning", oneMinuteAgo, now)
+		warningCount, err := s.logReader.CountByServiceAndLevel(ctx, config.Service, "warning", oneMinuteAgo, now)
 		if err != nil {
 			s.logger.WithError(err).Warnf("Failed to count warnings for service %s", config.Service)
 			continue
@@ -147,8 +147,6 @@ func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThres
 				Level:          "warning",
 				CurrentCount:   warningCount,
 				ThresholdValue: config.WarningThresholdPerMin,
-				Timestamp:      now,
-				ID:             int64(len(violations) + 1),
 			}
 			violations = append(violations, violation)
 		}
@@ -163,15 +161,8 @@ func (s *AlertService) SendAlert(ctx context.Context, violation *models.AlertThr
 		return fmt.Errorf("violation cannot be nil")
 	}
 
-	// Simulate alert sending
-	now := time.Now()
-	violation.AlertSentAt = &now
+	// TODO: Implement email and webhook sending
 
-	s.logger.WithFields(logrus.Fields{
-		"service": violation.Service,
-		"level":   violation.Level,
-		"count":   violation.CurrentCount,
-	}).Info("Alert sent")
-
+	s.logger.Infof("Alert sent for service %s level %s", violation.Service, violation.Level)
 	return nil
 }

@@ -9,122 +9,76 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// LogAggregationService performs log aggregation jobs.
+// LogAggregationService implements log aggregation operations.
 type LogAggregationService struct {
-	reader LogReaderInterface
-	logger *logrus.Logger
+	logReader LogReaderInterface
+	logger    *logrus.Logger
 }
 
 // NewLogAggregationService creates a new LogAggregationService.
-func NewLogAggregationService(reader LogReaderInterface, logger *logrus.Logger) *LogAggregationService {
+func NewLogAggregationService(logReader LogReaderInterface, logger *logrus.Logger) *LogAggregationService {
 	return &LogAggregationService{
-		reader: reader,
-		logger: logger,
+		logReader: logReader,
+		logger:    logger,
 	}
 }
 
 // AggregateLogsHourly performs hourly aggregation of logs.
 func (s *LogAggregationService) AggregateLogsHourly(ctx context.Context) error {
 	now := time.Now()
-	hourAgo := now.Add(-1 * time.Hour)
-
-	// Get all services
-	services, err := s.reader.FindAllServices(ctx)
-	if err != nil {
-		s.logger.WithError(err).Error("Failed to get services for hourly aggregation")
-		return err
-	}
-
-	s.logger.WithFields(logrus.Fields{
-		"services": len(services),
-		"hour":     now.Hour(),
-	}).Info("Starting hourly aggregation")
-
-	// Aggregate for each service and level
-	for _, service := range services {
-		levels := []string{"error", "warning", "info", "debug"}
-		for _, level := range levels {
-			count, err := s.reader.CountByServiceAndLevel(ctx, service, level, hourAgo, now)
-			if err != nil {
-				s.logger.WithError(err).Warnf("Failed to count logs for %s/%s", service, level)
-				continue
-			}
-
-			s.logger.WithFields(logrus.Fields{
-				"service": service,
-				"level":   level,
-				"count":   count,
-			}).Debug("Aggregated hourly logs")
-		}
-	}
-
-	s.logger.Info("Hourly aggregation completed")
-	return nil
+	oneHourAgo := now.Add(-1 * time.Hour)
+	return s.aggregateLogs(ctx, oneHourAgo, now, "hourly")
 }
 
 // AggregateLogsDaily performs daily aggregation of logs.
 func (s *LogAggregationService) AggregateLogsDaily(ctx context.Context) error {
 	now := time.Now()
-	dayAgo := now.Add(-24 * time.Hour)
+	oneDayAgo := now.Add(-24 * time.Hour)
+	return s.aggregateLogs(ctx, oneDayAgo, now, "daily")
+}
+
+// aggregateLogs performs log aggregation for a given time range.
+func (s *LogAggregationService) aggregateLogs(ctx context.Context, start, end time.Time, period string) error {
+	s.logger.Infof("Starting %s aggregation from %v to %v", period, start, end)
 
 	// Get all services
-	services, err := s.reader.FindAllServices(ctx)
+	services, err := s.logReader.FindAllServices(ctx)
 	if err != nil {
-		s.logger.WithError(err).Error("Failed to get services for daily aggregation")
-		return err
+		s.logger.WithError(err).Errorf("Failed to get services for %s aggregation", period)
+		return fmt.Errorf("failed to get services: %w", err)
 	}
 
-	s.logger.WithFields(logrus.Fields{
-		"services": len(services),
-		"date":     now.Format("2006-01-02"),
-	}).Info("Starting daily aggregation")
-
-	// Aggregate for each service and level
 	for _, service := range services {
-		levels := []string{"error", "warning", "info", "debug"}
-		for _, level := range levels {
-			count, err := s.reader.CountByServiceAndLevel(ctx, service, level, dayAgo, now)
+		// Count by level
+		for _, level := range []string{"error", "warning", "info", "debug"} {
+			count, err := s.logReader.CountByServiceAndLevel(ctx, service, level, start, end)
 			if err != nil {
-				s.logger.WithError(err).Warnf("Failed to count logs for %s/%s", service, level)
+				s.logger.WithError(err).Warnf("Failed to count %s logs for service %s", level, service)
 				continue
 			}
 
-			s.logger.WithFields(logrus.Fields{
-				"service": service,
-				"level":   level,
-				"count":   count,
-			}).Debug("Aggregated daily logs")
+			if count > 0 {
+				s.logger.Debugf("Service %s level %s: %d logs (%s)", service, level, count, period)
+			}
 		}
 	}
 
-	s.logger.Info("Daily aggregation completed")
+	s.logger.Infof("Completed %s aggregation", period)
 	return nil
 }
 
 // GetErrorRate calculates error rate for a service within a time window.
 func (s *LogAggregationService) GetErrorRate(ctx context.Context, service string, start, end time.Time) (float64, error) {
-	if start.After(end) {
-		return 0, fmt.Errorf("start time must be before end time")
-	}
-
-	// Count errors
-	errorCount, err := s.reader.CountByServiceAndLevel(ctx, service, "error", start, end)
+	errorCount, err := s.logReader.CountByServiceAndLevel(ctx, service, "error", start, end)
 	if err != nil {
-		s.logger.WithError(err).Warnf("Failed to count errors for %s", service)
-		return 0, err
+		s.logger.WithError(err).Warnf("Failed to count errors for service %s", service)
+		return 0, fmt.Errorf("failed to count errors: %w", err)
 	}
 
-	// Count total logs
-	levels := []string{"error", "warning", "info", "debug"}
-	totalCount := int64(0)
-
-	for _, level := range levels {
-		count, err := s.reader.CountByServiceAndLevel(ctx, service, level, start, end)
-		if err != nil {
-			s.logger.WithError(err).Warnf("Failed to count %s logs for %s", level, service)
-			continue
-		}
-		totalCount += count
+	totalCount, err := s.logReader.CountByServiceAndLevel(ctx, service, "all", start, end)
+	if err != nil {
+		s.logger.WithError(err).Warnf("Failed to count total logs for service %s", service)
+		return 0, fmt.Errorf("failed to count total: %w", err)
 	}
 
 	if totalCount == 0 {
@@ -132,26 +86,15 @@ func (s *LogAggregationService) GetErrorRate(ctx context.Context, service string
 	}
 
 	rate := float64(errorCount) / float64(totalCount)
-	s.logger.WithFields(logrus.Fields{
-		"service":     service,
-		"error_rate":  rate,
-		"error_count": errorCount,
-		"total_count": totalCount,
-	}).Debug("Calculated error rate")
-
 	return rate, nil
 }
 
 // CountLogsByServiceAndLevel counts logs by service and level.
 func (s *LogAggregationService) CountLogsByServiceAndLevel(ctx context.Context, service, level string, start, end time.Time) (int64, error) {
-	if start.After(end) {
-		return 0, fmt.Errorf("start time must be before end time")
-	}
-
-	count, err := s.reader.CountByServiceAndLevel(ctx, service, level, start, end)
+	count, err := s.logReader.CountByServiceAndLevel(ctx, service, level, start, end)
 	if err != nil {
-		s.logger.WithError(err).Warnf("Failed to count logs for %s/%s", service, level)
-		return 0, err
+		s.logger.WithError(err).Warnf("Failed to count logs for service %s level %s", service, level)
+		return 0, fmt.Errorf("failed to count logs: %w", err)
 	}
 
 	return count, nil
