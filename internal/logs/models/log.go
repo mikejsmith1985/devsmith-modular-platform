@@ -99,15 +99,15 @@ type ValidationError struct {
 
 // ErrorTrend represents error counts over a time period.
 type ErrorTrend struct {
-	Timestamp       time.Time          `json:"timestamp" db:"timestamp"`
-	ErrorCount      int64              `json:"error_count" db:"error_count"`
-	ErrorRatePercent float64           `json:"error_rate_percent" db:"error_rate_percent"`
-	ByType          map[string]int64   `json:"by_type"`
+	Timestamp        time.Time        `json:"timestamp" db:"timestamp"`
+	ErrorCount       int64            `json:"error_count" db:"error_count"`
+	ErrorRatePercent float64          `json:"error_rate_percent" db:"error_rate_percent"`
+	ByType           map[string]int64 `json:"by_type"`
 }
 
 // AlertEvent represents a recorded alert event when thresholds are triggered.
 type AlertEvent struct {
-	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	TriggeredAt      time.Time `json:"triggered_at" db:"triggered_at"`
 	ConfigID         int64     `json:"config_id" db:"config_id"`
 	ID               int64     `json:"id" db:"id"`
 	ErrorCount       int       `json:"error_count" db:"error_count"`
@@ -118,8 +118,8 @@ type AlertEvent struct {
 
 // LogExportOptions contains parameters for exporting logs.
 type LogExportOptions struct {
-	Format    string    `json:"format"`    // json or csv
-	Service   string    `json:"service"`   // optional filter
+	Format    string    `json:"format"`     // json or csv
+	Service   string    `json:"service"`    // optional filter
 	ErrorType string    `json:"error_type"` // optional filter
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
