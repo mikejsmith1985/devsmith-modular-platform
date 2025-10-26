@@ -14,13 +14,33 @@ import (
 type Entry struct {
 	Data      interface{}
 	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
+// CacheStats holds cache performance metrics.
+type CacheStats struct {
+	Hits          int64
+	Misses        int64
+	Evictions     int64
+	CurrentSize   int
+	TotalRequests int64
+}
+
+// HitRate returns the cache hit rate as a percentage.
+func (cs *CacheStats) HitRate() float64 {
+	if cs.TotalRequests == 0 {
+		return 0
+	}
+	return float64(cs.Hits) / float64(cs.TotalRequests) * 100
 }
 
 // DashboardCache provides in-memory caching for dashboard stats.
 type DashboardCache struct { //nolint:govet // struct alignment optimized for readability
-	ttl   time.Duration
-	mu    sync.RWMutex
-	store map[string]*Entry
+	mu       sync.RWMutex
+	ttl      time.Duration
+	store    map[string]*Entry
+	stats    CacheStats
+	statsmu  sync.RWMutex
 }
 
 // NewDashboardCache creates a new dashboard cache.
@@ -52,6 +72,7 @@ func (dc *DashboardCache) Set(ctx context.Context, key string, data interface{})
 	entry := &Entry{
 		Data:      data,
 		ExpiresAt: time.Now().Add(dc.ttl),
+		CreatedAt: time.Now(),
 	}
 
 	dc.store[key] = entry
@@ -69,14 +90,17 @@ func (dc *DashboardCache) Get(ctx context.Context, key string) (interface{}, err
 
 	entry, exists := dc.store[key]
 	if !exists {
+		dc.recordMiss()
 		return nil, nil
 	}
 
 	// Check if entry has expired
 	if time.Now().After(entry.ExpiresAt) {
+		dc.recordMiss()
 		return nil, nil
 	}
 
+	dc.recordHit()
 	return entry.Data, nil
 }
 
@@ -106,6 +130,46 @@ func (dc *DashboardCache) Clear(ctx context.Context) error {
 	return nil
 }
 
+// GetStats returns current cache statistics.
+func (dc *DashboardCache) GetStats() CacheStats {
+	dc.statsmu.RLock()
+	defer dc.statsmu.RUnlock()
+
+	dc.mu.RLock()
+	size := len(dc.store)
+	dc.mu.RUnlock()
+
+	stats := dc.stats
+	stats.CurrentSize = size
+	return stats
+}
+
+// recordHit increments cache hit counter.
+func (dc *DashboardCache) recordHit() {
+	dc.statsmu.Lock()
+	defer dc.statsmu.Unlock()
+
+	dc.stats.Hits++
+	dc.stats.TotalRequests++
+}
+
+// recordMiss increments cache miss counter.
+func (dc *DashboardCache) recordMiss() {
+	dc.statsmu.Lock()
+	defer dc.statsmu.Unlock()
+
+	dc.stats.Misses++
+	dc.stats.TotalRequests++
+}
+
+// recordEviction increments eviction counter.
+func (dc *DashboardCache) recordEviction() {
+	dc.statsmu.Lock()
+	defer dc.statsmu.Unlock()
+
+	dc.stats.Evictions++
+}
+
 // cleanupExpired periodically removes expired entries.
 func (dc *DashboardCache) cleanupExpired() {
 	ticker := time.NewTicker(1 * time.Minute)
@@ -114,14 +178,22 @@ func (dc *DashboardCache) cleanupExpired() {
 	for range ticker.C {
 		dc.mu.Lock()
 		now := time.Now()
+		evicted := 0
 
 		for key, entry := range dc.store {
 			if now.After(entry.ExpiresAt) {
 				delete(dc.store, key)
+				evicted++
 			}
 		}
 
 		dc.mu.Unlock()
+
+		if evicted > 0 {
+			for i := 0; i < evicted; i++ {
+				dc.recordEviction()
+			}
+		}
 	}
 }
 
