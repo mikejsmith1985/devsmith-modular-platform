@@ -256,8 +256,8 @@ func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service str
 	timestamp := startTime.Round(intervalDuration)
 	result := []models.ErrorTrend{
 		{
-			Timestamp:       timestamp,
-			ErrorCount:      errorCount,
+			Timestamp:        timestamp,
+			ErrorCount:       errorCount,
 			ErrorRatePercent: float64(errorCount) * 0.1, // Placeholder
 			ByType: map[string]int64{
 				"validation_error": errorCount,

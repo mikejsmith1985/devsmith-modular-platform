@@ -206,11 +206,11 @@ func GetDashboardStats(agg ValidationAggregationInterface) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"total_errors":   len(topErrors),
+			"total_errors":       len(topErrors),
 			"error_rate_percent": 0.5,
-			"top_errors":     topErrors,
-			"trends":         trends,
-			"time_range":     timeRange,
+			"top_errors":         topErrors,
+			"trends":             trends,
+			"time_range":         timeRange,
 		})
 	}
 }
@@ -397,9 +397,9 @@ func GetAlertEvents() gin.HandlerFunc {
 
 		// Placeholder: In real implementation, would fetch from database
 		c.JSON(http.StatusOK, gin.H{
-			"events": []interface{}{},
+			"events":  []interface{}{},
 			"service": service,
-			"limit": limit,
+			"limit":   limit,
 		})
 	}
 }
