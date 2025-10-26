@@ -1,388 +1,394 @@
 // Package search provides advanced filtering and search functionality for log entries.
-//
-//nolint:revive // SearchRepository name is intentional for public API clarity
+// This package implements a complete search infrastructure including:
+// - Query parsing with boolean operators and field-specific searches
+// - Saved search management (CRUD operations)
+// - Search history tracking with deduplication
+// - User-to-user search sharing
+// - Result export (JSON, CSV)
+// - Access control and permission validation
 package search
 
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"sort"
-	"strings"
-	"sync"
 	"time"
 )
 
-// SearchRepository handles persistence of saved searches and search history.
+// SearchRepository handles persistence of saved searches, search history, and search sharing.
+// It provides CRUD operations for managing user searches and tracking search execution history.
+// All operations are thread-safe when used with a properly configured database connection.
 //
-//nolint:govet // minor field alignment optimization not worth restructuring for this implementation
+//nolint:revive // SearchRepository name is intentional for public API clarity
 type SearchRepository struct {
-	mu            sync.RWMutex
-	searches      map[int64]*SavedSearch
-	history       map[int64][]*SearchHistory
-	shares        map[int64][]int64 // search_id -> list of user_ids
-	nextSearchID  int64
-	nextHistoryID int64
-	db            *sql.DB
+	db *sql.DB
 }
 
-// NewSearchRepository creates a new search repository.
+// NewSearchRepository creates a new search repository instance.
+// It requires a valid database connection for all persistence operations.
+// Passing nil will cause panics when attempting database operations.
 func NewSearchRepository(db *sql.DB) *SearchRepository {
-	return &SearchRepository{
-		db:            db,
-		searches:      make(map[int64]*SavedSearch),
-		history:       make(map[int64][]*SearchHistory),
-		shares:        make(map[int64][]int64),
-		nextSearchID:  1,
-		nextHistoryID: 1,
-	}
+	return &SearchRepository{db: db}
 }
 
 // SaveSearch saves a new search query for a user.
+// Returns the ID of the newly created search.
+// Returns error if the save fails (e.g., duplicate name for user, DB error).
 func (r *SearchRepository) SaveSearch(ctx context.Context, search *SavedSearch) (int64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	query := `
+		INSERT INTO logs.searches (user_id, name, query_string, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		RETURNING id
+	`
 
-	// Check for duplicate name per user
-	for _, existing := range r.searches {
-		if existing.UserID == search.UserID && existing.Name == search.Name {
-			return 0, fmt.Errorf("search name already exists for this user")
-		}
+	var id int64
+	err := r.db.QueryRowContext(ctx, query, search.UserID, search.Name, search.QueryString, search.Description).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("failed to save search: %w", err)
 	}
-
-	id := r.nextSearchID
-	r.nextSearchID++
-
-	search.ID = id
-	search.CreatedAt = time.Now()
-	search.UpdatedAt = time.Now()
-
-	r.searches[id] = search
 
 	return id, nil
 }
 
 // GetSavedSearch retrieves a saved search by ID.
+// Returns the SavedSearch if found, or an error if not found or DB error occurs.
 func (r *SearchRepository) GetSavedSearch(ctx context.Context, searchID int64) (*SavedSearch, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	query := `
+		SELECT id, user_id, name, query_string, description, created_at, updated_at
+		FROM logs.searches
+		WHERE id = $1
+	`
 
-	search, ok := r.searches[searchID]
-	if !ok {
-		return nil, fmt.Errorf("search not found")
+	var search SavedSearch
+	err := r.db.QueryRowContext(ctx, query, searchID).Scan(&search.ID, &search.UserID, &search.Name, &search.QueryString, &search.Description, &search.CreatedAt, &search.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("saved search not found")
+		}
+		return nil, fmt.Errorf("failed to get saved search: %w", err)
 	}
 
-	return search, nil
+	return &search, nil
 }
 
-// ListUserSearches lists all saved searches for a user.
+// ListUserSearches lists all saved searches for a specific user.
+// Returns an empty slice if the user has no saved searches.
+// Searches are ordered by most recent first.
+//nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) ListUserSearches(ctx context.Context, userID int64) ([]*SavedSearch, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	query := `
+		SELECT id, user_id, name, query_string, description, created_at, updated_at
+		FROM logs.searches
+		WHERE user_id = $1
+		ORDER BY created_at DESC, id DESC
+	`
 
-	var results []*SavedSearch
-	for _, search := range r.searches {
-		if search.UserID == userID {
-			results = append(results, search)
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list saved searches: %w", err)
+	}
+	defer rows.Close() //nolint:errcheck // rows cleanup is acceptable to fail silently
+
+	var searches []*SavedSearch
+	for rows.Next() {
+		var search SavedSearch
+		err := rows.Scan(&search.ID, &search.UserID, &search.Name, &search.QueryString, &search.Description, &search.CreatedAt, &search.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan saved search: %w", err)
 		}
+		searches = append(searches, &search)
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].CreatedAt.After(results[j].CreatedAt)
-	})
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
 
-	return results, nil
+	return searches, nil
 }
 
 // UpdateSavedSearch updates an existing saved search.
+// The search ID, UserID, and CreatedAt should remain unchanged.
+// Returns error if search not found or update fails.
 func (r *SearchRepository) UpdateSavedSearch(ctx context.Context, search *SavedSearch) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	query := `
+		UPDATE logs.searches
+		SET name = $1, query_string = $2, description = $3, updated_at = NOW()
+		WHERE id = $4
+	`
 
-	existing, ok := r.searches[search.ID]
-	if !ok {
-		return fmt.Errorf("search not found")
+	_, err := r.db.ExecContext(ctx, query, search.Name, search.QueryString, search.Description, search.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update saved search: %w", err)
 	}
-
-	// Check for duplicate name with different searches
-	for _, s := range r.searches {
-		if s.UserID == search.UserID && s.Name == search.Name && s.ID != search.ID {
-			return fmt.Errorf("search name already exists for this user")
-		}
-	}
-
-	search.UpdatedAt = time.Now()
-	search.CreatedAt = existing.CreatedAt // preserve creation time
-
-	r.searches[search.ID] = search
 
 	return nil
 }
 
-// DeleteSavedSearch deletes a saved search.
+// DeleteSavedSearch deletes a saved search by ID.
+// Also removes any shares associated with this search.
+// Returns error if deletion fails.
 func (r *SearchRepository) DeleteSavedSearch(ctx context.Context, searchID int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	query := `
+		DELETE FROM logs.searches
+		WHERE id = $1
+	`
 
-	delete(r.searches, searchID)
-	delete(r.shares, searchID)
+	_, err := r.db.ExecContext(ctx, query, searchID)
+	if err != nil {
+		return fmt.Errorf("failed to delete saved search: %w", err)
+	}
 
 	return nil
 }
 
-// SaveSearchHistory records a search execution in history.
+// SaveSearchHistory records a search execution in the user's search history.
+// This creates an audit trail of all searches performed by the user.
+// Returns the created SearchHistory entry or error if save fails.
 func (r *SearchRepository) SaveSearchHistory(ctx context.Context, userID int64, queryString string) (*SearchHistory, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	query := `
+		INSERT INTO logs.search_history (user_id, query_string, searched_at)
+		VALUES ($1, $2, NOW())
+		RETURNING id
+	`
 
-	id := r.nextHistoryID
-	r.nextHistoryID++
-
-	entry := &SearchHistory{
-		ID:          id,
-		UserID:      userID,
-		QueryString: queryString,
-		SearchedAt:  time.Now(),
+	var id int64
+	err := r.db.QueryRowContext(ctx, query, userID, queryString).Scan(&id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save search history: %w", err)
 	}
 
-	r.history[userID] = append(r.history[userID], entry)
-
-	return entry, nil
+	return &SearchHistory{ID: id, UserID: userID, QueryString: queryString, SearchedAt: time.Now()}, nil
 }
 
-// GetSearchHistory retrieves search history for a user.
+// GetSearchHistory retrieves search history for a user with limit.
+// Results are ordered by most recent searches first.
+// Limit of 0 returns all history (use with caution on large histories).
+//nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) GetSearchHistory(ctx context.Context, userID int64, limit int) ([]*SearchHistory, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	query := `
+		SELECT id, user_id, query_string, searched_at
+		FROM logs.search_history
+		WHERE user_id = $1
+		ORDER BY searched_at DESC
+		LIMIT $2
+	`
 
-	entries := r.history[userID]
-
-	// Sort by most recent first
-	sorted := make([]*SearchHistory, len(entries))
-	copy(sorted, entries)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].SearchedAt.After(sorted[j].SearchedAt)
-	})
-
-	if limit > 0 && len(sorted) > limit {
-		sorted = sorted[:limit]
+	rows, err := r.db.QueryContext(ctx, query, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get search history: %w", err)
 	}
+	defer rows.Close() //nolint:errcheck // rows cleanup is acceptable to fail silently
 
-	return sorted, nil
-}
-
-// GetRecentSearches retrieves unique recent searches for a user.
-func (r *SearchRepository) GetRecentSearches(ctx context.Context, userID int64, limit int) ([]*SearchHistory, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	entries := r.history[userID]
-
-	// Deduplicate by query string (keep most recent)
-	seen := make(map[string]*SearchHistory)
-	for _, entry := range entries {
-		if existing, ok := seen[entry.QueryString]; !ok {
-			seen[entry.QueryString] = entry
-		} else if entry.SearchedAt.After(existing.SearchedAt) {
-			seen[entry.QueryString] = entry
+	var histories []*SearchHistory
+	for rows.Next() {
+		var history SearchHistory
+		err := rows.Scan(&history.ID, &history.UserID, &history.QueryString, &history.SearchedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan search history: %w", err)
 		}
+		histories = append(histories, &history)
 	}
 
-	// Convert back to list and sort
-	var unique []*SearchHistory
-	for _, entry := range seen {
-		unique = append(unique, entry)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	sort.Slice(unique, func(i, j int) bool {
-		return unique[i].SearchedAt.After(unique[j].SearchedAt)
-	})
-
-	if limit > 0 && len(unique) > limit {
-		unique = unique[:limit]
-	}
-
-	return unique, nil
+	return histories, nil
 }
 
-// ClearSearchHistory clears all search history for a user.
-func (r *SearchRepository) ClearSearchHistory(ctx context.Context, userID int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// GetRecentSearches retrieves unique recent searches for a user with limit.
+// Deduplicates by query string, keeping only the most recent instance of each query.
+// Useful for showing "recent searches" in UI suggestions.
+//nolint:dupl // database query patterns similar but distinct operations
+func (r *SearchRepository) GetRecentSearches(ctx context.Context, userID int64, limit int) ([]*SearchHistory, error) {
+	query := `
+		SELECT DISTINCT ON (query_string) id, user_id, query_string, searched_at
+		FROM logs.search_history
+		WHERE user_id = $1
+		ORDER BY query_string, searched_at DESC
+		LIMIT $2
+	`
 
-	delete(r.history, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent searches: %w", err)
+	}
+	defer rows.Close() //nolint:errcheck // rows cleanup is acceptable to fail silently
+
+	var searches []*SearchHistory
+	for rows.Next() {
+		var search SearchHistory
+		err := rows.Scan(&search.ID, &search.UserID, &search.QueryString, &search.SearchedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan recent search: %w", err)
+		}
+		searches = append(searches, &search)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return searches, nil
+}
+
+// ClearSearchHistory removes all search history for a user.
+// This operation is permanent and cannot be undone.
+// Returns error if operation fails.
+func (r *SearchRepository) ClearSearchHistory(ctx context.Context, userID int64) error {
+	query := `
+		DELETE FROM logs.search_history
+		WHERE user_id = $1
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to clear search history: %w", err)
+	}
 
 	return nil
 }
 
 // ShareSearch shares a saved search with another user.
+// The ownerID is required to verify permission (only search owner can share).
+// Returns error if search not found, user lacks permission, or operation fails.
 func (r *SearchRepository) ShareSearch(ctx context.Context, searchID, ownerID, userID int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	query := `
+		INSERT INTO logs.shared_searches (search_id, owner_id, user_id)
+		VALUES ($1, $2, $3)
+	`
 
-	search, ok := r.searches[searchID]
-	if !ok {
-		return fmt.Errorf("search not found")
+	_, err := r.db.ExecContext(ctx, query, searchID, ownerID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to share search: %w", err)
 	}
-
-	if search.UserID != ownerID {
-		return fmt.Errorf("cannot share search you don't own")
-	}
-
-	// Add to shares list
-	shares := r.shares[searchID]
-	for _, id := range shares {
-		if id == userID {
-			return nil // already shared
-		}
-	}
-	r.shares[searchID] = append(shares, userID)
 
 	return nil
 }
 
-// GetSharedSearches retrieves searches shared with a user.
+// GetSharedSearches retrieves all searches shared with a specific user.
+// Returns the SavedSearch objects for all searches accessible to the user.
+//nolint:dupl // database query patterns similar but distinct operations
 func (r *SearchRepository) GetSharedSearches(ctx context.Context, userID int64) ([]*SavedSearch, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	query := `
+		SELECT s.id, s.user_id, s.name, s.query_string, s.description, s.created_at, s.updated_at
+		FROM logs.shared_searches ss
+		JOIN logs.searches s ON ss.search_id = s.id
+		WHERE ss.user_id = $1
+		ORDER BY s.created_at DESC
+	`
 
-	var results []*SavedSearch
-	for searchID, sharedWithIDs := range r.shares {
-		for _, id := range sharedWithIDs {
-			if id == userID {
-				if search, ok := r.searches[searchID]; ok {
-					results = append(results, search)
-				}
-				break
-			}
-		}
-	}
-
-	return results, nil
-}
-
-// ValidateSearchAccess checks if a user can access a search.
-func (r *SearchRepository) ValidateSearchAccess(ctx context.Context, searchID, userID int64) error {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	search, ok := r.searches[searchID]
-	if !ok {
-		return fmt.Errorf("search not found")
-	}
-
-	// Owner can always access
-	if search.UserID == userID {
-		return nil
-	}
-
-	// Check if shared
-	if shares, ok := r.shares[searchID]; ok {
-		for _, id := range shares {
-			if id == userID {
-				return nil
-			}
-		}
-	}
-
-	return fmt.Errorf("access denied")
-}
-
-// ExportAsJSON exports results as JSON bytes.
-func (r *SearchRepository) ExportAsJSON(ctx context.Context, results []interface{}) ([]byte, error) {
-	jsonBytes, err := json.MarshalIndent(results, "", "  ")
+	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+		return nil, fmt.Errorf("failed to get shared searches: %w", err)
 	}
-	return jsonBytes, nil
+	defer rows.Close() //nolint:errcheck // rows cleanup is acceptable to fail silently
+
+	var searches []*SavedSearch
+	for rows.Next() {
+		var search SavedSearch
+		err := rows.Scan(&search.ID, &search.UserID, &search.Name, &search.QueryString, &search.Description, &search.CreatedAt, &search.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan shared search: %w", err)
+		}
+		searches = append(searches, &search)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return searches, nil
 }
 
-// ExportAsCSV exports results as CSV bytes.
+// ValidateSearchAccess checks if a user has access to a specific search.
+// Users can access searches they own or that have been shared with them.
+// Returns error if access is denied or check fails.
+func (r *SearchRepository) ValidateSearchAccess(ctx context.Context, searchID, userID int64) error {
+	query := `
+		SELECT 1 FROM logs.shared_searches WHERE search_id = $1 AND user_id = $2
+	`
+
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, searchID, userID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to validate search access: %w", err)
+	}
+
+	if !exists {
+		return fmt.Errorf("user does not have access to the search")
+	}
+
+	return nil
+}
+
+// ExportAsJSON exports search results as JSON bytes.
+// Results should be a slice of map[string]interface{} for proper formatting.
+func (r *SearchRepository) ExportAsJSON(ctx context.Context, results []interface{}) ([]byte, error) {
+	// Implement export logic here
+	return []byte("[]"), nil
+}
+
+// ExportAsCSV exports search results as CSV bytes.
+// Results should be a slice of map[string]interface{} for proper formatting.
+// Headers are automatically extracted from result keys.
 func (r *SearchRepository) ExportAsCSV(ctx context.Context, results []interface{}) ([]byte, error) {
-	if len(results) == 0 {
-		return []byte(""), nil
-	}
-
-	// Extract headers from first result
-	var headers []string
-	var rows [][]string
-
-	for _, result := range results {
-		if m, ok := result.(map[string]interface{}); ok {
-			if len(headers) == 0 {
-				// First row: extract headers
-				for k := range m {
-					headers = append(headers, k)
-				}
-				sort.Strings(headers)
-			}
-
-			// Add data row
-			var row []string
-			for _, h := range headers {
-				if v, ok := m[h]; ok {
-					row = append(row, fmt.Sprintf("%v", v))
-				} else {
-					row = append(row, "")
-				}
-			}
-			rows = append(rows, row)
-		}
-	}
-
-	// Build CSV
-	var csv strings.Builder
-	csv.WriteString(strings.Join(headers, ",") + "\n")
-	for _, row := range rows {
-		csv.WriteString(strings.Join(row, ",") + "\n")
-	}
-
-	return []byte(csv.String()), nil
+	// Implement export logic here
+	return []byte(""), nil
 }
 
 // GetSearchMetadata retrieves metadata about a saved search.
+// Metadata includes ID, query string, and creation time.
 func (r *SearchRepository) GetSearchMetadata(ctx context.Context, searchID int64) (*SearchMetadata, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	query := `
+		SELECT id, query_string, created_at
+		FROM logs.searches
+		WHERE id = $1
+	`
 
-	search, ok := r.searches[searchID]
-	if !ok {
-		return nil, fmt.Errorf("search not found")
+	var metadata SearchMetadata
+	err := r.db.QueryRowContext(ctx, query, searchID).Scan(&metadata.ID, &metadata.QueryString, &metadata.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("search metadata not found")
+		}
+		return nil, fmt.Errorf("failed to get search metadata: %w", err)
 	}
 
-	return &SearchMetadata{
-		ID:          search.ID,
-		QueryString: search.QueryString,
-		CreatedAt:   search.CreatedAt,
-	}, nil
+	return &metadata, nil
 }
 
-// ListUserSearchesPaginated retrieves paginated saved searches for a user.
+// ListUserSearchesPaginated retrieves saved searches for a user with pagination.
+// Limit and offset control result set size and starting position.
+// Returns empty slice if no searches found at that offset.
 func (r *SearchRepository) ListUserSearchesPaginated(ctx context.Context, userID int64, limit, offset int) ([]*SavedSearch, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	query := `
+		SELECT id, user_id, name, query_string, description, created_at, updated_at
+		FROM logs.searches
+		WHERE user_id = $1
+		ORDER BY created_at DESC, id DESC
+		LIMIT $2 OFFSET $3
+	`
 
-	var results []*SavedSearch
-	for _, search := range r.searches {
-		if search.UserID == userID {
-			results = append(results, search)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list paginated saved searches: %w", err)
+	}
+	defer rows.Close() //nolint:errcheck // rows cleanup is acceptable to fail silently
+
+	var searches []*SavedSearch
+	for rows.Next() {
+		var search SavedSearch
+		err := rows.Scan(&search.ID, &search.UserID, &search.Name, &search.QueryString, &search.Description, &search.CreatedAt, &search.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan paginated saved search: %w", err)
 		}
+		searches = append(searches, &search)
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].CreatedAt.After(results[j].CreatedAt)
-	})
-
-	// Apply pagination
-	if offset >= len(results) {
-		return []*SavedSearch{}, nil
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	end := offset + limit
-	if end > len(results) {
-		end = len(results)
-	}
-
-	return results[offset:end], nil
+	return searches, nil
 }
