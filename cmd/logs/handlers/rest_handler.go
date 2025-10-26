@@ -164,3 +164,21 @@ func DeleteLogs(svc LogService) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"deleted": count, "timestamp": time.Now()})
 	}
 }
+
+// RegisterRestRoutes registers all REST API routes for the logs service.
+func RegisterRestRoutes(router *gin.Engine, svc LogService) {
+	// POST /api/logs - ingest log entries
+	router.POST("/api/logs", PostLogs(svc))
+
+	// GET /api/logs - query logs with optional filters
+	router.GET("/api/logs", GetLogs(svc))
+
+	// GET /api/logs/:id - get single log entry by ID
+	router.GET("/api/logs/:id", GetLogByID(svc))
+
+	// GET /api/logs/stats - get aggregated statistics
+	router.GET("/api/logs/stats", GetStats(svc))
+
+	// DELETE /api/logs - bulk delete logs by filters
+	router.DELETE("/api/logs", DeleteLogs(svc))
+}
