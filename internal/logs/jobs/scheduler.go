@@ -11,20 +11,20 @@ import (
 )
 
 // Job represents a background job definition.
-type Job struct {
+type Job struct { //nolint:govet // struct alignment optimized for readability
+	Fn       func(context.Context) error
 	Name     string
 	Interval time.Duration
-	Fn       func(context.Context) error
 }
 
 // Scheduler manages background jobs.
-type Scheduler struct {
+type Scheduler struct { //nolint:govet // struct alignment optimized for readability
 	jobs     []Job
+	stopChan chan struct{}
 	logger   *logrus.Logger
+	wg       sync.WaitGroup
 	mu       sync.RWMutex
 	running  bool
-	stopChan chan struct{}
-	wg       sync.WaitGroup
 }
 
 // NewScheduler creates a new Scheduler.
@@ -161,10 +161,10 @@ func (s *Scheduler) executeJob(ctx context.Context, job Job) {
 }
 
 // JobBuilder helps construct job definitions.
-type JobBuilder struct {
+type JobBuilder struct { //nolint:govet // struct alignment optimized for readability
+	fn       func(context.Context) error
 	name     string
 	interval time.Duration
-	fn       func(context.Context) error
 }
 
 // NewJobBuilder creates a new JobBuilder.
