@@ -1,9 +1,20 @@
-// Package jobs provides background job scheduling and archival functionality.
+// Package jobs provides types for log retention and archival.
 package jobs
 
 import (
 	"context"
 	"time"
+)
+
+const (
+	// storageTypeLocal is the local filesystem storage type
+	storageTypeLocal = "local"
+	// defaultRetentionDays is the default log retention period
+	defaultRetentionDays = 90
+	// archiveDirectoryPermissions is the permission mode for archive directories
+	archiveDirectoryPermissions = 0o750
+	// archiveFilePermissions is the permission mode for created archive files
+	archiveFilePermissions = 0o600
 )
 
 // RetentionConfig holds configuration for log retention and archival.
@@ -15,12 +26,6 @@ type RetentionConfig struct { //nolint:govet // struct alignment optimized for r
 	LocalArchivePath          string
 	S3Bucket                  string
 	S3Region                  string
-}
-
-// Validate checks if retention config is valid.
-func (r *RetentionConfig) Validate() error {
-	// TODO: Implement validation
-	return nil
 }
 
 // StorageMetrics represents storage usage statistics.
@@ -48,68 +53,8 @@ type ArchiveStorage interface {
 }
 
 // RetentionService manages log retention and archival.
-type RetentionService struct { //nolint:govet,unused // struct alignment optimized for readability
+type RetentionService struct { //nolint:govet // struct alignment optimized for readability
 	config  *RetentionConfig
-	repo    LogRepository //nolint:unused // Used in GREEN phase implementation
-	storage ArchiveStorage //nolint:unused // Used in GREEN phase implementation
-}
-
-// NewRetentionService creates a new retention service.
-func NewRetentionService(cfg *RetentionConfig, repo LogRepository, storage ArchiveStorage) (*RetentionService, error) {
-	// Stub implementation - will be completed in GREEN phase
-	_ = cfg
-	_ = repo
-	_ = storage
-	return nil, nil
-}
-
-// LoadRetentionConfig loads configuration from environment variables.
-func LoadRetentionConfig() (RetentionConfig, error) {
-	// Stub implementation - will be completed in GREEN phase
-	return RetentionConfig{}, nil
-}
-
-// CleanupOldLogs removes logs older than retention period.
-func (rs *RetentionService) CleanupOldLogs(ctx context.Context) (int64, error) {
-	// Stub implementation - will be completed in GREEN phase
-	_ = ctx
-	return 0, nil
-}
-
-// ArchiveLogs archives logs to storage.
-func (rs *RetentionService) ArchiveLogs(ctx context.Context, logData []map[string]interface{}) (string, error) {
-	// Stub implementation - will be completed in GREEN phase
-	_ = ctx
-	_ = logData
-	return "", nil
-}
-
-// RestoreFromArchive restores logs from an archive.
-func (rs *RetentionService) RestoreFromArchive(ctx context.Context, filename string) ([]map[string]interface{}, error) {
-	// Stub implementation - will be completed in GREEN phase
-	_ = ctx
-	_ = filename
-	return nil, nil
-}
-
-// SearchArchives finds archives within a date range.
-func (rs *RetentionService) SearchArchives(ctx context.Context, startDate, endDate time.Time) ([]string, error) {
-	// Stub implementation - will be completed in GREEN phase
-	_ = ctx
-	_ = startDate
-	_ = endDate
-	return nil, nil
-}
-
-// GetMetrics returns storage usage metrics.
-func (rs *RetentionService) GetMetrics(ctx context.Context) (StorageMetrics, error) {
-	// Stub implementation - will be completed in GREEN phase
-	_ = ctx
-	return StorageMetrics{}, nil
-}
-
-// CreateRetentionJob creates a background job for retention cleanup.
-func (rs *RetentionService) CreateRetentionJob() Job {
-	// Stub implementation - will be completed in GREEN phase
-	return Job{}
+	repo    LogRepository  //nolint:unused // Used in service implementation
+	storage ArchiveStorage //nolint:unused // Used in service implementation
 }

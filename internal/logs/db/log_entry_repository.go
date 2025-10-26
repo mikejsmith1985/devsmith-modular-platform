@@ -424,3 +424,83 @@ func (r *LogEntryRepository) GetMetadataValue(metadata []byte, key string) (inte
 
 	return data[key], nil
 }
+
+// DeleteEntriesOlderThan deletes log entries older than the specified time.
+func (r *LogEntryRepository) DeleteEntriesOlderThan(ctx context.Context, before time.Time) (int64, error) {
+	result, err := r.db.ExecContext(ctx,
+		`DELETE FROM logs.log_entries WHERE created_at < $1`,
+		before,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("db: failed to delete entries older than %v: %w", before, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("db: failed to get rows affected: %w", err)
+	}
+
+	return rowsAffected, nil
+}
+
+// GetEntriesForArchival retrieves entries older than the specified time for archival.
+func (r *LogEntryRepository) GetEntriesForArchival(ctx context.Context, before time.Time, limit int) ([]map[string]interface{}, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, user_id, service, level, message, metadata, tags, created_at
+		 FROM logs.log_entries
+		 WHERE created_at < $1
+		 ORDER BY created_at DESC
+		 LIMIT $2`,
+		before,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("db: failed to query entries for archival: %w", err)
+	}
+	defer rows.Close() //nolint:errcheck // error ignored per defer pattern
+
+	var entries []map[string]interface{}
+	for rows.Next() {
+		var id, userID int64
+		var service, level, message string
+		var metadata []byte
+		var tags []byte
+		var createdAt time.Time
+
+		if err := rows.Scan(&id, &userID, &service, &level, &message, &metadata, &tags, &createdAt); err != nil {
+			return nil, fmt.Errorf("db: failed to scan row: %w", err)
+		}
+
+		entry := map[string]interface{}{
+			"id":         id,
+			"user_id":    userID,
+			"service":    service,
+			"level":      level,
+			"message":    message,
+			"metadata":   json.RawMessage(metadata),
+			"tags":       json.RawMessage(tags),
+			"created_at": createdAt,
+		}
+		entries = append(entries, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("db: error iterating rows: %w", err)
+	}
+
+	return entries, nil
+}
+
+// CountEntriesOlderThan returns the count of entries older than the specified time.
+func (r *LogEntryRepository) CountEntriesOlderThan(ctx context.Context, before time.Time) (int64, error) {
+	var count int64
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM logs.log_entries WHERE created_at < $1`,
+		before,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("db: failed to count entries: %w", err)
+	}
+
+	return count, nil
+}
