@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -65,18 +64,6 @@ func main() {
 			})
 		}
 		c.Next()
-	})
-
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
-			"status": "healthy",
-		})
-		c.JSON(http.StatusOK, gin.H{
-			"service": "analytics",
-			"status":  "healthy",
-		})
 	})
 
 	// Serve static files (CSS, JS)
