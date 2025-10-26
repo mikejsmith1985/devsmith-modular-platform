@@ -7,24 +7,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // ContextService manages correlation context (GREEN phase - full implementation)
 type ContextService struct {
-	repo ContextRepository
-}
-
-// ContextRepository interface for data access
-type ContextRepository interface {
-	GetCorrelatedLogs(ctx context.Context, correlationID string, limit, offset int) ([]models.LogEntry, error)
-	GetCorrelationCount(ctx context.Context, correlationID string) (int, error)
-	GetRecentCorrelations(ctx context.Context, minutes, limit int) ([]string, error)
-	GetContextMetadata(ctx context.Context, correlationID string) (map[string]interface{}, error)
+	repo *db.ContextRepository
 }
 
 // NewContextService creates a new context service (GREEN phase - full implementation)
-func NewContextService(repo ContextRepository) *ContextService {
+func NewContextService(repo *db.ContextRepository) *ContextService {
 	return &ContextService{repo: repo}
 }
 
