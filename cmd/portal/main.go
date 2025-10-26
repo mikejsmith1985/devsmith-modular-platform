@@ -17,6 +17,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 )
 
 func main() {
@@ -29,16 +30,33 @@ func main() {
 	// Create Gin router
 	router := gin.Default()
 
+	// Initialize instrumentation logger for this service
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082" // Default for local development
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("portal", logsServiceURL)
+
 	// Middleware for logging requests (skip health checks to reduce noise)
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path != "/health" {
 			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
+			// Log to instrumentation service asynchronously
+			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+				"method": c.Request.Method,
+				"path":   c.Request.URL.Path,
+			})
 		}
 		c.Next()
 	})
 
 	// Health check endpoint (required for Docker health checks)
 	router.GET("/health", func(c *gin.Context) {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
+			"status": "healthy",
+		})
 		c.JSON(http.StatusOK, gin.H{
 			"service": "portal",
 			"status":  "healthy",

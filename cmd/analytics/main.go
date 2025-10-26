@@ -3,6 +3,8 @@ package main
 
 import (
 	"context"
+	"log"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +14,20 @@ import (
 	analytics_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	// Initialize instrumentation logger for this service
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082" // Default for local development
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("analytics", logsServiceURL)
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -42,6 +52,32 @@ func main() {
 	apiHandler := analytics_handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
 
 	router := gin.Default()
+
+	// Middleware for logging requests (skip health checks)
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path != "/health" {
+			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
+			// Log to instrumentation service asynchronously
+			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+				"method": c.Request.Method,
+				"path":   c.Request.URL.Path,
+			})
+		}
+		c.Next()
+	})
+
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
+			"status": "healthy",
+		})
+		c.JSON(http.StatusOK, gin.H{
+			"service": "analytics",
+			"status":  "healthy",
+		})
+	})
 
 	// Serve static files (CSS, JS)
 	router.Static("/static", "./apps/analytics/static")
