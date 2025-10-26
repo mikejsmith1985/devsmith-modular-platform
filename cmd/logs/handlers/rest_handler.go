@@ -334,10 +334,10 @@ func CreateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
 			Service                string `json:"service" binding:"required"`
-			ErrorThresholdPerMin   int    `json:"error_threshold_per_min"`
-			WarningThresholdPerMin int    `json:"warning_threshold_per_min"`
 			AlertEmail             string `json:"alert_email"`
 			AlertWebhookURL        string `json:"alert_webhook_url"`
+			ErrorThresholdPerMin   int    `json:"error_threshold_per_min"`
+			WarningThresholdPerMin int    `json:"warning_threshold_per_min"`
 			Enabled                bool   `json:"enabled"`
 		}
 
@@ -348,10 +348,10 @@ func CreateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 
 		config := &models.AlertConfig{
 			Service:                req.Service,
-			ErrorThresholdPerMin:   req.ErrorThresholdPerMin,
-			WarningThresholdPerMin: req.WarningThresholdPerMin,
 			AlertEmail:             req.AlertEmail,
 			AlertWebhookURL:        req.AlertWebhookURL,
+			ErrorThresholdPerMin:   req.ErrorThresholdPerMin,
+			WarningThresholdPerMin: req.WarningThresholdPerMin,
 			Enabled:                req.Enabled,
 		}
 
@@ -393,10 +393,10 @@ func UpdateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 		}
 
 		var req struct {
-			ErrorThresholdPerMin   int    `json:"error_threshold_per_min"`
-			WarningThresholdPerMin int    `json:"warning_threshold_per_min"`
 			AlertEmail             string `json:"alert_email"`
 			AlertWebhookURL        string `json:"alert_webhook_url"`
+			ErrorThresholdPerMin   int    `json:"error_threshold_per_min"`
+			WarningThresholdPerMin int    `json:"warning_threshold_per_min"`
 			Enabled                bool   `json:"enabled"`
 		}
 

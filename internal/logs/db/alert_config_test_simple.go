@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestAlertConfigRepository_Create_Success tests creating and reading alert config from database
+// TestAlertConfigRepository_CreateSimple_Success tests creating and reading alert config from database
+//
+//nolint:funlen // Test function requires multiple setup and verification steps
 func TestAlertConfigRepository_CreateSimple_Success(t *testing.T) {
 	// Skip if database not available
 	dsn := "postgres://devsmith:devsmith@localhost:5432/devsmith_test?sslmode=disable"
@@ -19,11 +21,20 @@ func TestAlertConfigRepository_CreateSimple_Success(t *testing.T) {
 	if err != nil {
 		t.Skipf("Database not available: %v", err)
 	}
-	if err := db.Ping(); err != nil {
-		_ = db.Close()
-		t.Skipf("Database not reachable: %v", err)
+	pingErr := db.Ping()
+	if pingErr != nil {
+		closeErr := db.Close()
+		if closeErr != nil {
+			t.Logf("Failed to close database: %v", closeErr)
+		}
+		t.Skipf("Database not reachable: %v", pingErr)
 	}
-	defer db.Close()
+	defer func() {
+		closeErr := db.Close()
+		if closeErr != nil {
+			t.Logf("Failed to close database: %v", closeErr)
+		}
+	}()
 
 	// Setup: Create schema and tables
 	schema := `
@@ -112,5 +123,8 @@ func TestAlertConfigRepository_CreateSimple_Success(t *testing.T) {
 	t.Logf("✅ Successfully read alert event from database: event = %+v", retrievedEvent)
 
 	// Cleanup: Drop schema
-	_, _ = db.Exec("DROP SCHEMA IF EXISTS logs CASCADE")
+	_, cleanupErr := db.Exec("DROP SCHEMA IF EXISTS logs CASCADE")
+	if cleanupErr != nil {
+		t.Logf("Warning: Failed to cleanup schema: %v", cleanupErr)
+	}
 }
