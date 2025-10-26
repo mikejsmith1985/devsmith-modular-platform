@@ -98,6 +98,7 @@ func main() {
 	authenticated := router.Group("/")
 	authenticated.Use(middleware.JWTAuthMiddleware())
 	authenticated.GET("/dashboard", handlers.DashboardHandler)
+	authenticated.GET("/dashboard/logs", handlers.LogsDashboardHandler)
 	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
 
 	// Load templates (path works in both local dev and Docker)
