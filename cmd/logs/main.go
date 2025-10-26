@@ -10,13 +10,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
+	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
+	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
-var db *sql.DB
+var dbConn *sql.DB
 
 func main() {
 	port := os.Getenv("PORT")
@@ -31,14 +33,14 @@ func main() {
 	// Initialize database
 	dbURL := os.Getenv("DATABASE_URL")
 	var err error
-	db, err = sql.Open("postgres", dbURL)
+	dbConn, err = sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
 	// Verify connection
-	if err := db.Ping(); err != nil {
-		if closeErr := db.Close(); closeErr != nil {
+	if err := dbConn.Ping(); err != nil {
+		if closeErr := dbConn.Close(); closeErr != nil {
 			log.Printf("[ERROR] Failed to close database: %v", closeErr)
 		}
 		log.Fatal("Failed to ping database:", err)
@@ -61,10 +63,48 @@ func main() {
 	router.Static("/static", "./apps/logs/static")
 
 	// Register UI routes for dashboard
-	handlers.RegisterUIRoutes(router, logger)
+	apphandlers.RegisterUIRoutes(router, logger)
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "logs")
+
+	// Initialize database repositories for REST API
+	logRepo := db.NewLogRepository(dbConn)
+	restSvc := services.NewRestLogService(logRepo, logger)
+
+	// Register REST API routes
+	router.POST("/api/logs", func(c *gin.Context) {
+		resthandlers.PostLogs(restSvc)(c)
+	})
+	router.GET("/api/logs", func(c *gin.Context) {
+		resthandlers.GetLogs(restSvc)(c)
+	})
+	router.GET("/api/logs/:id", func(c *gin.Context) {
+		resthandlers.GetLogByID(restSvc)(c)
+	})
+	router.GET("/api/logs/stats", func(c *gin.Context) {
+		resthandlers.GetStats(restSvc)(c)
+	})
+	router.DELETE("/api/logs", func(c *gin.Context) {
+		resthandlers.DeleteLogs(restSvc)(c)
+	})
+
+	// Also register /api/v1/logs routes (for consistency and direct access)
+	router.POST("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.PostLogs(restSvc)(c)
+	})
+	router.GET("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.GetLogs(restSvc)(c)
+	})
+	router.GET("/api/v1/logs/:id", func(c *gin.Context) {
+		resthandlers.GetLogByID(restSvc)(c)
+	})
+	router.GET("/api/v1/logs/stats", func(c *gin.Context) {
+		resthandlers.GetStats(restSvc)(c)
+	})
+	router.DELETE("/api/v1/logs", func(c *gin.Context) {
+		resthandlers.DeleteLogs(restSvc)(c)
+	})
 
 	// Initialize WebSocket hub
 	hub := services.NewWebSocketHub()
@@ -86,7 +126,7 @@ func main() {
 	}
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		if closeErr := db.Close(); closeErr != nil {
+		if closeErr := dbConn.Close(); closeErr != nil {
 			log.Printf("[ERROR] Failed to close database: %v", closeErr)
 		}
 		log.Fatalf("[ERROR] Failed to start server: %v", err)
