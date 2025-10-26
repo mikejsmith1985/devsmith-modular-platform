@@ -259,9 +259,9 @@ func ValidateTitle(title string) error {
 //   - error: nil if valid, otherwise describes the validation failure
 func ValidateCodeSource(source string) error {
 	validSources := map[string]bool{
-		"paste":   true,
-		"github":  true,
-		"upload":  true,
+		"paste":  true,
+		"github": true,
+		"upload": true,
 	}
 
 	if !validSources[source] {

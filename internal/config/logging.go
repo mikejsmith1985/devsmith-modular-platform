@@ -25,10 +25,11 @@ import (
 //   - error: If URL is invalid or required env var is missing in non-default scenario
 //
 // Example:
-//   logsURL, err := LoadLogsConfig()
-//   if err != nil {
-//       log.Fatalf("Failed to load logging config: %v", err)
-//   }
+//
+//	logsURL, err := LoadLogsConfig()
+//	if err != nil {
+//	    log.Fatalf("Failed to load logging config: %v", err)
+//	}
 func LoadLogsConfig() (string, error) {
 	// Try to read from environment
 	logsURL := os.Getenv("LOGS_SERVICE_URL")
