@@ -79,11 +79,10 @@ func (l *ServiceInstrumentationLogger) HasCircularDependencyPrevention() bool {
 // buildLogEntry constructs a log entry with context information.
 func (l *ServiceInstrumentationLogger) buildLogEntry(level, eventType string, metadata map[string]interface{}, ctx context.Context) map[string]interface{} {
 	logEntry := map[string]interface{}{
-		"service":    l.serviceName,
-		"level":      level,
-		"event_type": eventType,
-		"timestamp":  time.Now().UTC().Format(time.RFC3339),
-		"metadata":   metadata,
+		"service":   l.serviceName,
+		"level":     level,
+		"message":   eventType, // Use eventType as message for logs service compatibility
+		"metadata":  metadata,
 	}
 
 	// Extract request_id from context if available
