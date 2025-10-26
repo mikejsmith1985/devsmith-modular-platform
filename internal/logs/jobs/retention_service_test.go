@@ -199,7 +199,12 @@ func TestRetentionService_RestoreLogsFromArchive_Success(t *testing.T) {
 	service, _ := NewRetentionService(&config, mockRepo, mockStorage)
 
 	// Create sample compressed archive data
-	archiveData := []byte{0x1f, 0x8b, 0x08, 0x00}
+	archiveData := []byte{
+		0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x8a, 0xae, 0x56, 0xca, 0x4c, 0x51,
+		0xb2, 0x32, 0xd4, 0x51, 0xca, 0x4d, 0x2d, 0x2e, 0x4e, 0x4c, 0x4f, 0x55, 0xb2, 0x52, 0x2a, 0x49,
+		0x2d, 0x2e, 0x51, 0xc8, 0xc9, 0x4f, 0x57, 0x48, 0xcd, 0x2b, 0x29, 0xaa, 0x54, 0xaa, 0x8d, 0x05,
+		0x04, 0x00, 0x00, 0xff, 0xff, 0x95, 0x57, 0x2f, 0x32, 0x25, 0x00, 0x00, 0x00,
+	}
 
 	mockStorage.On("GetArchive", mock.Anything, "logs-archive-20250101.json.gz").
 		Return(archiveData, nil)
@@ -263,7 +268,7 @@ func TestRetentionService_GetStorageMetrics_Success(t *testing.T) {
 
 	// THEN: Should return storage metrics
 	require.NoError(t, err)
-	assert.Equal(t, 5, metrics.TotalArchives)
+	assert.Equal(t, int64(5), metrics.TotalArchives)
 	assert.Equal(t, int64(1073741824), metrics.TotalSize)
 }
 
@@ -278,6 +283,7 @@ func TestRetentionService_CreateRetentionJob_Success(t *testing.T) {
 	service, _ := NewRetentionService(&config, mockRepo, mockStorage)
 
 	mockRepo.On("DeleteEntriesOlderThan", mock.Anything, mock.Anything).Return(int64(100), nil)
+	mockRepo.On("GetEntriesForArchival", mock.Anything, mock.Anything, mock.Anything).Return([]map[string]interface{}{}, nil)
 
 	// WHEN: Creating retention job
 	job := service.CreateRetentionJob()

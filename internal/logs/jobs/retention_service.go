@@ -17,6 +17,8 @@ import (
 )
 
 // NewRetentionService creates a fully initialized retention service.
+// It validates the configuration and ensures all dependencies are provided.
+// Returns error if config is invalid or dependencies are nil.
 func NewRetentionService(cfg *RetentionConfig, repo LogRepository, storage ArchiveStorage) (*RetentionService, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("retention config is required")
@@ -42,6 +44,9 @@ func NewRetentionService(cfg *RetentionConfig, repo LogRepository, storage Archi
 }
 
 // LoadRetentionConfig loads retention configuration from environment variables.
+// It reads LOG_RETENTION_DAYS, LOG_ARCHIVE_ENABLED, LOG_ARCHIVE_COMPRESSION, LOG_ARCHIVE_STORAGE_TYPE,
+// LOG_ARCHIVE_LOCAL_PATH, LOG_ARCHIVE_S3_BUCKET, and LOG_ARCHIVE_S3_REGION.
+// Uses sensible defaults if environment variables are not set.
 func LoadRetentionConfig() (RetentionConfig, error) {
 	cfg := RetentionConfig{
 		RetentionDays:             defaultRetentionDays,
@@ -88,6 +93,8 @@ func LoadRetentionConfig() (RetentionConfig, error) {
 }
 
 // Validate checks if retention config is valid.
+// It ensures RetentionDays is positive and storage configuration is consistent.
+// Sets default values for StorageType and LocalArchivePath if ArchiveEnabled is true.
 func (r *RetentionConfig) Validate() error {
 	if r.RetentionDays <= 0 {
 		return fmt.Errorf("RetentionDays must be positive, got %d", r.RetentionDays)
@@ -118,6 +125,8 @@ func (r *RetentionConfig) Validate() error {
 }
 
 // CleanupOldLogs deletes logs older than the retention period, optionally archiving first.
+// If archiving is enabled, it fetches and archives old logs before deletion.
+// Returns the number of log entries deleted.
 func (rs *RetentionService) CleanupOldLogs(ctx context.Context) (int64, error) {
 	if rs == nil {
 		return 0, fmt.Errorf("retention service not initialized")
@@ -157,6 +166,8 @@ func (rs *RetentionService) CleanupOldLogs(ctx context.Context) (int64, error) {
 }
 
 // ArchiveLogs compresses and stores logs to archive storage.
+// Data is compressed to gzip format if compression is enabled.
+// Returns the filename of the created archive.
 func (rs *RetentionService) ArchiveLogs(ctx context.Context, logData []map[string]interface{}) (string, error) {
 	if rs.storage == nil {
 		return "", fmt.Errorf("storage not initialized")
@@ -211,6 +222,7 @@ func (rs *RetentionService) ArchiveLogs(ctx context.Context, logData []map[strin
 }
 
 // RestoreFromArchive reads and decompresses logs from an archive file.
+// Automatically detects and decompresses gzip-compressed data.
 func (rs *RetentionService) RestoreFromArchive(ctx context.Context, filename string) ([]map[string]interface{}, error) {
 	if rs == nil {
 		return nil, fmt.Errorf("retention service not initialized")
@@ -254,6 +266,7 @@ func (rs *RetentionService) RestoreFromArchive(ctx context.Context, filename str
 }
 
 // SearchArchives finds archive files within a date range.
+// Returns sorted list of archive filenames that were created between startDate and endDate.
 func (rs *RetentionService) SearchArchives(ctx context.Context, startDate, endDate time.Time) ([]string, error) {
 	if rs == nil {
 		return nil, fmt.Errorf("retention service not initialized")
@@ -289,6 +302,7 @@ func (rs *RetentionService) SearchArchives(ctx context.Context, startDate, endDa
 }
 
 // GetMetrics returns storage metrics for archives.
+// Includes total archive count, total size, and oldest/newest archive timestamps.
 func (rs *RetentionService) GetMetrics(ctx context.Context) (StorageMetrics, error) {
 	if rs == nil {
 		return StorageMetrics{}, fmt.Errorf("retention service not initialized")
@@ -302,6 +316,7 @@ func (rs *RetentionService) GetMetrics(ctx context.Context) (StorageMetrics, err
 }
 
 // CreateRetentionJob creates a background job for the retention cleanup.
+// The job runs daily and logs the number of deleted entries.
 func (rs *RetentionService) CreateRetentionJob() Job {
 	return Job{
 		Name:     "log-retention",

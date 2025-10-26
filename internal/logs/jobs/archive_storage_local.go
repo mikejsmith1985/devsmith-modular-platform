@@ -11,11 +11,13 @@ import (
 )
 
 // LocalArchiveStorage implements ArchiveStorage using the local filesystem.
+// It provides secure file-based archive storage with path traversal protection.
 type LocalArchiveStorage struct {
 	basePath string
 }
 
 // NewLocalArchiveStorage creates a new local archive storage.
+// Creates the storage directory if it doesn't exist with restricted permissions.
 func NewLocalArchiveStorage(basePath string) (*LocalArchiveStorage, error) {
 	if err := os.MkdirAll(basePath, archiveDirectoryPermissions); err != nil {
 		return nil, fmt.Errorf("failed to create archive directory: %w", err)
@@ -27,6 +29,7 @@ func NewLocalArchiveStorage(basePath string) (*LocalArchiveStorage, error) {
 }
 
 // SaveArchive saves an archive file to local storage.
+// Protects against path traversal attacks using filepath.Clean and validation.
 func (s *LocalArchiveStorage) SaveArchive(ctx context.Context, filename string, data []byte) error {
 	if filename == "" {
 		return fmt.Errorf("filename is required")
@@ -52,6 +55,7 @@ func (s *LocalArchiveStorage) SaveArchive(ctx context.Context, filename string, 
 }
 
 // ListArchives returns a list of all archive filenames.
+// Returns only files with .gz or .json extensions, sorted alphabetically.
 func (s *LocalArchiveStorage) ListArchives(ctx context.Context) ([]string, error) {
 	entries, err := os.ReadDir(s.basePath)
 	if err != nil {
@@ -74,6 +78,7 @@ func (s *LocalArchiveStorage) ListArchives(ctx context.Context) ([]string, error
 }
 
 // GetArchive reads an archive file from local storage.
+// Validates that the requested file is within the base path.
 func (s *LocalArchiveStorage) GetArchive(ctx context.Context, filename string) ([]byte, error) {
 	if filename == "" {
 		return nil, fmt.Errorf("filename is required")
@@ -94,6 +99,7 @@ func (s *LocalArchiveStorage) GetArchive(ctx context.Context, filename string) (
 }
 
 // DeleteArchive removes an archive file from local storage.
+// Validates that the file is within the base path before deletion.
 func (s *LocalArchiveStorage) DeleteArchive(ctx context.Context, filename string) error {
 	if filename == "" {
 		return fmt.Errorf("filename is required")
@@ -113,6 +119,7 @@ func (s *LocalArchiveStorage) DeleteArchive(ctx context.Context, filename string
 }
 
 // GetStorageMetrics returns storage metrics for local archives.
+// Includes total count, total size, and modification timestamps of oldest/newest files.
 func (s *LocalArchiveStorage) GetStorageMetrics(ctx context.Context) (StorageMetrics, error) {
 	entries, err := os.ReadDir(s.basePath)
 	if err != nil {
@@ -151,6 +158,7 @@ func (s *LocalArchiveStorage) GetStorageMetrics(ctx context.Context) (StorageMet
 }
 
 // isWithinDirectory checks if a path is within a directory.
+// Returns false for absolute paths or paths trying to escape the directory.
 func isWithinDirectory(path, dir string) bool {
 	rel, err := filepath.Rel(dir, path)
 	if err != nil {
