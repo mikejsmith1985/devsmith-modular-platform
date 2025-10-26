@@ -10,6 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Interval constants for error trend queries
+const (
+	IntervalHourly = "hourly"
+	IntervalDaily  = "daily"
+)
+
 // AlertService implements alert operations.
 type AlertService struct { //nolint:govet // Struct alignment optimized for memory efficiency
 	violationRepo AlertViolationRepositoryInterface
@@ -185,11 +191,8 @@ func NewValidationAggregation(logReader LogReaderInterface, logger *logrus.Logge
 // Parameters:
 //   - service: Filter by service (empty string = all services)
 //   - limit: Maximum number of errors to return (default 10, max 50)
-//   - days: Look back period in days (default 7, max 365)
-//
-// Returns the top errors sorted by frequency (highest first).
-// Errors are categorized by type and message for easy identification.
-func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service string, limit int, days int) ([]models.ValidationError, error) {
+//   - days: Number of days to look back (default 7, max 365)
+func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service string, limit, days int) ([]models.ValidationError, error) {
 	// Validate and constrain parameters
 	if limit <= 0 {
 		limit = 10
@@ -246,8 +249,8 @@ func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service str
 	if days > 365 {
 		days = 365 // Maximum 1 year lookback
 	}
-	if interval != "hourly" && interval != "daily" {
-		interval = "hourly" // Default to hourly for more granular data
+	if interval != IntervalHourly && interval != IntervalDaily {
+		interval = IntervalHourly // Default to hourly for more granular data
 	}
 
 	startTime := time.Now().AddDate(0, 0, -days)
@@ -265,7 +268,7 @@ func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service str
 	// Note: For detailed hourly/daily breakdown, a more sophisticated query would be needed.
 	// This simplified version provides aggregate trend for the period.
 	var intervalDuration time.Duration
-	if interval == "hourly" {
+	if interval == IntervalHourly {
 		intervalDuration = time.Hour
 	} else {
 		intervalDuration = 24 * time.Hour

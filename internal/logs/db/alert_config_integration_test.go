@@ -249,8 +249,8 @@ func TestAlertEventRepository_GetByConfigID_WritesToDatabase(t *testing.T) {
 			ErrorType:      "security_violation",
 		}
 		// WRITE multiple events to database
-		err := eventRepo.Create(ctx, event)
-		require.NoError(t, err, "Failed to write event %d", i)
+		eventErr := eventRepo.Create(ctx, event)
+		require.NoError(t, eventErr, "Failed to write event %d", i)
 		eventIDs[i] = event.ID
 		t.Logf("✅ Successfully WROTE alert event %d to database: event ID = %d", i+1, event.ID)
 	}

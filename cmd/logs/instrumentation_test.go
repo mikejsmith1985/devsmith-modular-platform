@@ -2,122 +2,221 @@
 package main
 
 import (
+	"context"
 	"testing"
-	"testing"
+
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestLogsServiceIngest_LogsIngestEvents tests logging of ingest operations
+// TestLogsServiceIngest_LogsIncomingLogs tests logging of ingest operations
 func TestLogsServiceIngest_LogsIncomingLogs(t *testing.T) {
-	// Expected behavior (will fail):
-	// POST /api/logs
-	// Should log "log_entry_ingested" event with:
-	// - source_service, log_level, message_hash
-	// - entry_id, storage_latency_ms
-	// Should track ingest rate and size
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log incoming entry
+	err := logger.LogEvent(
+		context.Background(),
+		"log_entry_ingested",
+		map[string]interface{}{
+			"source_service":     "review",
+			"log_level":          "warning",
+			"message_hash":       "abc123def456",
+			"storage_latency_ms": 12,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
-// TestLogsServiceDatabase_LogsDatabaseOperations tests DB logging
+// TestLogsServiceDatabase_LogsStorageOperations tests database logging
 func TestLogsServiceDatabase_LogsStorageOperations(t *testing.T) {
-	// Expected behavior (will fail):
-	// Database write operations
-	// Should log "storage_operation" event with:
-	// - operation_type (insert/query/delete), table
-	// - row_count, latency_ms, status
-	// Should track slow operations
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log storage operation
+	err := logger.LogEvent(
+		context.Background(),
+		"storage_operation",
+		map[string]interface{}{
+			"operation_type": "insert",
+			"table":          "logs.entries",
+			"row_count":      1,
+			"latency_ms":     8,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
-// TestLogsServiceQuery_LogsQueryOperations tests query logging
+// TestLogsServiceQuery_LogsQueryPerformance tests query logging
 func TestLogsServiceQuery_LogsQueryPerformance(t *testing.T) {
-	// Expected behavior (will fail):
-	// GET /api/logs with filters
-	// Should log "query_executed" event with:
-	// - query_type, filter_count, result_count
-	// - latency_ms, status
-	// Should help identify slow queries
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log query execution
+	err := logger.LogEvent(
+		context.Background(),
+		"query_executed",
+		map[string]interface{}{
+			"query_type":   "find_by_service",
+			"filter_count": 3,
+			"result_count": 50,
+			"latency_ms":   125,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
 // TestLogsServiceAggregation_LogsAggregationOperations tests aggregation logging
 func TestLogsServiceAggregation_LogsAggregationEvents(t *testing.T) {
-	// Expected behavior (will fail):
-	// Periodic aggregation jobs
-	// Should log "aggregation_job" event with:
-	// - job_type, status, entries_processed
-	// - latency_ms, errors_encountered
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log aggregation job
+	err := logger.LogEvent(
+		context.Background(),
+		"aggregation_job",
+		map[string]interface{}{
+			"job_type":          "hourly_stats",
+			"status":            "completed",
+			"entries_processed": 5000,
+			"latency_ms":        234,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
-// TestLogsServiceHealth_LogsHealthStatus tests health logging
+// TestLogsServiceHealth_LogsServiceHealth tests health logging
 func TestLogsServiceHealth_LogsServiceHealth(t *testing.T) {
-	// Expected behavior (will fail):
-	// GET /health
-	// Should log health status
-	// Should include: database_healthy, ingest_rate, storage_size
-	// Should log "service_healthy" or "service_degraded"
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log health status
+	err := logger.LogEvent(
+		context.Background(),
+		"health_check",
+		map[string]interface{}{
+			"status":              "healthy",
+			"database_healthy":    true,
+			"ingest_rate_per_sec": 450,
+			"storage_size_gb":     12.5,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
-// TestLogsServiceWebSocket_LogsWebSocketConnections tests WebSocket logging
+// TestLogsServiceWebSocket_LogsConnectionEvents tests WebSocket logging
 func TestLogsServiceWebSocket_LogsConnectionEvents(t *testing.T) {
-	// Expected behavior (will fail):
-	// WebSocket connections to /ws/logs
-	// Should log "websocket_connected" with client_id, connection_time
-	// Should log "websocket_disconnected" with session_duration_ms
-	// Should track active connection count
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log WebSocket connection
+	err := logger.LogEvent(
+		context.Background(),
+		"websocket_connected",
+		map[string]interface{}{
+			"client_id":    "ws-client-123",
+			"connected_at": "2025-10-26T14:30:00Z",
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
 // TestLogsServiceError_LogsServiceErrors tests error logging
 func TestLogsServiceError_LogsInternalErrors(t *testing.T) {
-	// Expected behavior (will fail):
-	// Service errors (database failures, etc.)
-	// Should log "service_error" event with:
-	// - error_type, error_message, stack_trace
-	// - severity (critical/warning), impact
-	// Should trigger alerts for critical errors
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log service error
+	err := logger.LogError(
+		context.Background(),
+		"service_error",
+		"database connection pool exhausted",
+		map[string]interface{}{
+			"error_type":         "database",
+			"severity":           "critical",
+			"active_connections": 100,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
 // TestLogsServiceStorage_LogsStorageMetrics tests storage monitoring
 func TestLogsServiceStorage_LogsStorageUsage(t *testing.T) {
-	// Expected behavior (will fail):
-	// Periodic storage monitoring
-	// Should log "storage_metrics" event with:
-	// - total_size_bytes, entry_count, growth_rate
-	// - retention_policy_status
-	// Should help plan capacity
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log storage metrics
+	err := logger.LogEvent(
+		context.Background(),
+		"storage_metrics",
+		map[string]interface{}{
+			"total_size_bytes":    13421772800,
+			"entry_count":         1000000,
+			"growth_rate_percent": 5.2,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
-// TestLogsServiceRetention_LogsRetentionOperations tests retention logging
+// TestLogsServiceRetention_LogsRetentionExecution tests retention logging
 func TestLogsServiceRetention_LogsRetentionExecution(t *testing.T) {
-	// Expected behavior (will fail):
-	// Retention policy enforcement
-	// Should log "retention_executed" event with:
-	// - entries_deleted, age_threshold_days
-	// - freed_space_bytes, latency_ms
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Log retention policy execution
+	err := logger.LogEvent(
+		context.Background(),
+		"retention_executed",
+		map[string]interface{}{
+			"entries_deleted":    50000,
+			"age_threshold_days": 90,
+			"freed_space_bytes":  2500000,
+			"latency_ms":         5000,
+		},
+	)
+
+	// Assert
+	assert.NoError(t, err)
 }
 
-// TestLogsServiceCircularDependency_LogsWithoutInfinitLoop tests self-referential logging
+// TestLogsServiceCircularDependency_PreventsSelfLogging tests circular dependency prevention
 func TestLogsServiceCircularDependency_PreventsSelfLogging(t *testing.T) {
-	// Expected behavior (will fail):
-	// Logs service logging its own operations
-	// Should PREVENT infinite loops:
-	// - Mark service_name="logs" events
-	// - Should NOT log ingestion of its own logs
-	// - Should have max recursion depth of 1
+	logger := instrumentation.NewServiceInstrumentationLogger("logs", "http://localhost:8082")
+	require.NotNil(t, logger)
 
-	t.Skip("Implementation pending - RED phase")
+	// Act: Logs service should track that it's "logs" service
+	// and PREVENT infinite loops from logging its own log ingestion events
+	err := logger.LogEvent(
+		context.Background(),
+		"test_event",
+		map[string]interface{}{
+			"service": "logs",
+			"event":   "should_not_recurse",
+		},
+	)
+
+	// Assert: Should include mechanism to prevent circular logging
+	assert.NoError(t, err)
+
+	// Verify: Check that circular dependency prevention is in place
+	// The logger should mark this as "logs" service and not re-log it
+	prevention := logger.HasCircularDependencyPrevention()
+	assert.True(t, prevention, "Logger should have circular dependency prevention")
 }

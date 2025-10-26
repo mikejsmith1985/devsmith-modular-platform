@@ -82,7 +82,9 @@ func (r *AlertEventRepository) GetByID(ctx context.Context, id int64) (*models.A
 	return event, nil
 }
 
-// GetByConfigID retrieves alert events for a specific config.
+// GetByConfigID retrieves all alert events for a specific config.
+//
+//nolint:dupl // Acceptable duplication: similar query pattern but different domain models
 func (r *AlertEventRepository) GetByConfigID(ctx context.Context, configID int64) ([]models.AlertEvent, error) {
 	query := `
 		SELECT id, config_id, error_count, threshold_value, error_type, alert_sent, triggered_at
@@ -95,7 +97,7 @@ func (r *AlertEventRepository) GetByConfigID(ctx context.Context, configID int64
 	if err != nil {
 		return nil, fmt.Errorf("failed to query alert events: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer rows.Close() //nolint:errcheck // ignore close error in defer block
 
 	var events []models.AlertEvent
 	for rows.Next() {
