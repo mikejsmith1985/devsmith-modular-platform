@@ -279,9 +279,9 @@ func TestAlertConfigRepository_Delete_RemovesFromDatabase(t *testing.T) {
 
 	// Create config
 	config := &models.AlertConfig{
-		Service:                "temp-service",
-		ErrorThresholdPerMin:   10,
-		Enabled:                true,
+		Service:              "temp-service",
+		ErrorThresholdPerMin: 10,
+		Enabled:              true,
 	}
 	err := repo.Create(ctx, config)
 	require.NoError(t, err)

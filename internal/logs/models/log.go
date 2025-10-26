@@ -107,13 +107,13 @@ type ErrorTrend struct {
 
 // AlertEvent represents a recorded alert event when thresholds are triggered.
 type AlertEvent struct {
-	TriggeredAt      time.Time `json:"triggered_at" db:"triggered_at"`
-	ConfigID         int64     `json:"config_id" db:"config_id"`
-	ID               int64     `json:"id" db:"id"`
-	ErrorCount       int       `json:"error_count" db:"error_count"`
-	ThresholdValue   int       `json:"threshold_value" db:"threshold_value"`
-	ErrorType        string    `json:"error_type" db:"error_type"`
-	AlertSent        bool      `json:"alert_sent" db:"alert_sent"`
+	TriggeredAt    time.Time `json:"triggered_at" db:"triggered_at"`
+	ConfigID       int64     `json:"config_id" db:"config_id"`
+	ID             int64     `json:"id" db:"id"`
+	ErrorCount     int       `json:"error_count" db:"error_count"`
+	ThresholdValue int       `json:"threshold_value" db:"threshold_value"`
+	ErrorType      string    `json:"error_type" db:"error_type"`
+	AlertSent      bool      `json:"alert_sent" db:"alert_sent"`
 }
 
 // LogExportOptions contains parameters for exporting logs.

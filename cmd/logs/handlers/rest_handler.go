@@ -185,23 +185,33 @@ func GetDashboardStats(agg ValidationAggregationInterface) gin.HandlerFunc {
 		service := c.DefaultQuery("service", "")
 		timeRange := c.DefaultQuery("time_range", "last_hour")
 
-		// Validate time range
+		// Validate time range parameter
 		validRanges := map[string]bool{"last_5m": true, "last_hour": true, "last_24h": true}
 		if !validRanges[timeRange] {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid time_range: must be last_5m, last_hour, or last_24h"})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":  "invalid time_range parameter",
+				"detail": "time_range must be one of: last_5m, last_hour, last_24h",
+				"got":    timeRange,
+			})
 			return
 		}
 
-		// Get top errors and trends
+		// Get top errors and trends for the dashboard
 		topErrors, err := agg.GetTopErrors(c.Request.Context(), service, 10, 1)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get top errors"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":  "failed to retrieve error statistics",
+				"detail": err.Error(),
+			})
 			return
 		}
 
 		trends, err := agg.GetErrorTrends(c.Request.Context(), service, 1, "hourly")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get trends"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":  "failed to retrieve error trends",
+				"detail": err.Error(),
+			})
 			return
 		}
 
@@ -211,11 +221,16 @@ func GetDashboardStats(agg ValidationAggregationInterface) gin.HandlerFunc {
 			"top_errors":         topErrors,
 			"trends":             trends,
 			"time_range":         timeRange,
+			"generated_at":       time.Now(),
 		})
 	}
 }
 
 // GetTopErrors handles GET /api/logs/validations/top-errors - returns frequently occurring errors.
+// Query parameters:
+//   - service: Filter by service name (optional)
+//   - limit: Maximum number of errors (1-50, default 10)
+//   - days: Look-back period in days (1-365, default 7)
 func GetTopErrors(agg ValidationAggregationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.DefaultQuery("service", "")
@@ -234,15 +249,29 @@ func GetTopErrors(agg ValidationAggregationInterface) gin.HandlerFunc {
 
 		errors, err := agg.GetTopErrors(c.Request.Context(), service, limit, days)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get top errors"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":  "failed to retrieve top errors",
+				"detail": err.Error(),
+			})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"errors": errors})
+		c.JSON(http.StatusOK, gin.H{
+			"errors":      errors,
+			"count":       len(errors),
+			"limit":       limit,
+			"days":        days,
+			"service":     service,
+			"returned_at": time.Now(),
+		})
 	}
 }
 
 // GetErrorTrends handles GET /api/logs/validations/trends - returns error rate trends.
+// Query parameters:
+//   - service: Filter by service name (optional)
+//   - days: Look-back period in days (1-365, default 7)
+//   - interval: Grouping interval - "hourly" or "daily" (default hourly)
 func GetErrorTrends(agg ValidationAggregationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.DefaultQuery("service", "")
@@ -259,11 +288,21 @@ func GetErrorTrends(agg ValidationAggregationInterface) gin.HandlerFunc {
 
 		trends, err := agg.GetErrorTrends(c.Request.Context(), service, days, interval)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get trends"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":  "failed to retrieve error trends",
+				"detail": err.Error(),
+			})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"trend": trends})
+		c.JSON(http.StatusOK, gin.H{
+			"trend":        trends,
+			"count":        len(trends),
+			"interval":     interval,
+			"days":         days,
+			"service":      service,
+			"generated_at": time.Now(),
+		})
 	}
 }
 
