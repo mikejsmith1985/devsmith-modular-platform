@@ -1,154 +1,196 @@
-name: Auto-Sync and Create Next Issue Branch
+name: Link PR to Issue and Validate
 
 on:
   pull_request:
-    types: [closed]
+    types: [opened, synchronize, reopened]
     branches:
       - development
+      - main
 
 jobs:
-  sync-and-create-next:
-    # Only run if PR was actually merged (not just closed)
-    if: github.event.pull_request.merged == true
+  link-and-validate:
+    name: Link PR to Issue & Validate
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      issues: write
+      contents: read
       pull-requests: write
+      issues: write
 
     steps:
-      - name: Checkout development
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: development
           fetch-depth: 0
 
-      - name: Extract completed issue number
-        id: completed
+      - name: Extract issue number from PR body
+        id: issue
         run: |
-          # Get issue number from merged branch (e.g., feature/004-... -> 004)
-          BRANCH="${{ github.event.pull_request.head.ref }}"
-          echo "Branch: $BRANCH"
-
-          ISSUE_NUM=$(echo "$BRANCH" | sed 's/feature\/\([0-9]*\)-.*/\1/')
-          echo "completed_issue=$ISSUE_NUM" >> $GITHUB_OUTPUT
-          echo "Completed issue: #$ISSUE_NUM"
-
-      - name: Find next issue
-        id: next_issue
-        run: |
-          COMPLETED="${{ steps.completed.outputs.completed_issue }}"
-          echo "Looking for next issue after #$COMPLETED"
-
-          # Find next issue file (e.g., 004 -> 005)
-          NEXT_NUM=$(printf "%03d" $((10#$COMPLETED + 1)))
-          echo "Trying issue #$NEXT_NUM"
-
-          NEXT_FILE=$(ls .docs/issues/${NEXT_NUM}-*.md 2>/dev/null | head -1)
-
-          if [ -z "$NEXT_FILE" ]; then
-            echo "❌ No next issue found (tried $NEXT_NUM)"
-            echo "has_next=false" >> $GITHUB_OUTPUT
+          # Try to find "Closes #123" or "#123" in PR body
+          ISSUE_NUM=$(echo "${{ github.event.pull_request.body }}" | grep -oE '(Closes #|Fixes #|#)([0-9]+)' | grep -oE '[0-9]+' | head -1)
+          
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "issue_found=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No issue number found in PR body (format: 'Closes #123')"
             exit 0
           fi
+          
+          echo "issue_found=true" >> $GITHUB_OUTPUT
+          echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "Found issue: #$ISSUE_NUM"
 
-          echo "✅ Found next issue file: $NEXT_FILE"
+      - name: Validate issue exists
+        if: steps.issue.outputs.issue_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNum = ${{ steps.issue.outputs.issue_num }};
+            try {
+              const issue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNum
+              });
+              console.log(`✅ Issue #${issueNum} exists: ${issue.data.title}`);
+            } catch (error) {
+              console.log(`⚠️ Issue #${issueNum} not found`);
+            }
 
-          # Extract issue slug from filename (e.g., 005-review-skim-mode.md -> review-skim-mode)
-          SLUG=$(basename "$NEXT_FILE" .md | sed "s/^${NEXT_NUM}-//")
+      - name: Add helpful comment with workflow instructions
+        if: steps.issue.outputs.issue_found == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `⚠️ **No issue linked to this PR**\n\n` +
+                    `Please update the PR description to reference an issue:\n\n` +
+                    `\`\`\`\n` +
+                    `Closes #123\n` +
+                    `\`\`\`\n\n` +
+                    `**Why?** This ensures:\n` +
+                    `- Issue tracking is accurate\n` +
+                    `- Issues auto-close when PR merges\n` +
+                    `- Acceptance criteria can be validated\n\n` +
+                    `See [Issue Workflow Standard](.github/workflows/README.md) for details.`
+            });
 
-          echo "next_num=$NEXT_NUM" >> $GITHUB_OUTPUT
-          echo "next_slug=$SLUG" >> $GITHUB_OUTPUT
-          echo "next_file=$NEXT_FILE" >> $GITHUB_OUTPUT
-          echo "has_next=true" >> $GITHUB_OUTPUT
+      - name: Validate acceptance criteria format
+        if: steps.issue.outputs.issue_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNum = ${{ steps.issue.outputs.issue_num }};
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNum
+            });
+            
+            const body = issue.data.body || '';
+            const hasAcceptance = body.includes('Acceptance Criteria') || 
+                                 body.includes('acceptance criteria') ||
+                                 body.includes('[x]');
+            
+            if (!hasAcceptance) {
+              console.log(`⚠️ Issue #${issueNum} may not have acceptance criteria documented`);
+            } else {
+              console.log(`✅ Issue #${issueNum} has acceptance criteria`);
+            }
 
-          echo "Next issue: #$NEXT_NUM ($SLUG)"
-
-      - name: Handle activity log merge
-        if: steps.next_issue.outputs.has_next == 'true'
+      - name: Extract metrics from PR
+        id: metrics
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BODY='${{ github.event.pull_request.body }}'
+          
+          # Look for coverage percentage
+          COVERAGE=$(echo "$BODY" | grep -oE 'Coverage[:\s]*([0-9]+\.?[0-9]*)%' | grep -oE '[0-9]+\.?[0-9]*' | head -1 || true)
+          if [ -z "$COVERAGE" ]; then COVERAGE="Not reported"; fi
+          
+          # Look for tests
+          TESTS=$(echo "$BODY" | grep -oE '[0-9]+/[0-9]+ (tests?|passing)' | head -1 || true)
+          if [ -z "$TESTS" ]; then TESTS="Not reported"; fi
+          
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "tests=$TESTS" >> $GITHUB_OUTPUT
 
-          # Check if copilot-activity.md has uncommitted changes
-          if git status --porcelain | grep -q "copilot-activity.md"; then
-            echo "📝 Committing merged activity log changes"
-            git add .docs/devlog/copilot-activity.md
-            git commit -m "chore: merge activity log after PR #${{ github.event.pull_request.number }}"
-            git push origin development
-            echo "✅ Activity log merged and committed"
+      - name: Add metrics comment if metrics found
+        if: steps.issue.outputs.issue_found == 'true' && (steps.metrics.outputs.coverage != 'Not reported' || steps.metrics.outputs.tests != 'Not reported')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNum = ${{ steps.issue.outputs.issue_num }};
+            const coverage = '${{ steps.metrics.outputs.coverage }}';
+            const tests = '${{ steps.metrics.outputs.tests }}';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNum,
+              body: `📊 **PR Metrics** (from PR #${context.payload.pull_request.number})\n\n` +
+                    `- **Coverage:** ${coverage}\n` +
+                    `- **Tests:** ${tests}\n\n` +
+                    `Linked PR: ${context.payload.pull_request.html_url}`
+            });
+
+      - name: Check PR description completeness
+        if: steps.issue.outputs.issue_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            
+            const checks = {
+              'Issue reference': body.includes('Closes #') || body.includes('Fixes #'),
+              'Implementation summary': body.includes('##') || body.length > 100,
+              'Quality metrics': body.includes('Coverage') || body.includes('Tests') || body.includes('Quality'),
+              'Acceptance criteria': body.includes('[x]') || body.includes('[X]')
+            };
+            
+            const passed = Object.values(checks).filter(v => v).length;
+            const total = Object.keys(checks).length;
+            
+            let comment = `## PR Quality Checklist\n\n`;
+            for (const [check, result] of Object.entries(checks)) {
+              comment += `${result ? '✅' : '⚠️'} ${check}\n`;
+            }
+            comment += `\n**Score:** ${passed}/${total} completeness items found\n`;
+            
+            if (passed < total) {
+              comment += `\n**Recommendations:**\n`;
+              for (const [check, result] of Object.entries(checks)) {
+                if (!result) {
+                  comment += `- Add: ${check}\n`;
+                }
+              }
+            }
+            
+            console.log(comment);
+
+      - name: Ensure auto-close on merge
+        if: steps.issue.outputs.issue_found == 'true'
+        run: |
+          ISSUE_NUM=${{ steps.issue.outputs.issue_num }}
+          PR_BODY='${{ github.event.pull_request.body }}'
+          
+          # Check if issue is already referenced with "Closes"
+          if echo "$PR_BODY" | grep -q "Closes #$ISSUE_NUM"; then
+            echo "✅ PR will auto-close issue #$ISSUE_NUM on merge"
           else
-            echo "ℹ️ No activity log changes to commit"
+            echo "⚠️ PR should reference 'Closes #$ISSUE_NUM' to auto-close"
           fi
 
-      - name: Create next feature branch
-        if: steps.next_issue.outputs.has_next == 'true'
+  validation-summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: link-and-validate
+    if: always()
+
+    steps:
+      - name: Report validation status
         run: |
-          NEXT_NUM="${{ steps.next_issue.outputs.next_num }}"
-          SLUG="${{ steps.next_issue.outputs.next_slug }}"
-          BRANCH_NAME="feature/${NEXT_NUM}-${SLUG}"
-
-          echo "🚀 Creating branch: $BRANCH_NAME"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Create and push new branch from latest development
-          git checkout -b "$BRANCH_NAME"
-          git push origin "$BRANCH_NAME"
-
-          echo "✅ Branch created and pushed: $BRANCH_NAME"
-
-      - name: Comment on merged PR
-        if: steps.next_issue.outputs.has_next == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const completedNum = '${{ steps.completed.outputs.completed_issue }}';
-            const nextNum = '${{ steps.next_issue.outputs.next_num }}';
-            const slug = '${{ steps.next_issue.outputs.next_slug }}';
-            const branchName = `feature/${nextNum}-${slug}`;
-            const issueFile = '${{ steps.next_issue.outputs.next_file }}';
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: `✅ **Issue #${completedNum} merged successfully!**\n\n` +
-                    `---\n\n` +
-                    `🚀 **Next up: Issue #${nextNum}** (\`${slug}\`)\n\n` +
-                    `Branch \`${branchName}\` has been automatically created and is ready for work.\n\n` +
-                    `**To start working:**\n` +
-                    `\`\`\`bash\n` +
-                    `git checkout development\n` +
-                    `git pull origin development\n` +
-                    `git checkout ${branchName}\n` +
-                    `\`\`\`\n\n` +
-                    `**Issue specification:** \`${issueFile}\`\n\n` +
-                    `---\n` +
-                    `🤖 Automated by [Auto-Sync Workflow](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/auto-sync-next-issue.yml)`
-            });
-
-      - name: No next issue found
-        if: steps.next_issue.outputs.has_next == 'false'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const completedNum = '${{ steps.completed.outputs.completed_issue }}';
-            const nextNum = String(parseInt(completedNum) + 1).padStart(3, '0');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              body: `✅ **Issue #${completedNum} merged successfully!**\n\n` +
-                    `---\n\n` +
-                    `ℹ️ **No next issue found**\n\n` +
-                    `Looked for issue specification: \`.docs/issues/${nextNum}-*.md\`\n\n` +
-                    `Either:\n` +
-                    `- This was the last issue in the current batch\n` +
-                    `- The next issue specification hasn't been created yet\n\n` +
-                    `Create the next issue specification to continue the automated workflow.\n\n` +
-                    `---\n` +
-                    `🤖 Automated by [Auto-Sync Workflow](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/auto-sync-next-issue.yml)`
-            });
+          echo "✅ PR validation complete"
+          echo "If linked to issue: Issue will auto-close on merge"
+          echo "Otherwise: PR will remain open for manual issue closure"

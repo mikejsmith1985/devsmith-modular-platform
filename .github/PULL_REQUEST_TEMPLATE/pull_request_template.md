@@ -1,11 +1,48 @@
 # Pull Request
 
+## 🎯 Issue Reference (REQUIRED - DO NOT SKIP!)
+
+**Closes #<!-- issue number goes here - EXAMPLE: Closes #38 -->**
+
+<!-- 
+🚨 CRITICAL: Replace the example above with your actual issue number!
+This MUST be filled in for:
+1. Issue to auto-link to PR
+2. Issue to auto-close when PR merges
+
+Correct format: "Closes #38" (where 38 is your issue number)
+Wrong formats that WON'T work:
+  ❌ Feature #38
+  ❌ Issue 38
+  ❌ #38
+  ❌ Closes Feature 38
+
+GitHub keywords that work (use ONLY ONE):
+✓ Closes #38
+✓ Close #38  
+✓ Closed #38
+✓ Fixes #38
+✓ Fixed #38
+✓ Fix #38
+✓ Resolves #38
+✓ Resolved #38
+✓ Resolve #38
+
+VERIFICATION CHECKLIST:
+- ☐ Have you replaced the example number with your actual issue number?
+- ☐ Is your issue number correct? (Check: https://github.com/issues)
+- ☐ Did you use "Closes", "Fixes", or "Resolves"? (not "Issue", "Feature", or "PR #")
+- ☐ Is there exactly ONE number after the #?
+
+⚠️ PRs without valid "Closes #XX" will be REJECTED during review!
+-->
+
 ## Feature/Fix Description
-**Issue:** Closes #<!-- issue number -->
 
 <!-- Brief description of what this PR implements -->
 
 ## Implementation Details
+
 <!-- List key changes made -->
 -
 -
@@ -43,7 +80,7 @@ Integration Tests: X/X passing
 - [ ] Follows naming conventions (ARCHITECTURE.md Section 13)
 - [ ] React components follow standard template
 - [ ] API calls follow error handling pattern
-- [ ] Backend endpoints follow FastAPI pattern
+- [ ] Backend endpoints follow Go patterns
 - [ ] No hardcoded URLs, ports, or credentials
 - [ ] All configuration in environment variables
 - [ ] .env.example updated (if new variables added)
@@ -52,6 +89,7 @@ Integration Tests: X/X passing
 - [ ] Comprehensive logging with context
 
 ## Acceptance Criteria
+
 <!-- Copy acceptance criteria from the GitHub issue and check them off -->
 
 From Issue #XXX:
@@ -66,7 +104,8 @@ From Issue #XXX:
 **ALL criteria must be checked before PR can be approved.**
 
 ## Changelog
-- [ ] AI_CHANGELOG.md updated with this change
+<!-- Activity logging is now automatic - no manual changelog needed! -->
+Activity logged automatically via git hooks.
 
 ## Screenshots
 <!-- If UI changes, include before/after screenshots -->
@@ -101,6 +140,7 @@ From Issue #XXX:
 - [ ] Every criterion from issue is met
 - [ ] No partial implementations
 - [ ] Feature is 100% complete
+- [ ] Issue will auto-close on merge (has "Closes #XXX")
 
 **Recommendation:** ☐ Approve  ☐ Request Changes
 

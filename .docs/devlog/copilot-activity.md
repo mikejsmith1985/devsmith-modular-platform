@@ -1675,3 +1675,162 @@ Fixed docker validation failures by adding GET support to POST-only endpoints. T
 
 ---
 
+
+## 2025-10-25 07:35 - Merge development: Fix portal authentication and docker validation
+**Branch:** main
+**Files Changed:**  281 files changed, 66531 insertions(+), 103 deletions(-)
+- ``
+
+**Action:** Merge development: Fix portal authentication and docker validation
+
+**Commit:** `5a307ec`
+
+**Commit Message:**
+```
+Merge development: Fix portal authentication and docker validation
+```
+
+---
+
+
+## 2025-10-25 07:44 - docs: Add comprehensive Claude AI instructions
+**Branch:** development
+**Files Changed:**  1 file changed, 287 insertions(+)
+- `.claude-instructions.md`
+
+**Action:** docs: Add comprehensive Claude AI instructions
+
+**Commit:** `c601c36`
+
+**Commit Message:**
+```
+docs: Add comprehensive Claude AI instructions
+```
+
+---
+
+
+## 2025-10-25 07:54 - Revert "docs: Add comprehensive Claude AI instructions"
+**Branch:** development
+**Files Changed:**  1 file changed, 287 deletions(-)
+- `.claude-instructions.md`
+
+**Action:** Revert "docs: Add comprehensive Claude AI instructions"
+
+**Commit:** `18fa111`
+
+**Commit Message:**
+```
+Revert "docs: Add comprehensive Claude AI instructions"
+```
+
+**Details:**
+```
+This reverts commit c601c361026dda70822ca9385dc133c2aa9d4209.
+```
+
+---
+
+
+## 2025-10-25 07:59 - docs: Add comprehensive Claude AI instructions
+**Branch:** development
+**Files Changed:**  2 files changed, 154 insertions(+)
+- `.claude-instructions.md`
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** docs: Add comprehensive Claude AI instructions
+
+**Commit:** `6f213ca`
+
+**Commit Message:**
+```
+docs: Add comprehensive Claude AI instructions
+```
+
+---
+
+
+## 2025-10-25 08:00 - activity: Update copilot activity log
+**Branch:** development
+**Files Changed:**  1 file changed, 18 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** activity: Update copilot activity log
+
+**Commit:** `39c9c4c`
+
+**Commit Message:**
+```
+activity: Update copilot activity log
+```
+
+---
+
+
+## 2025-10-25 08:01 - activity: Update activity log
+**Branch:** development
+**Files Changed:**  1 file changed, 17 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** activity: Update activity log
+
+**Commit:** `384d09e`
+
+**Commit Message:**
+```
+activity: Update activity log
+```
+
+---
+
+
+## 2025-10-25 08:37 - add production-ready Logs service test specifications
+**Branch:** development
+**Files Changed:**  1 file changed, 141 insertions(+)
+- `DevsmithTDD.md`
+
+**Action:** add production-ready Logs service test specifications
+
+**Commit:** `0852d43`
+
+**Commit Message:**
+```
+docs(tdd): add production-ready Logs service test specifications
+```
+
+**Details:**
+```
+Added comprehensive test specifications for production-ready Logs service
+features to support the 20 new GitHub issues created for Review and Logs
+applications.
+
+**New Test Section: 3.3 Production-Ready Logging Service Tests**
+
+Tests added:
+- Test 3.3: REST API Log Ingestion
+- Test 3.4: Advanced Filtering & Search (full-text search)
+- Test 3.5: Log Retention & Archiving (90-day policy)
+- Test 3.6: Correlation ID Tracking (distributed tracing)
+- Test 3.7: Performance - Bulk Ingestion (1000 logs benchmark)
+- Test 3.8: WebSocket Filtering (real-time filtered streams)
+
+These tests align with production-ready issues #30-39 for Logs service,
+ensuring comprehensive test coverage for REST API, database persistence,
+WebSocket streaming, filtering, search, retention, and performance.
+
+Related Issues:
+- #30: REST API for Log Management
+- #31: Database Schema & Repository Layer
+- #32: Enhanced WebSocket Streaming
+- #34: Advanced Filtering & Search
+- #36: Log Retention & Archiving
+- #38: Log Context & Correlation
+- #39: Performance Optimization & Load Testing
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+---
+
