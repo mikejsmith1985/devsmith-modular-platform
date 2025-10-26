@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
@@ -430,13 +431,19 @@ func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*models.L
 		valueStrings[i] = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d)",
 			i*7+1, i*7+2, i*7+3, i*7+4, i*7+5, i*7+6, i*7+7)
 
+		// Prepare tags using pq.Array for PostgreSQL text[] support
+		tags := entry.Tags
+		if tags == nil {
+			tags = []string{}
+		}
+
 		valueArgs = append(valueArgs,
 			entry.UserID,
 			entry.Service,
 			entry.Level,
 			entry.Message,
 			metadataBytes,
-			entry.Tags,
+			pq.Array(tags), // Use pq.Array to properly encode []string as PostgreSQL text[]
 			entry.Timestamp,
 		)
 	}
