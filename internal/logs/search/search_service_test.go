@@ -13,7 +13,7 @@ import (
 
 // TestSearchService_ExecuteSearch tests basic search execution
 func TestSearchService_ExecuteSearch(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results, err := service.ExecuteSearch(ctx, "message:error")
@@ -26,7 +26,7 @@ func TestSearchService_ExecuteSearch(t *testing.T) {
 // TestSearchService_FullTextSearch tests PostgreSQL full-text search
 // Uses ts_vector for efficient searching
 func TestSearchService_FullTextSearch(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	// Search for natural language phrase
@@ -39,7 +39,7 @@ func TestSearchService_FullTextSearch(t *testing.T) {
 
 // TestSearchService_RegexSearch tests regex pattern matching
 func TestSearchService_RegexSearch(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	// Search with regex pattern
@@ -52,7 +52,7 @@ func TestSearchService_RegexSearch(t *testing.T) {
 
 // TestSearchService_BooleanAND tests AND operator matching
 func TestSearchService_BooleanAND(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results, err := service.ExecuteSearch(ctx, "service:portal AND level:error")
@@ -69,7 +69,7 @@ func TestSearchService_BooleanAND(t *testing.T) {
 
 // TestSearchService_BooleanOR tests OR operator matching
 func TestSearchService_BooleanOR(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results, err := service.ExecuteSearch(ctx, "level:error OR level:critical")
@@ -86,7 +86,7 @@ func TestSearchService_BooleanOR(t *testing.T) {
 
 // TestSearchService_BooleanNOT tests NOT operator
 func TestSearchService_BooleanNOT(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results, err := service.ExecuteSearch(ctx, "NOT level:debug")
@@ -103,7 +103,7 @@ func TestSearchService_BooleanNOT(t *testing.T) {
 // TestSearchService_ComplexBooleanExpression tests complex query
 // (message:error AND service:portal) OR level:critical
 func TestSearchService_ComplexBooleanExpression(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results, err := service.ExecuteSearch(ctx, "(message:error AND service:portal) OR level:critical")
@@ -126,7 +126,7 @@ func TestSearchService_PerformanceUnder100ms(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	start := time.Now()
@@ -139,7 +139,7 @@ func TestSearchService_PerformanceUnder100ms(t *testing.T) {
 
 // TestSearchService_SearchWithFilters tests combining search with filters
 func TestSearchService_SearchWithFilters(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	filters := map[string]string{
@@ -161,7 +161,7 @@ func TestSearchService_SearchWithFilters(t *testing.T) {
 
 // TestSearchService_DateRangeFilter tests filtering by date range
 func TestSearchService_DateRangeFilter(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	now := time.Now()
@@ -187,7 +187,7 @@ func TestSearchService_DateRangeFilter(t *testing.T) {
 
 // TestSearchService_CaseSensitiveOption tests case sensitivity control
 func TestSearchService_CaseSensitiveOption(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	// Case-insensitive (default)
@@ -204,7 +204,7 @@ func TestSearchService_CaseSensitiveOption(t *testing.T) {
 
 // TestSearchService_HighlightMatches tests highlighting search matches in results
 func TestSearchService_HighlightMatches(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results, err := service.ExecuteSearchWithHighlight(ctx, "connection")
@@ -222,7 +222,7 @@ func TestSearchService_HighlightMatches(t *testing.T) {
 
 // TestSearchService_Pagination tests paginated search results
 func TestSearchService_Pagination(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	// Get first page
@@ -244,7 +244,7 @@ func TestSearchService_Pagination(t *testing.T) {
 
 // TestSearchService_Sorting tests sorting search results
 func TestSearchService_Sorting(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	// Sort by created_at DESC (newest first)
@@ -266,7 +266,7 @@ func TestSearchService_Sorting(t *testing.T) {
 
 // TestSearchService_Aggregation tests aggregating results
 func TestSearchService_Aggregation(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	// Count errors by service
@@ -285,7 +285,7 @@ func TestSearchService_Aggregation(t *testing.T) {
 // TestSearchService_SaveAndExecute tests saving and re-executing searches
 func TestSearchService_SaveAndExecute(t *testing.T) {
 	repo := NewSearchRepository(nil)
-	service := NewSearchServiceWithRepo(nil, repo)
+	service := NewSearchServiceWithRepo(repo)
 	ctx := context.Background()
 
 	// Save search
@@ -306,7 +306,7 @@ func TestSearchService_SaveAndExecute(t *testing.T) {
 
 // TestSearchService_InvalidQueryRejection tests rejection of invalid queries
 func TestSearchService_InvalidQueryRejection(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	invalidQueries := []string{
@@ -323,7 +323,7 @@ func TestSearchService_InvalidQueryRejection(t *testing.T) {
 
 // TestSearchService_SearchCaching tests caching of recent search results
 func TestSearchService_SearchCaching(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	query := "message:error"
@@ -352,7 +352,7 @@ func TestSearchService_CacheTTL(t *testing.T) {
 		t.Skip("Skipping cache test in short mode")
 	}
 
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	query := "message:error"
@@ -370,7 +370,7 @@ func TestSearchService_CacheTTL(t *testing.T) {
 
 // TestSearchService_ConcurrentSearches tests thread-safe concurrent searches
 func TestSearchService_ConcurrentSearches(t *testing.T) {
-	service := NewSearchService(nil, nil)
+	service := NewSearchService(NewSearchRepository(nil))
 	ctx := context.Background()
 
 	results := make(chan error, 5)

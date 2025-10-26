@@ -37,6 +37,7 @@ type SavedSearch struct {
 }
 
 // SearchHistory represents a search history entry.
+//
 //nolint:govet // field alignment optimization not worth restructuring
 type SearchHistory struct {
 	ID          int64
@@ -46,6 +47,7 @@ type SearchHistory struct {
 }
 
 // SearchMetadata contains metadata about a search.
+//
 //nolint:govet // field alignment optimization not worth restructuring
 type SearchMetadata struct {
 	ID          int64
