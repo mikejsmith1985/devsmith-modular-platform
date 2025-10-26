@@ -97,7 +97,7 @@ func (r *AlertEventRepository) GetByConfigID(ctx context.Context, configID int64
 	if err != nil {
 		return nil, fmt.Errorf("failed to query alert events: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // ignore close error in defer block
+	defer closeRows(rows)
 
 	var events []models.AlertEvent
 	for rows.Next() {

@@ -566,7 +566,7 @@ func (r *LogEntryRepository) GetEntriesForArchival(ctx context.Context, before t
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to query entries for archival: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck // error ignored per defer pattern
+	defer closeRows(rows)
 
 	var entries []map[string]interface{}
 	for rows.Next() {

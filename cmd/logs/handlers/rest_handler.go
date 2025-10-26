@@ -1,4 +1,46 @@
 // Package handlers provides HTTP handlers for the Logs service API.
+//
+// # API Endpoints
+//
+// This package implements the following REST endpoints:
+//
+// ## Log Ingestion
+//   - POST /api/logs - Ingest log entries
+//   - GET /api/logs - Query logs with filters and pagination
+//   - GET /api/logs/:id - Get a single log entry
+//   - DELETE /api/logs - Bulk delete logs by criteria
+//
+// ## Log Analytics
+//   - GET /api/logs/stats - Aggregated log statistics
+//   - GET /api/logs/dashboard/stats - Real-time validation error dashboard statistics
+//   - GET /api/logs/validations/top-errors - Frequently occurring validation errors
+//   - GET /api/logs/validations/trends - Error rate trends over time
+//
+// ## Alert Configuration
+//   - POST /api/logs/alert-config - Create alert configuration
+//   - GET /api/logs/alert-config/:service - Get alert configuration for a service
+//   - PUT /api/logs/alert-config/:service - Update alert configuration
+//   - GET /api/logs/alert-events - Get triggered alert events
+//
+// ## Log Export
+//   - GET /api/logs/export - Export logs in JSON or CSV format
+//
+// # Parameter Validation
+//
+// All endpoints use consistent parameter validation:
+//   - Pagination: limit (1-1000, default 100), offset (default 0)
+//   - Lookback periods: days (1-365, default 7)
+//   - Time ranges: last_5m, last_hour, last_24h (default last_hour)
+//   - Query operators support filtering by service, level, date range
+//
+// # Error Responses
+//
+// All endpoints return standardized error responses:
+//   - 400 Bad Request: Invalid parameters or missing required fields
+//   - 404 Not Found: Resource not found
+//   - 500 Internal Server Error: Server-side errors
+//
+// Each error response includes "error" and optionally "detail" fields.
 package handlers
 
 import (
@@ -9,6 +51,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+)
+
+// Pagination and query parameter constants
+const (
+	DefaultLimit     = 100
+	MaxLimit         = 1000
+	DefaultDays      = 7
+	DefaultTopErrors = 10
+	MaxTopErrors     = 50
+	MaxDaysRange     = 365
+)
+
+// Time range validation constants
+const (
+	TimeRangeLast5m   = "last_5m"
+	TimeRangeLast1h   = "last_hour"
+	TimeRangeLast24h  = "last_24h"
+	MinTimeRange      = 1
+	DefaultTimeRangeM = 60
+)
+
+// Trend interval constants
+const (
+	IntervalHourly = "hourly"
+	IntervalDaily  = "daily"
 )
 
 // LogService defines the interface for log operations.
@@ -32,9 +99,9 @@ type AlertThresholdService interface {
 
 // parsePagination extracts and validates pagination parameters.
 func parsePagination(c *gin.Context) (limit, offset int) {
-	limit = 100
+	limit = DefaultLimit
 	if l := c.Query("limit"); l != "" {
-		if val, err := strconv.Atoi(l); err == nil && val > 0 && val <= 1000 {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 && val <= MaxLimit {
 			limit = val
 		}
 	}
@@ -68,32 +135,75 @@ func parseFilters(c *gin.Context) map[string]interface{} {
 	return filters
 }
 
+// parseQueryInt safely parses a query parameter as integer with bounds checking.
+func parseQueryInt(c *gin.Context, key string, defaultVal, minVal, maxVal int) int {
+	if val := c.Query(key); val != "" {
+		if parsed, err := strconv.Atoi(val); err == nil && parsed >= minVal && parsed <= maxVal {
+			return parsed
+		}
+	}
+	return defaultVal
+}
+
+// parseTimeRange validates and returns the time range parameter.
+func parseTimeRange(c *gin.Context) (string, bool) {
+	timeRange := c.DefaultQuery("time_range", TimeRangeLast1h)
+	validRanges := map[string]bool{
+		TimeRangeLast5m:  true,
+		TimeRangeLast1h:  true,
+		TimeRangeLast24h: true,
+	}
+	return timeRange, validRanges[timeRange]
+}
+
+// respondError sends a standardized error response.
+func respondError(c *gin.Context, status int, message, detail string) {
+	c.JSON(status, gin.H{
+		"error":  message,
+		"detail": detail,
+	})
+}
+
+// respondBadRequest sends a 400 Bad Request response.
+func respondBadRequest(c *gin.Context, message string) {
+	respondError(c, http.StatusBadRequest, message, "")
+}
+
+// respondInternalError sends a 500 Internal Server Error response with details.
+func respondInternalError(c *gin.Context, message string, err error) {
+	detail := ""
+	if err != nil {
+		detail = err.Error()
+	}
+	respondError(c, http.StatusInternalServerError, message, detail)
+}
+
 // PostLogs handles POST /api/logs - ingest log entries.
 func PostLogs(svc LogService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var entry map[string]interface{}
 		if err := c.ShouldBindJSON(&entry); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			respondBadRequest(c, "invalid request body")
 			return
 		}
 
 		// Validate required fields
 		if _, ok := entry["service"]; !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "service is required"})
+			respondBadRequest(c, "service is required")
 			return
 		}
 		if _, ok := entry["level"]; !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "level is required"})
+			respondBadRequest(c, "level is required")
 			return
 		}
 		if _, ok := entry["message"]; !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "message is required"})
+			respondBadRequest(c, "message is required")
 			return
 		}
 
 		id, err := svc.Insert(c.Request.Context(), entry)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, "failed to insert log entry", err)
 			return
 		}
 
@@ -110,7 +220,7 @@ func GetLogs(svc LogService) gin.HandlerFunc {
 
 		entries, err := svc.Query(c.Request.Context(), filters, page)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, "failed to query logs", err)
 			return
 		}
 
@@ -128,13 +238,13 @@ func GetLogByID(svc LogService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondBadRequest(c, "invalid id format")
 			return
 		}
 
 		entry, err := svc.GetByID(c.Request.Context(), id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "entry not found"})
+			respondError(c, http.StatusNotFound, "entry not found", "")
 			return
 		}
 
@@ -147,7 +257,7 @@ func GetStats(svc LogService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		stats, err := svc.Stats(c.Request.Context())
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, "failed to retrieve statistics", err)
 			return
 		}
 
@@ -160,13 +270,13 @@ func DeleteLogs(svc LogService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req map[string]interface{}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+			respondBadRequest(c, "invalid request body")
 			return
 		}
 
 		count, err := svc.Delete(c.Request.Context(), req)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, "failed to delete logs", err)
 			return
 		}
 
@@ -184,35 +294,25 @@ type ValidationAggregationInterface interface {
 func GetDashboardStats(agg ValidationAggregationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.DefaultQuery("service", "")
-		timeRange := c.DefaultQuery("time_range", "last_hour")
+		timeRange, valid := parseTimeRange(c)
 
 		// Validate time range parameter
-		validRanges := map[string]bool{"last_5m": true, "last_hour": true, "last_24h": true}
-		if !validRanges[timeRange] {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":  "invalid time_range parameter",
-				"detail": "time_range must be one of: last_5m, last_hour, last_24h",
-				"got":    timeRange,
-			})
+		if !valid {
+			respondError(c, http.StatusBadRequest, "invalid time_range parameter",
+				"time_range must be one of: last_5m, last_hour, last_24h")
 			return
 		}
 
 		// Get top errors and trends for the dashboard
-		topErrors, err := agg.GetTopErrors(c.Request.Context(), service, 10, 1)
+		topErrors, err := agg.GetTopErrors(c.Request.Context(), service, DefaultTopErrors, MinTimeRange)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  "failed to retrieve error statistics",
-				"detail": err.Error(),
-			})
+			respondInternalError(c, "failed to retrieve error statistics", err)
 			return
 		}
 
-		trends, err := agg.GetErrorTrends(c.Request.Context(), service, 1, "hourly")
+		trends, err := agg.GetErrorTrends(c.Request.Context(), service, MinTimeRange, IntervalHourly)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  "failed to retrieve error trends",
-				"detail": err.Error(),
-			})
+			respondInternalError(c, "failed to retrieve error trends", err)
 			return
 		}
 
@@ -235,25 +335,12 @@ func GetDashboardStats(agg ValidationAggregationInterface) gin.HandlerFunc {
 func GetTopErrors(agg ValidationAggregationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.DefaultQuery("service", "")
-		limit := 10
-		if l := c.Query("limit"); l != "" {
-			if val, err := strconv.Atoi(l); err == nil && val > 0 && val <= 50 {
-				limit = val
-			}
-		}
-		days := 7
-		if d := c.Query("days"); d != "" {
-			if val, err := strconv.Atoi(d); err == nil && val > 0 {
-				days = val
-			}
-		}
+		limit := parseQueryInt(c, "limit", DefaultTopErrors, 1, MaxTopErrors)
+		days := parseQueryInt(c, "days", DefaultDays, 1, MaxDaysRange)
 
 		errors, err := agg.GetTopErrors(c.Request.Context(), service, limit, days)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  "failed to retrieve top errors",
-				"detail": err.Error(),
-			})
+			respondInternalError(c, "failed to retrieve top errors", err)
 			return
 		}
 
@@ -276,33 +363,28 @@ func GetTopErrors(agg ValidationAggregationInterface) gin.HandlerFunc {
 func GetErrorTrends(agg ValidationAggregationInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.DefaultQuery("service", "")
-		days := 7
-		if d := c.Query("days"); d != "" {
-			if val, err := strconv.Atoi(d); err == nil && val > 0 {
-				days = val
-			}
-		}
-		interval := c.DefaultQuery("interval", "hourly")
-		if interval != "hourly" && interval != "daily" {
-			interval = "hourly"
+		days := parseQueryInt(c, "days", DefaultDays, 1, MaxDaysRange)
+		interval := c.DefaultQuery("interval", IntervalHourly)
+
+		// Validate interval parameter
+		if interval != IntervalHourly && interval != IntervalDaily {
+			respondBadRequest(c, "interval must be either 'hourly' or 'daily'")
+			return
 		}
 
 		trends, err := agg.GetErrorTrends(c.Request.Context(), service, days, interval)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  "failed to retrieve error trends",
-				"detail": err.Error(),
-			})
+			respondInternalError(c, "failed to retrieve error trends", err)
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"trend":        trends,
-			"count":        len(trends),
-			"interval":     interval,
-			"days":         days,
-			"service":      service,
-			"generated_at": time.Now(),
+			"trend":       trends,
+			"count":       len(trends),
+			"days":        days,
+			"interval":    interval,
+			"service":     service,
+			"returned_at": time.Now(),
 		})
 	}
 }

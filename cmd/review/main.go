@@ -58,8 +58,7 @@ func main() {
 		if c.Request.URL.Path != "/health" {
 			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
 			// Log to instrumentation service asynchronously
-			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+			instrLogger.SafeLogEvent(c.Request.Context(), "request_received", map[string]interface{}{
 				"method": c.Request.Method,
 				"path":   c.Request.URL.Path,
 			})
@@ -69,8 +68,7 @@ func main() {
 
 	// Health and root endpoints
 	router.GET("/health", func(c *gin.Context) {
-		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
+		instrLogger.SafeLogEvent(c.Request.Context(), "health_check", map[string]interface{}{
 			"status": "healthy",
 		})
 		c.JSON(http.StatusOK, gin.H{

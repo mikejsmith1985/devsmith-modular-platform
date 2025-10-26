@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -174,8 +175,10 @@ func logValidationFailure(errorType, message string, c *gin.Context) {
 		}
 		if resp != nil {
 			defer func() {
-				//nolint:errcheck,gosec // Ignore close errors for async logging
-				resp.Body.Close()
+				if err := resp.Body.Close(); err != nil {
+					// Log but don't fail - async logging shouldn't block validation
+					log.Printf("debug: failed to close response body: %v", err)
+				}
 			}()
 		}
 	}()
