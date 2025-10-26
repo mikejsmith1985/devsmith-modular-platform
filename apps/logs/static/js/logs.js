@@ -177,18 +177,19 @@ function renderLogEntry(log) {
   if (!logsOutput) return;
 
   const logDiv = document.createElement('div');
-  logDiv.className = `log-entry log-${log.level.toLowerCase()}`;
+  const levelLower = (log.level || 'info').toLowerCase();
+  logDiv.className = `log-entry log-${levelLower}`;
   logDiv.setAttribute('role', 'listitem');
   logDiv.innerHTML = `
     <button class="expand-btn" aria-label="Toggle details" title="Expand details">▶</button>
     <span class="log-timestamp">${formatTimestamp(log.created_at)}</span>
-    <span class="log-level ${log.level.toLowerCase()}">${log.level.toUpperCase()}</span>
+    <span class="log-level ${levelLower}">${(log.level || 'info').toUpperCase()}</span>
     <span class="log-service">[${escapeHtml(log.service)}]</span>
     <span class="log-message">${escapeHtml(log.message)}</span>
     <button class="copy-btn" data-copy aria-label="Copy log entry" title="Copy">📋</button>
     <div class="expanded-details">
       ${log.stackTrace ? `<div class="stack-trace">${escapeHtml(log.stackTrace)}</div>` : ''}
-      ${log.context ? `<div class="metadata">${renderMetadata(log.context)}</div>` : ''}
+      ${(log.metadata || log.context) ? `<div class="metadata">${renderMetadata(log.metadata || log.context)}</div>` : ''}
     </div>
   `;
 
