@@ -11,11 +11,11 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // Performance Testing Suite for Logs Service (Feature #39)
