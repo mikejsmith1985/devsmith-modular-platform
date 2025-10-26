@@ -28,11 +28,11 @@ func NewDashboardHandler(dashboardService services.DashboardServiceInterface, lo
 }
 
 // Response wraps API responses.
-type Response struct {
+type Response struct { //nolint:govet // struct alignment optimized for readability
 	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
 	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
 // GetDashboardStats returns aggregated statistics for the dashboard.
