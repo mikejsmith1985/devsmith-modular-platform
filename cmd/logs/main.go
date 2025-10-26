@@ -13,6 +13,7 @@ import (
 	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
@@ -25,6 +26,14 @@ func main() {
 	if port == "" {
 		port = "8082"
 	}
+
+	// Initialize instrumentation logger for this service
+	// Note: Logs service has circular dependency prevention built in
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082" // Default for local development
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("logs", logsServiceURL)
 
 	// Initialize logger
 	logger := logrus.New()
@@ -58,6 +67,32 @@ func main() {
 
 	// Initialize Gin router
 	router := gin.Default()
+
+	// Middleware for logging requests (skip health checks)
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path != "/health" {
+			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
+			// Log to instrumentation service asynchronously
+			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+				"method": c.Request.Method,
+				"path":   c.Request.URL.Path,
+			})
+		}
+		c.Next()
+	})
+
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
+			"status": "healthy",
+		})
+		c.JSON(http.StatusOK, gin.H{
+			"service": "logs",
+			"status":  "healthy",
+		})
+	})
 
 	// Serve static files for logs dashboard
 	router.Static("/static", "./apps/logs/static")
