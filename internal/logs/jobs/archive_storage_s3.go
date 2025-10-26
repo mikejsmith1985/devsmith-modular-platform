@@ -7,6 +7,8 @@ import (
 )
 
 // S3ArchiveStorage implements ArchiveStorage using AWS S3.
+// This is a stub implementation for future S3 support.
+// Full implementation will include AWS SDK integration and S3 operations.
 type S3ArchiveStorage struct {
 	bucket string
 	region string
@@ -14,6 +16,7 @@ type S3ArchiveStorage struct {
 }
 
 // NewS3ArchiveStorage creates a new S3 archive storage.
+// Currently returns a stub - full implementation planned for future version.
 // Currently returns a stub - full implementation in future version.
 func NewS3ArchiveStorage(bucket, region string) (*S3ArchiveStorage, error) {
 	if bucket == "" {
