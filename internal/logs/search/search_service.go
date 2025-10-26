@@ -11,14 +11,15 @@ import (
 )
 
 // SearchService handles search execution and business logic.
+//
 //nolint:govet // minor field alignment optimization not worth restructuring
 type SearchService struct {
-	cacheMu       sync.RWMutex
-	cacheTimeout  time.Duration
-	cache         map[string][]map[string]interface{}
-	cacheExpiry   map[string]time.Time
-	parser        *QueryParser
-	repo          *SearchRepository
+	cacheMu      sync.RWMutex
+	cacheTimeout time.Duration
+	cache        map[string][]map[string]interface{}
+	cacheExpiry  map[string]time.Time
+	parser       *QueryParser
+	repo         *SearchRepository
 }
 
 // NewSearchService creates a new search service.
