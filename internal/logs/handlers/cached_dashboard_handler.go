@@ -4,11 +4,9 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/cache"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )

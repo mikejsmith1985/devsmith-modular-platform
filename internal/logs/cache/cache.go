@@ -10,8 +10,8 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
-// CacheEntry holds cached data with expiration time.
-type CacheEntry struct {
+// Entry holds cached data with expiration time.
+type Entry struct {
 	Data      interface{}
 	ExpiresAt time.Time
 }
@@ -20,14 +20,14 @@ type CacheEntry struct {
 type DashboardCache struct { //nolint:govet // struct alignment optimized for readability
 	ttl   time.Duration
 	mu    sync.RWMutex
-	store map[string]*CacheEntry
+	store map[string]*Entry
 }
 
 // NewDashboardCache creates a new dashboard cache.
 func NewDashboardCache(ttl time.Duration) *DashboardCache {
 	cache := &DashboardCache{
 		ttl:   ttl,
-		store: make(map[string]*CacheEntry),
+		store: make(map[string]*Entry),
 	}
 
 	// Start cleanup goroutine
@@ -49,7 +49,7 @@ func (dc *DashboardCache) Set(ctx context.Context, key string, data interface{})
 	dc.mu.Lock()
 	defer dc.mu.Unlock()
 
-	entry := &CacheEntry{
+	entry := &Entry{
 		Data:      data,
 		ExpiresAt: time.Now().Add(dc.ttl),
 	}
@@ -102,7 +102,7 @@ func (dc *DashboardCache) Clear(ctx context.Context) error {
 	dc.mu.Lock()
 	defer dc.mu.Unlock()
 
-	dc.store = make(map[string]*CacheEntry)
+	dc.store = make(map[string]*Entry)
 	return nil
 }
 
