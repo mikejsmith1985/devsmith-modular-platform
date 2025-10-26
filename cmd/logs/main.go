@@ -68,30 +68,15 @@ func main() {
 	// Initialize Gin router
 	router := gin.Default()
 
-	// Middleware for logging requests (skip health checks)
+	// Middleware for logging requests (skip health checks in event log, but still track them)
 	router.Use(func(c *gin.Context) {
-		if c.Request.URL.Path != "/health" {
-			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
-			// Log to instrumentation service asynchronously
-			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
-				"method": c.Request.Method,
-				"path":   c.Request.URL.Path,
-			})
-		}
-		c.Next()
-	})
-
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
+		// Log all requests asynchronously (health checks too, for observability)
 		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
-			"status": "healthy",
+		instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
 		})
-		c.JSON(http.StatusOK, gin.H{
-			"service": "logs",
-			"status":  "healthy",
-		})
+		c.Next()
 	})
 
 	// Serve static files for logs dashboard
