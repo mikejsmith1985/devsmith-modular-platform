@@ -227,11 +227,10 @@ type AIRequest struct {
 }
 
 // AIResponse represents an AI response
-//nolint:govet // field alignment optimized for readability
 type AIResponse struct {
-	Duration  time.Duration
-	RequestID string
 	Result    interface{}
+	RequestID string
+	Duration  time.Duration
 }
 
 // RequestStatus represents current request status
