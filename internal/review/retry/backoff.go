@@ -11,13 +11,13 @@ import (
 
 // retryStrategy implements exponential backoff retry logic
 type retryStrategy struct {
-	config *RetryConfig
+	config *Config
 }
 
 // NewRetryStrategy creates a new retry strategy with given config
-func NewRetryStrategy(config *RetryConfig) RetryStrategy {
+func NewRetryStrategy(config *Config) Strategy {
 	if config == nil {
-		config = &RetryConfig{
+		config = &Config{
 			MaxRetries:        3,
 			InitialDelay:      100 * time.Millisecond,
 			BackoffMultiplier: 2.0,
@@ -43,7 +43,8 @@ func NewRetryStrategy(config *RetryConfig) RetryStrategy {
 	return &retryStrategy{config: config}
 }
 
-// CalculateDelay calculates the delay for a given attempt number using exponential backoff
+// CalculateDelay calculates the delay for a given attempt number using exponential backoff.
+// Formula: delay = initialDelay × (multiplier ^ (attempt - 1)), capped at maxDelay, with optional jitter.
 func (rs *retryStrategy) CalculateDelay(attempt int) time.Duration {
 	if attempt <= 0 {
 		return rs.config.InitialDelay
@@ -112,8 +113,8 @@ func (rs *retryStrategy) ExecuteWithRetry(ctx context.Context, fn func(context.C
 	return lastErr
 }
 
-// RetryConfig configuration for retry strategy
-type RetryConfig struct {
+// Config configuration for retry strategy
+type Config struct {
 	MaxRetries        int
 	InitialDelay      time.Duration
 	BackoffMultiplier float64
@@ -121,8 +122,8 @@ type RetryConfig struct {
 	JitterFraction    float64
 }
 
-// RetryStrategy defines the retry strategy interface
-type RetryStrategy interface {
+// Strategy defines the retry strategy interface
+type Strategy interface {
 	CalculateDelay(attempt int) time.Duration
 	ShouldRetry(attempt, maxRetries int) bool
 	ExecuteWithRetry(ctx context.Context, fn func(context.Context) error) error

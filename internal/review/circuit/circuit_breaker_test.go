@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestCircuitBreaker_InitialState tests initial CLOSED state
-func TestCircuitBreaker_InitialState(t *testing.T) {
+// TestBreaker_InitialState tests initial CLOSED state
+func TestBreaker_InitialState(t *testing.T) {
 	// WHEN: Creating new circuit breaker
 	breaker := NewCircuitBreaker(testConfig())
 
@@ -19,10 +19,10 @@ func TestCircuitBreaker_InitialState(t *testing.T) {
 	assert.Equal(t, StateClosed, breaker.State())
 }
 
-// TestCircuitBreaker_ClosedToOpen tests transition from CLOSED to OPEN
-func TestCircuitBreaker_ClosedToOpen(t *testing.T) {
+// TestBreaker_ClosedToOpen tests transition from CLOSED to OPEN
+func TestBreaker_ClosedToOpen(t *testing.T) {
 	// GIVEN: Circuit breaker in CLOSED state
-	config := &CircuitBreakerConfig{
+	config := &Config{
 		OpenThreshold: 3,
 	}
 	breaker := NewCircuitBreaker(config)
@@ -38,10 +38,10 @@ func TestCircuitBreaker_ClosedToOpen(t *testing.T) {
 	assert.Equal(t, StateOpen, breaker.State())
 }
 
-// TestCircuitBreaker_OpenRejectsRequests tests OPEN state rejects requests
-func TestCircuitBreaker_OpenRejectsRequests(t *testing.T) {
+// TestBreaker_OpenRejectsRequests tests OPEN state rejects requests
+func TestBreaker_OpenRejectsRequests(t *testing.T) {
 	// GIVEN: Circuit breaker in OPEN state
-	config := &CircuitBreakerConfig{
+	config := &Config{
 		OpenThreshold: 1,
 	}
 	breaker := NewCircuitBreaker(config)
@@ -59,10 +59,10 @@ func TestCircuitBreaker_OpenRejectsRequests(t *testing.T) {
 	assert.Equal(t, ErrCircuitOpen, err)
 }
 
-// TestCircuitBreaker_OpenToHalfOpen tests timeout-based transition
-func TestCircuitBreaker_OpenToHalfOpen(t *testing.T) {
+// TestBreaker_OpenToHalfOpen tests timeout-based transition
+func TestBreaker_OpenToHalfOpen(t *testing.T) {
 	// GIVEN: Circuit breaker that opens quickly then times out
-	config := &CircuitBreakerConfig{
+	config := &Config{
 		OpenThreshold: 1,
 		Timeout:       50 * time.Millisecond,
 	}
@@ -81,10 +81,10 @@ func TestCircuitBreaker_OpenToHalfOpen(t *testing.T) {
 	assert.Equal(t, StateHalfOpen, breaker.State())
 }
 
-// TestCircuitBreaker_HalfOpenSuccess tests HALF_OPEN to CLOSED on success
-func TestCircuitBreaker_HalfOpenSuccess(t *testing.T) {
+// TestBreaker_HalfOpenSuccess tests HALF_OPEN to CLOSED on success
+func TestBreaker_HalfOpenSuccess(t *testing.T) {
 	// GIVEN: Circuit breaker in HALF_OPEN state
-	config := &CircuitBreakerConfig{
+	config := &Config{
 		OpenThreshold:     1,
 		Timeout:           50 * time.Millisecond,
 		HalfOpenThreshold: 1,
@@ -105,10 +105,10 @@ func TestCircuitBreaker_HalfOpenSuccess(t *testing.T) {
 	assert.Equal(t, StateClosed, breaker.State())
 }
 
-// TestCircuitBreaker_HalfOpenFailure tests HALF_OPEN to OPEN on failure
-func TestCircuitBreaker_HalfOpenFailure(t *testing.T) {
+// TestBreaker_HalfOpenFailure tests HALF_OPEN to OPEN on failure
+func TestBreaker_HalfOpenFailure(t *testing.T) {
 	// GIVEN: Circuit breaker in HALF_OPEN state
-	config := &CircuitBreakerConfig{
+	config := &Config{
 		OpenThreshold: 1,
 		Timeout:       50 * time.Millisecond,
 	}
@@ -127,8 +127,8 @@ func TestCircuitBreaker_HalfOpenFailure(t *testing.T) {
 	assert.Equal(t, StateOpen, breaker.State())
 }
 
-// TestCircuitBreaker_ExecuteSuccess tests successful execution in CLOSED
-func TestCircuitBreaker_ExecuteSuccess(t *testing.T) {
+// TestBreaker_ExecuteSuccess tests successful execution in CLOSED
+func TestBreaker_ExecuteSuccess(t *testing.T) {
 	// GIVEN: Circuit breaker in CLOSED state
 	breaker := NewCircuitBreaker(testConfig())
 	ctx := context.Background()
@@ -145,8 +145,8 @@ func TestCircuitBreaker_ExecuteSuccess(t *testing.T) {
 	assert.True(t, executed)
 }
 
-// TestCircuitBreaker_ExecuteFailure tests failure handling
-func TestCircuitBreaker_ExecuteFailure(t *testing.T) {
+// TestBreaker_ExecuteFailure tests failure handling
+func TestBreaker_ExecuteFailure(t *testing.T) {
 	// GIVEN: Circuit breaker in CLOSED state
 	breaker := NewCircuitBreaker(testConfig())
 	ctx := context.Background()
@@ -162,8 +162,8 @@ func TestCircuitBreaker_ExecuteFailure(t *testing.T) {
 	assert.Equal(t, testErr, err)
 }
 
-// TestCircuitBreaker_ContextCancellation tests context respect
-func TestCircuitBreaker_ContextCancellation(t *testing.T) {
+// TestBreaker_ContextCancellation tests context respect
+func TestBreaker_ContextCancellation(t *testing.T) {
 	// GIVEN: Circuit breaker with cancelled context
 	_ = NewCircuitBreaker(testConfig())
 	ctx, cancel := context.WithCancel(context.Background())
@@ -174,8 +174,8 @@ func TestCircuitBreaker_ContextCancellation(t *testing.T) {
 	assert.Error(t, ctx.Err())
 }
 
-// TestCircuitBreaker_Metrics tests metrics tracking
-func TestCircuitBreaker_Metrics(t *testing.T) {
+// TestBreaker_Metrics tests metrics tracking
+func TestBreaker_Metrics(t *testing.T) {
 	// GIVEN: Circuit breaker with recorded events
 	breaker := NewCircuitBreaker(testConfig())
 	ctx := context.Background()
@@ -193,8 +193,8 @@ func TestCircuitBreaker_Metrics(t *testing.T) {
 	assert.Equal(t, 5, metrics.Successes, "Should track successes")
 }
 
-// TestCircuitBreaker_StateString tests state representation
-func TestCircuitBreaker_StateString(t *testing.T) {
+// TestBreaker_StateString tests state representation
+func TestBreaker_StateString(t *testing.T) {
 	// GIVEN: Circuit breaker in different states
 	breaker := NewCircuitBreaker(testConfig())
 
@@ -206,8 +206,8 @@ func TestCircuitBreaker_StateString(t *testing.T) {
 	assert.Equal(t, StateClosed, state)
 }
 
-// TestCircuitBreaker_ResetMetrics tests metric reset
-func TestCircuitBreaker_ResetMetrics(t *testing.T) {
+// TestBreaker_ResetMetrics tests metric reset
+func TestBreaker_ResetMetrics(t *testing.T) {
 	// GIVEN: Circuit breaker with recorded events
 	breaker := NewCircuitBreaker(testConfig())
 	ctx := context.Background()
@@ -224,8 +224,8 @@ func TestCircuitBreaker_ResetMetrics(t *testing.T) {
 	assert.Equal(t, 0, metrics.Failures)
 }
 
-// TestCircuitBreaker_ConcurrentAccess tests thread safety
-func TestCircuitBreaker_ConcurrentAccess(t *testing.T) {
+// TestBreaker_ConcurrentAccess tests thread safety
+func TestBreaker_ConcurrentAccess(t *testing.T) {
 	// GIVEN: Circuit breaker
 	breaker := NewCircuitBreaker(testConfig())
 	ctx := context.Background()
@@ -247,10 +247,10 @@ func TestCircuitBreaker_ConcurrentAccess(t *testing.T) {
 	assert.NotNil(t, breaker.Metrics())
 }
 
-// TestCircuitBreaker_FailureThreshold tests cumulative failures
-func TestCircuitBreaker_FailureThreshold(t *testing.T) {
+// TestBreaker_FailureThreshold tests cumulative failures
+func TestBreaker_FailureThreshold(t *testing.T) {
 	// GIVEN: Circuit breaker with threshold of 5
-	config := &CircuitBreakerConfig{
+	config := &Config{
 		OpenThreshold: 5,
 	}
 	breaker := NewCircuitBreaker(config)
@@ -272,8 +272,8 @@ func TestCircuitBreaker_FailureThreshold(t *testing.T) {
 }
 
 // Helper function
-func testConfig() *CircuitBreakerConfig {
-	return &CircuitBreakerConfig{
+func testConfig() *Config {
+	return &Config{
 		OpenThreshold:     5,
 		HalfOpenThreshold: 2,
 		Timeout:           100 * time.Millisecond,

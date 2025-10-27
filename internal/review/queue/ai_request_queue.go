@@ -31,7 +31,9 @@ func NewFIFOQueue(capacity int) Queue {
 	}
 }
 
-// Enqueue adds a request to the queue
+// Enqueue adds a request to the queue in FIFO order.
+// Returns ErrQueueFull if queue is at capacity.
+// Thread-safe: acquires mutex for the entire operation.
 func (q *fifoQueue) Enqueue(ctx context.Context, req *AIRequest) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -59,7 +61,9 @@ func (q *fifoQueue) Enqueue(ctx context.Context, req *AIRequest) error {
 	return nil
 }
 
-// Dequeue retrieves the next request from the queue (FIFO)
+// Dequeue retrieves the next request in FIFO order (first-in, first-out).
+// Returns nil, nil if queue is empty (non-blocking).
+// Automatically updates request status to "processing".
 func (q *fifoQueue) Dequeue(ctx context.Context) (*AIRequest, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()

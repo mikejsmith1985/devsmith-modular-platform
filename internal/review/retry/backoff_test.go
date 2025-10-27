@@ -12,8 +12,8 @@ import (
 
 // TestBackoff_CalculateDelay tests delay calculation for attempts
 func TestBackoff_CalculateDelay(t *testing.T) {
-	// GIVEN: RetryStrategy with default config
-	config := &RetryConfig{
+	// GIVEN: Strategy with default config
+	config := &Config{
 		InitialDelay:      100 * time.Millisecond,
 		BackoffMultiplier: 2.0,
 		MaxDelay:          30 * time.Second,
@@ -46,8 +46,8 @@ func TestBackoff_CalculateDelay(t *testing.T) {
 
 // TestBackoff_ExponentialGrowth tests exponential growth pattern
 func TestBackoff_ExponentialGrowth(t *testing.T) {
-	// GIVEN: RetryStrategy without jitter for predictable results
-	config := &RetryConfig{
+	// GIVEN: Strategy without jitter for predictable results
+	config := &Config{
 		InitialDelay:      100 * time.Millisecond,
 		BackoffMultiplier: 2.0,
 		MaxDelay:          60 * time.Second,
@@ -68,8 +68,8 @@ func TestBackoff_ExponentialGrowth(t *testing.T) {
 
 // TestBackoff_Jitter tests jitter application
 func TestBackoff_Jitter(t *testing.T) {
-	// GIVEN: RetryStrategy with 10% jitter
-	config := &RetryConfig{
+	// GIVEN: Strategy with 10% jitter
+	config := &Config{
 		InitialDelay:      100 * time.Millisecond,
 		BackoffMultiplier: 1.0,
 		MaxDelay:          60 * time.Second,
@@ -103,8 +103,8 @@ func TestBackoff_Jitter(t *testing.T) {
 
 // TestBackoff_MaxDelayCapping tests max delay enforcement
 func TestBackoff_MaxDelayCapping(t *testing.T) {
-	// GIVEN: RetryStrategy with small max delay
-	config := &RetryConfig{
+	// GIVEN: Strategy with small max delay
+	config := &Config{
 		InitialDelay:      100 * time.Millisecond,
 		BackoffMultiplier: 2.0,
 		MaxDelay:          1 * time.Second,
@@ -132,8 +132,8 @@ func TestBackoff_DefaultConfig(t *testing.T) {
 
 // TestBackoff_ShouldRetry tests retry decision logic
 func TestBackoff_ShouldRetry(t *testing.T) {
-	// GIVEN: RetryStrategy with max 3 retries
-	config := &RetryConfig{
+	// GIVEN: Strategy with max 3 retries
+	config := &Config{
 		MaxRetries: 3,
 	}
 	strategy := NewRetryStrategy(config)
@@ -151,7 +151,7 @@ func TestBackoff_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	config := &RetryConfig{
+	config := &Config{
 		MaxRetries: 3,
 	}
 	_ = NewRetryStrategy(config)
@@ -173,7 +173,7 @@ func TestBackoff_RetryOnError(t *testing.T) {
 		return nil
 	}
 
-	config := &RetryConfig{
+	config := &Config{
 		MaxRetries:        3,
 		InitialDelay:      10 * time.Millisecond,
 		BackoffMultiplier: 2.0,
@@ -197,7 +197,7 @@ func TestBackoff_RetryExhaustion(t *testing.T) {
 		return errors.New("persistent error")
 	}
 
-	config := &RetryConfig{
+	config := &Config{
 		MaxRetries:        2,
 		InitialDelay:      5 * time.Millisecond,
 		BackoffMultiplier: 1.0,
@@ -223,7 +223,7 @@ func TestBackoff_ContextDeadline(t *testing.T) {
 		return errors.New("error")
 	}
 
-	config := &RetryConfig{
+	config := &Config{
 		MaxRetries:        5,
 		InitialDelay:      100 * time.Millisecond,
 		BackoffMultiplier: 2.0,
@@ -245,7 +245,7 @@ func TestBackoff_ContextDeadline(t *testing.T) {
 // TestBackoff_ZeroRetries tests with no retries allowed
 func TestBackoff_ZeroRetries(t *testing.T) {
 	// GIVEN: Config with 0 max retries
-	config := &RetryConfig{
+	config := &Config{
 		MaxRetries: 0,
 	}
 	strategy := NewRetryStrategy(config)
