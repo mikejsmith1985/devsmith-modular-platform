@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -14,7 +15,8 @@ import (
 func TestCriticalService_AnalyzeCritical_FindsSecurityIssues(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"issues": [
@@ -52,7 +54,8 @@ func TestCriticalService_AnalyzeCritical_FindsSecurityIssues(t *testing.T) {
 func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"issues": [
@@ -117,7 +120,8 @@ func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
 func TestCriticalService_AnalyzeCritical_CleanCode(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"issues": [],
@@ -141,7 +145,8 @@ func TestCriticalService_AnalyzeCritical_CleanCode(t *testing.T) {
 func TestCriticalService_AnalyzeCritical_InvalidJSON(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `Invalid JSON response`
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)

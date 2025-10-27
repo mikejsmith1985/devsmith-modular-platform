@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -12,7 +13,8 @@ import (
 func TestDetailedService_AnalyzeDetailed_Success(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewDetailedService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"lines": [
@@ -52,7 +54,8 @@ func TestDetailedService_AnalyzeDetailed_Success(t *testing.T) {
 func TestDetailedService_AnalyzeDetailed_EmptyFilePath(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewDetailedService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
 
 	_, err := service.AnalyzeDetailed(context.Background(), 1, "")
 
@@ -64,7 +67,8 @@ func TestDetailedService_AnalyzeDetailed_EmptyFilePath(t *testing.T) {
 func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewDetailedService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"lines": [

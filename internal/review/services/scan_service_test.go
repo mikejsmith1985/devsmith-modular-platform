@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -12,7 +13,8 @@ import (
 func TestScanService_AnalyzeScan_Success(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewScanService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewScanService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"matches": [
@@ -41,7 +43,8 @@ func TestScanService_AnalyzeScan_Success(t *testing.T) {
 func TestScanService_AnalyzeScan_EmptyQuery(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewScanService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewScanService(mockOllama, mockRepo, mockLogger)
 
 	_, err := service.AnalyzeScan(context.Background(), 1, "")
 
@@ -53,7 +56,8 @@ func TestScanService_AnalyzeScan_EmptyQuery(t *testing.T) {
 func TestScanService_AnalyzeScan_NoMatches(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewScanService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewScanService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{"matches": [], "summary": "No matches found"}`
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
