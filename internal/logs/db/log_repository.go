@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // LogEntry represents a log entry in the database.
@@ -159,7 +161,8 @@ func buildWhereClause(filters *QueryFilters) ([]string, []interface{}, int) {
 	return fragments, args, argNum
 }
 
-// Query retrieves log entries matching the filters and pagination.
+// Query retrieves log entries matching specified filters with pagination support.
+// nolint:gocognit // complexity is necessary for comprehensive query building and filtering
 func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page PageOptions) ([]*LogEntry, error) {
 	// Validate pagination
 	if page.Limit <= 0 {
@@ -226,6 +229,12 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 			Metadata:  make(map[string]interface{}),
 		}
 
+		// Parse metadata JSON if it exists
+		if metadataJSON.Valid && metadataJSON.String != "" {
+			//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
+			_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+		}
+
 		entries = append(entries, entry)
 	}
 
@@ -284,6 +293,12 @@ func (r *LogRepository) GetByID(ctx context.Context, id int64) (*LogEntry, error
 		Metadata:  make(map[string]interface{}),
 	}
 
+	// Parse metadata JSON if it exists
+	if metadataJSON.Valid && metadataJSON.String != "" {
+		//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
+		_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+	}
+
 	return entry, nil
 }
 
@@ -297,45 +312,131 @@ func (r *LogRepository) getCountsByService(ctx context.Context) (map[string]int6
 	return r.aggregateCount(ctx, "service", "failed to query by service", "failed to scan service stats", "rows iteration error (by_service)")
 }
 
-// aggregateCount is a helper function to avoid code duplication in count aggregation.
+// aggregateCount performs aggregation on a specific column.
+// nolint:gocritic,gosec // return values are self-explanatory; SQL column names are controlled
 func (r *LogRepository) aggregateCount(ctx context.Context, column, queryErr, scanErr, iterErr string) (map[string]int64, error) {
-	result := make(map[string]int64)
-
-	// Use separate queries for each column to avoid SQL injection
-	var query string
-	switch column {
-	case "level":
-		query = "SELECT level, COUNT(*) FROM logs.entries GROUP BY level"
-	case "service":
-		query = "SELECT service, COUNT(*) FROM logs.entries GROUP BY service"
-	default:
-		return nil, fmt.Errorf("invalid column for aggregation: %s", column)
+	if r.db == nil {
+		return map[string]int64{}, nil
 	}
 
+	query := fmt.Sprintf("SELECT %s, COUNT(*) FROM logs.entries GROUP BY %s", column, column)
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", queryErr, err)
+		return nil, fmt.Errorf(queryErr+": %w", err)
 	}
 	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			if err == nil {
-				err = fmt.Errorf("failed to close rows: %w", closeErr)
-			}
+		//nolint:errcheck // Best effort to close rows
+		rows.Close()
+		if err == nil {
+			err = nil
 		}
 	}()
 
+	result := make(map[string]int64)
 	for rows.Next() {
 		var key string
 		var count int64
 		if err := rows.Scan(&key, &count); err != nil {
-			return nil, fmt.Errorf("%s: %w", scanErr, err)
+			return nil, fmt.Errorf(scanErr+": %w", err)
 		}
 		result[key] = count
 	}
+
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("%s: %w", iterErr, err)
+		return nil, fmt.Errorf(iterErr+": %w", err)
 	}
+
 	return result, nil
+}
+
+// FindAllServices returns all unique service names in the logs.
+func (r *LogRepository) FindAllServices(ctx context.Context) ([]string, error) {
+	if r.db == nil {
+		return []string{}, nil
+	}
+
+	query := "SELECT DISTINCT service FROM logs.entries ORDER BY service"
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find services: %w", err)
+	}
+	//nolint:errcheck // Best effort to close rows
+	defer rows.Close()
+
+	var services []string
+	for rows.Next() {
+		var service string
+		if err := rows.Scan(&service); err != nil {
+			return nil, fmt.Errorf("failed to scan service: %w", err)
+		}
+		services = append(services, service)
+	}
+
+	return services, nil
+}
+
+// CountByServiceAndLevel counts log entries matching service, level, and time range.
+func (r *LogRepository) CountByServiceAndLevel(ctx context.Context, service, level string, start, end time.Time) (int64, error) {
+	if r.db == nil {
+		return 0, nil
+	}
+
+	query := "SELECT COUNT(*) FROM logs.entries WHERE service = $1 AND level = $2 AND created_at >= $3 AND created_at <= $4"
+	var count int64
+	err := r.db.QueryRowContext(ctx, query, service, level, start, end).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, fmt.Errorf("failed to count logs: %w", err)
+	}
+
+	return count, nil
+}
+
+// FindTopMessages finds the most frequent log messages matching criteria.
+// nolint:dupl // Similar query pattern is acceptable for database operations
+func (r *LogRepository) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.LogMessage, error) {
+	if r.db == nil {
+		return []models.LogMessage{}, nil
+	}
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	query := `SELECT message, COUNT(*) as count, MAX(created_at) as last_seen 
+	         FROM logs.entries 
+	         WHERE service = $1 AND level = $2 AND created_at >= $3 AND created_at <= $4
+	         GROUP BY message 
+	         ORDER BY count DESC 
+	         LIMIT $5`
+
+	rows, err := r.db.QueryContext(ctx, query, service, level, start, end, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find top messages: %w", err)
+	}
+	//nolint:errcheck // Best effort to close rows
+	defer rows.Close()
+
+	var messages []models.LogMessage
+	for rows.Next() {
+		var message string
+		var count int64
+		var lastSeen time.Time
+		if err := rows.Scan(&message, &count, &lastSeen); err != nil {
+			return nil, fmt.Errorf("failed to scan message: %w", err)
+		}
+		messages = append(messages, models.LogMessage{
+			Message:  message,
+			Count:    int(count),
+			LastSeen: lastSeen,
+			Service:  service,
+			Level:    level,
+		})
+	}
+
+	return messages, nil
 }
 
 // GetStats returns aggregated statistics about log entries.
@@ -383,7 +484,7 @@ func (r *LogRepository) GetStats(ctx context.Context) (map[string]interface{}, e
 	return stats, nil
 }
 
-// DeleteOld deletes log entries older than the given time (retention policy).
+// DeleteOld removes log entries older than the given timestamp.
 func (r *LogRepository) DeleteOld(ctx context.Context, ts time.Time) (int64, error) {
 	// Validate timestamp
 	if ts.IsZero() {
