@@ -8,6 +8,7 @@ import (
 )
 
 // fifoQueue implements a FIFO queue with thread-safe operations
+//
 //nolint:govet // internal test struct, field alignment not critical
 type fifoQueue struct {
 	mu        sync.RWMutex
