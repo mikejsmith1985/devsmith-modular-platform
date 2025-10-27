@@ -247,33 +247,3 @@ type Queue interface {
 	GetStatus(ctx context.Context, requestID string) (*RequestStatus, error)
 	Size() int
 }
-
-// NewFIFOQueue creates a new FIFO queue
-func NewFIFOQueue(capacity int) Queue {
-	return &fifoQueue{capacity: capacity}
-}
-
-// Minimal implementation stub
-type fifoQueue struct {
-	capacity int
-}
-
-func (q *fifoQueue) Enqueue(ctx context.Context, req *AIRequest) error {
-	return nil
-}
-
-func (q *fifoQueue) Dequeue(ctx context.Context) (*AIRequest, error) {
-	return nil, nil
-}
-
-func (q *fifoQueue) MarkComplete(ctx context.Context, requestID string, resp *AIResponse) error {
-	return nil
-}
-
-func (q *fifoQueue) GetStatus(ctx context.Context, requestID string) (*RequestStatus, error) {
-	return nil, nil
-}
-
-func (q *fifoQueue) Size() int {
-	return 0
-}
