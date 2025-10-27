@@ -9,21 +9,23 @@ import (
 )
 
 // circuitBreaker implements the circuit breaker pattern
+//
+//nolint:govet // internal implementation struct, alignment not critical
 type circuitBreaker struct {
-	config            *CircuitBreakerConfig
+	config            *Config
 	metrics           *Metrics
 	lastFailureTime   time.Time
 	lastStateChangeAt time.Time
-	mu                sync.RWMutex
-	state             CircuitBreakerState
 	failureCount      int
 	successCount      int
+	state             State
+	mu                sync.RWMutex
 }
 
 // NewCircuitBreaker creates a new circuit breaker with given config
-func NewCircuitBreaker(config *CircuitBreakerConfig) CircuitBreaker {
+func NewCircuitBreaker(config *Config) Breaker {
 	if config == nil {
-		config = &CircuitBreakerConfig{
+		config = &Config{
 			OpenThreshold:     5,
 			HalfOpenThreshold: 2,
 			Timeout:           30 * time.Second,
@@ -53,7 +55,8 @@ func NewCircuitBreaker(config *CircuitBreakerConfig) CircuitBreaker {
 	}
 }
 
-// checkTimeout checks if we should transition from OPEN to HALF_OPEN
+// checkTimeout checks if we should transition from OPEN to HALF_OPEN.
+// Transitions when timeout has elapsed since entering OPEN state.
 func (cb *circuitBreaker) checkTimeout() {
 	if cb.state == StateOpen && time.Since(cb.lastStateChangeAt) >= cb.config.Timeout {
 		cb.state = StateHalfOpen
@@ -63,7 +66,9 @@ func (cb *circuitBreaker) checkTimeout() {
 	}
 }
 
-// Execute executes a function with circuit breaker protection
+// Execute executes a function with circuit breaker protection.
+// Returns ErrCircuitOpen if circuit is OPEN (rejecting requests).
+// Records success/failure to track state transitions.
 func (cb *circuitBreaker) Execute(ctx context.Context, fn func(context.Context) error) error {
 	cb.mu.Lock()
 	cb.checkTimeout()
@@ -91,7 +96,7 @@ func (cb *circuitBreaker) Execute(ctx context.Context, fn func(context.Context) 
 }
 
 // State returns the current state
-func (cb *circuitBreaker) State() CircuitBreakerState {
+func (cb *circuitBreaker) State() State {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
@@ -168,18 +173,18 @@ func (cb *circuitBreaker) ResetMetrics(ctx context.Context) {
 	cb.successCount = 0
 }
 
-// CircuitBreakerState represents the state of the circuit breaker
-type CircuitBreakerState string
+// State represents the state of the circuit breaker
+type State string
 
 // Circuit breaker states
 const (
-	StateClosed   CircuitBreakerState = "CLOSED"
-	StateOpen     CircuitBreakerState = "OPEN"
-	StateHalfOpen CircuitBreakerState = "HALF_OPEN"
+	StateClosed   State = "CLOSED"
+	StateOpen     State = "OPEN"
+	StateHalfOpen State = "HALF_OPEN"
 )
 
-// CircuitBreakerConfig configuration for circuit breaker
-type CircuitBreakerConfig struct {
+// Config configuration for circuit breaker
+type Config struct {
 	OpenThreshold     int
 	HalfOpenThreshold int
 	Timeout           time.Duration
@@ -192,10 +197,10 @@ type Metrics struct {
 	Successes int
 }
 
-// CircuitBreaker defines the circuit breaker interface
-type CircuitBreaker interface {
+// Breaker defines the circuit breaker interface
+type Breaker interface {
 	Execute(ctx context.Context, fn func(context.Context) error) error
-	State() CircuitBreakerState
+	State() State
 	RecordSuccess(ctx context.Context)
 	RecordFailure(ctx context.Context)
 	Metrics() *Metrics

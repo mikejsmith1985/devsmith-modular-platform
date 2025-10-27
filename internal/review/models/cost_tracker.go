@@ -25,7 +25,9 @@ func NewCostTracker() CostTracker {
 	}
 }
 
-// RecordUsage records an API usage event
+// RecordUsage records an API usage event and updates cumulative cost.
+// Thread-safe with mutex protection.
+// Returns error if usage is nil or context cancelled.
 func (ct *costTracker) RecordUsage(ctx context.Context, usage *APIUsage) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -83,7 +85,9 @@ func (ct *costTracker) GetRemainingQuota(ctx context.Context, userID int64) (flo
 	return remaining, nil
 }
 
-// CheckQuota checks if a user can afford a cost
+// CheckQuota checks if a user can afford an additional cost.
+// Returns true if no quota is set (unlimited) or if remaining >= cost.
+// Returns false if cost would exceed remaining quota.
 func (ct *costTracker) CheckQuota(ctx context.Context, userID int64, cost float64) (bool, error) {
 	if ctx.Err() != nil {
 		return false, ctx.Err()
