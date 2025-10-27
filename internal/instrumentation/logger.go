@@ -171,31 +171,3 @@ func (l *ServiceInstrumentationLogger) sendAsync(logEntry map[string]interface{}
 		fmt.Fprintf(os.Stderr, "[DEBUG] Log sent successfully\n")
 	}()
 }
-
-// SafeLogEvent logs a generic event asynchronously without error checking.
-// Use this method in handlers to avoid nolint directives.
-// The logger is designed to be fire-and-forget and will never fail.
-func (l *ServiceInstrumentationLogger) SafeLogEvent(ctx context.Context, eventType string, metadata map[string]interface{}) {
-	_ = l.LogEvent(ctx, eventType, metadata) //nolint:errcheck // Intentional: Logger always returns nil by design, never blocks
-}
-
-// SafeLogValidationFailure logs a validation failure without error checking.
-// Use this method in handlers to avoid nolint directives.
-// The logger is designed to be fire-and-forget and will never fail.
-func (l *ServiceInstrumentationLogger) SafeLogValidationFailure(ctx context.Context, errorType, message string, metadata map[string]interface{}) {
-	_ = l.LogValidationFailure(ctx, errorType, message, metadata) //nolint:errcheck // Intentional: Logger always returns nil by design, never blocks
-}
-
-// SafeLogSecurityViolation logs a security violation without error checking.
-// Use this method in handlers to avoid nolint directives.
-// The logger is designed to be fire-and-forget and will never fail.
-func (l *ServiceInstrumentationLogger) SafeLogSecurityViolation(ctx context.Context, errorType, message string, metadata map[string]interface{}) {
-	_ = l.LogSecurityViolation(ctx, errorType, message, metadata) //nolint:errcheck // Intentional: Logger always returns nil by design, never blocks
-}
-
-// SafeLogError logs an error without error checking.
-// Use this method in handlers to avoid nolint directives.
-// The logger is designed to be fire-and-forget and will never fail.
-func (l *ServiceInstrumentationLogger) SafeLogError(ctx context.Context, errorType, message string, metadata map[string]interface{}) {
-	_ = l.LogError(ctx, errorType, message, metadata) //nolint:errcheck // Intentional: Logger always returns nil by design, never blocks
-}

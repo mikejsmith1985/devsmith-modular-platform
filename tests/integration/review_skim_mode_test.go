@@ -63,8 +63,8 @@ func TestSkimMode_Integration(t *testing.T) {
 	mockLogger := &testutils.MockLogger{}
 	skimService := services.NewSkimService(ollamaClient, analysisRepo, mockLogger)
 	reviewService := services.NewReviewService(skimService, reviewRepo)
-	previewService := services.NewPreviewService(mockLogger)
-	scanService := services.NewScanService(ollamaClient, analysisRepo, mockLogger)
+	previewService := services.NewPreviewService()
+	scanService := services.NewScanService(ollamaClient, analysisRepo)
 
 	// Create a dummy instrumentation logger for testing
 	instrLogger := createTestInstrumentationLogger()

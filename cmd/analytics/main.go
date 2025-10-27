@@ -57,7 +57,8 @@ func main() {
 		if c.Request.URL.Path != "/health" {
 			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
 			// Log to instrumentation service asynchronously
-			instrLogger.SafeLogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
 				"method": c.Request.Method,
 				"path":   c.Request.URL.Path,
 			})

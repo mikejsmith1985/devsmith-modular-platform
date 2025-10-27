@@ -56,6 +56,8 @@ services:
       - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
       - REDIRECT_URI=http://localhost:3000/auth/github/callback
       - ENABLE_TEST_AUTH=true
+      - LOGS_SERVICE_URL=http://logs:8082/api/logs
+      - ENVIRONMENT=docker
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,7 +81,8 @@ services:
       - PORT=8081
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
-      - LOGS_SERVICE_URL=http://logs:8082
+      - LOGS_SERVICE_URL=http://logs:8082/api/logs
+      - ENVIRONMENT=docker
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,7 +128,8 @@ services:
     environment:
       - PORT=8083
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
-      - LOGS_SERVICE_URL=http://logs:8082
+      - LOGS_SERVICE_URL=http://logs:8082/api/logs
+      - ENVIRONMENT=docker
     depends_on:
       postgres:
         condition: service_healthy
