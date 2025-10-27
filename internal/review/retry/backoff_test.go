@@ -254,39 +254,3 @@ func TestBackoff_ZeroRetries(t *testing.T) {
 	// THEN: Should not retry
 	assert.False(t, strategy.ShouldRetry(1, 0))
 }
-
-// Types and interfaces for test
-type RetryConfig struct {
-	MaxRetries        int
-	InitialDelay      time.Duration
-	BackoffMultiplier float64
-	MaxDelay          time.Duration
-	JitterFraction    float64
-}
-
-type RetryStrategy interface {
-	CalculateDelay(attempt int) time.Duration
-	ShouldRetry(attempt, maxRetries int) bool
-	ExecuteWithRetry(ctx context.Context, fn func(context.Context) error) error
-}
-
-func NewRetryStrategy(config *RetryConfig) RetryStrategy {
-	return &retryStrategy{config: config}
-}
-
-// Minimal implementation stub
-type retryStrategy struct {
-	config *RetryConfig
-}
-
-func (rs *retryStrategy) CalculateDelay(attempt int) time.Duration {
-	return 0
-}
-
-func (rs *retryStrategy) ShouldRetry(attempt, maxRetries int) bool {
-	return false
-}
-
-func (rs *retryStrategy) ExecuteWithRetry(ctx context.Context, fn func(context.Context) error) error {
-	return nil
-}
