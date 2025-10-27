@@ -51,6 +51,7 @@ services:
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - LOGS_SERVICE_URL=http://logs:8082
       - GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
       - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
       - REDIRECT_URI=http://localhost:3000/auth/github/callback

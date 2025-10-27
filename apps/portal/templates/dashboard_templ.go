@@ -284,4 +284,99 @@ type ServiceInfo struct {
 	Status      string
 }
 
+// LogsDashboardData holds pre-fetched data for server-side rendering
+type LogsDashboardData struct {
+	User      DashboardUser
+	Stats     interface{}
+	TopErrors interface{}
+	Trends    interface{}
+}
+
+// LogsDashboard renders the logs dashboard page with analytics and alerts
+func LogsDashboard(data LogsDashboardData) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var16 == nil {
+			templ_7745c5c3_Var16 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var17 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"logs-dashboard-container\"><header class=\"logs-dashboard-header\"><div class=\"header-left\"><h1>📊 Logs Dashboard</h1><p class=\"header-subtitle\">Platform observability and error monitoring</p></div><div class=\"header-right\"><div class=\"user-info-compact\"><img src=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var18 string
+			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.AvatarURL)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 86, Col: 30}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" alt=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var19 string
+			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.Username)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 86, Col: 50}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" class=\"avatar-small\"> <span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.Username)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 87, Col: 26}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div></div></header><main class=\"logs-dashboard-main\"><!-- Time Range Selector --><div class=\"controls-bar\"><div class=\"time-range-selector\"><label for=\"time-range\">Time Range:</label> <select id=\"time-range\" name=\"time_range\" onchange=\"updateDashboard()\"><option value=\"last_hour\">Last Hour</option> <option value=\"last_6_hours\">Last 6 Hours</option> <option value=\"last_24_hours\" selected>Last 24 Hours</option> <option value=\"last_7_days\">Last 7 Days</option></select></div><div class=\"service-filter\"><label for=\"service-filter\">Service:</label> <select id=\"service-filter\" name=\"service\" onchange=\"updateDashboard()\"><option value=\"\">All Services</option> <option value=\"review\">Review</option> <option value=\"analytics\">Analytics</option> <option value=\"logs\">Logs</option> <option value=\"portal\">Portal</option></select></div><button id=\"refresh-btn\" class=\"btn-secondary\" onclick=\"refreshDashboard()\">🔄 Refresh</button></div><!-- Dashboard Grid --><div class=\"dashboard-grid\"><!-- Stats Cards --><div class=\"stats-section\"><h2>Service Statistics</h2><div class=\"stats-grid\"><div class=\"stat-card\"><div class=\"stat-label\">Total Logs</div><div class=\"stat-value\" id=\"stat-total-logs\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Error Rate</div><div class=\"stat-value\" id=\"stat-error-rate\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Warning Count</div><div class=\"stat-value\" id=\"stat-warning-count\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Active Services</div><div class=\"stat-value\" id=\"stat-active-services\">--</div></div></div></div><!-- Top Errors Section --><div class=\"top-errors-section\"><h2>🚨 Top Errors</h2><div class=\"top-errors-list\" id=\"top-errors-list\"><div class=\"loading\">Loading errors...</div></div></div><!-- Trends Section --><div class=\"trends-section\"><h2>📈 Error Trends</h2><div class=\"trends-chart\" id=\"trends-chart\"><div class=\"loading\">Loading trends...</div></div></div><!-- Alert Management Section --><div class=\"alert-management-section\"><h2>⚠️ Alert Configuration</h2><div class=\"alert-config-container\"><div class=\"alert-controls\"><button class=\"btn-primary\" onclick=\"showAddAlertModal()\">+ New Alert</button></div><div class=\"alerts-list\" id=\"alerts-list\"><div class=\"loading\">Loading alerts...</div></div></div></div></div></main><!-- Add Alert Modal --><div id=\"add-alert-modal\" class=\"modal\" style=\"display: none;\"><div class=\"modal-content\"><div class=\"modal-header\"><h3>Create New Alert</h3><button class=\"btn-close\" onclick=\"closeAddAlertModal()\">×</button></div><form id=\"add-alert-form\" onsubmit=\"saveAlert(event)\"><div class=\"form-group\"><label for=\"alert-service\">Service:</label> <select id=\"alert-service\" name=\"service\" required><option value=\"\">-- Select Service --</option> <option value=\"review\">Review</option> <option value=\"analytics\">Analytics</option> <option value=\"logs\">Logs</option> <option value=\"portal\">Portal</option></select></div><div class=\"form-group\"><label for=\"alert-error-threshold\">Error Threshold (per min):</label> <input type=\"number\" id=\"alert-error-threshold\" name=\"error_threshold_per_min\" min=\"1\" max=\"1000\" value=\"10\" required></div><div class=\"form-group\"><label for=\"alert-warning-threshold\">Warning Threshold (per min):</label> <input type=\"number\" id=\"alert-warning-threshold\" name=\"warning_threshold_per_min\" min=\"0\" max=\"1000\" value=\"5\" required></div><div class=\"form-group\"><label for=\"alert-email\">Email:</label> <input type=\"email\" id=\"alert-email\" name=\"alert_email\" placeholder=\"alerts@example.com\"></div><div class=\"form-actions\"><button type=\"submit\" class=\"btn-primary\">Create Alert</button> <button type=\"button\" class=\"btn-secondary\" onclick=\"closeAddAlertModal()\">Cancel</button></div></form></div></div></div><script src=\"/static/js/logs-dashboard.js\"></script>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = Layout("Logs Dashboard").Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
 var _ = templruntime.GeneratedTemplate

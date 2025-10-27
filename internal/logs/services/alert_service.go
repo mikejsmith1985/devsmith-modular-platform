@@ -10,6 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Interval constants for error trend queries
+const (
+	IntervalHourly = "hourly"
+	IntervalDaily  = "daily"
+)
+
 // AlertService implements alert operations.
 type AlertService struct { //nolint:govet // Struct alignment optimized for memory efficiency
 	violationRepo AlertViolationRepositoryInterface
@@ -165,4 +171,131 @@ func (s *AlertService) SendAlert(ctx context.Context, violation *models.AlertThr
 
 	s.logger.Infof("Alert sent for service %s level %s", violation.Service, violation.Level)
 	return nil
+}
+
+// ValidationAggregation provides aggregated validation error analysis.
+type ValidationAggregation struct { //nolint:govet // Struct alignment optimized for memory efficiency
+	logReader LogReaderInterface
+	logger    *logrus.Logger
+}
+
+// NewValidationAggregation creates a new ValidationAggregation service.
+func NewValidationAggregation(logReader LogReaderInterface, logger *logrus.Logger) *ValidationAggregation {
+	return &ValidationAggregation{
+		logReader: logReader,
+		logger:    logger,
+	}
+}
+
+// GetTopErrors retrieves the most frequently occurring validation errors.
+// Parameters:
+//   - service: Filter by service (empty string = all services)
+//   - limit: Maximum number of errors to return (default 10, max 50)
+//   - days: Number of days to look back (default 7, max 365)
+func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service string, limit, days int) ([]models.ValidationError, error) {
+	// Validate and constrain parameters
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50 // Prevent unbounded queries
+	}
+	if days <= 0 {
+		days = 7
+	}
+	if days > 365 {
+		days = 365 // Maximum 1 year lookback
+	}
+
+	startTime := time.Now().AddDate(0, 0, -days)
+	endTime := time.Now()
+
+	// Use existing LogReader to get top messages for warnings (validation errors)
+	messages, err := va.logReader.FindTopMessages(ctx, service, "warning", startTime, endTime, limit)
+	if err != nil {
+		va.logger.WithError(err).WithField("service", service).Warn("Failed to query validation errors")
+		return []models.ValidationError{}, fmt.Errorf("failed to query validation errors: %w", err)
+	}
+
+	// Convert LogMessage to ValidationError
+	// This provides a richer data structure with affected services tracking
+	result := make([]models.ValidationError, len(messages))
+	for i, msg := range messages {
+		result[i] = models.ValidationError{
+			ErrorType:        "validation_error",
+			Message:          msg.Message,
+			Count:            int64(msg.Count),
+			LastOccurrence:   msg.LastSeen,
+			AffectedServices: []string{msg.Service},
+		}
+	}
+
+	return result, nil
+}
+
+// GetErrorTrends returns error count trends over a specified time period.
+// Parameters:
+//   - service: Filter by service (empty string = all services)
+//   - days: Look back period in days (default 7, max 365)
+//   - interval: Grouping interval - "hourly" or "daily" (default hourly)
+//
+// Returns a time-series of error counts, useful for visualizing error rate trends
+// and identifying patterns in validation failures.
+func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]models.ErrorTrend, error) {
+	// Validate and constrain parameters
+	if days <= 0 {
+		days = 7
+	}
+	if days > 365 {
+		days = 365 // Maximum 1 year lookback
+	}
+	if interval != IntervalHourly && interval != IntervalDaily {
+		interval = IntervalHourly // Default to hourly for more granular data
+	}
+
+	startTime := time.Now().AddDate(0, 0, -days)
+	endTime := time.Now()
+
+	// Query error counts for the period
+	// Using warning level for validation error detection
+	errorCount, err := va.logReader.CountByServiceAndLevel(ctx, service, "warning", startTime, endTime)
+	if err != nil {
+		va.logger.WithError(err).WithField("service", service).Warn("Failed to query error trends")
+		return []models.ErrorTrend{}, fmt.Errorf("failed to query error trends: %w", err)
+	}
+
+	// Create trend entry
+	// Note: For detailed hourly/daily breakdown, a more sophisticated query would be needed.
+	// This simplified version provides aggregate trend for the period.
+	var intervalDuration time.Duration
+	if interval == IntervalHourly {
+		intervalDuration = time.Hour
+	} else {
+		intervalDuration = 24 * time.Hour
+	}
+
+	timestamp := startTime.Round(intervalDuration)
+	result := []models.ErrorTrend{
+		{
+			Timestamp:        timestamp,
+			ErrorCount:       errorCount,
+			ErrorRatePercent: calculateErrorRate(errorCount), // Placeholder calculation
+			ByType: map[string]int64{
+				"validation_error": errorCount,
+			},
+		},
+	}
+
+	return result, nil
+}
+
+// calculateErrorRate computes a simple error rate percentage.
+// In production, this should consider total request count for accuracy.
+func calculateErrorRate(errorCount int64) float64 {
+	if errorCount == 0 {
+		return 0.0
+	}
+	// Placeholder: Assumes roughly 1000 requests per error for estimation
+	// Real implementation should track total requests from metrics
+	return float64(errorCount) / 10.0
 }

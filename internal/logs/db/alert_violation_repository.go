@@ -157,7 +157,9 @@ func (r *AlertViolationRepository) GetUnsent(ctx context.Context) ([]models.Aler
 	return violations, nil
 }
 
-// GetRecent retrieves the most recent violations.
+// GetRecent retrieves recent alert violations ordered by timestamp.
+//
+//nolint:dupl // Acceptable duplication: similar query pattern but different domain models
 func (r *AlertViolationRepository) GetRecent(ctx context.Context, limit int) ([]models.AlertThresholdViolation, error) {
 	query := `
 		SELECT id, service, level, current_count, threshold_value, timestamp, alert_sent_at

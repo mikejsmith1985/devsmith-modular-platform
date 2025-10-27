@@ -58,16 +58,183 @@ templ ServiceCard(service ServiceInfo) {
 	</div>
 }
 
-type DashboardUser struct {
-	Username  string
-	Email     string
-	AvatarURL string
-}
+// LogsDashboard renders the logs dashboard page with pre-populated data
+templ LogsDashboard(data LogsDashboardData) {
+	@Layout("Logs Dashboard") {
+		<div class="logs-dashboard-container">
+			<header class="logs-dashboard-header">
+				<div class="header-left">
+					<h1>📊 Logs Dashboard</h1>
+					<p class="header-subtitle">Platform observability and error monitoring</p>
+				</div>
+				<div class="header-right">
+					<div class="user-info-compact">
+						<img src={data.User.AvatarURL} alt={data.User.Username} class="avatar-small"/>
+						<span>{data.User.Username}</span>
+					</div>
+				</div>
+			</header>
 
-type ServiceInfo struct {
-	Name        string
-	Description string
-	URL         string
-	Icon        string
-	Status      string
+			<main class="logs-dashboard-main">
+				<!-- Dashboard Grid -->
+				<div class="dashboard-grid">
+					<!-- Stats Cards -->
+					<div class="stats-section">
+						<h2>Service Statistics</h2>
+						<div class="stats-grid">
+							<div class="stat-card">
+								<div class="stat-label">Total Logs</div>
+								<div class="stat-value">--</div>
+							</div>
+							<div class="stat-card">
+								<div class="stat-label">Error Rate</div>
+								<div class="stat-value">--</div>
+							</div>
+							<div class="stat-card">
+								<div class="stat-label">Warning Count</div>
+								<div class="stat-value">--</div>
+							</div>
+							<div class="stat-card">
+								<div class="stat-label">Active Services</div>
+								<div class="stat-value">--</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Top Errors Section -->
+					<div class="top-errors-section">
+						<h2>🚨 Top Errors</h2>
+						<div class="top-errors-list">
+							<div class="empty-state">No errors found</div>
+						</div>
+					</div>
+
+					<!-- Trends Section -->
+					<div class="trends-section">
+						<h2>📈 Error Trends</h2>
+						<div class="trends-chart">
+							<div class="empty-state">No trend data available</div>
+						</div>
+					</div>
+
+					<!-- Alert Management Section -->
+					<div class="alert-management-section">
+						<h2>⚠️ Alert Configuration</h2>
+						<div class="alert-config-container">
+							<div class="alert-controls">
+								<a href="/api/logs/dashboard/logs" class="btn-primary">View Full Dashboard</a>
+							</div>
+							<p>Alert management available at the Logs service dashboard.</p>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<style>
+			.logs-dashboard-container {
+				display: flex;
+				flex-direction: column;
+				min-height: 100vh;
+				background: #f5f7fa;
+			}
+
+			.logs-dashboard-header {
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				padding: 30px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+			}
+
+			.logs-dashboard-header h1 {
+				margin: 0 0 8px 0;
+				font-size: 28px;
+			}
+
+			.header-subtitle {
+				margin: 0;
+				opacity: 0.9;
+				font-size: 14px;
+			}
+
+			.logs-dashboard-main {
+				flex: 1;
+				padding: 30px;
+			}
+
+			.dashboard-grid {
+				display: grid;
+				gap: 25px;
+			}
+
+			.stats-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 15px;
+			}
+
+			.stat-card {
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+			}
+
+			.stat-label {
+				font-size: 12px;
+				color: #666;
+				text-transform: uppercase;
+				margin-bottom: 10px;
+			}
+
+			.stat-value {
+				font-size: 32px;
+				font-weight: bold;
+				color: #333;
+				margin-bottom: 8px;
+			}
+
+			.top-errors-section, .trends-section, .alert-management-section {
+				background: white;
+				padding: 25px;
+				border-radius: 8px;
+				box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+			}
+
+			.top-errors-section h2, .trends-section h2, .alert-management-section h2 {
+				margin-top: 0;
+				margin-bottom: 20px;
+				font-size: 18px;
+				color: #333;
+			}
+
+			.empty-state {
+				padding: 40px;
+				text-align: center;
+				color: #999;
+			}
+
+			.btn-primary {
+				display: inline-block;
+				padding: 10px 20px;
+				background: #667eea;
+				color: white;
+				border-radius: 4px;
+				text-decoration: none;
+				font-weight: 600;
+			}
+
+			.alert-config-container {
+				text-align: center;
+			}
+
+			.alert-config-container p {
+				color: #666;
+				margin-top: 15px;
+			}
+		</style>
+	}
 }

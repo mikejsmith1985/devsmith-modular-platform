@@ -13,6 +13,7 @@ import (
 	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
@@ -25,6 +26,14 @@ func main() {
 	if port == "" {
 		port = "8082"
 	}
+
+	// Initialize instrumentation logger for this service
+	// Note: Logs service has circular dependency prevention built in
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082" // Default for local development
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("logs", logsServiceURL)
 
 	// Initialize logger
 	logger := logrus.New()
@@ -59,6 +68,17 @@ func main() {
 	// Initialize Gin router
 	router := gin.Default()
 
+	// Middleware for logging requests (skip health checks in event log, but still track them)
+	router.Use(func(c *gin.Context) {
+		// Log all requests asynchronously (health checks too, for observability)
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+		})
+		c.Next()
+	})
+
 	// Serve static files for logs dashboard
 	router.Static("/static", "./apps/logs/static")
 
@@ -71,6 +91,16 @@ func main() {
 	// Initialize database repositories for REST API
 	logRepo := db.NewLogRepository(dbConn)
 	restSvc := services.NewRestLogService(logRepo, logger)
+
+	// Issue #023: Production Enhancements - Initialize alert and aggregation services
+	alertConfigRepo := db.NewAlertConfigRepository(dbConn)
+	alertViolationRepo := db.NewAlertViolationRepository(dbConn)
+
+	// Create alert service for threshold management (implements AlertThresholdService interface)
+	alertSvc := services.NewAlertService(alertViolationRepo, alertConfigRepo, logRepo, logger)
+
+	// Create validation aggregation service for analytics
+	validationAgg := services.NewValidationAggregation(logRepo, logger)
 
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
@@ -104,6 +134,31 @@ func main() {
 	})
 	router.DELETE("/api/v1/logs", func(c *gin.Context) {
 		resthandlers.DeleteLogs(restSvc)(c)
+	})
+
+	// Issue #023: Production Enhancements - Dashboard & Alert Endpoints
+	// Dashboard statistics endpoint
+	router.GET("/api/logs/dashboard/stats", func(c *gin.Context) {
+		resthandlers.GetDashboardStats(validationAgg)(c)
+	})
+
+	// Validation analytics endpoints
+	router.GET("/api/logs/validations/top-errors", func(c *gin.Context) {
+		resthandlers.GetTopErrors(validationAgg)(c)
+	})
+	router.GET("/api/logs/validations/trends", func(c *gin.Context) {
+		resthandlers.GetErrorTrends(validationAgg)(c)
+	})
+
+	// Alert configuration management endpoints
+	router.POST("/api/logs/alert-config", func(c *gin.Context) {
+		resthandlers.CreateAlertConfig(alertSvc)(c)
+	})
+	router.GET("/api/logs/alert-config/:service", func(c *gin.Context) {
+		resthandlers.GetAlertConfig(alertSvc)(c)
+	})
+	router.PUT("/api/logs/alert-config/:service", func(c *gin.Context) {
+		resthandlers.UpdateAlertConfig(alertSvc)(c)
 	})
 
 	// Initialize WebSocket hub
