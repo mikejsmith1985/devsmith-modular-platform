@@ -72,7 +72,7 @@ func TestGetDashboardStats_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockAgg := &MockValidationAggregation{}
-	
+
 	// Setup mock expectations
 	mockAgg.On("GetTopErrors", mock.Anything, "review", 10, 1).Return([]models.ValidationError{
 		{
@@ -111,7 +111,7 @@ func TestGetDashboardStats_InvalidTimeRange(t *testing.T) {
 	router := gin.New()
 
 	mockAgg := &MockValidationAggregation{}
-	
+
 	// Setup mock expectations (won't be called if validation catches error)
 	mockAgg.On("GetTopErrors", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.ValidationError{}, nil)
 	mockAgg.On("GetErrorTrends", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.ErrorTrend{}, nil)
