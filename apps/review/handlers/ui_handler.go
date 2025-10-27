@@ -6,19 +6,35 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
+// UIHandler provides HTTP handlers for the Review UI with logging.
+type UIHandler struct {
+	logger logger.Interface
+}
+
+// NewUIHandler creates a new UIHandler with the given logger.
+func NewUIHandler(logger logger.Interface) *UIHandler {
+	return &UIHandler{logger: logger}
+}
+
 // HomeHandler serves the main Review UI (mode selector + repo input)
-func HomeHandler(c *gin.Context) {
+func (h *UIHandler) HomeHandler(c *gin.Context) {
+	correlationID := c.Request.Context().Value("correlation_id")
+	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
 	c.HTML(http.StatusOK, "home.html", nil)
 }
 
 // AnalysisResultHandler displays analysis results
-func AnalysisResultHandler(c *gin.Context) {
+func (h *UIHandler) AnalysisResultHandler(c *gin.Context) {
+	correlationID := c.Request.Context().Value("correlation_id")
 	mode := c.Query("mode")
 	repo := c.Query("repo")
 	branch := c.Query("branch")
 	analysisMarkdown := c.Query("analysis")
+
+	h.logger.Info("AnalysisResultHandler called", "correlation_id", correlationID, "mode", mode, "repo", repo, "branch", branch)
 
 	data := map[string]interface{}{
 		"AnalysisID":   generateAnalysisID(),

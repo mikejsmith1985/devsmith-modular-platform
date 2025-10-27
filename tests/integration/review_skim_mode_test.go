@@ -17,6 +17,7 @@ import (
 	reviewdb "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,10 +60,11 @@ func TestSkimMode_Integration(t *testing.T) {
 	reviewRepo := reviewdb.NewReviewRepository(db)
 	ollamaClient := &OllamaClientStub{}
 	analysisRepo := &MockAnalysisRepository{}
-	skimService := services.NewSkimService(ollamaClient, analysisRepo)
+	mockLogger := &testutils.MockLogger{}
+	skimService := services.NewSkimService(ollamaClient, analysisRepo, mockLogger)
 	reviewService := services.NewReviewService(skimService, reviewRepo)
-	previewService := services.NewPreviewService()
-	scanService := services.NewScanService(ollamaClient, analysisRepo)
+	previewService := services.NewPreviewService(mockLogger)
+	scanService := services.NewScanService(ollamaClient, analysisRepo, mockLogger)
 
 	// Create a dummy instrumentation logger for testing
 	instrLogger := createTestInstrumentationLogger()

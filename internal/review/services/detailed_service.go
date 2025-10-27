@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
 // DetailedService provides line-by-line code analysis for Detailed Mode.
@@ -15,13 +17,15 @@ import (
 type DetailedService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface
+	logger       logger.Interface
 }
 
 // NewDetailedService creates a new DetailedService with the given Ollama client and analysis repository.
-func NewDetailedService(ollama OllamaClientInterface, repo AnalysisRepositoryInterface) *DetailedService {
+func NewDetailedService(ollama OllamaClientInterface, repo AnalysisRepositoryInterface, logger logger.Interface) *DetailedService {
 	return &DetailedService{
 		ollamaClient: ollama,
 		analysisRepo: repo,
+		logger:       logger,
 	}
 }
 
@@ -55,21 +59,26 @@ type DetailedAnalysisOutput struct {
 // AnalyzeDetailed performs a line-by-line analysis of the specified file in Detailed Mode.
 // It generates a detailed report and stores the result in the analysis repository.
 func (s *DetailedService) AnalyzeDetailed(ctx context.Context, sessionID int, filePath string) (*DetailedAnalysisOutput, error) {
+	correlationID := ctx.Value(logger.CorrelationIDKey)
+	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "session_id", sessionID, "file_path", filePath)
 	if filePath == "" {
+		s.logger.Error("DetailedService: file path empty", "correlation_id", correlationID, "session_id", sessionID)
 		return nil, errors.New("file path cannot be empty")
 	}
-	// Construct prompt (simplified for now)
 	prompt := "Analyze file in detailed mode: " + filePath
+	start := time.Now()
 	resp, err := s.ollamaClient.Generate(ctx, prompt)
+	duration := time.Since(start)
 	if err != nil {
+		s.logger.Error("DetailedService: AI call failed", "correlation_id", correlationID, "session_id", sessionID, "error", err, "duration_ms", duration.Milliseconds())
 		return nil, err
 	}
+	s.logger.Info("DetailedService: AI call succeeded", "correlation_id", correlationID, "session_id", sessionID, "duration_ms", duration.Milliseconds())
 	var output DetailedAnalysisOutput
-	// Check and handle errors for Unmarshal
 	if err := json.Unmarshal([]byte(resp), &output); err != nil {
+		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to unmarshal detailed analysis output: %w", err)
 	}
-	// Store result in repository
 	result := &models.AnalysisResult{
 		ReviewID:  int64(sessionID),
 		Mode:      "detailed",
@@ -80,7 +89,9 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, sessionID int, fi
 		ModelUsed: "ollama",
 	}
 	if err := s.analysisRepo.Create(ctx, result); err != nil {
+		s.logger.Error("DetailedService: failed to save analysis result", "correlation_id", correlationID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to create analysis result: %w", err)
 	}
+	s.logger.Info("DetailedService: analysis completed and saved", "correlation_id", correlationID, "session_id", sessionID)
 	return &output, nil
 }

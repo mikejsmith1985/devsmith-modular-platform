@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -34,7 +35,8 @@ func (m *MockAnalysisRepository) Create(ctx context.Context, result *models.Anal
 func TestSkimService_AnalyzeSkim_Success(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewSkimService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewSkimService(mockOllama, mockRepo, mockLogger)
 
 	mockRepo.On("FindByReviewAndMode", mock.Anything, int64(1), models.SkimMode).
 		Return(nil, fmt.Errorf("not found"))
