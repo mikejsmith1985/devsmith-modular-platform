@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -198,21 +197,22 @@ func TestRateLimiter_ErrorHandling(t *testing.T) {
 
 // TestRateLimiter_ZeroQuota tests behavior when quota is 0
 func TestRateLimiter_ZeroQuota(t *testing.T) {
-	// GIVEN: Rate limiter created with 0 quota (invalid)
-	// Constructor should handle gracefully or reject
-
-	// This test verifies the limiter doesn't panic with edge case
-	limiter := &RedisRateLimiter{
-		defaultLimit: 0,
-		windowSize:   1 * time.Minute,
-	}
+	// GIVEN: Rate limiter created with 0 quota (invalid - should default to 10)
+	limiter := NewRedisRateLimiter(0, 1*time.Minute)
 
 	// WHEN: Checking limit
 	ctx := context.Background()
 	err := limiter.CheckLimit(ctx, "user-123")
 
-	// THEN: Either rejects or uses sensible default
-	assert.NotNil(t, err, "Zero quota should result in error or sensible handling")
+	// THEN: Should succeed because 0 gets defaulted to 10
+	assert.NoError(t, err, "Zero quota should default to 10")
+
+	// AND: After 10 requests, should fail
+	for i := 1; i < 10; i++ {
+		limiter.CheckLimit(ctx, "user-123")
+	}
+	err = limiter.CheckLimit(ctx, "user-123")
+	assert.Error(t, err, "11th request should fail")
 }
 
 // TestRateLimiter_ResetQuotaManually tests manual quota reset capability
@@ -272,9 +272,3 @@ func TestRateLimiter_RetryAfterHeader(t *testing.T) {
 	assert.Greater(t, retryAfter, int64(0), "Retry-After should be positive")
 	assert.LessOrEqual(t, retryAfter, int64(60), "Retry-After should be <= window size")
 }
-
-// Errors that should be defined
-var (
-	ErrRateLimited       = fmt.Errorf("rate limit exceeded")
-	ErrInvalidIdentifier = fmt.Errorf("invalid identifier")
-)
