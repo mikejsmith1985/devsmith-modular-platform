@@ -681,6 +681,7 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
+	time.Sleep(50 * time.Millisecond) // Ensure client is registered
 	hub.broadcast <- &models.LogEntry{
 		ID:        123,
 		Level:     "ERROR",
@@ -693,6 +694,9 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	var msg map[string]interface{}
 	err = conn.ReadJSON(&msg)
+	if err != nil {
+		t.Logf("MessageFormatCorrect: ReadJSON error: %v", err)
+	}
 	assert.NoError(t, err, "Should receive message")
 	assert.NotNil(t, msg["level"], "Should have level field")
 	assert.NotNil(t, msg["message"], "Should have message field")
@@ -713,6 +717,7 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 	defer conn3.Close()
 
 	hub := currentTestHub
+	time.Sleep(50 * time.Millisecond) // Ensure clients are registered
 	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "broadcast message"}
 
 	conn1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -721,6 +726,15 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 	_, _, err1 := conn1.ReadMessage()
 	_, _, err2 := conn2.ReadMessage()
 	_, _, err3 := conn3.ReadMessage()
+	if err1 != nil {
+		t.Logf("MultipleClients: Client 1 ReadMessage error: %v", err1)
+	}
+	if err2 != nil {
+		t.Logf("MultipleClients: Client 2 ReadMessage error: %v", err2)
+	}
+	if err3 != nil {
+		t.Logf("MultipleClients: Client 3 ReadMessage error: %v", err3)
+	}
 	assert.NoError(t, err1, "Client 1 should receive")
 	assert.NoError(t, err2, "Client 2 should receive")
 	assert.NoError(t, err3, "Client 3 should receive")
@@ -853,6 +867,7 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	defer conn2.Close()
 
 	hub := currentTestHub
+	time.Sleep(50 * time.Millisecond) // Ensure clients are registered
 	hub.broadcast <- &models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
 	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
 
@@ -861,6 +876,12 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	var msg1, msg2 map[string]interface{}
 	err1 := conn1.ReadJSON(&msg1)
 	err2 := conn2.ReadJSON(&msg2)
+	if err1 != nil {
+		t.Logf("FiltersAreExclusive: Client 1 ReadJSON error: %v", err1)
+	}
+	if err2 != nil {
+		t.Logf("FiltersAreExclusive: Client 2 ReadJSON error: %v", err2)
+	}
 	assert.NoError(t, err1, "Client 1 (ERROR filter) should receive")
 	if err1 == nil {
 		assert.Equal(t, "ERROR", msg1["level"])

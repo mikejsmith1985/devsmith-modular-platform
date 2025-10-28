@@ -1,0 +1,64 @@
+# DevSmith LLM Coding Guide for `llama3.2:3b`
+**Version**: 1.0  
+**Date**: October 27, 2025  
+**Purpose**: Ensure `llama3.2:3b` codes per DevSmith specifications using TDD, quality gates, and templates.
+
+## 1. System Architecture
+- **Goal**: Teach Go via AI review (Preview, Skim, Scan, Detailed, Critical modes), logging, and analytics.
+- **Services**:
+  - **Portal**: GitHub OAuth, Templ/HTMX UI, JWT (1-day expiry).
+  - **Review**: AI analysis (`llama3.2:3b`) with five modes.
+  - **Logging**: WebSocket/Redis, 90-day retention, 5 connections/user.
+  - **Analytics**: Trend detection (errors, top issues).
+  - **Build**: OpenHands fixes (Phase 2).
+- **Tech**: Go, PostgreSQL, Redis, Ollama (`http://localhost:11434`).
+
+## 2. Coding Standards
+- **TDD Workflow** (from TDD and "Make It Right"):
+  - **Red**: Write failing tests first (e.g., `TestReviewAI_PreviewMode_ReturnsStructure`).
+  - **Green**: Implement minimal code to pass (e.g., <200-word summary).
+  - **Refactor**: Optimize (e.g., add validation) without behavior change.
+  - Coverage: 70% unit, 90% critical path (critical paths: auth, Review modes).
+- **Quality Gates** (from TDD and "Make It Right"):
+  - **Pre-commit**: Enforce `golangci-lint`, coverage. Reject on failure—no speed bypass.
+  - **Security**: Sanitize XSS/SQLi (e.g., `bluemonday`, `TestSecurity_LogQuery_SanitizesInput`).
+  - **Testing Gaps**: Include failures (e.g., `TestReviewAI_HandlesInvalidResponse`, Redis downtime).
+- **Templates** (from "Make It Right"):
+  - **Commits**: `feat(<service>): <description> [ticket-XXX]` (from `.gitmessage`).
+  - **PRs**: Use `.github/PULL_REQUEST_TEMPLATE.md` (include TDD results).
+
+## 3. Development Guidelines
+- **File Structure**: `internal/<service>/` (e.g., `internal/review/services/`).
+- **Error Handling**: Use `errors.New` or `fmt.Errorf` with context.
+- **AI Constraints**: Limit prompts <4,000 tokens. Split files >1,000 lines.
+- **Performance** (from TDD):
+  - Preview <3s, Critical <30s, WebSocket <200ms (100 clients).
+- **Testing** (from TDD):
+  - Unit: 70% coverage.
+  - Integration: Test cross-service failures.
+  - Security: `TestSecurity_PortalUI_SanitizesInput`.
+  - Beginner Feedback: Plain English (e.g., “This is a Go handler”).
+- **Scalability**: Buffer logs in Redis, limit WebSocket connections.
+
+## 4. Model-Specific Instructions
+- **Context**: Process <4,000 tokens via Ollama. Split large files.
+- **Output**: Beginner-friendly (e.g., Skim mode analogies).
+- **Validation**: Cross-check with pre-commit hooks.
+
+## 5. Example Workflow
+- **Task**: Add Preview mode to Review (from "Make It Right").
+  - Red: `TestReviewAI_PreviewMode_ReturnsStructure` (fails).
+  - Green: Implement `reviewAI_Preview` (200-word summary).
+  - Refactor: Add input validation.
+  - Commit: `git commit -m "feat(review): add Preview mode [ticket-001]"`.
+  - PR: Add 90% coverage per template.
+  - Test: `TestPerformance_PreviewMode_Under3Seconds` (<3s).
+
+## 6. Addressing Gaps
+- **TDD Gaps**: Test failure scenarios (e.g., AI malformed output, Redis down).
+- **Performance**: Handle 100 clients, 10MB files.
+- **Security**: Prevent XSS in HTMX outputs.
+
+## 7. Implementation Notes
+- **Phase 1**: Start with Portal (OAuth), Review (Preview mode).
+- **Validation**: Use `simple_go_handler.go` to test modes.
