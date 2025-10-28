@@ -1,0 +1,943 @@
+=== RUN   TestContextService_GenerateCorrelationID_Unique
+--- PASS: TestContextService_GenerateCorrelationID_Unique (0.00s)
+=== RUN   TestContextService_GenerateCorrelationID_Format
+--- PASS: TestContextService_GenerateCorrelationID_Format (0.00s)
+=== RUN   TestContextService_EnrichContext_GeneratesID
+--- PASS: TestContextService_EnrichContext_GeneratesID (0.00s)
+=== RUN   TestContextService_EnrichContext_PreservesExistingID
+--- PASS: TestContextService_EnrichContext_PreservesExistingID (0.00s)
+=== RUN   TestContextService_EnrichContext_AddsHostname
+--- PASS: TestContextService_EnrichContext_AddsHostname (0.00s)
+=== RUN   TestContextService_EnrichContext_AddsEnvironment
+=== RUN   TestContextService_EnrichContext_AddsEnvironment/WithEnvironmentVar
+=== RUN   TestContextService_EnrichContext_AddsEnvironment/WithoutEnvironmentVar
+--- PASS: TestContextService_EnrichContext_AddsEnvironment (0.00s)
+    --- PASS: TestContextService_EnrichContext_AddsEnvironment/WithEnvironmentVar (0.00s)
+    --- PASS: TestContextService_EnrichContext_AddsEnvironment/WithoutEnvironmentVar (0.00s)
+=== RUN   TestContextService_EnrichContext_AddsVersion
+=== RUN   TestContextService_EnrichContext_AddsVersion/WithVersionVar
+=== RUN   TestContextService_EnrichContext_AddsVersion/WithoutVersionVar
+--- PASS: TestContextService_EnrichContext_AddsVersion (0.00s)
+    --- PASS: TestContextService_EnrichContext_AddsVersion/WithVersionVar (0.00s)
+    --- PASS: TestContextService_EnrichContext_AddsVersion/WithoutVersionVar (0.00s)
+=== RUN   TestContextService_EnrichContext_SetsTimestamps
+--- PASS: TestContextService_EnrichContext_SetsTimestamps (0.00s)
+=== RUN   TestContextService_EnrichContext_PreservesExistingTimestamps
+--- PASS: TestContextService_EnrichContext_PreservesExistingTimestamps (0.00s)
+=== RUN   TestContextService_EnrichContext_NilContext
+--- PASS: TestContextService_EnrichContext_NilContext (0.00s)
+=== RUN   TestContextService_GetCorrelatedLogs_Valid
+--- PASS: TestContextService_GetCorrelatedLogs_Valid (0.00s)
+=== RUN   TestContextService_GetCorrelatedLogs_ValidatesLimit
+--- PASS: TestContextService_GetCorrelatedLogs_ValidatesLimit (0.00s)
+=== RUN   TestContextService_GetCorrelatedLogs_DefaultLimit
+--- PASS: TestContextService_GetCorrelatedLogs_DefaultLimit (0.00s)
+=== RUN   TestContextService_GetCorrelationMetadata_Valid
+--- PASS: TestContextService_GetCorrelationMetadata_Valid (0.00s)
+=== RUN   TestContextService_GetTraceTimeline_Valid
+--- PASS: TestContextService_GetTraceTimeline_Valid (0.00s)
+=== RUN   TestContextService_EnrichContext_AllFields
+--- PASS: TestContextService_EnrichContext_AllFields (0.00s)
+=== RUN   TestWebSocketHandler_EndpointExists
+--- PASS: TestWebSocketHandler_EndpointExists (0.00s)
+2025/10/27 19:55:09 Client registered, total clients: 1
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+=== RUN   TestWebSocketHandler_AcceptsFilterParams
+2025/10/27 19:55:09 Error closing WebSocket connection: close tcp 127.0.0.1:35631->127.0.0.1:49302: use of closed network connection
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_AcceptsFilterParams (0.00s)
+=== RUN   TestWebSocketHandler_FiltersLogsByLevel
+2025/10/27 19:55:09 Client registered, total clients: 1
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Error closing WebSocket connection: close tcp 127.0.0.1:38251->127.0.0.1:49912: use of closed network connection
+2025/10/27 19:55:09 Client registered, total clients: 1
+    websocket_handler_test.go:85: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:85
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:42052->127.0.0.1:37415: i/o timeout
+        	Test:       	TestWebSocketHandler_FiltersLogsByLevel
+        	Messages:   	Should receive filtered log
+    websocket_handler_test.go:86: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:86
+        	Error:      	Not equal: 
+        	            	expected: string("ERROR")
+        	            	actual  : <nil>(<nil>)
+        	Test:       	TestWebSocketHandler_FiltersLogsByLevel
+--- FAIL: TestWebSocketHandler_FiltersLogsByLevel (0.15s)
+=== RUN   TestWebSocketHandler_FiltersLogsByService
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Error closing WebSocket connection: close tcp 127.0.0.1:37415->127.0.0.1:42052: use of closed network connection
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Client registered, total clients: 1
+--- PASS: TestWebSocketHandler_FiltersLogsByService (0.00s)
+=== RUN   TestWebSocketHandler_FiltersByTags
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Error closing WebSocket connection: close tcp 127.0.0.1:32867->127.0.0.1:33284: use of closed network connection
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Client registered, total clients: 1
+    websocket_handler_test.go:128: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:128
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:56978->127.0.0.1:37795: i/o timeout
+        	Test:       	TestWebSocketHandler_FiltersByTags
+        	Messages:   	Should receive tagged log
+--- FAIL: TestWebSocketHandler_FiltersByTags (0.10s)
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+=== RUN   TestWebSocketHandler_CombinedFilters
+2025/10/27 19:55:09 Error closing WebSocket connection: close tcp 127.0.0.1:37795->127.0.0.1:56978: use of closed network connection
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Client registered, total clients: 1
+    websocket_handler_test.go:149: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:149
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:41516->127.0.0.1:38011: i/o timeout
+        	Test:       	TestWebSocketHandler_CombinedFilters
+        	Messages:   	Should receive log matching all filters
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+2025/10/27 19:55:09 Error closing WebSocket connection: close tcp 127.0.0.1:38011->127.0.0.1:41516: use of closed network connection
+2025/10/27 19:55:09 Client unregistered, remaining clients: 0
+--- FAIL: TestWebSocketHandler_CombinedFilters (0.10s)
+=== RUN   TestWebSocketHandler_RequiresAuthentication
+--- PASS: TestWebSocketHandler_RequiresAuthentication (0.00s)
+=== RUN   TestWebSocketHandler_AcceptsValidJWT
+--- PASS: TestWebSocketHandler_AcceptsValidJWT (0.00s)
+=== RUN   TestWebSocketHandler_RejectsExpiredToken
+--- PASS: TestWebSocketHandler_RejectsExpiredToken (0.00s)
+=== RUN   TestWebSocketHandler_AuthenticatedUsersSeeAllLogs
+    websocket_handler_test.go:227: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:227
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:51020->127.0.0.1:36525: i/o timeout
+        	Test:       	TestWebSocketHandler_AuthenticatedUsersSeeAllLogs
+        	Messages:   	Should receive log when authenticated
+--- FAIL: TestWebSocketHandler_AuthenticatedUsersSeeAllLogs (0.20s)
+=== RUN   TestWebSocketHandler_UnauthenticatedSeesOnlyPublic
+    websocket_handler_test.go:247: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:247
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:45816->127.0.0.1:39805: i/o timeout
+        	Test:       	TestWebSocketHandler_UnauthenticatedSeesOnlyPublic
+        	Messages:   	Should receive public log
+--- FAIL: TestWebSocketHandler_UnauthenticatedSeesOnlyPublic (0.20s)
+=== RUN   TestWebSocketHandler_SendsHeartbeatEvery30Seconds
+2025/10/27 19:55:09 Client registered, total clients: 1
+    websocket_handler_test.go:267: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:267
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:33872->127.0.0.1:45591: i/o timeout
+        	Test:       	TestWebSocketHandler_SendsHeartbeatEvery30Seconds
+        	Messages:   	Should receive heartbeat
+    websocket_handler_test.go:268: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:268
+        	Error:      	Should be true
+        	Test:       	TestWebSocketHandler_SendsHeartbeatEvery30Seconds
+--- FAIL: TestWebSocketHandler_SendsHeartbeatEvery30Seconds (35.00s)
+=== RUN   TestWebSocketHandler_DisconnectsOnNoPong
+2025/10/27 19:55:44 Client unregistered, remaining clients: 0
+2025/10/27 19:55:44 Error closing WebSocket connection: close tcp 127.0.0.1:45591->127.0.0.1:33872: use of closed network connection
+2025/10/27 19:55:44 Client unregistered, remaining clients: 0
+2025/10/27 19:55:44 Client registered, total clients: 1
+--- PASS: TestWebSocketHandler_DisconnectsOnNoPong (65.00s)
+=== RUN   TestWebSocketHandler_ResetsHeartbeatOnActivity
+2025/10/27 19:56:49 Client registered, total clients: 1
+--- PASS: TestWebSocketHandler_ResetsHeartbeatOnActivity (0.00s)
+=== RUN   TestWebSocketHandler_ClientReconnectsAutomatically
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Error closing WebSocket connection: close tcp 127.0.0.1:45273->127.0.0.1:39066: use of closed network connection
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Client registered, total clients: 1
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Error closing WebSocket connection: close tcp 127.0.0.1:42517->127.0.0.1:53222: use of closed network connection
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Error closing WebSocket connection: close tcp 127.0.0.1:43629->127.0.0.1:33974: use of closed network connection
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Client registered, total clients: 1
+--- PASS: TestWebSocketHandler_ClientReconnectsAutomatically (0.10s)
+=== RUN   TestWebSocketHandler_ExponentialBackoffRetry
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+2025/10/27 19:56:49 Error closing WebSocket connection: close tcp 127.0.0.1:42517->127.0.0.1:53224: use of closed network connection
+2025/10/27 19:56:49 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_ExponentialBackoffRetry (3.00s)
+=== RUN   TestWebSocketHandler_MaxReconnectionAttempts
+--- PASS: TestWebSocketHandler_MaxReconnectionAttempts (0.00s)
+=== RUN   TestWebSocketHandler_DropsSlowConsumers
+2025/10/27 19:56:52 Client registered, total clients: 1
+2025/10/27 19:56:52 Client unregistered, remaining clients: 0
+2025/10/27 19:56:52 Error closing WebSocket connection: close tcp 127.0.0.1:42251->127.0.0.1:52630: use of closed network connection
+2025/10/27 19:56:52 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_DropsSlowConsumers (0.00s)
+=== RUN   TestWebSocketHandler_QueuesMessagesForFastConsumers
+2025/10/27 19:56:52 Client registered, total clients: 1
+--- PASS: TestWebSocketHandler_QueuesMessagesForFastConsumers (3.00s)
+=== RUN   TestWebSocketHandler_ClosesConnectionOnChannelFull
+2025/10/27 19:56:55 Client unregistered, remaining clients: 0
+2025/10/27 19:56:55 Error closing WebSocket connection: close tcp 127.0.0.1:44299->127.0.0.1:39864: use of closed network connection
+2025/10/27 19:56:55 Client unregistered, remaining clients: 0
+2025/10/27 19:56:55 Client registered, total clients: 1
+--- PASS: TestWebSocketHandler_ClosesConnectionOnChannelFull (2.00s)
+=== RUN   TestWebSocketHandler_BroadcastsViaPubSub
+2025/10/27 19:56:57 Client unregistered, remaining clients: 0
+2025/10/27 19:56:57 Error closing WebSocket connection: close tcp 127.0.0.1:44465->127.0.0.1:46548: use of closed network connection
+2025/10/27 19:56:57 Client unregistered, remaining clients: 0
+2025/10/27 19:56:57 Client registered, total clients: 1
+2025/10/27 19:56:57 Client registered, total clients: 1
+    websocket_handler_test.go:510: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:510
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:48138->127.0.0.1:39379: i/o timeout
+        	Test:       	TestWebSocketHandler_BroadcastsViaPubSub
+        	Messages:   	Client 1 should receive message
+    websocket_handler_test.go:511: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:511
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:49226->127.0.0.1:38529: i/o timeout
+        	Test:       	TestWebSocketHandler_BroadcastsViaPubSub
+        	Messages:   	Client 2 should receive message via pub/sub
+--- FAIL: TestWebSocketHandler_BroadcastsViaPubSub (1.00s)
+=== RUN   TestWebSocketHandler_PubSubScalesTo100Instances
+2025/10/27 19:56:58 Client unregistered, remaining clients: 0
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:38529->127.0.0.1:49226: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 0
+2025/10/27 19:56:58 Client unregistered, remaining clients: 0
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:39379->127.0.0.1:48138: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_PubSubScalesTo100Instances (0.02s)
+=== RUN   TestWebSocketHandler_Supports100ConcurrentConnections
+2025/10/27 19:56:58 Client registered, total clients: 1
+2025/10/27 19:56:58 Client registered, total clients: 2
+2025/10/27 19:56:58 Client registered, total clients: 3
+2025/10/27 19:56:58 Client registered, total clients: 4
+2025/10/27 19:56:58 Client registered, total clients: 5
+2025/10/27 19:56:58 Client registered, total clients: 6
+2025/10/27 19:56:58 Client registered, total clients: 7
+2025/10/27 19:56:58 Client registered, total clients: 8
+2025/10/27 19:56:58 Client registered, total clients: 9
+2025/10/27 19:56:58 Client registered, total clients: 10
+2025/10/27 19:56:58 Client registered, total clients: 11
+2025/10/27 19:56:58 Client registered, total clients: 12
+2025/10/27 19:56:58 Client registered, total clients: 13
+2025/10/27 19:56:58 Client registered, total clients: 14
+2025/10/27 19:56:58 Client registered, total clients: 15
+2025/10/27 19:56:58 Client registered, total clients: 16
+2025/10/27 19:56:58 Client registered, total clients: 17
+2025/10/27 19:56:58 Client registered, total clients: 18
+2025/10/27 19:56:58 Client registered, total clients: 19
+2025/10/27 19:56:58 Client registered, total clients: 20
+2025/10/27 19:56:58 Client registered, total clients: 21
+2025/10/27 19:56:58 Client registered, total clients: 22
+2025/10/27 19:56:58 Client registered, total clients: 23
+2025/10/27 19:56:58 Client registered, total clients: 24
+2025/10/27 19:56:58 Client registered, total clients: 25
+2025/10/27 19:56:58 Client registered, total clients: 26
+2025/10/27 19:56:58 Client registered, total clients: 27
+2025/10/27 19:56:58 Client registered, total clients: 28
+2025/10/27 19:56:58 Client registered, total clients: 29
+2025/10/27 19:56:58 Client registered, total clients: 30
+2025/10/27 19:56:58 Client registered, total clients: 31
+2025/10/27 19:56:58 Client registered, total clients: 32
+2025/10/27 19:56:58 Client registered, total clients: 33
+2025/10/27 19:56:58 Client registered, total clients: 34
+2025/10/27 19:56:58 Client registered, total clients: 35
+2025/10/27 19:56:58 Client registered, total clients: 36
+2025/10/27 19:56:58 Client registered, total clients: 37
+2025/10/27 19:56:58 Client registered, total clients: 38
+2025/10/27 19:56:58 Client registered, total clients: 39
+2025/10/27 19:56:58 Client registered, total clients: 40
+2025/10/27 19:56:58 Client registered, total clients: 41
+2025/10/27 19:56:58 Client registered, total clients: 42
+2025/10/27 19:56:58 Client registered, total clients: 43
+2025/10/27 19:56:58 Client registered, total clients: 44
+2025/10/27 19:56:58 Client registered, total clients: 45
+2025/10/27 19:56:58 Client registered, total clients: 46
+2025/10/27 19:56:58 Client registered, total clients: 47
+2025/10/27 19:56:58 Client registered, total clients: 48
+2025/10/27 19:56:58 Client registered, total clients: 49
+2025/10/27 19:56:58 Client registered, total clients: 50
+2025/10/27 19:56:58 Client registered, total clients: 51
+2025/10/27 19:56:58 Client registered, total clients: 52
+2025/10/27 19:56:58 Client registered, total clients: 53
+2025/10/27 19:56:58 Client registered, total clients: 54
+2025/10/27 19:56:58 Client registered, total clients: 55
+2025/10/27 19:56:58 Client registered, total clients: 56
+2025/10/27 19:56:58 Client registered, total clients: 57
+2025/10/27 19:56:58 Client registered, total clients: 58
+2025/10/27 19:56:58 Client registered, total clients: 59
+2025/10/27 19:56:58 Client registered, total clients: 60
+2025/10/27 19:56:58 Client registered, total clients: 61
+2025/10/27 19:56:58 Client registered, total clients: 62
+2025/10/27 19:56:58 Client registered, total clients: 63
+2025/10/27 19:56:58 Client registered, total clients: 64
+2025/10/27 19:56:58 Client registered, total clients: 65
+2025/10/27 19:56:58 Client registered, total clients: 66
+2025/10/27 19:56:58 Client registered, total clients: 67
+2025/10/27 19:56:58 Client registered, total clients: 68
+2025/10/27 19:56:58 Client registered, total clients: 69
+2025/10/27 19:56:58 Client registered, total clients: 70
+2025/10/27 19:56:58 Client registered, total clients: 71
+2025/10/27 19:56:58 Client registered, total clients: 72
+2025/10/27 19:56:58 Client registered, total clients: 73
+2025/10/27 19:56:58 Client registered, total clients: 74
+2025/10/27 19:56:58 Client registered, total clients: 75
+2025/10/27 19:56:58 Client registered, total clients: 76
+2025/10/27 19:56:58 Client registered, total clients: 77
+2025/10/27 19:56:58 Client registered, total clients: 78
+2025/10/27 19:56:58 Client registered, total clients: 79
+2025/10/27 19:56:58 Client registered, total clients: 80
+2025/10/27 19:56:58 Client registered, total clients: 81
+2025/10/27 19:56:58 Client registered, total clients: 82
+2025/10/27 19:56:58 Client registered, total clients: 83
+2025/10/27 19:56:58 Client registered, total clients: 84
+2025/10/27 19:56:58 Client registered, total clients: 85
+2025/10/27 19:56:58 Client registered, total clients: 86
+2025/10/27 19:56:58 Client registered, total clients: 87
+2025/10/27 19:56:58 Client registered, total clients: 88
+2025/10/27 19:56:58 Client registered, total clients: 89
+2025/10/27 19:56:58 Client registered, total clients: 90
+2025/10/27 19:56:58 Client registered, total clients: 91
+2025/10/27 19:56:58 Client registered, total clients: 92
+2025/10/27 19:56:58 Client registered, total clients: 93
+2025/10/27 19:56:58 Client registered, total clients: 94
+2025/10/27 19:56:58 Client registered, total clients: 95
+2025/10/27 19:56:58 Client registered, total clients: 96
+2025/10/27 19:56:58 Client registered, total clients: 97
+2025/10/27 19:56:58 Client registered, total clients: 98
+2025/10/27 19:56:58 Client registered, total clients: 99
+2025/10/27 19:56:58 Client registered, total clients: 100
+2025/10/27 19:56:58 Client unregistered, remaining clients: 99
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34034: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 99
+2025/10/27 19:56:58 Client unregistered, remaining clients: 98
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34124: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 98
+2025/10/27 19:56:58 Client unregistered, remaining clients: 97
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34112: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 97
+2025/10/27 19:56:58 Client unregistered, remaining clients: 96
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34110: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 96
+2025/10/27 19:56:58 Client unregistered, remaining clients: 95
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34108: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 95
+2025/10/27 19:56:58 Client unregistered, remaining clients: 94
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34094: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 94
+2025/10/27 19:56:58 Client unregistered, remaining clients: 93
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34078: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 93
+2025/10/27 19:56:58 Client unregistered, remaining clients: 92
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34076: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 92
+2025/10/27 19:56:58 Client unregistered, remaining clients: 91
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34066: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 91
+2025/10/27 19:56:58 Client unregistered, remaining clients: 90
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34060: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 90
+2025/10/27 19:56:58 Client unregistered, remaining clients: 89
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34054: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 89
+2025/10/27 19:56:58 Client unregistered, remaining clients: 88
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34048: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 88
+2025/10/27 19:56:58 Client unregistered, remaining clients: 87
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34040: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 87
+2025/10/27 19:56:58 Client unregistered, remaining clients: 86
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34550: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 86
+2025/10/27 19:56:58 Client unregistered, remaining clients: 85
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34544: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 85
+2025/10/27 19:56:58 Client unregistered, remaining clients: 84
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34538: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 84
+2025/10/27 19:56:58 Client unregistered, remaining clients: 83
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34522: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 83
+2025/10/27 19:56:58 Client unregistered, remaining clients: 82
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34520: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 82
+2025/10/27 19:56:58 Client unregistered, remaining clients: 81
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34510: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 81
+2025/10/27 19:56:58 Client unregistered, remaining clients: 80
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34502: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 80
+2025/10/27 19:56:58 Client unregistered, remaining clients: 79
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34500: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 79
+2025/10/27 19:56:58 Client unregistered, remaining clients: 78
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34486: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 78
+2025/10/27 19:56:58 Client unregistered, remaining clients: 77
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34474: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 77
+2025/10/27 19:56:58 Client unregistered, remaining clients: 76
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34468: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 76
+2025/10/27 19:56:58 Client unregistered, remaining clients: 75
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34454: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 75
+2025/10/27 19:56:58 Client unregistered, remaining clients: 74
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34442: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 74
+2025/10/27 19:56:58 Client unregistered, remaining clients: 73
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34426: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 73
+2025/10/27 19:56:58 Client unregistered, remaining clients: 72
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34410: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 72
+2025/10/27 19:56:58 Client unregistered, remaining clients: 71
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34402: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 71
+2025/10/27 19:56:58 Client unregistered, remaining clients: 70
+--- PASS: TestWebSocketHandler_Supports100ConcurrentConnections (0.03s)
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34396: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 70
+2025/10/27 19:56:58 Client unregistered, remaining clients: 69
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34380: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 69
+=== RUN   TestWebSocketHandler_Supports1000ConcurrentConnections
+2025/10/27 19:56:58 Client unregistered, remaining clients: 68
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34378: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 68
+2025/10/27 19:56:58 Client unregistered, remaining clients: 67
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34370: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 67
+2025/10/27 19:56:58 Client unregistered, remaining clients: 66
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34354: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 66
+2025/10/27 19:56:58 Client unregistered, remaining clients: 65
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34342: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 65
+2025/10/27 19:56:58 Client unregistered, remaining clients: 64
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34334: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 64
+2025/10/27 19:56:58 Client unregistered, remaining clients: 63
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34328: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 63
+2025/10/27 19:56:58 Client unregistered, remaining clients: 62
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34314: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 62
+2025/10/27 19:56:58 Client unregistered, remaining clients: 61
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34302: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 61
+2025/10/27 19:56:58 Client unregistered, remaining clients: 60
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34292: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 60
+2025/10/27 19:56:58 Client unregistered, remaining clients: 59
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34282: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 59
+2025/10/27 19:56:58 Client unregistered, remaining clients: 58
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34266: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 58
+2025/10/27 19:56:58 Client unregistered, remaining clients: 57
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34260: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 57
+2025/10/27 19:56:58 Client unregistered, remaining clients: 56
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34246: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 56
+2025/10/27 19:56:58 Client unregistered, remaining clients: 55
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34236: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 55
+2025/10/27 19:56:58 Client unregistered, remaining clients: 54
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34224: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 54
+2025/10/27 19:56:58 Client unregistered, remaining clients: 53
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34210: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 53
+2025/10/27 19:56:58 Client unregistered, remaining clients: 52
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34204: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 52
+2025/10/27 19:56:58 Client unregistered, remaining clients: 51
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34190: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 51
+2025/10/27 19:56:58 Client unregistered, remaining clients: 50
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34178: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 50
+2025/10/27 19:56:58 Client unregistered, remaining clients: 49
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34174: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 49
+2025/10/27 19:56:58 Client unregistered, remaining clients: 48
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34158: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 48
+2025/10/27 19:56:58 Client unregistered, remaining clients: 47
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34142: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 47
+2025/10/27 19:56:58 Client unregistered, remaining clients: 46
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34132: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 46
+2025/10/27 19:56:58 Client unregistered, remaining clients: 45
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34030: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 45
+2025/10/27 19:56:58 Client unregistered, remaining clients: 44
+2025/10/27 19:56:58 Client unregistered, remaining clients: 44
+2025/10/27 19:56:58 Client unregistered, remaining clients: 43
+2025/10/27 19:56:58 Client unregistered, remaining clients: 43
+2025/10/27 19:56:58 Client unregistered, remaining clients: 42
+2025/10/27 19:56:58 Client unregistered, remaining clients: 42
+2025/10/27 19:56:58 Client unregistered, remaining clients: 41
+2025/10/27 19:56:58 Client unregistered, remaining clients: 41
+2025/10/27 19:56:58 Client unregistered, remaining clients: 40
+2025/10/27 19:56:58 Client unregistered, remaining clients: 40
+2025/10/27 19:56:58 Client unregistered, remaining clients: 39
+2025/10/27 19:56:58 Client unregistered, remaining clients: 39
+2025/10/27 19:56:58 Client unregistered, remaining clients: 38
+2025/10/27 19:56:58 Client unregistered, remaining clients: 38
+2025/10/27 19:56:58 Client unregistered, remaining clients: 37
+2025/10/27 19:56:58 Client unregistered, remaining clients: 37
+2025/10/27 19:56:58 Client unregistered, remaining clients: 36
+2025/10/27 19:56:58 Client unregistered, remaining clients: 36
+2025/10/27 19:56:58 Client unregistered, remaining clients: 35
+2025/10/27 19:56:58 Client unregistered, remaining clients: 35
+2025/10/27 19:56:58 Client unregistered, remaining clients: 34
+2025/10/27 19:56:58 Client unregistered, remaining clients: 34
+2025/10/27 19:56:58 Client unregistered, remaining clients: 33
+2025/10/27 19:56:58 Client unregistered, remaining clients: 33
+2025/10/27 19:56:58 Client unregistered, remaining clients: 32
+2025/10/27 19:56:58 Client unregistered, remaining clients: 32
+2025/10/27 19:56:58 Client unregistered, remaining clients: 31
+2025/10/27 19:56:58 Client unregistered, remaining clients: 31
+2025/10/27 19:56:58 Client unregistered, remaining clients: 30
+2025/10/27 19:56:58 Client unregistered, remaining clients: 30
+2025/10/27 19:56:58 Client unregistered, remaining clients: 29
+2025/10/27 19:56:58 Client unregistered, remaining clients: 29
+2025/10/27 19:56:58 Client unregistered, remaining clients: 28
+2025/10/27 19:56:58 Client unregistered, remaining clients: 28
+2025/10/27 19:56:58 Client unregistered, remaining clients: 27
+2025/10/27 19:56:58 Client unregistered, remaining clients: 27
+2025/10/27 19:56:58 Client unregistered, remaining clients: 26
+2025/10/27 19:56:58 Client unregistered, remaining clients: 26
+2025/10/27 19:56:58 Client unregistered, remaining clients: 25
+2025/10/27 19:56:58 Client unregistered, remaining clients: 25
+2025/10/27 19:56:58 Client unregistered, remaining clients: 24
+2025/10/27 19:56:58 Client unregistered, remaining clients: 24
+2025/10/27 19:56:58 Client unregistered, remaining clients: 23
+2025/10/27 19:56:58 Client unregistered, remaining clients: 23
+2025/10/27 19:56:58 Client unregistered, remaining clients: 22
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34866: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34858: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34848: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34842: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34828: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34814: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34812: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34808: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34802: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34794: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34790: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34784: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34776: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34772: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34758: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34742: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34726: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34718: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34714: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34712: use of closed network connection
+2025/10/27 19:56:58 Client unregistered, remaining clients: 22
+2025/10/27 19:56:59 Client unregistered, remaining clients: 21
+2025/10/27 19:56:59 Client unregistered, remaining clients: 20
+2025/10/27 19:56:59 Client unregistered, remaining clients: 19
+2025/10/27 19:56:59 Client unregistered, remaining clients: 18
+2025/10/27 19:56:59 Client unregistered, remaining clients: 17
+2025/10/27 19:56:59 Client unregistered, remaining clients: 16
+2025/10/27 19:56:59 Client unregistered, remaining clients: 15
+2025/10/27 19:56:59 Client unregistered, remaining clients: 14
+2025/10/27 19:56:59 Client unregistered, remaining clients: 13
+2025/10/27 19:56:59 Client unregistered, remaining clients: 12
+2025/10/27 19:56:59 Client unregistered, remaining clients: 11
+2025/10/27 19:56:59 Client unregistered, remaining clients: 10
+2025/10/27 19:56:59 Client unregistered, remaining clients: 9
+2025/10/27 19:56:59 Client unregistered, remaining clients: 8
+2025/10/27 19:56:59 Client unregistered, remaining clients: 7
+2025/10/27 19:56:59 Client unregistered, remaining clients: 6
+2025/10/27 19:56:59 Client unregistered, remaining clients: 5
+2025/10/27 19:56:59 Client unregistered, remaining clients: 4
+2025/10/27 19:56:59 Client unregistered, remaining clients: 3
+2025/10/27 19:56:59 Client unregistered, remaining clients: 2
+2025/10/27 19:56:59 Client unregistered, remaining clients: 1
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34690: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34616: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34678: use of closed network connection
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34682: use of closed network connection
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34666: use of closed network connection
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34670: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34668: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34664: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34592: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34648: use of closed network connection
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34632: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34586: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34622: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34582: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34580: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34556: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34606: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34598: use of closed network connection
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34572: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34552: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34702: use of closed network connection
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34560: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34886: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34868: use of closed network connection
+2025/10/27 19:56:58 Error closing WebSocket connection: close tcp 127.0.0.1:37785->127.0.0.1:34870: use of closed network connection
+--- PASS: TestWebSocketHandler_Supports1000ConcurrentConnections (0.14s)
+=== RUN   TestWebSocketHandler_BroadcastPerformance1000Connections
+--- PASS: TestWebSocketHandler_BroadcastPerformance1000Connections (0.16s)
+=== RUN   TestWebSocketHandler_LatencyUnder100ms
+2025/10/27 19:56:59 Client registered, total clients: 1
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_LatencyUnder100ms (0.00s)
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:42421->127.0.0.1:39098: use of closed network connection
+=== RUN   TestWebSocketHandler_MessageFormatCorrect
+2025/10/27 19:56:59 Client registered, total clients: 1
+    websocket_handler_test.go:695: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:695
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:48184->127.0.0.1:35103: i/o timeout
+        	Test:       	TestWebSocketHandler_MessageFormatCorrect
+        	Messages:   	Should receive message
+    websocket_handler_test.go:696: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:696
+        	Error:      	Expected value not to be nil.
+        	Test:       	TestWebSocketHandler_MessageFormatCorrect
+        	Messages:   	Should have level field
+    websocket_handler_test.go:697: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:697
+        	Error:      	Expected value not to be nil.
+        	Test:       	TestWebSocketHandler_MessageFormatCorrect
+        	Messages:   	Should have message field
+    websocket_handler_test.go:698: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:698
+        	Error:      	Expected value not to be nil.
+        	Test:       	TestWebSocketHandler_MessageFormatCorrect
+        	Messages:   	Should have service field
+--- FAIL: TestWebSocketHandler_MessageFormatCorrect (0.50s)
+=== RUN   TestWebSocketHandler_MultipleClientsReceiveMessages
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:35103->127.0.0.1:48184: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client registered, total clients: 1
+2025/10/27 19:56:59 Client registered, total clients: 2
+2025/10/27 19:56:59 Client registered, total clients: 3
+--- PASS: TestWebSocketHandler_MultipleClientsReceiveMessages (0.00s)
+=== RUN   TestWebSocketHandler_RejectsInvalidLevel
+2025/10/27 19:56:59 Client unregistered, remaining clients: 2
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:40099->127.0.0.1:55402: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 2
+2025/10/27 19:56:59 Client unregistered, remaining clients: 1
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:40099->127.0.0.1:55412: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 1
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:40099->127.0.0.1:55424: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Client registered, total clients: 1
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:40699->127.0.0.1:43216: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_RejectsInvalidLevel (0.00s)
+=== RUN   TestWebSocketHandler_RejectsInvalidService
+2025/10/27 19:56:59 Client registered, total clients: 1
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+2025/10/27 19:56:59 Error closing WebSocket connection: close tcp 127.0.0.1:37895->127.0.0.1:33594: use of closed network connection
+2025/10/27 19:56:59 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_RejectsInvalidService (0.00s)
+=== RUN   TestWebSocketHandler_HandlesMissingRequiredFields
+2025/10/27 19:56:59 Client registered, total clients: 1
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:39083->127.0.0.1:46990: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_HandlesMissingRequiredFields (0.50s)
+=== RUN   TestWebSocketHandler_CloseConnectionOnDisconnect
+2025/10/27 19:57:00 Client registered, total clients: 1
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:35935->127.0.0.1:46270: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_CloseConnectionOnDisconnect (0.10s)
+=== RUN   TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast
+2025/10/27 19:57:00 Client registered, total clients: 1
+2025/10/27 19:57:00 Client registered, total clients: 2
+--- PASS: TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast (0.00s)
+=== RUN   TestWebSocketHandler_FiltersAreExclusive
+2025/10/27 19:57:00 Client unregistered, remaining clients: 1
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:41697->127.0.0.1:33916: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 1
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:41697->127.0.0.1:33922: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Client registered, total clients: 1
+2025/10/27 19:57:00 Client registered, total clients: 2
+    websocket_handler_test.go:863: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:863
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:36748->127.0.0.1:42557: i/o timeout
+        	Test:       	TestWebSocketHandler_FiltersAreExclusive
+        	Messages:   	Client 1 (ERROR filter) should receive
+    websocket_handler_test.go:867: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:867
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:36756->127.0.0.1:42557: i/o timeout
+        	Test:       	TestWebSocketHandler_FiltersAreExclusive
+        	Messages:   	Client 2 (INFO filter) should receive
+2025/10/27 19:57:00 Client unregistered, remaining clients: 1
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:42557->127.0.0.1:36756: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 1
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:42557->127.0.0.1:36748: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+--- FAIL: TestWebSocketHandler_FiltersAreExclusive (0.50s)
+=== RUN   TestWebSocketHandler_UpdateFiltersWhileConnected
+2025/10/27 19:57:00 Client registered, total clients: 1
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:39915->127.0.0.1:44180: use of closed network connection
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_UpdateFiltersWhileConnected (0.00s)
+=== RUN   TestWebSocketHandler_HighFrequencyMessageStream
+2025/10/27 19:57:00 Client registered, total clients: 1
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+--- PASS: TestWebSocketHandler_HighFrequencyMessageStream (0.00s)
+=== RUN   TestWebSocketHandler_LargeMessagePayloads
+2025/10/27 19:57:00 Client unregistered, remaining clients: 0
+2025/10/27 19:57:00 Client registered, total clients: 1
+2025/10/27 19:57:00 Error closing WebSocket connection: close tcp 127.0.0.1:42697->127.0.0.1:50528: use of closed network connection
+    websocket_handler_test.go:951: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:951
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:57592->127.0.0.1:44153: i/o timeout
+        	Test:       	TestWebSocketHandler_LargeMessagePayloads
+        	Messages:   	Should receive large message
+    websocket_handler_test.go:952: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:952
+        	Error:      	"0" is not greater than "5000"
+        	Test:       	TestWebSocketHandler_LargeMessagePayloads
+        	Messages:   	Should handle large payload
+2025/10/27 19:57:01 Client unregistered, remaining clients: 0
+2025/10/27 19:57:01 Error closing WebSocket connection: close tcp 127.0.0.1:44153->127.0.0.1:57592: use of closed network connection
+2025/10/27 19:57:01 Client unregistered, remaining clients: 0
+--- FAIL: TestWebSocketHandler_LargeMessagePayloads (1.00s)
+=== RUN   TestWebSocketHandler_RecoveryFromPanicLog
+2025/10/27 19:57:01 Client registered, total clients: 1
+    websocket_handler_test.go:976: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_handler_test.go:976
+        	Error:      	Received unexpected error:
+        	            	read tcp 127.0.0.1:53312->127.0.0.1:42801: i/o timeout
+        	Test:       	TestWebSocketHandler_RecoveryFromPanicLog
+        	Messages:   	Should handle panic logs
+--- FAIL: TestWebSocketHandler_RecoveryFromPanicLog (0.50s)
+=== RUN   TestCreateAlertConfig_CreatesNewConfig
+--- PASS: TestCreateAlertConfig_CreatesNewConfig (0.00s)
+=== RUN   TestCreateAlertConfig_ValidatesRequiredFields
+--- PASS: TestCreateAlertConfig_ValidatesRequiredFields (0.00s)
+=== RUN   TestGetAlertConfig_ReturnsConfig
+--- PASS: TestGetAlertConfig_ReturnsConfig (0.00s)
+=== RUN   TestGetAlertConfig_NotFound
+--- PASS: TestGetAlertConfig_NotFound (0.00s)
+=== RUN   TestUpdateAlertConfig_UpdatesExisting
+--- PASS: TestUpdateAlertConfig_UpdatesExisting (0.00s)
+=== RUN   TestCheckThresholds_DetectsViolations
+--- PASS: TestCheckThresholds_DetectsViolations (0.00s)
+=== RUN   TestCheckThresholds_NoViolations
+--- PASS: TestCheckThresholds_NoViolations (0.00s)
+=== RUN   TestSendAlert_SendsEmail
+--- PASS: TestSendAlert_SendsEmail (0.00s)
+=== RUN   TestSendAlert_SendsWebhook
+--- PASS: TestSendAlert_SendsWebhook (0.00s)
+=== RUN   TestAlertConfig_DisabledAlerts
+--- PASS: TestAlertConfig_DisabledAlerts (0.00s)
+=== RUN   TestAlertConfig_EnabledAlerts
+--- PASS: TestAlertConfig_EnabledAlerts (0.00s)
+=== RUN   TestCheckThresholds_MultipleServices
+--- PASS: TestCheckThresholds_MultipleServices (0.00s)
+=== RUN   TestAlertThresholdViolation_AlertSentTracking
+--- PASS: TestAlertThresholdViolation_AlertSentTracking (0.00s)
+=== RUN   TestSendAlert_ContextCancellation
+--- PASS: TestSendAlert_ContextCancellation (0.00s)
+=== RUN   TestCreateAlertConfig_StoresMultipleConfigs
+--- PASS: TestCreateAlertConfig_StoresMultipleConfigs (0.00s)
+=== RUN   TestUpdateAlertConfig_UpdatesThreshold
+--- PASS: TestUpdateAlertConfig_UpdatesThreshold (0.00s)
+=== RUN   TestBackgroundJob_HourlyAggregation
+--- PASS: TestBackgroundJob_HourlyAggregation (0.00s)
+=== RUN   TestBackgroundJob_DailyAggregation
+--- PASS: TestBackgroundJob_DailyAggregation (0.00s)
+=== RUN   TestBackgroundJob_Stop
+--- PASS: TestBackgroundJob_Stop (0.00s)
+=== RUN   TestBackgroundJob_IsRunning
+--- PASS: TestBackgroundJob_IsRunning (0.00s)
+=== RUN   TestBackgroundJob_NotRunning
+--- PASS: TestBackgroundJob_NotRunning (0.00s)
+=== RUN   TestBackgroundJob_GetLastExecutionTime
+--- PASS: TestBackgroundJob_GetLastExecutionTime (0.00s)
+=== RUN   TestBackgroundJob_GetNextExecutionTime
+--- PASS: TestBackgroundJob_GetNextExecutionTime (0.00s)
+=== RUN   TestBackgroundJob_ExecutionInterval_Hourly
+--- PASS: TestBackgroundJob_ExecutionInterval_Hourly (0.00s)
+=== RUN   TestBackgroundJob_ExecutionInterval_Daily
+--- PASS: TestBackgroundJob_ExecutionInterval_Daily (0.00s)
+=== RUN   TestBackgroundJob_StartStop_Lifecycle
+--- PASS: TestBackgroundJob_StartStop_Lifecycle (0.00s)
+=== RUN   TestBackgroundJob_ContextCancellation
+--- PASS: TestBackgroundJob_ContextCancellation (0.00s)
+=== RUN   TestBackgroundJob_DoubleStart
+--- PASS: TestBackgroundJob_DoubleStart (0.00s)
+=== RUN   TestBackgroundJob_StopBeforeStart
+--- PASS: TestBackgroundJob_StopBeforeStart (0.00s)
+=== RUN   TestBackgroundJob_MultipleJobs
+--- PASS: TestBackgroundJob_MultipleJobs (0.00s)
+=== RUN   TestBackgroundJob_ExecutionTiming
+--- PASS: TestBackgroundJob_ExecutionTiming (0.00s)
+=== RUN   TestBackgroundJob_LastExecution_Initial
+--- PASS: TestBackgroundJob_LastExecution_Initial (0.00s)
+=== RUN   TestBackgroundJob_SuccessfulExecution
+--- PASS: TestBackgroundJob_SuccessfulExecution (0.00s)
+=== RUN   TestGetDashboardStats_ReturnsValidStats
+--- PASS: TestGetDashboardStats_ReturnsValidStats (0.00s)
+=== RUN   TestGetDashboardStats_IncludesMultipleServices
+--- PASS: TestGetDashboardStats_IncludesMultipleServices (0.00s)
+=== RUN   TestGetServiceStats_ReturnsStatsForService
+--- PASS: TestGetServiceStats_ReturnsStatsForService (0.00s)
+=== RUN   TestGetServiceStats_CountByLevel
+--- PASS: TestGetServiceStats_CountByLevel (0.00s)
+=== RUN   TestGetTopErrors_ReturnsTopErrorMessages
+--- PASS: TestGetTopErrors_ReturnsTopErrorMessages (0.00s)
+=== RUN   TestGetTopErrors_Limit
+--- PASS: TestGetTopErrors_Limit (0.00s)
+=== RUN   TestGetServiceHealth_ReturnsHealthStatus
+--- PASS: TestGetServiceHealth_ReturnsHealthStatus (0.00s)
+=== RUN   TestGetServiceHealth_Status_OK
+--- PASS: TestGetServiceHealth_Status_OK (0.00s)
+=== RUN   TestGetServiceHealth_Status_Warning
+--- PASS: TestGetServiceHealth_Status_Warning (0.00s)
+=== RUN   TestGetServiceHealth_Status_Error
+--- PASS: TestGetServiceHealth_Status_Error (0.00s)
+=== RUN   TestGetDashboardStats_ContextCancellation
+--- PASS: TestGetDashboardStats_ContextCancellation (0.00s)
+=== RUN   TestGetServiceStats_VariousTimeRanges
+=== RUN   TestGetServiceStats_VariousTimeRanges/1_hour
+=== RUN   TestGetServiceStats_VariousTimeRanges/24_hours
+=== RUN   TestGetServiceStats_VariousTimeRanges/7_days
+--- PASS: TestGetServiceStats_VariousTimeRanges (0.00s)
+    --- PASS: TestGetServiceStats_VariousTimeRanges/1_hour (0.00s)
+    --- PASS: TestGetServiceStats_VariousTimeRanges/24_hours (0.00s)
+    --- PASS: TestGetServiceStats_VariousTimeRanges/7_days (0.00s)
+=== RUN   TestGetTopErrors_EmptyResult
+--- PASS: TestGetTopErrors_EmptyResult (0.00s)
+=== RUN   TestAggregateLogsHourly_SuccessfulAggregation
+--- PASS: TestAggregateLogsHourly_SuccessfulAggregation (0.00s)
+=== RUN   TestAggregateLogsHourly_AggregatesAllServices
+--- PASS: TestAggregateLogsHourly_AggregatesAllServices (0.00s)
+=== RUN   TestAggregateLogsDaily_SuccessfulAggregation
+--- PASS: TestAggregateLogsDaily_SuccessfulAggregation (0.00s)
+=== RUN   TestAggregateLogsDaily_AggregatesPreviousDay
+--- PASS: TestAggregateLogsDaily_AggregatesPreviousDay (0.00s)
+=== RUN   TestGetErrorRate_CalculatesRate
+--- PASS: TestGetErrorRate_CalculatesRate (0.00s)
+=== RUN   TestGetErrorRate_NoErrors
+--- PASS: TestGetErrorRate_NoErrors (0.00s)
+=== RUN   TestGetErrorRate_HighErrorRate
+--- PASS: TestGetErrorRate_HighErrorRate (0.00s)
+=== RUN   TestCountLogsByServiceAndLevel_ReturnsCount
+--- PASS: TestCountLogsByServiceAndLevel_ReturnsCount (0.00s)
+=== RUN   TestCountLogsByServiceAndLevel_ZeroLogs
+--- PASS: TestCountLogsByServiceAndLevel_ZeroLogs (0.00s)
+=== RUN   TestCountLogsByServiceAndLevel_MultipleServices
+--- PASS: TestCountLogsByServiceAndLevel_MultipleServices (0.00s)
+=== RUN   TestAggregateLogsHourly_ContextCancellation
+--- PASS: TestAggregateLogsHourly_ContextCancellation (0.00s)
+=== RUN   TestAggregateLogsDaily_ContextCancellation
+--- PASS: TestAggregateLogsDaily_ContextCancellation (0.00s)
+=== RUN   TestGetErrorRate_VariousTimeWindows
+=== RUN   TestGetErrorRate_VariousTimeWindows/1_hour
+=== RUN   TestGetErrorRate_VariousTimeWindows/24_hours
+=== RUN   TestGetErrorRate_VariousTimeWindows/7_days
+--- PASS: TestGetErrorRate_VariousTimeWindows (0.00s)
+    --- PASS: TestGetErrorRate_VariousTimeWindows/1_hour (0.00s)
+    --- PASS: TestGetErrorRate_VariousTimeWindows/24_hours (0.00s)
+    --- PASS: TestGetErrorRate_VariousTimeWindows/7_days (0.00s)
+=== RUN   TestCountLogsByServiceAndLevel_LargeCount
+2025/10/27 19:57:02 Client unregistered, remaining clients: 0
+2025/10/27 19:57:02 Error closing WebSocket connection: close tcp 127.0.0.1:42801->127.0.0.1:53312: use of closed network connection
+2025/10/27 19:57:02 Client unregistered, remaining clients: 0
+--- PASS: TestCountLogsByServiceAndLevel_LargeCount (0.00s)
+=== RUN   TestAggregateLogsHourly_ScheduledExecution
+--- PASS: TestAggregateLogsHourly_ScheduledExecution (0.00s)
+=== RUN   TestCountLogsByServiceAndLevel_AllServices
+--- PASS: TestCountLogsByServiceAndLevel_AllServices (0.00s)
+=== RUN   TestErrorRateCalculation_Precision
+--- PASS: TestErrorRateCalculation_Precision (0.00s)
+=== RUN   TestRegisterConnection_SuccessfulRegistration
+--- PASS: TestRegisterConnection_SuccessfulRegistration (0.00s)
+=== RUN   TestRegisterConnection_MultipleConnections
+--- PASS: TestRegisterConnection_MultipleConnections (0.00s)
+=== RUN   TestUnregisterConnection_SuccessfulUnregistration
+--- PASS: TestUnregisterConnection_SuccessfulUnregistration (0.00s)
+=== RUN   TestUnregisterConnection_NonexistentConnection
+--- PASS: TestUnregisterConnection_NonexistentConnection (0.00s)
+=== RUN   TestBroadcastStats_SendsToAllConnections
+--- PASS: TestBroadcastStats_SendsToAllConnections (0.00s)
+=== RUN   TestBroadcastStats_UpdatesMultipleClients
+--- PASS: TestBroadcastStats_UpdatesMultipleClients (0.00s)
+=== RUN   TestBroadcastAlert_SendsToAllConnections
+--- PASS: TestBroadcastAlert_SendsToAllConnections (0.00s)
+=== RUN   TestBroadcastAlert_UrgentMessage
+--- PASS: TestBroadcastAlert_UrgentMessage (0.00s)
+=== RUN   TestGetConnectionCount_ReturnsActiveCount
+--- PASS: TestGetConnectionCount_ReturnsActiveCount (0.00s)
+=== RUN   TestGetConnectionCount_ZeroConnections
+--- PASS: TestGetConnectionCount_ZeroConnections (0.00s)
+=== RUN   TestBroadcastStats_RealtimeUpdates
+--- PASS: TestBroadcastStats_RealtimeUpdates (0.00s)
+=== RUN   TestRegisterConnection_ContextCancellation
+--- PASS: TestRegisterConnection_ContextCancellation (0.00s)
+=== RUN   TestBroadcastStats_ContextCancellation
+--- PASS: TestBroadcastStats_ContextCancellation (0.00s)
+=== RUN   TestUnregisterConnection_ReducesCount
+    websocket_realtime_service_test.go:339: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_realtime_service_test.go:339
+        	Error:      	Not equal: 
+        	            	expected: 1
+        	            	actual  : 2
+        	Test:       	TestUnregisterConnection_ReducesCount
+--- FAIL: TestUnregisterConnection_ReducesCount (0.00s)
+=== RUN   TestBroadcastAlert_MultipleViolations
+--- PASS: TestBroadcastAlert_MultipleViolations (0.00s)
+=== RUN   TestConnectionLifecycle_RegisterAndUnregister
+    websocket_realtime_service_test.go:394: 
+        	Error Trace:	/home/mikej/projects/DevSmith-Modular-Platform/internal/logs/services/websocket_realtime_service_test.go:394
+        	Error:      	Not equal: 
+        	            	expected: 0
+        	            	actual  : 1
+        	Test:       	TestConnectionLifecycle_RegisterAndUnregister
+--- FAIL: TestConnectionLifecycle_RegisterAndUnregister (0.00s)
+=== RUN   TestBroadcastStats_WithServiceData
+--- PASS: TestBroadcastStats_WithServiceData (0.00s)
+FAIL
+FAIL	github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services	113.370s
+FAIL
