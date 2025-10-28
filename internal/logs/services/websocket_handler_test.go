@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -460,14 +461,14 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
+sendLoop:
 	for i := 0; i < 500; i++ {
 		select {
 		case hub.broadcast <- &models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:
 			// Message sent
 		default:
 			// Channel full, exit
-			//nolint:staticcheck // break in select is intentional and only exits the select, not the loop
-			break
+			break sendLoop
 		}
 	}
 
@@ -983,6 +984,8 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 var currentTestHub *WebSocketHub
 
 func setupWebSocketTestServer(_ *testing.T) http.Handler {
+	// Ensure all log levels are visible to unauthenticated clients during tests
+	_ = os.Setenv("LOGS_WEBSOCKET_PUBLIC_ALL", "1")
 	hub := NewWebSocketHub()
 	go hub.Run()
 
