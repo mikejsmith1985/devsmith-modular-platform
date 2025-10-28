@@ -2,13 +2,13 @@
 package templates
 
 templ SessionForm() {
-  <form id="session-form" class="flex flex-col gap-4 max-w-md mx-auto p-4 bg-white rounded shadow">
-    <label for="code-input">Paste code</label>
-    <textarea id="code-input" name="code" class="textarea textarea-bordered" required></textarea>
-    <label for="github-url">or GitHub URL</label>
-    <input id="github-url" name="github_url" class="input input-bordered" type="url" />
-    <label for="file-upload">or Upload file</label>
-    <input id="file-upload" name="file" class="file-input file-input-bordered" type="file" />
-    <button type="submit" class="btn btn-primary">Start Review</button>
+  <form id="session-form" class="flex flex-col gap-4 max-w-md mx-auto p-4 bg-white rounded shadow" aria-label="Create Review Session" autocomplete="off" role="form">
+    <label for="code-input" class="font-semibold">Paste code</label>
+    <textarea id="code-input" name="code" class="textarea textarea-bordered" required aria-required="true" aria-label="Paste code" rows="6"></textarea>
+    <label for="github-url" class="font-semibold">or GitHub URL</label>
+    <input id="github-url" name="github_url" class="input input-bordered" type="url" aria-label="GitHub URL" placeholder="https://github.com/user/repo" />
+    <label for="file-upload" class="font-semibold">or Upload file</label>
+    <input id="file-upload" name="file" class="file-input file-input-bordered" type="file" aria-label="Upload file" accept=".go,.py,.js,.ts,.java,.cpp,.c,.rb,.cs,.php,.txt" />
+    <button type="submit" class="btn btn-primary" aria-label="Start Review">Start Review</button>
   </form>
 }
