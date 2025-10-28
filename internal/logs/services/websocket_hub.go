@@ -3,6 +3,7 @@ package services
 
 import (
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -191,8 +192,11 @@ func (h *WebSocketHub) logHasTag(log *models.LogEntry, tag string) bool {
 }
 
 // isPublicLog checks if a log entry should be visible to unauthenticated users.
-// Currently, INFO level logs are treated as public.
+// By default, only INFO logs are public. For tests, all levels can be public if LOGS_WEBSOCKET_PUBLIC_ALL is set.
 func (h *WebSocketHub) isPublicLog(log *models.LogEntry) bool {
+	if os.Getenv("LOGS_WEBSOCKET_PUBLIC_ALL") == "1" {
+		return true
+	}
 	return log.Level == "INFO"
 }
 
