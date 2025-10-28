@@ -1,0 +1,13 @@
+// GREEN PHASE: Minimal Templ for Skim mode function list
+package templates
+
+templ SkimModeFunctionList(functions []string) {
+  <div class="function-list p-4 bg-base-100 rounded shadow">
+    <h2 class="text-lg font-bold mb-2">Functions</h2>
+    <ul>
+      {for f in functions}
+        <li><button class="expand btn btn-link">{f}</button></li>
+      {end}
+    </ul>
+  </div>
+}
