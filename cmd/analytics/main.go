@@ -13,8 +13,8 @@ import (
 	analytics_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/sirupsen/logrus"
 )
 
