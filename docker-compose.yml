@@ -21,8 +21,8 @@ services:
   nginx:
     image: nginx:latest
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./apps/portal/static/:/usr/share/nginx/html
+      - ${PWD}/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./apps/portal/static/:/usr/share/nginx/html:ro
     ports:
       - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
     depends_on:
@@ -51,12 +51,11 @@ services:
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
-      - LOGS_SERVICE_URL=http://logs:8082
       - GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
       - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
       - REDIRECT_URI=http://localhost:3000/auth/github/callback
       - ENABLE_TEST_AUTH=true
-      - LOGS_SERVICE_URL=http://logs:8082/api/logs
+  - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker
     depends_on:
       postgres:

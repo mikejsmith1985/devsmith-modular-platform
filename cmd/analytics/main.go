@@ -14,6 +14,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,10 +22,10 @@ func main() {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 
-	// Initialize instrumentation logger for this service
-	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
-	if logsServiceURL == "" {
-		logsServiceURL = "http://localhost:8082" // Default for local development
+	// Initialize instrumentation logger for this service using validated config
+	logsServiceURL, err := config.LoadLogsConfig()
+	if err != nil {
+		log.Fatalf("Failed to load logging configuration: %v", err)
 	}
 	instrLogger := instrumentation.NewServiceInstrumentationLogger("analytics", logsServiceURL)
 
