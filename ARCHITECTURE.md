@@ -1602,6 +1602,41 @@ REDIS_PORT=6379
 - Service health check failures
 - Database connection pool exhaustion
 
+### Cross-service logging configuration
+
+The platform uses a centralized Logs service reachable via the environment variable `LOGS_SERVICE_URL`.
+
+- Default values:
+  - In Docker: `http://logs:8082/api/logs`
+  - Local development: `http://localhost:8082/api/logs`
+
+- Per-service overrides: a service may set a per-service environment variable to override the default location. Example:
+  - `REVIEW_LOGS_URL` will take precedence for the Review service
+  - `PORTAL_LOGS_URL` will take precedence for the Portal service
+
+- Startup policy (`LOGS_STRICT`):
+  - `true` (default): startup validates `LOGS_SERVICE_URL` (or per-service override) and fails fast on invalid configuration.
+  - `false`: startup logs a warning and proceeds with logging disabled (best-effort instrumentation will no-op).
+
+Instrumented services should use the platform helper `internal/logging.NewClient(endpoint)` and the config helpers `internal/config.LoadLogsConfigFor(service)` or `LoadLogsConfigWithFallbackFor(service)` to resolve the effective endpoint and honor `LOGS_STRICT`.
+
+Usage example (pseudo):
+```
+url, enabled, err := config.LoadLogsConfigWithFallbackFor("review")
+if enabled {
+    client := logging.NewClient(url)
+    instrumentation := instrumentation.New(client)
+} else {
+    instrumentation := instrumentation.NewNoop()
+}
+```
+
+Documented precedence:
+1. Per-service override: `<SERVICE>_LOGS_URL` (uppercase service name)
+2. `LOGS_SERVICE_URL`
+3. Default based on `ENVIRONMENT` (`docker` vs local)
+
+
 ---
 
 ## DevSmith Coding Standards
