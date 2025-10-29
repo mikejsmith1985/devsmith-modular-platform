@@ -11,10 +11,10 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/review/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
-    "github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 )
 
 func main() {

@@ -6,18 +6,14 @@ package templates
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
+	"context"
+
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
 )
 
-type PreviewFileNode struct {
-	Name        string
-	Description string
-	Children    []PreviewFileNode
-}
-
 func PreviewMode(
-	fileTree []PreviewFileNode,
+	fileTree []interface{},
 	boundedContexts []string,
 	techStack []string,
 	architecturePattern string,
@@ -50,9 +46,16 @@ func PreviewMode(
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		// Convert fileTree to []previewFileNode for rendering
+		var previewNodes []previewFileNode
 		for _, node := range fileTree {
-			// Skipping recursive render of PreviewFileNode to avoid undefined Render error
-			_ = node
+			previewNodes = append(previewNodes, convertToPreviewFileNode(node))
+		}
+		for _, node := range previewNodes {
+			templ_7745c5c3_Err = renderPreviewFileNode(ctx, templ_7745c5c3_Buffer, node)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></div><!-- AI Summary Panel --><div class=\"w-1/2\"><h3 class=\"text-lg font-semibold mb-2\">AI Summary</h3><div class=\"bg-gray-100 dark:bg-gray-800 p-4 rounded shadow\"><p class=\"mb-2\"><strong>Bounded Contexts:</strong> ")
 		if templ_7745c5c3_Err != nil {
@@ -153,7 +156,73 @@ func PreviewMode(
 	})
 }
 
-// Removed PreviewFileNode component to resolve redeclaration and Render errors. Only the struct and helpers remain.
+// previewFileNode is a local struct for rendering the file tree
+type previewFileNode struct {
+	Name        string
+	Description string
+	Children    []previewFileNode
+}
+
+// Recursively convert from PreviewFileNode (from fileTree) to previewFileNode
+func convertToPreviewFileNode(node interface{}) previewFileNode {
+	// Use reflection to support generated struct (since PreviewFileNode is not defined here)
+	// This is a workaround for generated code; in real code, use the actual type
+	m, ok := node.(map[string]interface{})
+	if ok {
+		var children []previewFileNode
+		if c, exists := m["Children"]; exists {
+			if arr, ok := c.([]interface{}); ok {
+				for _, child := range arr {
+					children = append(children, convertToPreviewFileNode(child))
+				}
+			}
+		}
+		name, _ := m["Name"].(string)
+		desc, _ := m["Description"].(string)
+		return previewFileNode{Name: name, Description: desc, Children: children}
+	}
+	// fallback: try type assertion
+	if n, ok := node.(previewFileNode); ok {
+		return n
+	}
+	return previewFileNode{}
+}
+
+// Inline rendering function for previewFileNode
+func renderPreviewFileNode(ctx context.Context, w *templruntime.Buffer, node previewFileNode) error {
+	if _, err := w.Write([]byte(`<div class="ml-4 border-l-2 pl-2 mb-2"><span class="font-mono text-blue-600 dark:text-blue-400">`)); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(node.Name)); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(`</span> <span class="text-xs text-gray-500 ml-2">`)); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(node.Description)); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(`</span> `)); err != nil {
+		return err
+	}
+	if len(node.Children) > 0 {
+		if _, err := w.Write([]byte(`<div>`)); err != nil {
+			return err
+		}
+		for _, child := range node.Children {
+			if err := renderPreviewFileNode(ctx, w, child); err != nil {
+				return err
+			}
+		}
+		if _, err := w.Write([]byte(`</div>`)); err != nil {
+			return err
+		}
+	}
+	if _, err := w.Write([]byte(`</div>`)); err != nil {
+		return err
+	}
+	return nil
+}
 
 // Helper function to convert string array to comma-separated string
 func stringArrayToString(arr []string) string {

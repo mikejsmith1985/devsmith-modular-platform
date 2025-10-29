@@ -17,8 +17,8 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 )
 
 func main() {

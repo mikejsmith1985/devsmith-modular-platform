@@ -1,0 +1,10 @@
+package templates
+
+templ ProgressIndicator(message string, percent int) {
+  <div class="progress-indicator flex items-center gap-3 my-4" role="status" aria-live="polite">
+    <span class="loading loading-spinner loading-md text-primary" aria-label="Loading"></span>
+    <span class="progress-message font-medium">{ message }</span>
+    <progress class="progress progress-primary w-40" value={ string(rune(percent)) } max="100"></progress>
+    <span class="progress-percent text-xs text-gray-500">{ percent }%</span>
+  </div>
+}
