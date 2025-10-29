@@ -1,13 +1,16 @@
 // GREEN PHASE: Minimal Templ for Detailed mode line-by-line view
 package templates
 
+// DetailedModeLineByLine displays code line-by-line with analysis
 templ DetailedModeLineByLine(lines []string) {
-  <section class="line-by-line p-4 bg-base-100 rounded shadow" aria-labelledby="detailed-heading" role="region">
-    <h2 id="detailed-heading" class="text-lg font-bold mb-2">Detailed View</h2>
-    <ol class="list-decimal ml-6">
-      {for l in lines}
-        <li><pre tabindex="0">{l}</pre></li>
-      {end}
-    </ol>
-  </section>
+	<section class="line-by-line p-4 bg-base-100 rounded shadow" aria-labelledby="detailed-heading" role="region">
+		<h2 id="detailed-heading" class="text-lg font-bold mb-2">Detailed View</h2>
+		<ol class="list-decimal ml-6">
+			for i, line := range lines {
+				<li data-line={ string(rune(i + 1)) }>
+					<pre tabindex="0" class="whitespace-pre-wrap">{ line }</pre>
+				</li>
+			}
+		</ol>
+	</section>
 }

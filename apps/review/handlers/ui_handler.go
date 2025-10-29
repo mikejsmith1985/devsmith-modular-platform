@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -23,7 +24,11 @@ func NewUIHandler(logger logger.Interface) *UIHandler {
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
 	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
-	c.HTML(http.StatusOK, "home.html", nil)
+	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := templates.Home().Render(c.Request.Context(), c.Writer); err != nil {
+		h.logger.Error("Failed to render Home template", "error", err)
+		c.String(http.StatusInternalServerError, "Failed to render page")
+	}
 }
 
 // AnalysisResultHandler displays analysis results

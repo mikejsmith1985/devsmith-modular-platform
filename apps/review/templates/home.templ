@@ -17,9 +17,31 @@ templ Home() {
 				<p class="subtitle">AI-powered code analysis with 5 reading modes</p>
 			</header>
 
-			<main class="review-main">
+			<main class="review-main flex flex-col gap-8">
 				@ModeSelector()
-				@RepoInput()
+				@SessionForm()
+				<!-- Reading Mode Display (mock integration) -->
+				<div id="reading-mode-demo" class="mt-8">
+					<!-- Preview Mode Example -->
+					<h3 class="text-xl font-semibold mb-2">Preview Mode Example</h3>
+					@PreviewModeResult("File tree and summary output here (mock)")
+					<!-- Skim Mode Example -->
+					<h3 class="text-xl font-semibold mt-6 mb-2">Skim Mode Example</h3>
+					@SkimModeFunctionList([]string{"GetUser", "CreateUser", "DeleteUser"})
+					<!-- Scan Mode Example -->
+					<h3 class="text-xl font-semibold mt-6 mb-2">Scan Mode Example</h3>
+					@ScanModeSearch()
+					<!-- Detailed Mode Example -->
+					<h3 class="text-xl font-semibold mt-6 mb-2">Detailed Mode Example</h3>
+					@DetailedModeLineByLine([]string{"func GetUser(id int) {", "  // ...", "}"})
+					<!-- Critical Mode Example -->
+					<h3 class="text-xl font-semibold mt-6 mb-2">Critical Mode Example</h3>
+					@CriticalModeIssueList([]CriticalModeIssue{
+						{Description: "Handler calls DB directly (layer violation)", Severity: "Critical"},
+						{Description: "SQL injection risk", Severity: "Critical"},
+						{Description: "Missing error handling", Severity: "Important"},
+					})
+				</div>
 			</main>
 		</div>
 	}

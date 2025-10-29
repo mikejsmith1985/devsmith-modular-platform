@@ -96,6 +96,7 @@ func main() {
 
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)
+	router.GET("/review", uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 	router.GET("/analysis", uiHandler.AnalysisResultHandler)
 
 	port := os.Getenv("PORT")
