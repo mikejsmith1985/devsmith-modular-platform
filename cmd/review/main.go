@@ -10,16 +10,23 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/review/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
+    "github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 )
 
 func main() {
 	router := gin.Default()
 
+	// Load and validate logs service configuration
+	logURL, err := config.LoadLogsConfig()
+	if err != nil {
+		log.Fatalf("Failed to load logging configuration: %v", err)
+	}
+
 	// Initialize structured logger for this service
-	logURL := os.Getenv("LOGS_SERVICE_URL")
 	logLevel := os.Getenv("LOG_LEVEL")
 	if logLevel == "" {
 		logLevel = "info"
@@ -91,13 +98,19 @@ func main() {
 	_ = services.NewDetailedService(ollamaClient, analysisRepo, reviewLogger)
 	_ = services.NewPreviewService(reviewLogger)
 
-	// Handler setup (UIHandler currently only takes logger)
-	uiHandler := handlers.NewUIHandler(reviewLogger)
+	// Prepare logging client to send lightweight events to Logs service
+	logClient := logging.NewClient(logURL)
+
+	// Handler setup (UIHandler takes logger and optional logging client)
+	uiHandler := handlers.NewUIHandler(reviewLogger, logClient)
 
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)
 	router.GET("/review", uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 	router.GET("/analysis", uiHandler.AnalysisResultHandler)
+	router.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
+	// SSE endpoint for session progress (demo stream)
+	router.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
 
 	port := os.Getenv("PORT")
 	if port == "" {
