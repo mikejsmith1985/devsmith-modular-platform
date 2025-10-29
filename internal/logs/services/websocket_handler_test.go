@@ -1041,17 +1041,33 @@ func setupWebSocketTestServer(_ *testing.T) http.Handler {
 				IsAuth:       false,
 				IsPublic:     true,
 				LastActivity: time.Now(),
+				Registered:   make(chan struct{}),
 			}
 
-			// Register and run pumps
+			// Register and run pumps. Start ReadPump first (matches handler order)
 			hub.Register(client)
-			go client.WritePump(hub)
 			go client.ReadPump(hub)
+			go client.WritePump(hub)
+
+			// Wait briefly for hub to confirm registration to avoid
+			// races where tests broadcast immediately after dialing.
+			select {
+			case <-client.Registered:
+				// registered
+			case <-time.After(200 * time.Millisecond):
+				// timed out; continue anyway
+			}
 		}
 	})
 }
 
 func setupAuthenticatedWebSocketServer(_ *testing.T) http.Handler {
+	// Create a hub specifically for authenticated tests so test code can
+	// publish via currentTestHub.broadcast.
+	hub := NewWebSocketHub()
+	go hub.Run()
+	currentTestHub = hub
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//nolint:nestif // necessary nesting for routing handler logic
 		if r.URL.Path == wsLogsPath {
@@ -1072,19 +1088,41 @@ func setupAuthenticatedWebSocketServer(_ *testing.T) http.Handler {
 			if err != nil {
 				return
 			}
-			defer conn.Close()
 
-			for {
-				_, _, err := conn.ReadMessage()
-				if err != nil {
-					break
-				}
+			// Build client similarly to the test server so hub broadcasts work
+			filters := make(map[string]string)
+			if level := r.URL.Query().Get("level"); level != "" {
+				filters["level"] = level
 			}
+			if service := r.URL.Query().Get("service"); service != "" {
+				filters["service"] = service
+			}
+			if tags := r.URL.Query().Get("tags"); tags != "" {
+				filters["tags"] = tags
+			}
+
+			client := &Client{
+				Conn:         conn,
+				Send:         make(chan *models.LogEntry, 256),
+				Filters:      filters,
+				IsAuth:       true,
+				IsPublic:     false,
+				LastActivity: time.Now(),
+				Registered:   make(chan struct{}),
+			}
+
+			hub.Register(client)
+			go client.WritePump(hub)
+			go client.ReadPump(hub)
 		}
 	})
 }
 
 func setupPublicWebSocketServer(_ *testing.T) http.Handler {
+	hub := NewWebSocketHub()
+	go hub.Run()
+	currentTestHub = hub
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == wsLogsPath {
 			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
@@ -1092,14 +1130,31 @@ func setupPublicWebSocketServer(_ *testing.T) http.Handler {
 			if err != nil {
 				return
 			}
-			defer conn.Close()
 
-			for {
-				_, _, err := conn.ReadMessage()
-				if err != nil {
-					break
-				}
+			filters := make(map[string]string)
+			if level := r.URL.Query().Get("level"); level != "" {
+				filters["level"] = level
 			}
+			if service := r.URL.Query().Get("service"); service != "" {
+				filters["service"] = service
+			}
+			if tags := r.URL.Query().Get("tags"); tags != "" {
+				filters["tags"] = tags
+			}
+
+			client := &Client{
+				Conn:         conn,
+				Send:         make(chan *models.LogEntry, 256),
+				Filters:      filters,
+				IsAuth:       false,
+				IsPublic:     true,
+				LastActivity: time.Now(),
+				Registered:   make(chan struct{}),
+			}
+
+			hub.Register(client)
+			go client.WritePump(hub)
+			go client.ReadPump(hub)
 		}
 	})
 }

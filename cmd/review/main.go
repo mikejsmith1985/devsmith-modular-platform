@@ -20,10 +20,13 @@ import (
 func main() {
 	router := gin.Default()
 
-	// Load and validate logs service configuration
-	logURL, err := config.LoadLogsConfig()
+	// Load and validate logs service configuration (allow configurable fallback)
+	logURL, logsEnabled, err := config.LoadLogsConfigWithFallbackFor("review")
 	if err != nil {
 		log.Fatalf("Failed to load logging configuration: %v", err)
+	}
+	if !logsEnabled {
+		log.Printf("Logging disabled at startup (LOGS_STRICT=false and config invalid)")
 	}
 
 	// Initialize structured logger for this service
@@ -98,8 +101,13 @@ func main() {
 	_ = services.NewDetailedService(ollamaClient, analysisRepo, reviewLogger)
 	_ = services.NewPreviewService(reviewLogger)
 
-	// Prepare logging client to send lightweight events to Logs service
-	logClient := logging.NewClient(logURL)
+	// Prepare logging client to send lightweight events to Logs service (optional)
+	var logClient *logging.Client
+	if logsEnabled && logURL != "" {
+		logClient = logging.NewClient(logURL)
+	} else {
+		logClient = nil
+	}
 
 	// Handler setup (UIHandler takes logger and optional logging client)
 	uiHandler := handlers.NewUIHandler(reviewLogger, logClient)

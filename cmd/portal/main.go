@@ -32,9 +32,13 @@ func main() {
 	router := gin.Default()
 
 	// Initialize instrumentation logger for this service (use validated config)
-	logsServiceURL, err := config.LoadLogsConfig()
+	logsServiceURL, logsEnabled, err := config.LoadLogsConfigWithFallbackFor("portal")
 	if err != nil {
 		log.Fatalf("Failed to load logging configuration: %v", err)
+	}
+	if !logsEnabled {
+		log.Printf("Instrumentation/logging disabled: continuing startup without external logs")
+		logsServiceURL = "" // instrumentation will treat empty URL as disabled
 	}
 	instrLogger := instrumentation.NewServiceInstrumentationLogger("portal", logsServiceURL)
 
