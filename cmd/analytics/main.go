@@ -23,9 +23,13 @@ func main() {
 	logger.SetFormatter(&logrus.JSONFormatter{})
 
 	// Initialize instrumentation logger for this service using validated config
-	logsServiceURL, err := config.LoadLogsConfig()
+	logsServiceURL, logsEnabled, err := config.LoadLogsConfigWithFallbackFor("analytics")
 	if err != nil {
 		log.Fatalf("Failed to load logging configuration: %v", err)
+	}
+	if !logsEnabled {
+		log.Printf("Instrumentation/logging disabled: continuing startup without external logs")
+		logsServiceURL = ""
 	}
 	instrLogger := instrumentation.NewServiceInstrumentationLogger("analytics", logsServiceURL)
 

@@ -67,12 +67,28 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		IsAuth:       isAuthenticated,
 		IsPublic:     isPublic,
 		LastActivity: time.Now(),
+		// Initialized so the hub can signal registration completion.
+		Registered: make(chan struct{}),
 	}
 
 	// Register client with hub and start message pumps
 	h.hub.Register(client)
+	// Start pumps
 	go client.ReadPump(h.hub)
 	go client.WritePump(h.hub)
+
+	// Wait for hub registration to complete to avoid races where tests
+	// broadcast immediately after dialing and the hub hasn't yet added
+	// the client to the active set. Don't block indefinitely; timeout
+	// after 200ms.
+	if client.Registered != nil {
+		select {
+		case <-client.Registered:
+			// registered
+		case <-time.After(200 * time.Millisecond):
+			// timed out; continue anyway
+		}
+	}
 }
 
 // validateAuth checks if authentication header contains a valid Bearer token.

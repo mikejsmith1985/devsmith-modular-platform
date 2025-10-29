@@ -253,7 +253,7 @@ func TestFetchUserInfo(t *testing.T) {
 		"name": "Test User",
 		"email": "testuser@example.com",
 		"avatar_url": "http://example.com/avatar.png",
-		"id": "12345"
+		"id": 12345
 	}`
 
 	// Mock HTTP client
@@ -282,7 +282,7 @@ func TestFetchUserInfo(t *testing.T) {
 	assert.Equal(t, "Test User", user.Name)
 	assert.Equal(t, "testuser@example.com", user.Email)
 	assert.Equal(t, "http://example.com/avatar.png", user.AvatarURL)
-	assert.Equal(t, "12345", user.ID)
+	assert.Equal(t, int64(12345), user.ID)
 
 	// Test case: Valid access token
 	t.Run("Valid access token", func(t *testing.T) {
@@ -292,7 +292,7 @@ func TestFetchUserInfo(t *testing.T) {
 			"name": "Test User",
 			"email": "testuser@example.com",
 			"avatar_url": "http://example.com/avatar.png",
-			"id": "12345"
+			"id": 12345
 		}`
 		httpClient := &http.Client{
 			Transport: &mockTransport{

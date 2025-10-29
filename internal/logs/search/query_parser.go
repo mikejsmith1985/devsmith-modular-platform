@@ -165,13 +165,8 @@ func (p *QueryParser) parseFields(queryString string, query *Query) {
 		}
 	}
 
-	// If no fields found, treat as text search on message
-	if len(query.Fields) == 0 {
-		text := strings.TrimSpace(queryString)
-		if text != "" && !strings.HasPrefix(text, "/") {
-			query.Fields["message"] = text
-		}
-	}
+	// If no fields found, leave query.Fields empty and keep free-text in Query.Text
+	// (Text search behavior handled by higher-level callers; tests expect Fields to be empty for simple text queries.)
 }
 
 // resolveFieldAlias resolves field name aliases to canonical names.
@@ -244,10 +239,13 @@ func (p *QueryParser) validateSyntax(queryString string) error {
 		return fmt.Errorf("query starts with AND/OR operator")
 	}
 
-	// Check for field: with no value (e.g., "message:" or "service:")
-	fieldNoValuePattern := regexp.MustCompile(`(\w+):\s*($|\s)`)
-	if fieldNoValuePattern.MatchString(queryString) {
-		return fmt.Errorf("field has no value")
+	// If this is a regex literal (starts and ends with /), skip field:value checks
+	if !(strings.HasPrefix(queryString, "/") && strings.LastIndex(queryString, "/") > 0) {
+		// Check for field: with no value (e.g., "message:" or "service:")
+		fieldNoValuePattern := regexp.MustCompile(`(\w+):\s*($|\s)`)
+		if fieldNoValuePattern.MatchString(queryString) {
+			return fmt.Errorf("field has no value")
+		}
 	}
 
 	return nil

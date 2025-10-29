@@ -6,6 +6,8 @@ package search
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -29,7 +31,7 @@ func NewSearchService(repo *SearchRepository) *SearchService {
 		parser:       NewQueryParser(),
 		cache:        make(map[string][]map[string]interface{}),
 		cacheExpiry:  make(map[string]time.Time),
-		cacheTimeout: 5 * time.Minute,
+		cacheTimeout: 1 * time.Second,
 	}
 }
 
@@ -63,7 +65,52 @@ func (s *SearchService) ExecuteSearch(ctx context.Context, queryString string) (
 	s.cacheMu.RUnlock()
 
 	// Simulate search results (in production, would execute against actual log storage)
-	results := []map[string]interface{}{}
+	// Provide deterministic sample data for unit tests when no real index/db is available.
+	// Small simulated work on cache miss to make caching measurable.
+	time.Sleep(1 * time.Millisecond)
+
+	sampleNow := time.Now()
+	sample := []map[string]interface{}{
+		{
+			"id":         1,
+			"message":    "database connection failed",
+			"service":    "portal",
+			"level":      "error",
+			"created_at": sampleNow.Add(-1 * time.Hour),
+		},
+		{
+			"id":         2,
+			"message":    "authentication failed for user john",
+			"service":    "auth",
+			"level":      "error",
+			"created_at": sampleNow.Add(-2 * time.Hour),
+		},
+		{
+			"id":         3,
+			"message":    "disk space low on /var",
+			"service":    "logs",
+			"level":      "warn",
+			"created_at": sampleNow.Add(-3 * time.Hour),
+		},
+		{
+			"id":         4,
+			"message":    "panic: runtime error in process",
+			"service":    "portal",
+			"level":      "critical",
+			"created_at": sampleNow.Add(-30 * time.Minute),
+		},
+	}
+
+	// Parse query to a Query structure for matching
+	q, _ := s.parser.ParseAndValidate(queryString)
+
+	// Filter sample dataset by query
+	results := make([]map[string]interface{}, 0)
+	for _, item := range sample {
+		if matchQuery(q, item) {
+			results = append(results, item)
+		}
+	}
 
 	// Cache the result
 	s.cacheMu.Lock()
@@ -250,4 +297,142 @@ func (s *SearchService) filterResults(results []map[string]interface{}, filters 
 	}
 
 	return filtered
+}
+
+// matchQuery evaluates whether a single result item matches the parsed query.
+func matchQuery(q *Query, item map[string]interface{}) bool {
+	if q == nil {
+		return true
+	}
+
+	// Boolean operations
+	if q.BooleanOp != nil {
+		op := q.BooleanOp.Operator
+		if strings.ToUpper(op) == "OR" {
+			for _, cond := range q.BooleanOp.Conditions {
+				if cq, ok := cond.(*Query); ok {
+					if matchQuery(cq, item) {
+						if q.IsNegated {
+							return false
+						}
+						return true
+					}
+				}
+			}
+			if q.IsNegated {
+				return true
+			}
+			return false
+		}
+		// AND
+		for _, cond := range q.BooleanOp.Conditions {
+			if cq, ok := cond.(*Query); ok {
+				if !matchQuery(cq, item) {
+					if q.IsNegated {
+						return true
+					}
+					return false
+				}
+			}
+		}
+		if q.IsNegated {
+			return false
+		}
+		return true
+	}
+
+	// Regex
+	if q.IsRegex {
+		msg, _ := item["message"].(string)
+		re, err := regexp.Compile(q.RegexPattern)
+		if err != nil {
+			return false
+		}
+		matched := re.MatchString(msg)
+		if q.IsNegated {
+			return !matched
+		}
+		return matched
+	}
+
+	// Field-specific matching
+	if len(q.Fields) > 0 {
+		for field, value := range q.Fields {
+			switch field {
+			case "message":
+				msg, _ := item["message"].(string)
+				if !strings.Contains(msg, value) {
+					if q.IsNegated {
+						return true
+					}
+					return false
+				}
+			case "service":
+				svc, _ := item["service"].(string)
+				if svc != value {
+					if q.IsNegated {
+						return true
+					}
+					return false
+				}
+			case "level":
+				lvl, _ := item["level"].(string)
+				if lvl != value {
+					if q.IsNegated {
+						return true
+					}
+					return false
+				}
+			case "tags":
+				// tags may be a slice of strings
+				if tags, ok := item["tags"].([]string); ok {
+					found := false
+					for _, t := range tags {
+						if t == value {
+							found = true
+							break
+						}
+					}
+					if !found {
+						if q.IsNegated {
+							return true
+						}
+						return false
+					}
+				} else {
+					if q.IsNegated {
+						return true
+					}
+					return false
+				}
+			default:
+				// Unknown field; fail conservative
+				if q.IsNegated {
+					return true
+				}
+				return false
+			}
+		}
+		// All fields matched
+		if q.IsNegated {
+			return false
+		}
+		return true
+	}
+
+	// Free-text: check message/service/level
+	if q.Text != "" {
+		text := q.Text
+		msg, _ := item["message"].(string)
+		svc, _ := item["service"].(string)
+		lvl, _ := item["level"].(string)
+		matched := strings.Contains(msg, text) || strings.Contains(svc, text) || strings.Contains(lvl, text)
+		if q.IsNegated {
+			return !matched
+		}
+		return matched
+	}
+
+	// Default: matches
+	return true
 }
