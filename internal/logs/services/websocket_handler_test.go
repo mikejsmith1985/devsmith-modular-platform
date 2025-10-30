@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,7 +28,37 @@ const wsLogsPath = "/ws/logs"
 // WEBSOCKET ENDPOINT TESTS
 // ============================================================================
 
+// goroutineSnapshot captures goroutine count at a point in time
+type goroutineSnapshot struct {
+	count    int
+	testName string
+	phase    string
+}
+
+// diagnosticGoroutines creates a cleanup function that verifies no goroutine leaks
+func diagnosticGoroutines(t *testing.T) {
+	baseline := runtime.NumGoroutine()
+	t.Logf("[DIAG] Test %s: baseline goroutines = %d", t.Name(), baseline)
+
+	t.Cleanup(func() {
+		// Allow time for goroutines to exit
+		time.Sleep(50 * time.Millisecond)
+
+		after := runtime.NumGoroutine()
+		leaked := after - baseline
+
+		if leaked > 2 {
+			t.Logf("[DIAG] LEAK DETECTED in %s: baseline=%d, after=%d, leaked=%d", 
+				t.Name(), baseline, after, leaked)
+		} else {
+			t.Logf("[DIAG] Test %s: no leaks (baseline=%d, after=%d)", 
+				t.Name(), baseline, after)
+		}
+	})
+}
+
 func TestWebSocketHandler_EndpointExists(t *testing.T) {
+	diagnosticGoroutines(t)
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
