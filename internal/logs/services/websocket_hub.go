@@ -19,6 +19,7 @@ type WebSocketHub struct {
 	broadcast  chan *logs_models.LogEntry
 	register   chan *Client
 	unregister chan *Client
+	stop       chan struct{}
 	mu         sync.RWMutex
 }
 
@@ -48,6 +49,7 @@ func NewWebSocketHub() *WebSocketHub {
 		broadcast:  make(chan *logs_models.LogEntry, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		stop:       make(chan struct{}),
 	}
 }
 
@@ -58,12 +60,23 @@ func NewWebSocketHub() *WebSocketHub {
 //   - client unregistration: removes client and closes its Send channel
 //   - broadcast: routes log entry to matching clients
 //   - heartbeat tick: sends ping to clients, disconnects inactive ones
+//   - stop: signal to shut down the hub gracefully
 func (h *WebSocketHub) Run() {
 	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer heartbeatTicker.Stop()
 
 	for {
 		select {
+		case <-h.stop:
+			// Graceful shutdown: close all client connections and exit
+			h.mu.Lock()
+			for client := range h.clients {
+				close(client.Send)
+			}
+			h.clients = make(map[*Client]bool)
+			h.mu.Unlock()
+			return
+
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
@@ -97,6 +110,18 @@ func (h *WebSocketHub) Run() {
 			h.sendHeartbeats()
 		}
 	}
+}
+
+// Stop signals the WebSocketHub to shut down gracefully.
+// It closes all client connections and stops the hub goroutine.
+// Safe to call multiple times (using recover to catch panic from closing closed channel).
+func (h *WebSocketHub) Stop() {
+	defer func() {
+		if r := recover(); r != nil {
+			// Already stopped, ignore
+		}
+	}()
+	close(h.stop)
 }
 
 // broadcastToClients sends a log entry to all clients that match the log's visibility and filters.
