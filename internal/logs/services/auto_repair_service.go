@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os/exec"
 	"time"
 )
@@ -153,7 +154,9 @@ func (s *AutoRepairService) GetRepairHistory(ctx context.Context, limit int) ([]
 		return nil, fmt.Errorf("failed to query repair history: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close repair history rows: %v", err)
+		}
 	}()
 
 	var actions []RepairAction

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
@@ -142,7 +143,9 @@ func (s *HealthStorageService) queryHealthChecks(ctx context.Context, query stri
 		return nil, fmt.Errorf("failed to query health checks: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close health checks rows: %v", err)
+		}
 	}()
 
 	var checks []HealthCheckSummary
@@ -175,7 +178,9 @@ func (s *HealthStorageService) GetTrendData(ctx context.Context, serviceName str
 		return nil, fmt.Errorf("failed to query trend data: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close health checks rows: %v", err)
+		}
 	}()
 
 	trend := &TrendData{

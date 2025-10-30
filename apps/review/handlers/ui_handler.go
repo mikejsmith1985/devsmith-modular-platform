@@ -3,6 +3,7 @@ package review_handlers
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -91,12 +92,14 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 	if h.logClient != nil {
 		// Best-effort: do not block the request path
 		go func(ctx context.Context, sid string) {
-			_ = h.logClient.Post(ctx, map[string]interface{}{
+			if err := h.logClient.Post(ctx, map[string]interface{}{
 				"service": "review",
 				"event":   "session_created",
 				"session": sid,
 				"time":    time.Now().UTC().Format(time.RFC3339),
-			})
+			}); err != nil {
+				log.Printf("warning: failed to post session_created event: %v", err)
+			}
 		}(c.Request.Context(), sessionID)
 	}
 	// Return session info (for now, just the ID)
