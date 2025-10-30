@@ -452,6 +452,137 @@ See DevsmithTDD.md § Test 2.1-2.5 for Critical Mode testing patterns.
 - ❌ WRONG: 40% coverage on critical code
 - ✅ CORRECT: 90% coverage on critical paths
 
+### Pitfall 11: ABSOLUTE RULE - NO QUALITY GATE BYPASSES (CRITICAL)
+
+**This is the hardest rule to follow because there are infinite creative ways to bypass quality gates. You MUST recognize all of them.**
+
+#### What Counts as a Bypass (ALL FORBIDDEN)
+
+1. **Direct Bypasses:**
+   - ❌ `/nolint` or `// nolint:` comments
+   - ❌ `//ignore:` or `//skip:` comments
+   - ❌ `git commit --no-verify` (FORBIDDEN)
+   - ❌ `git push --no-verify` (FORBIDDEN)
+   - ❌ `.gitignore` entries to hide bad files
+   - ❌ Disabling linters in config files
+
+2. **Indirect Bypasses (EVEN MORE DANGEROUS):**
+   - ❌ "This is a pre-existing failure, I'll skip it"
+   - ❌ "This test is flaky, I won't fix it"
+   - ❌ "This is old code, I'll leave it broken"
+   - ❌ "I'll come back to this later" (you won't)
+   - ❌ "This is beyond scope" (fix it anyway)
+   - ❌ "The pre-push hook doesn't check this" (it should, or fix the hook)
+   - ❌ Accepting test failures as acceptable
+   - ❌ Skipping any test run with `-skip` flag
+   - ❌ Using `-short` to avoid slow tests
+   - ❌ Changing test expectations to match broken code
+
+3. **Rationalization Bypasses (YOU WILL DO THESE):**
+   - ❌ "This code is too complex to fix properly"
+   - ❌ "This will take too long, I have other work"
+   - ❌ "This isn't my code, I shouldn't have to fix it"
+   - ❌ "The previous developer left this broken"
+   - ❌ "This is infrastructure, not feature code"
+   - ❌ "We can address this in the next sprint"
+   - ❌ "This is acceptable technical debt"
+
+#### The ONLY Acceptable Solution
+
+When you encounter ANY test failure, linting error, build issue, or quality gate problem:
+
+**FIX IT PROPERLY OR STOP IMMEDIATELY**
+
+No exceptions. No rationalizations. No "I'll come back to it."
+
+**Process:**
+1. ❌ NEVER add `/nolint` comments
+2. ❌ NEVER skip the test or mark as flaky
+3. ❌ NEVER accept "pre-existing failures"
+4. ✅ ALWAYS debug the root cause
+5. ✅ ALWAYS fix the underlying issue
+6. ✅ ALWAYS verify the fix with the full test suite
+7. ✅ ALWAYS commit the fix immediately
+
+**If you can't fix it:**
+- Ask for help (Sonnet review, architecture discussion)
+- Revert the changes that caused it
+- Document why it can't be fixed
+- Create a GitHub issue for it
+- NEVER accept it as-is
+
+#### Examples of Proper vs Improper
+
+**WRONG - Indirect Bypass:**
+```
+Pre-existing websocket tests are failing, I'll just run
+`go test ./... -skip TestWebSocketHandler` to avoid them
+```
+
+**RIGHT - Proper Fix:**
+```
+Websocket tests are timing out. Root cause: Test infrastructure issue.
+Fix: Add proper context timeouts and synchronization primitives.
+Result: Tests pass consistently. Commit and move on.
+```
+
+**WRONG - Rationalization:**
+```
+These duplicate detector tests are pre-existing failures,
+I'll merge anyway since Issue #68 is about package naming
+```
+
+**RIGHT - Proper Fix:**
+```
+Duplicate detector tests are failing because test fixtures
+have similar code. Fix: Create genuinely different test files.
+Commit fix with proper explanation.
+```
+
+**WRONG - Bypass:**
+```go
+// nolint:errcheck // rows already processed
+_ = rows.Close()
+```
+
+**RIGHT - Proper Fix:**
+```go
+_ = rows.Close() // explicitly ignore error as rows already processed
+// OR handle the error properly:
+if err := rows.Close(); err != nil {
+    log.Printf("error closing rows: %v", err)
+}
+```
+
+#### Detection: If You're About to Do This, STOP
+
+These are red flags that you're about to bypass:
+- "I'll just comment this out for now"
+- "I'll use `-skip` to avoid this test"
+- "This is pre-existing, not my problem"
+- "It's marked as flaky, so it's expected"
+- "We don't have time to fix this"
+- "I'll add a TODO and come back to it"
+- "Let me just add `/nolint` to get this through"
+- Any feeling that you're "getting away with something"
+
+**If you think any of these, STOP AND FIX THE ACTUAL PROBLEM.**
+
+#### Enforcement
+
+This rule is NOT optional. Every commit you make MUST pass:
+- ✅ `go build ./...`
+- ✅ `go test ./...` (NO test failures, NO skips)
+- ✅ `go test -race ./...` (NO race conditions)
+- ✅ `golangci-lint run ./...` (NO linting errors)
+- ✅ `go vet ./...` (NO vet errors)
+
+If ANY of these fail, you have TWO options:
+1. Fix the problem until all pass
+2. Revert your changes
+
+There is no option 3.
+
 ---
 
 ## Code Review Checklist
