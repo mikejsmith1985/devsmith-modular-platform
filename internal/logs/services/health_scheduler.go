@@ -234,7 +234,7 @@ func (s *HealthScheduler) classifyIssue(check *healthcheck.CheckResult) string {
 // contains checks if string contains any of the given substrings
 func contains(str string, substrs ...string) bool {
 	for _, substr := range substrs {
-		if len(str) > 0 && len(substr) > 0 {
+		if str != "" && substr != "" {
 			// Simple substring check
 			for i := 0; i < len(str)-len(substr)+1; i++ {
 				if str[i:i+len(substr)] == substr {

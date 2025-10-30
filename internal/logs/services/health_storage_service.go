@@ -224,14 +224,8 @@ func (s *HealthStorageService) GetTrendData(ctx context.Context, serviceName str
 		trend.FailureRate = float64(failCount) / float64(checkCount)
 	}
 
-	if len(trend.HealthScores) > 0 {
-		// The original code had trend.LastCheckTime = trend.HealthScores[0].Timestamp
-		// This line is problematic as HealthScores is []float64.
-		// Assuming the intent was to find the timestamp of the last check.
-		// Since HealthScores is now []float64, we need to find the timestamp of the last float64.
-		// This is not directly possible without a timestamp field in HealthScores.
-		// For now, removing this line as it's not directly applicable to the new HealthScores type.
-	}
+	// Note: HealthScores contains the historical scores only, not check metadata
+	// Cannot determine accurate LastCheckTime from []float64 alone
 
 	return trend, rows.Err()
 }

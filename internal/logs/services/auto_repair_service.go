@@ -174,7 +174,7 @@ func (s *AutoRepairService) GetRepairHistory(ctx context.Context, limit int) ([]
 }
 
 // ManualRepair triggers a manual repair for a service
-func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName string, strategy string) error {
+func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName, strategy string) error {
 	startTime := time.Now()
 	var err error
 
@@ -204,9 +204,8 @@ func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName string
 		action.Status = "success"
 	}
 
-	if err := s.logRepairAction(ctx, &action); err != nil {
-		// Log but don't fail - repair already completed
-		fmt.Printf("failed to log manual repair action: %v\n", err)
+	if logErr := s.logRepairAction(ctx, &action); logErr != nil {
+		log.Printf("warning: failed to log manual repair action: %v", logErr)
 	}
 	return err
 }

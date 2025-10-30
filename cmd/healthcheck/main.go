@@ -1,3 +1,4 @@
+// Package main is the healthcheck CLI application entry point.
 package main
 
 import (

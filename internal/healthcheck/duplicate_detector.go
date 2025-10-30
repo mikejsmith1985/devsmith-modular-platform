@@ -162,7 +162,7 @@ func (dd *DuplicateDetector) findDuplicates(blocks []*CodeBlock) []DuplicateBloc
 			}
 			checked[key] = true
 
-			if block1.Normalized == block2.Normalized && len(block1.Content) > 0 {
+			if block1.Normalized == block2.Normalized && block1.Content != "" {
 				dup := DuplicateBlock{
 					File1:      block1.File,
 					File2:      block2.File,
