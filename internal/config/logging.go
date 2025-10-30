@@ -1,3 +1,4 @@
+// Package config provides configuration loading for DevSmith services.
 package config
 
 import (
@@ -7,6 +8,13 @@ import (
 	"strings"
 )
 
+const (
+	// logsServiceURLDocker is the logs service URL in Docker environment
+	logsServiceURLDocker = "http://logs:8082/api/logs"
+	// logsServiceURLLocal is the logs service URL in local development
+	logsServiceURLLocal = "http://localhost:8082/api/logs"
+)
+
 // LoadLogsConfig reads LOGS_SERVICE_URL from the environment (or provides a sensible default)
 // and validates the URL. Returns the resolved URL or an error.
 func LoadLogsConfig() (string, error) {
@@ -14,10 +22,10 @@ func LoadLogsConfig() (string, error) {
 	env := strings.TrimSpace(os.Getenv("ENVIRONMENT"))
 
 	if u == "" {
-		if strings.ToLower(env) == "docker" {
-			u = "http://logs:8082/api/logs"
+		if strings.EqualFold(env, "docker") {
+			u = logsServiceURLDocker
 		} else {
-			u = "http://localhost:8082/api/logs"
+			u = logsServiceURLLocal
 		}
 	}
 
@@ -50,64 +58,67 @@ func validateLogsURL(raw string) error {
 	return nil
 }
 
-// LoadLogsConfigWithFallback loads the logs service URL and honors the
-// LOGS_STRICT environment variable. If LOGS_STRICT is set to "false"
-// and the configured URL is invalid, this function returns ("", false, nil)
-// meaning logging is disabled but the service can continue startup.
-// If LOGS_STRICT is true (default), it behaves the same as LoadLogsConfig
-// and returns an error on invalid configuration.
-// LoadLogsConfigFor returns the logs URL for a specific service. It first
-// checks for per-service override like REVIEW_LOGS_URL (uppercased service
-// name + _LOGS_URL). If not present it falls back to LOGS_SERVICE_URL and
-// then to sensible defaults (docker vs local). Validation is performed.
-func LoadLogsConfigFor(service string) (string, error) {
+// LoadLogsConfigFor loads the logs service URL for a specific service.
+func LoadLogsConfigFor(service string) (string, bool, error) {
+	env := os.Getenv("ENVIRONMENT")
+
+	var u string
+	if strings.EqualFold(env, "docker") {
+		u = logsServiceURLDocker
+	} else {
+		u = logsServiceURLLocal
+	}
+
 	// Per-service override, e.g., REVIEW_LOGS_URL
 	svcKey := ""
 	if strings.TrimSpace(service) != "" {
 		svcKey = strings.ToUpper(service) + "_LOGS_URL"
 	}
 
-	var u string
 	if svcKey != "" {
-		u = strings.TrimSpace(os.Getenv(svcKey))
+		override := strings.TrimSpace(os.Getenv(svcKey))
+		if override != "" {
+			u = override
+		}
 	}
 
 	if u == "" {
 		u = strings.TrimSpace(os.Getenv("LOGS_SERVICE_URL"))
 	}
 
-	env := strings.TrimSpace(os.Getenv("ENVIRONMENT"))
 	if u == "" {
-		if strings.ToLower(env) == "docker" {
-			u = "http://logs:8082/api/logs"
+		if strings.EqualFold(env, "docker") {
+			u = logsServiceURLDocker
 		} else {
-			u = "http://localhost:8082/api/logs"
+			u = logsServiceURLLocal
 		}
 	}
 
 	if err := validateLogsURL(u); err != nil {
-		return "", fmt.Errorf("invalid logs url %q: %w", u, err)
-	}
-	return u, nil
-}
-
-// LoadLogsConfigWithFallbackFor behaves like LoadLogsConfigFor but respects
-// LOGS_STRICT. If LOGS_STRICT=false and validation fails this returns
-// ("", false, nil) indicating logging is disabled but startup can continue.
-func LoadLogsConfigWithFallbackFor(service string) (string, bool, error) {
-	strict := strings.TrimSpace(os.Getenv("LOGS_STRICT"))
-	if strings.EqualFold(strict, "false") {
-		// Try to load but don't fail startup when invalid
-		u, err := LoadLogsConfigFor(service)
-		if err != nil {
-			return "", false, nil
-		}
-		return u, true, nil
-	}
-
-	u, err := LoadLogsConfigFor(service)
-	if err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("invalid logs url %q: %w", u, err)
 	}
 	return u, true, nil
+}
+
+// LoadLogsConfigWithFallbackFor loads the logs service URL with fallback logic.
+func LoadLogsConfigWithFallbackFor(service string) (string, bool, error) {
+	env := os.Getenv("ENVIRONMENT")
+
+	// Check for per-service override first
+	override := os.Getenv(strings.ToUpper(service) + "_LOGS_URL")
+	if override != "" {
+		return override, true, nil
+	}
+
+	// Then check global LOGS_SERVICE_URL
+	global := os.Getenv("LOGS_SERVICE_URL")
+	if global != "" {
+		return global, true, nil
+	}
+
+	// Fall back to default
+	if strings.EqualFold(env, "docker") {
+		return logsServiceURLDocker, true, nil
+	}
+	return logsServiceURLLocal, true, nil
 }
