@@ -2446,3 +2446,107 @@ This is the final piece of selective validation (current commit only).
 
 ---
 
+
+## 2025-10-30 18:09 - fix: handle all unchecked error returns (CI blocker resolution)
+**Branch:** development
+**Files Changed:**  9 files changed, 219 insertions(+), 23 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/handlers/ui_handler.go`
+- `internal/healthcheck/duplicate_detector.go`
+- `internal/logging/client.go`
+- `internal/logs/search/search_service.go`
+- `internal/logs/services/auto_repair_service.go`
+- `internal/logs/services/health_policy_service.go`
+- `internal/logs/services/health_storage_service.go`
+- `internal/logs/services/websocket_handler_test.go`
+
+**Action:** fix: handle all unchecked error returns (CI blocker resolution)
+
+**Commit:** `0f1e87b`
+
+**Commit Message:**
+```
+fix: handle all unchecked error returns (CI blocker resolution)
+```
+
+**Details:**
+```
+CRITICAL FIX: Properly handle all error returns instead of using blank identifiers
+
+Files fixed:
+- internal/logs/services/auto_repair_service.go: rows.Close() error handling
+- internal/logs/services/health_policy_service.go: rows.Close() error handling
+- internal/logs/services/health_storage_service.go: 2x rows.Close() error handling
+- internal/logging/client.go: resp.Body.Close() error handling
+- internal/healthcheck/duplicate_detector.go: file.Close() error handling
+- apps/review/handlers/ui_handler.go: h.logClient.Post() error handling
+- internal/logs/search/search_service.go: type assertion error handling (3 instances)
+
+All errors are now logged with context instead of silently ignored.
+This resolves all errcheck linting failures blocking CI.
+```
+
+---
+
+
+## 2025-10-30 18:09 - fix: use serviceName parameter in waitForServiceHealth to avoid unused parameter warning
+**Branch:** development
+**Files Changed:**  1 file changed, 2 insertions(+), 1 deletion(-)
+- `internal/logs/services/auto_repair_service.go`
+
+**Action:** fix: use serviceName parameter in waitForServiceHealth to avoid unused parameter warning
+
+**Commit:** `4e94c96`
+
+**Commit Message:**
+```
+fix: use serviceName parameter in waitForServiceHealth to avoid unused parameter warning
+```
+
+---
+
+
+## 2025-10-30 18:23 - improve linting to check packages but filter output to modified files only
+**Branch:** development
+**Files Changed:**  1 file changed, 26 insertions(+), 17 deletions(-)
+- `scripts/hooks/pre-push`
+
+**Action:** improve linting to check packages but filter output to modified files only
+
+**Commit:** `4195a00`
+
+**Commit Message:**
+```
+fix(pre-push): improve linting to check packages but filter output to modified files only
+```
+
+**Details:**
+```
+PROBLEM: golangci-lint needs full package context for proper type checking.
+Running on individual files causes false 'undefined' errors due to missing imports.
+
+SOLUTION:
+1. Run golangci-lint on entire PACKAGES (gives proper context)
+2. Filter output to only show errors from MODIFIED files
+3. Errors in other files in same package are NOT reported
+
+This prevents:
+- False type checking errors (missing import context)
+- Pre-existing issues in other files from blocking pushes
+- Cascade of errors from unmodified code
+
+Example:
+- Modified: internal/logs/services/auto_repair_service.go
+- golangci-lint checks: ./internal/logs/services (whole package)
+- Output filtered to only show: auto_repair_service.go errors
+- Errors from health_scheduler.go (same package) are ignored
+
+RESULT:
+✅ Proper type checking with package context
+✅ Only modified files are validated
+✅ No false positives from unmodified files
+✅ Correct balance between correctness and developer experience
+```
+
+---
+
