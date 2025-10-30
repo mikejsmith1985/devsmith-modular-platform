@@ -1,0 +1,176 @@
+package templates
+
+import "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+
+// HealthPoliciesTab renders the health policies configuration tab
+templ HealthPoliciesTab(policies []services.HealthPolicy) {
+	<div class="tab-pane fade" id="health-policies" role="tabpanel">
+		<div class="container mx-auto p-6">
+			<!-- Header -->
+			<div class="mb-6">
+				<h2 class="text-2xl font-bold mb-2">Health Policies</h2>
+				<p class="text-gray-600">Configure per-service health check behavior and auto-repair settings</p>
+			</div>
+
+			<!-- Policies Grid -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+				for _, policy := range policies {
+					@PolicyCard(policy)
+				}
+			</div>
+
+			<!-- Policy Documentation -->
+			<div class="card bg-base-100 shadow-xl mt-8">
+				<div class="card-body">
+					<h3 class="card-title">Policy Guide</h3>
+					<div class="space-y-4 text-sm">
+						<div>
+							<p class="font-semibold">Max Response Time</p>
+							<p class="text-gray-600">Threshold in milliseconds. Health check will warn if exceeded.</p>
+						</div>
+						<div>
+							<p class="font-semibold">Auto-Repair Strategy</p>
+							<ul class="list-disc list-inside text-gray-600">
+								<li><span class="font-mono">restart</span> - Restart the container</li>
+								<li><span class="font-mono">rebuild</span> - Rebuild and restart (fresh image)</li>
+								<li><span class="font-mono">none</span> - Don't auto-repair</li>
+							</ul>
+						</div>
+						<div>
+							<p class="font-semibold">Alerts</p>
+							<p class="text-gray-600">Configure what health status levels trigger alerts (email, Slack, etc.)</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// PolicyCard renders an editable policy card for a service
+templ PolicyCard(policy services.HealthPolicy) {
+	<div class="card bg-base-100 shadow-xl">
+		<div class="card-body">
+			<h3 class="card-title text-lg">{ policy.ServiceName }</h3>
+
+			<!-- Status Badge -->
+			<div class="flex gap-2 mb-4">
+				if policy.AutoRepairEnabled {
+					<span class="badge badge-success">Auto-Repair Enabled</span>
+				} else {
+					<span class="badge badge-ghost">Auto-Repair Disabled</span>
+				}
+				<span class="badge badge-info">{ policy.RepairStrategy }</span>
+			</div>
+
+			<!-- Form -->
+			<form hx-put={ "/api/health/policies/" + policy.ServiceName } hx-target="this" hx-swap="outerHTML">
+				<!-- Max Response Time -->
+				<div class="form-control mb-4">
+					<label class="label">
+						<span class="label-text">Max Response Time (ms)</span>
+					</label>
+					<input 
+						type="number" 
+						name="max_response_time_ms" 
+						value={ string(rune(policy.MaxResponseTimeMS)) }
+						class="input input-bordered" 
+						min="100" 
+						max="10000"
+						required
+					/>
+					<label class="label">
+						<span class="label-text-alt">Default: 1000ms</span>
+					</label>
+				</div>
+
+				<!-- Auto-Repair Strategy -->
+				<div class="form-control mb-4">
+					<label class="label">
+						<span class="label-text">Repair Strategy</span>
+					</label>
+					<select name="repair_strategy" class="select select-bordered">
+						<option value="restart" selected={ policy.RepairStrategy == "restart" }>
+							Restart Service
+						</option>
+						<option value="rebuild" selected={ policy.RepairStrategy == "rebuild" }>
+							Rebuild & Restart
+						</option>
+						<option value="none" selected={ policy.RepairStrategy == "none" }>
+							Manual Only
+						</option>
+					</select>
+				</div>
+
+				<!-- Auto-Repair Toggle -->
+				<div class="form-control mb-4">
+					<label class="label cursor-pointer">
+						<span class="label-text">Enable Auto-Repair</span>
+						<input 
+							type="checkbox" 
+							name="auto_repair_enabled" 
+							class="checkbox checkbox-primary"
+							checked={ policy.AutoRepairEnabled }
+						/>
+					</label>
+				</div>
+
+				<!-- Alert Settings -->
+				<div class="divider">Alerts</div>
+
+				<div class="form-control mb-4">
+					<label class="label cursor-pointer">
+						<span class="label-text">Alert on Warning</span>
+						<input 
+							type="checkbox" 
+							name="alert_on_warn" 
+							class="checkbox checkbox-warning"
+							checked={ policy.AlertOnWarn }
+						/>
+					</label>
+				</div>
+
+				<div class="form-control mb-4">
+					<label class="label cursor-pointer">
+						<span class="label-text">Alert on Failure</span>
+						<input 
+							type="checkbox" 
+							name="alert_on_fail" 
+							class="checkbox checkbox-error"
+							checked={ policy.AlertOnFail }
+						/>
+					</label>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="card-actions justify-end mt-6 pt-4 border-t">
+					<button type="button" class="btn btn-ghost">Cancel</button>
+					<button type="submit" class="btn btn-primary">Save Changes</button>
+				</div>
+			</form>
+
+			<!-- Last Updated -->
+			<div class="text-xs text-gray-500 mt-4">
+				Updated: { policy.UpdatedAt.Format("2006-01-02 15:04:05") }
+			</div>
+		</div>
+	</div>
+}
+
+// PolicySummary renders a compact policy summary
+templ PolicySummary(policy services.HealthPolicy) {
+	<div class="flex justify-between items-center p-4 border-b">
+		<div>
+			<p class="font-semibold">{ policy.ServiceName }</p>
+			<p class="text-xs text-gray-500">Max Response: { string(rune(policy.MaxResponseTimeMS)) }ms</p>
+		</div>
+		<div class="flex gap-3">
+			if policy.AutoRepairEnabled {
+				<span class="badge badge-success">Enabled</span>
+			} else {
+				<span class="badge badge-ghost">Disabled</span>
+			}
+			<span class="badge badge-info">{ policy.RepairStrategy }</span>
+		</div>
+	</div>
+}

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -79,11 +80,14 @@ func main() {
 		c.Next()
 	})
 
+	// Middleware to inject DATABASE_URL into context for health checks
+	router.Use(func(c *gin.Context) {
+		c.Set("DATABASE_URL", dbURL)
+		c.Next()
+	})
+
 	// Serve static files for logs dashboard
 	router.Static("/static", "./apps/logs/static")
-
-	// Register UI routes for dashboard
-	apphandlers.RegisterUIRoutes(router, logger)
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "logs")
@@ -167,6 +171,40 @@ func main() {
 
 	// Register WebSocket routes
 	services.RegisterWebSocketRoutes(router, hub)
+
+	// Health check endpoint (system-wide diagnostics)
+	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
+
+	// Phase 3: Health Intelligence - Initialize services
+	storageService := services.NewHealthStorageService(dbConn)
+	policyService := services.NewHealthPolicyService(dbConn)
+	repairService := services.NewAutoRepairService(dbConn, policyService)
+
+	// Initialize default policies on startup
+	if err := policyService.InitializeDefaultPolicies(context.Background()); err != nil {
+		log.Printf("Warning: Failed to initialize health policies: %v", err)
+	}
+
+	// Initialize UI handler with policy service
+	uiHandler := apphandlers.NewUIHandler(logger, policyService)
+
+	// Register UI routes for dashboard
+	apphandlers.RegisterUIRoutes(router, uiHandler)
+
+	// Register Phase 3 API endpoints
+	router.GET("/api/health/history", resthandlers.GetHealthHistory(storageService))
+	router.GET("/api/health/trends/:service", resthandlers.GetHealthTrends(storageService))
+	router.GET("/api/health/policies", resthandlers.GetHealthPolicies(policyService))
+	router.GET("/api/health/policies/:service", resthandlers.GetHealthPolicy(policyService))
+	router.PUT("/api/health/policies/:service", resthandlers.UpdateHealthPolicy(policyService))
+	router.GET("/api/health/repairs", resthandlers.GetRepairHistory(repairService))
+	router.POST("/api/health/repair/:service", resthandlers.ManualRepair(repairService, storageService))
+
+	// Start health scheduler (runs background checks every 5 minutes)
+	scheduler := services.NewHealthScheduler(5*time.Minute, storageService, repairService)
+	go scheduler.Start()
+
+	log.Println("Health intelligence system initialized - scheduler running every 5 minutes")
 
 	log.Printf("Starting logs service on port %s", port)
 

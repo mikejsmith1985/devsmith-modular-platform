@@ -33,7 +33,7 @@ func TestUIHandler_DashboardHandler_Success(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -56,7 +56,7 @@ func TestUIHandler_DashboardHandler_ContainsControls(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -77,7 +77,7 @@ func TestUIHandler_DashboardHandler_ContainsScripts(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -97,7 +97,7 @@ func TestUIHandler_DashboardHandler_ContainsStylesheet(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -115,7 +115,7 @@ func TestUIHandler_HealthHandler_Success(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
@@ -133,7 +133,7 @@ func TestUIHandler_HealthHandler_JSON(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
@@ -149,8 +149,9 @@ func TestRegisterUIRoutes_DashboardRoute(t *testing.T) {
 	router := gin.New()
 	logger := logrus.New()
 	logger.Out = io.Discard
-
-	RegisterUIRoutes(router, logger)
+	
+	uiHandler := NewUIHandler(logger, nil)
+	RegisterUIRoutes(router, uiHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
@@ -166,7 +167,8 @@ func TestRegisterUIRoutes_DashboardAliasRoute(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	RegisterUIRoutes(router, logger)
+	uiHandler := NewUIHandler(logger, nil)
+	RegisterUIRoutes(router, uiHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", http.NoBody)
 	w := httptest.NewRecorder()
@@ -182,7 +184,8 @@ func TestRegisterUIRoutes_HealthRoute(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	RegisterUIRoutes(router, logger)
+	uiHandler := NewUIHandler(logger, nil)
+	RegisterUIRoutes(router, uiHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
 	w := httptest.NewRecorder()
@@ -198,7 +201,8 @@ func TestRegisterUIRoutes_MultipleRoutes(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	RegisterUIRoutes(router, logger)
+	uiHandler := NewUIHandler(logger, nil)
+	RegisterUIRoutes(router, uiHandler)
 
 	tests := []struct {
 		name       string
@@ -367,8 +371,9 @@ func TestRegisterUIRoutes_NilRouter(t *testing.T) {
 
 	logger := logrus.New()
 	logger.Out = io.Discard
-
-	RegisterUIRoutes(nil, logger)
+	
+	uiHandler := NewUIHandler(logger, nil)
+	RegisterUIRoutes(nil, uiHandler)
 }
 
 func TestRegisterUIRoutes_NilLogger(t *testing.T) {
@@ -376,7 +381,8 @@ func TestRegisterUIRoutes_NilLogger(t *testing.T) {
 	router := gin.New()
 
 	// Should not panic
-	RegisterUIRoutes(router, nil)
+	uiHandler := NewUIHandler(nil, nil)
+	RegisterUIRoutes(router, uiHandler)
 }
 
 func TestUIHandler_DashboardHandler_ContentType(t *testing.T) {
@@ -420,7 +426,8 @@ func TestUIHandler_DashboardHandler_NotFound(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	RegisterUIRoutes(router, logger)
+	uiHandler := NewUIHandler(logger, nil)
+	RegisterUIRoutes(router, uiHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/nonexistent", http.NoBody)
 	w := httptest.NewRecorder()
