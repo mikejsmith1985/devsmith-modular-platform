@@ -90,7 +90,8 @@ else
         
         # Run golangci-lint on packages (not individual files)
         # This prevents false "undefined" errors from missing import context
-        LINT_OUTPUT=$(golangci-lint run $MODIFIED_PACKAGES 2>&1 || true)
+        # Use --fast to skip slow linters, --timeout to prevent hangs
+        LINT_OUTPUT=$(golangci-lint run $MODIFIED_PACKAGES --fast --timeout=30s 2>&1 || true)
         
         # Filter output to only show errors from MODIFIED files
         # This prevents errors in other files in the same package from being reported
