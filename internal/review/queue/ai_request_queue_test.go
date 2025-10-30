@@ -210,3 +210,7 @@ func TestQueue_Dequeue_Blocking(t *testing.T) {
 	assert.Nil(t, req2)
 	assert.NoError(t, err)
 }
+
+// Errors and types
+// REMOVED: ErrQueueFull, AIRequest, AIResponse, RequestStatus, Queue
+// These are now defined in interfaces.go
