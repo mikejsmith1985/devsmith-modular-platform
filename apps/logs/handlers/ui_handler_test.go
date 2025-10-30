@@ -149,7 +149,7 @@ func TestRegisterUIRoutes_DashboardRoute(t *testing.T) {
 	router := gin.New()
 	logger := logrus.New()
 	logger.Out = io.Discard
-	
+
 	uiHandler := NewUIHandler(logger, nil)
 	RegisterUIRoutes(router, uiHandler)
 
@@ -371,7 +371,7 @@ func TestRegisterUIRoutes_NilRouter(t *testing.T) {
 
 	logger := logrus.New()
 	logger.Out = io.Discard
-	
+
 	uiHandler := NewUIHandler(logger, nil)
 	RegisterUIRoutes(nil, uiHandler)
 }
