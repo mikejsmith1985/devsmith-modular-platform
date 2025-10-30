@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 )
 
 func main() {
@@ -13,8 +13,8 @@ func main() {
 	r := gin.Default()
 
 	// Dashboard routes (middleware temporarily disabled for testing)
-	r.GET("/dashboard", handlers.DashboardHandler)
-	r.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
+	r.GET("/dashboard", portal_handlers.DashboardHandler)
+	r.GET("/api/v1/dashboard/user", portal_handlers.GetUserInfoHandler)
 
 	// Start the server
 	if err := r.Run(":8080"); err != nil {

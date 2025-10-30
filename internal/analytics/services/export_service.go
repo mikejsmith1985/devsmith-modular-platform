@@ -1,5 +1,5 @@
-// Package services provides the implementation of analytics services.
-package services
+// Package analytics_services provides the implementation of analytics services.
+package analytics_services
 
 import (
 	"context"
@@ -13,19 +13,19 @@ import (
 
 	"path/filepath"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/sirupsen/logrus"
 )
 
 // ExportService provides methods for exporting analytics data to various formats.
 type ExportService struct {
-	aggregationRepo db.AggregationRepositoryInterface
+	aggregationRepo analytics_db.AggregationRepositoryInterface
 	logger          *logrus.Logger
 }
 
 // NewExportService creates a new instance of ExportService with the provided dependencies.
-func NewExportService(aggregationRepo db.AggregationRepositoryInterface, logger *logrus.Logger) *ExportService {
+func NewExportService(aggregationRepo analytics_db.AggregationRepositoryInterface, logger *logrus.Logger) *ExportService {
 	return &ExportService{
 		aggregationRepo: aggregationRepo,
 		logger:          logger,
@@ -34,15 +34,15 @@ func NewExportService(aggregationRepo db.AggregationRepositoryInterface, logger 
 
 // ExportToCSV exports aggregation data to a CSV file. It retrieves data from the repository
 // and writes it to the specified file path in CSV format.
-// func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.MetricType, service string, filePath string) error {
-func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.MetricType, service, filePath string) error {
+// func (s *ExportService) ExportToCSV(ctx context.Context, metricType analytics_models.MetricType, service string, filePath string) error {
+func (s *ExportService) ExportToCSV(ctx context.Context, metricType analytics_models.MetricType, service, filePath string) error {
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
 		"service":    service,
 		"filePath":   filePath,
 	}).Info("Exporting data to CSV")
 
-	aggregations, err := s.aggregationRepo.FindByRange(ctx, metricType, service, models.MinTime, models.MaxTime)
+	aggregations, err := s.aggregationRepo.FindByRange(ctx, metricType, service, analytics_models.MinTime, analytics_models.MaxTime)
 	if err != nil {
 		s.logger.WithError(err).Error("Failed to retrieve aggregations")
 		return err
@@ -102,7 +102,7 @@ func (s *ExportService) ExportToCSV(ctx context.Context, metricType models.Metri
 
 // ExportToJSON writes the provided data to a JSON file at the specified file path.
 // ExportToJSON exports aggregations to a JSON file
-func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.MetricType, serviceAndPath ...string) error {
+func (s *ExportService) ExportToJSON(ctx context.Context, metricType analytics_models.MetricType, serviceAndPath ...string) error {
 	service, filePath := serviceAndPath[0], serviceAndPath[1]
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
@@ -110,7 +110,7 @@ func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.Metr
 		"filePath":   filePath,
 	}).Info("Exporting data to JSON")
 
-	aggregations, err := s.aggregationRepo.FindByRange(ctx, metricType, service, models.MinTime, models.MaxTime)
+	aggregations, err := s.aggregationRepo.FindByRange(ctx, metricType, service, analytics_models.MinTime, analytics_models.MaxTime)
 	if err != nil {
 		s.logger.WithError(err).Error("Failed to retrieve aggregations")
 		return err
@@ -153,7 +153,7 @@ func (s *ExportService) ExportToJSON(ctx context.Context, metricType models.Metr
 }
 
 // ExportData exports aggregations to a file (CSV or JSON) based on the file extension.
-func (s *ExportService) ExportData(ctx context.Context, metricType models.MetricType, service, filePath string) error {
+func (s *ExportService) ExportData(ctx context.Context, metricType analytics_models.MetricType, service, filePath string) error {
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
 		"service":    service,

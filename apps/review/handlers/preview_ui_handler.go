@@ -1,14 +1,14 @@
-package handlers
+package review_handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
 // RegisterPreviewUIRoutes registers the UI routes for preview mode in the review app.
-func RegisterPreviewUIRoutes(router *gin.Engine, previewService *services.PreviewService) {
+func RegisterPreviewUIRoutes(router *gin.Engine, previewService *review_services.PreviewService) {
 	router.GET("/review/preview", func(c *gin.Context) {
 		// For demo, use mock session ID and codebase
 		result, err := previewService.AnalyzePreview(c.Request.Context(), "testdata/sample_project")

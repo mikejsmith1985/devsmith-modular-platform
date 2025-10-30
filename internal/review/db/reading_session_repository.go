@@ -1,4 +1,4 @@
-package db
+package review_db
 
 import (
 	"context"

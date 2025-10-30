@@ -1,5 +1,5 @@
-// Package handlers contains HTTP request handlers for the review service.
-package handlers
+// Package cmd_review_handlers contains HTTP request handlers for the review service.
+package cmd_review_handlers
 
 import (
 	"context"

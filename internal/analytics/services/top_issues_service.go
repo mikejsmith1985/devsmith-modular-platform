@@ -1,18 +1,18 @@
-// Package services provides functionality for analytics services, including top issues analysis.
-package services
+// Package analytics_services provides functionality for analytics services, including top issues analysis.
+package analytics_services
 
 import (
 	"context"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/sirupsen/logrus"
 )
 
 // TopIssuesService provides methods to retrieve top issues.
 type TopIssuesService struct {
-	logReader db.LogReaderInterface
+	logReader analytics_db.LogReaderInterface
 	logger    *logrus.Logger
 }
 
@@ -24,7 +24,7 @@ type TopIssuesService struct {
 //
 // Returns:
 // - A pointer to the initialized TopIssuesService.
-func NewTopIssuesService(logReader db.LogReaderInterface, logger *logrus.Logger) *TopIssuesService {
+func NewTopIssuesService(logReader analytics_db.LogReaderInterface, logger *logrus.Logger) *TopIssuesService {
 	return &TopIssuesService{
 		logReader: logReader,
 		logger:    logger,
@@ -32,7 +32,7 @@ func NewTopIssuesService(logReader db.LogReaderInterface, logger *logrus.Logger)
 }
 
 // GetTopIssues retrieves the most frequent errors and warnings for a service
-func (s *TopIssuesService) GetTopIssues(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.IssueItem, error) {
+func (s *TopIssuesService) GetTopIssues(ctx context.Context, service, level string, start, end time.Time, limit int) ([]analytics_models.IssueItem, error) {
 	s.logger.WithFields(logrus.Fields{
 		"service": service,
 		"level":   level,

@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package db
+package logs_db
 
 import (
 	"context"
@@ -12,12 +12,11 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 func setupLogsIntegrationDB(ctx context.Context, t *testing.T) *sql.DB {
@@ -95,7 +94,7 @@ func TestIntegration_LogEntryRepository_Create(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	entry := &models.LogEntry{
+	entry := &logs_models.LogEntry{
 		UserID:   1,
 		Service:  "portal",
 		Level:    "info",
@@ -122,7 +121,7 @@ func TestIntegration_LogEntryRepository_GetByID(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	entry := &models.LogEntry{
+	entry := &logs_models.LogEntry{
 		UserID:   2,
 		Service:  "review",
 		Level:    "warn",
@@ -169,7 +168,7 @@ func TestIntegration_LogEntryRepository_GetByService(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	for i := 0; i < 5; i++ {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   int64(i),
 			Service:  "portal",
 			Level:    "info",
@@ -196,7 +195,7 @@ func TestIntegration_LogEntryRepository_GetByLevel(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	_, err := repo.Create(ctx, &models.LogEntry{
+	_, err := repo.Create(ctx, &logs_models.LogEntry{
 		UserID:   1,
 		Service:  "analytics",
 		Level:    "error",
@@ -223,7 +222,7 @@ func TestIntegration_LogEntryRepository_GetByUser(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	for i := 0; i < 3; i++ {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   5,
 			Service:  "review",
 			Level:    "debug",
@@ -251,7 +250,7 @@ func TestIntegration_LogEntryRepository_GetRecent(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	for i := 0; i < 5; i++ {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   int64(i),
 			Service:  "portal",
 			Level:    "info",
@@ -277,7 +276,7 @@ func TestIntegration_LogEntryRepository_GetStats(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	_, err := repo.Create(ctx, &models.LogEntry{
+	_, err := repo.Create(ctx, &logs_models.LogEntry{
 		UserID:   1,
 		Service:  "portal",
 		Level:    "info",
@@ -286,7 +285,7 @@ func TestIntegration_LogEntryRepository_GetStats(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = repo.Create(ctx, &models.LogEntry{
+	_, err = repo.Create(ctx, &logs_models.LogEntry{
 		UserID:   2,
 		Service:  "review",
 		Level:    "error",
@@ -314,7 +313,7 @@ func TestIntegration_LogEntryRepository_Count(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	for i := 0; i < 5; i++ {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   1,
 			Service:  "portal",
 			Level:    "info",
@@ -340,7 +339,7 @@ func TestIntegration_LogEntryRepository_Delete(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	created, err := repo.Create(ctx, &models.LogEntry{
+	created, err := repo.Create(ctx, &logs_models.LogEntry{
 		UserID:   1,
 		Service:  "portal",
 		Level:    "info",
@@ -369,7 +368,7 @@ func TestIntegration_LogEntryRepository_DeleteByService(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	for i := 0; i < 3; i++ {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   1,
 			Service:  "portal",
 			Level:    "info",
@@ -395,7 +394,7 @@ func TestIntegration_LogEntryRepository_DeleteOlderThan(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	_, err := repo.Create(ctx, &models.LogEntry{
+	_, err := repo.Create(ctx, &logs_models.LogEntry{
 		UserID:   1,
 		Service:  "portal",
 		Level:    "info",
@@ -428,7 +427,7 @@ func TestIntegration_LogEntryRepository_GetMetadataValue(t *testing.T) {
 	metadataJSON, err := json.Marshal(metadata)
 	require.NoError(t, err)
 
-	_, err = repo.Create(ctx, &models.LogEntry{
+	_, err = repo.Create(ctx, &logs_models.LogEntry{
 		UserID:   1,
 		Service:  "portal",
 		Level:    "error",
@@ -454,7 +453,7 @@ func TestIntegration_LogEntryRepository_Pagination(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	for i := 0; i < 10; i++ {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   1,
 			Service:  "portal",
 			Level:    "info",
@@ -488,7 +487,7 @@ func TestIntegration_LogEntryRepository_MultipleServices(t *testing.T) {
 
 	services := []string{"portal", "review", "analytics", "logs"}
 	for _, service := range services {
-		_, err := repo.Create(ctx, &models.LogEntry{
+		_, err := repo.Create(ctx, &logs_models.LogEntry{
 			UserID:   1,
 			Service:  service,
 			Level:    "info",

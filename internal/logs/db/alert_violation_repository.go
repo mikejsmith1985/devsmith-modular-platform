@@ -1,5 +1,5 @@
-// Package db provides database access and repository implementations for logs.
-package db
+// Package logs_db provides database access and repository implementations for logs.
+package logs_db
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // AlertViolationRepository handles database operations for alert threshold violations.
@@ -22,7 +22,7 @@ func NewAlertViolationRepository(db *sql.DB) *AlertViolationRepository {
 }
 
 // Create inserts a new alert violation.
-func (r *AlertViolationRepository) Create(ctx context.Context, violation *models.AlertThresholdViolation) error {
+func (r *AlertViolationRepository) Create(ctx context.Context, violation *logs_models.AlertThresholdViolation) error {
 	if violation == nil {
 		return errors.New("violation cannot be nil")
 	}
@@ -77,7 +77,7 @@ func (r *AlertViolationRepository) UpdateAlertSent(ctx context.Context, id int64
 }
 
 // GetByService retrieves violations for a service within a time range.
-func (r *AlertViolationRepository) GetByService(ctx context.Context, service string, start, end time.Time) ([]models.AlertThresholdViolation, error) {
+func (r *AlertViolationRepository) GetByService(ctx context.Context, service string, start, end time.Time) ([]logs_models.AlertThresholdViolation, error) {
 	query := `
 		SELECT id, service, level, current_count, threshold_value, timestamp, alert_sent_at
 		FROM logs.alert_violations
@@ -91,9 +91,9 @@ func (r *AlertViolationRepository) GetByService(ctx context.Context, service str
 	}
 	defer rows.Close() //nolint:errcheck // close error ignored in defer
 
-	var violations []models.AlertThresholdViolation
+	var violations []logs_models.AlertThresholdViolation
 	for rows.Next() {
-		v := models.AlertThresholdViolation{}
+		v := logs_models.AlertThresholdViolation{}
 		scanErr := rows.Scan(
 			&v.ID,
 			&v.Service,
@@ -117,7 +117,7 @@ func (r *AlertViolationRepository) GetByService(ctx context.Context, service str
 }
 
 // GetUnsent retrieves violations where alert has not been sent.
-func (r *AlertViolationRepository) GetUnsent(ctx context.Context) ([]models.AlertThresholdViolation, error) {
+func (r *AlertViolationRepository) GetUnsent(ctx context.Context) ([]logs_models.AlertThresholdViolation, error) {
 	query := `
 		SELECT id, service, level, current_count, threshold_value, timestamp, alert_sent_at
 		FROM logs.alert_violations
@@ -132,9 +132,9 @@ func (r *AlertViolationRepository) GetUnsent(ctx context.Context) ([]models.Aler
 	}
 	defer rows.Close() //nolint:errcheck // close error ignored in defer
 
-	var violations []models.AlertThresholdViolation
+	var violations []logs_models.AlertThresholdViolation
 	for rows.Next() {
-		v := models.AlertThresholdViolation{}
+		v := logs_models.AlertThresholdViolation{}
 		scanErr := rows.Scan(
 			&v.ID,
 			&v.Service,
@@ -160,7 +160,7 @@ func (r *AlertViolationRepository) GetUnsent(ctx context.Context) ([]models.Aler
 // GetRecent retrieves recent alert violations ordered by timestamp.
 //
 //nolint:dupl // Acceptable duplication: similar query pattern but different domain models
-func (r *AlertViolationRepository) GetRecent(ctx context.Context, limit int) ([]models.AlertThresholdViolation, error) {
+func (r *AlertViolationRepository) GetRecent(ctx context.Context, limit int) ([]logs_models.AlertThresholdViolation, error) {
 	query := `
 		SELECT id, service, level, current_count, threshold_value, timestamp, alert_sent_at
 		FROM logs.alert_violations
@@ -174,9 +174,9 @@ func (r *AlertViolationRepository) GetRecent(ctx context.Context, limit int) ([]
 	}
 	defer rows.Close() //nolint:errcheck // close error ignored in defer
 
-	var violations []models.AlertThresholdViolation
+	var violations []logs_models.AlertThresholdViolation
 	for rows.Next() {
-		v := models.AlertThresholdViolation{}
+		v := logs_models.AlertThresholdViolation{}
 		scanErr := rows.Scan(
 			&v.ID,
 			&v.Service,

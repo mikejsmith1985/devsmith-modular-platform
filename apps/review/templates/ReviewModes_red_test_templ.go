@@ -7,13 +7,15 @@
 
 // Each test will fail until the corresponding template/component is implemented.
 
-package templates
+package review_templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import templruntime "github.com/a-h/templ/runtime"
+import (
+	"testing"
 
-import "testing"
+	templruntime "github.com/a-h/templ/runtime"
+)
 
 func TestSessionCreationForm_RendersAndValidates(t *testing.T) {
 	t.Fatal("Session creation form not implemented")

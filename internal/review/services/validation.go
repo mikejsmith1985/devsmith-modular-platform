@@ -1,6 +1,6 @@
-// Package services provides business logic for code review analysis.
+// Package review_services provides business logic for code review analysis.
 // The validation subpackage ensures all inputs are properly validated for security and correctness.
-package services
+package review_services
 
 import (
 	"errors"

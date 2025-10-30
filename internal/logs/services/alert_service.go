@@ -1,12 +1,12 @@
-// Package services provides service implementations for logs operations.
-package services
+// Package logs_services provides service implementations for logs operations.
+package logs_services
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,17 +26,17 @@ type AlertService struct { //nolint:govet // Struct alignment optimized for memo
 
 // AlertViolationRepositoryInterface defines contract for violation persistence.
 type AlertViolationRepositoryInterface interface {
-	Create(ctx context.Context, violation *models.AlertThresholdViolation) error
+	Create(ctx context.Context, violation *logs_models.AlertThresholdViolation) error
 	UpdateAlertSent(ctx context.Context, id int64) error
-	GetUnsent(ctx context.Context) ([]models.AlertThresholdViolation, error)
+	GetUnsent(ctx context.Context) ([]logs_models.AlertThresholdViolation, error)
 }
 
 // AlertConfigRepositoryInterface defines contract for alert config persistence.
 type AlertConfigRepositoryInterface interface {
-	Create(ctx context.Context, config *models.AlertConfig) error
-	Update(ctx context.Context, config *models.AlertConfig) error
-	GetByService(ctx context.Context, service string) (*models.AlertConfig, error)
-	GetAll(ctx context.Context) ([]models.AlertConfig, error)
+	Create(ctx context.Context, config *logs_models.AlertConfig) error
+	Update(ctx context.Context, config *logs_models.AlertConfig) error
+	GetByService(ctx context.Context, service string) (*logs_models.AlertConfig, error)
+	GetAll(ctx context.Context) ([]logs_models.AlertConfig, error)
 }
 
 // NewAlertService creates a new AlertService.
@@ -55,7 +55,7 @@ func NewAlertService(
 }
 
 // CreateAlertConfig creates a new alert configuration.
-func (s *AlertService) CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
+func (s *AlertService) CreateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error {
 	if config == nil {
 		return fmt.Errorf("alert config cannot be nil")
 	}
@@ -75,7 +75,7 @@ func (s *AlertService) CreateAlertConfig(ctx context.Context, config *models.Ale
 }
 
 // UpdateAlertConfig updates an existing alert configuration.
-func (s *AlertService) UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
+func (s *AlertService) UpdateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error {
 	if config == nil {
 		return fmt.Errorf("alert config cannot be nil")
 	}
@@ -95,7 +95,7 @@ func (s *AlertService) UpdateAlertConfig(ctx context.Context, config *models.Ale
 }
 
 // GetAlertConfig retrieves alert configuration for a service.
-func (s *AlertService) GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error) {
+func (s *AlertService) GetAlertConfig(ctx context.Context, service string) (*logs_models.AlertConfig, error) {
 	config, err := s.configRepo.GetByService(ctx, service)
 	if err != nil {
 		s.logger.WithError(err).Warnf("Failed to get alert config for service %s", service)
@@ -106,14 +106,14 @@ func (s *AlertService) GetAlertConfig(ctx context.Context, service string) (*mod
 }
 
 // CheckThresholds checks if current log counts exceed alert thresholds.
-func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThresholdViolation, error) {
+func (s *AlertService) CheckThresholds(ctx context.Context) ([]logs_models.AlertThresholdViolation, error) {
 	configs, err := s.configRepo.GetAll(ctx)
 	if err != nil {
 		s.logger.WithError(err).Error("Failed to get alert configs")
-		return []models.AlertThresholdViolation{}, nil
+		return []logs_models.AlertThresholdViolation{}, nil
 	}
 
-	violations := []models.AlertThresholdViolation{}
+	violations := []logs_models.AlertThresholdViolation{}
 	now := time.Now()
 	oneMinuteAgo := now.Add(-1 * time.Minute)
 
@@ -131,7 +131,7 @@ func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThres
 		}
 
 		if errorCount > int64(config.ErrorThresholdPerMin) {
-			violation := models.AlertThresholdViolation{
+			violation := logs_models.AlertThresholdViolation{
 				Service:        config.Service,
 				Level:          "error",
 				CurrentCount:   errorCount,
@@ -148,7 +148,7 @@ func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThres
 		}
 
 		if warningCount > int64(config.WarningThresholdPerMin) {
-			violation := models.AlertThresholdViolation{
+			violation := logs_models.AlertThresholdViolation{
 				Service:        config.Service,
 				Level:          "warning",
 				CurrentCount:   warningCount,
@@ -162,7 +162,7 @@ func (s *AlertService) CheckThresholds(ctx context.Context) ([]models.AlertThres
 }
 
 // SendAlert sends an alert via email or webhook.
-func (s *AlertService) SendAlert(ctx context.Context, violation *models.AlertThresholdViolation) error {
+func (s *AlertService) SendAlert(ctx context.Context, violation *logs_models.AlertThresholdViolation) error {
 	if violation == nil {
 		return fmt.Errorf("violation cannot be nil")
 	}
@@ -192,7 +192,7 @@ func NewValidationAggregation(logReader LogReaderInterface, logger *logrus.Logge
 //   - service: Filter by service (empty string = all services)
 //   - limit: Maximum number of errors to return (default 10, max 50)
 //   - days: Number of days to look back (default 7, max 365)
-func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service string, limit, days int) ([]models.ValidationError, error) {
+func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service string, limit, days int) ([]logs_models.ValidationError, error) {
 	// Validate and constrain parameters
 	if limit <= 0 {
 		limit = 10
@@ -214,14 +214,14 @@ func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service strin
 	messages, err := va.logReader.FindTopMessages(ctx, service, "warning", startTime, endTime, limit)
 	if err != nil {
 		va.logger.WithError(err).WithField("service", service).Warn("Failed to query validation errors")
-		return []models.ValidationError{}, fmt.Errorf("failed to query validation errors: %w", err)
+		return []logs_models.ValidationError{}, fmt.Errorf("failed to query validation errors: %w", err)
 	}
 
 	// Convert LogMessage to ValidationError
 	// This provides a richer data structure with affected services tracking
-	result := make([]models.ValidationError, len(messages))
+	result := make([]logs_models.ValidationError, len(messages))
 	for i, msg := range messages {
-		result[i] = models.ValidationError{
+		result[i] = logs_models.ValidationError{
 			ErrorType:        "validation_error",
 			Message:          msg.Message,
 			Count:            int64(msg.Count),
@@ -241,7 +241,7 @@ func (va *ValidationAggregation) GetTopErrors(ctx context.Context, service strin
 //
 // Returns a time-series of error counts, useful for visualizing error rate trends
 // and identifying patterns in validation failures.
-func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]models.ErrorTrend, error) {
+func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]logs_models.ErrorTrend, error) {
 	// Validate and constrain parameters
 	if days <= 0 {
 		days = 7
@@ -261,7 +261,7 @@ func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service str
 	errorCount, err := va.logReader.CountByServiceAndLevel(ctx, service, "warning", startTime, endTime)
 	if err != nil {
 		va.logger.WithError(err).WithField("service", service).Warn("Failed to query error trends")
-		return []models.ErrorTrend{}, fmt.Errorf("failed to query error trends: %w", err)
+		return []logs_models.ErrorTrend{}, fmt.Errorf("failed to query error trends: %w", err)
 	}
 
 	// Create trend entry
@@ -275,7 +275,7 @@ func (va *ValidationAggregation) GetErrorTrends(ctx context.Context, service str
 	}
 
 	timestamp := startTime.Round(intervalDuration)
-	result := []models.ErrorTrend{
+	result := []logs_models.ErrorTrend{
 		{
 			Timestamp:        timestamp,
 			ErrorCount:       errorCount,

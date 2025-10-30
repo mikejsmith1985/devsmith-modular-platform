@@ -1,4 +1,4 @@
-package handlers
+package cmd_logs_handlers
 
 import (
 	"bytes"

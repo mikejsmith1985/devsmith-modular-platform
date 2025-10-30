@@ -1,12 +1,12 @@
-// Package db provides database interaction logic for analytics aggregations.
-package db
+// Package analytics_db provides database interaction logic for analytics aggregations.
+package analytics_db
 
 import (
 	"context"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 )
 
 // AggregationRepository provides methods to interact with the aggregation data.
@@ -22,7 +22,7 @@ func NewAggregationRepository(db *pgxpool.Pool) *AggregationRepository {
 
 // Upsert creates or updates an aggregation for a time bucket.
 // It ensures that the aggregation data remains up-to-date.
-func (r *AggregationRepository) Upsert(ctx context.Context, agg *models.Aggregation) error {
+func (r *AggregationRepository) Upsert(ctx context.Context, agg *analytics_models.Aggregation) error {
 	query := `
 		INSERT INTO analytics.aggregations (metric_type, service, value, time_bucket, created_at)
 		VALUES ($1, $2, $3, $4, NOW())
@@ -35,7 +35,7 @@ func (r *AggregationRepository) Upsert(ctx context.Context, agg *models.Aggregat
 
 // FindByRange retrieves aggregations within a specified time range.
 // It filters results by metric type and service.
-func (r *AggregationRepository) FindByRange(ctx context.Context, metricType models.MetricType, service string, start, end time.Time) ([]*models.Aggregation, error) {
+func (r *AggregationRepository) FindByRange(ctx context.Context, metricType analytics_models.MetricType, service string, start, end time.Time) ([]*analytics_models.Aggregation, error) {
 	query := `
 		SELECT id, metric_type, service, value, time_bucket, created_at
 		FROM analytics.aggregations
@@ -48,9 +48,9 @@ func (r *AggregationRepository) FindByRange(ctx context.Context, metricType mode
 	}
 	defer rows.Close()
 
-	var aggregations []*models.Aggregation
+	var aggregations []*analytics_models.Aggregation
 	for rows.Next() {
-		agg := &models.Aggregation{}
+		agg := &analytics_models.Aggregation{}
 		if err := rows.Scan(&agg.ID, &agg.MetricType, &agg.Service, &agg.Value, &agg.TimeBucket, &agg.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func (r *AggregationRepository) FindAllServices(ctx context.Context) ([]string, 
 // AggregationRepositoryInterface defines the methods for aggregation repository operations.
 // This ensures compatibility with services.
 type AggregationRepositoryInterface interface {
-	Upsert(ctx context.Context, agg *models.Aggregation) error
-	FindByRange(ctx context.Context, metricType models.MetricType, service string, start, end time.Time) ([]*models.Aggregation, error)
+	Upsert(ctx context.Context, agg *analytics_models.Aggregation) error
+	FindByRange(ctx context.Context, metricType analytics_models.MetricType, service string, start, end time.Time) ([]*analytics_models.Aggregation, error)
 	FindAllServices(ctx context.Context) ([]string, error)
 }

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // Entry holds cached data with expiration time.
@@ -198,7 +198,7 @@ func (dc *DashboardCache) cleanupExpired() {
 }
 
 // GetDashboardStats retrieves cached dashboard stats.
-func (dc *DashboardCache) GetDashboardStats(ctx context.Context) (*models.DashboardStats, error) {
+func (dc *DashboardCache) GetDashboardStats(ctx context.Context) (*logs_models.DashboardStats, error) {
 	data, err := dc.Get(ctx, "dashboard_stats")
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func (dc *DashboardCache) GetDashboardStats(ctx context.Context) (*models.Dashbo
 		return nil, nil
 	}
 
-	stats, ok := data.(*models.DashboardStats)
+	stats, ok := data.(*logs_models.DashboardStats)
 	if !ok {
 		return nil, fmt.Errorf("cached data is not DashboardStats")
 	}
@@ -217,12 +217,12 @@ func (dc *DashboardCache) GetDashboardStats(ctx context.Context) (*models.Dashbo
 }
 
 // SetDashboardStats stores dashboard stats in the cache.
-func (dc *DashboardCache) SetDashboardStats(ctx context.Context, stats *models.DashboardStats) error {
+func (dc *DashboardCache) SetDashboardStats(ctx context.Context, stats *logs_models.DashboardStats) error {
 	return dc.Set(ctx, "dashboard_stats", stats)
 }
 
 // GetServiceStats retrieves cached service stats.
-func (dc *DashboardCache) GetServiceStats(ctx context.Context, service string) (*models.LogStats, error) {
+func (dc *DashboardCache) GetServiceStats(ctx context.Context, service string) (*logs_models.LogStats, error) {
 	key := fmt.Sprintf("service_stats_%s", service)
 	data, err := dc.Get(ctx, key)
 	if err != nil {
@@ -233,7 +233,7 @@ func (dc *DashboardCache) GetServiceStats(ctx context.Context, service string) (
 		return nil, nil
 	}
 
-	stats, ok := data.(*models.LogStats)
+	stats, ok := data.(*logs_models.LogStats)
 	if !ok {
 		return nil, fmt.Errorf("cached data is not LogStats")
 	}
@@ -242,13 +242,13 @@ func (dc *DashboardCache) GetServiceStats(ctx context.Context, service string) (
 }
 
 // SetServiceStats stores service stats in the cache.
-func (dc *DashboardCache) SetServiceStats(ctx context.Context, service string, stats *models.LogStats) error {
+func (dc *DashboardCache) SetServiceStats(ctx context.Context, service string, stats *logs_models.LogStats) error {
 	key := fmt.Sprintf("service_stats_%s", service)
 	return dc.Set(ctx, key, stats)
 }
 
 // GetHealthStats retrieves cached health stats.
-func (dc *DashboardCache) GetHealthStats(ctx context.Context) (map[string]*models.ServiceHealth, error) {
+func (dc *DashboardCache) GetHealthStats(ctx context.Context) (map[string]*logs_models.ServiceHealth, error) {
 	data, err := dc.Get(ctx, "health_stats")
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func (dc *DashboardCache) GetHealthStats(ctx context.Context) (map[string]*model
 		return nil, nil
 	}
 
-	health, ok := data.(map[string]*models.ServiceHealth)
+	health, ok := data.(map[string]*logs_models.ServiceHealth)
 	if !ok {
 		return nil, fmt.Errorf("cached data is not health stats")
 	}
@@ -267,6 +267,6 @@ func (dc *DashboardCache) GetHealthStats(ctx context.Context) (map[string]*model
 }
 
 // SetHealthStats stores health stats in the cache.
-func (dc *DashboardCache) SetHealthStats(ctx context.Context, health map[string]*models.ServiceHealth) error {
+func (dc *DashboardCache) SetHealthStats(ctx context.Context, health map[string]*logs_models.ServiceHealth) error {
 	return dc.Set(ctx, "health_stats", health)
 }

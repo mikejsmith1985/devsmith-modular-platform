@@ -1,5 +1,5 @@
-// Package services provides the implementation of analytics services.
-package services
+// Package analytics_services provides the implementation of analytics services.
+package analytics_services
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/sirupsen/logrus"
 )
 
@@ -92,8 +92,8 @@ func (s *AggregatorService) aggregateService(ctx context.Context, service string
 			"count":   count,
 		}).Debug("Log count retrieved")
 
-		agg := &models.Aggregation{
-			MetricType: models.MetricType("log_count"),
+		agg := &analytics_models.Aggregation{
+			MetricType: analytics_models.MetricType("log_count"),
 			Service:    service,
 			Value:      float64(count),
 			TimeBucket: start,
@@ -138,8 +138,8 @@ func (s *AggregatorService) FindAllServices(ctx context.Context) ([]string, erro
 // Returns:
 // - An error if the operation fails.
 func (s *AggregatorService) Upsert(ctx context.Context, service, level string, count int, timestamp time.Time) error {
-	aggregation := &models.Aggregation{
-		MetricType: models.MetricType("log_count"),
+	aggregation := &analytics_models.Aggregation{
+		MetricType: analytics_models.MetricType("log_count"),
 		Service:    service,
 		Value:      float64(count),
 		TimeBucket: timestamp,

@@ -1,5 +1,5 @@
-// Package db provides database access and repository implementations for log entries.
-package db
+// Package logs_db provides database access and repository implementations for log entries.
+package logs_db
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // QueryOptions holds options for querying log entries
@@ -121,7 +121,7 @@ func (s *SearchQuery) Validate() error {
 }
 
 // ValidateLogEntryForCreate validates a log entry before creation
-func ValidateLogEntryForCreate(entry *models.LogEntry) error {
+func ValidateLogEntryForCreate(entry *logs_models.LogEntry) error {
 	if entry == nil {
 		return fmt.Errorf("db: log entry cannot be nil")
 	}
@@ -169,7 +169,7 @@ func NewLogEntryRepository(db *sql.DB) *LogEntryRepository {
 }
 
 // queryLogEntries executes a query and returns scanned log entries.
-func (r *LogEntryRepository) queryLogEntries(ctx context.Context, query string, args ...interface{}) ([]models.LogEntry, error) {
+func (r *LogEntryRepository) queryLogEntries(ctx context.Context, query string, args ...interface{}) ([]logs_models.LogEntry, error) {
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -180,9 +180,9 @@ func (r *LogEntryRepository) queryLogEntries(ctx context.Context, query string, 
 		}
 	}()
 
-	var entries []models.LogEntry
+	var entries []logs_models.LogEntry
 	for rows.Next() {
-		var entry models.LogEntry
+		var entry logs_models.LogEntry
 		scanErr := rows.Scan(&entry.ID, &entry.UserID, &entry.Service, &entry.Level, &entry.Message, &entry.Metadata, &entry.CreatedAt)
 		if scanErr != nil {
 			return nil, fmt.Errorf("db: failed to scan log entry: %w", scanErr)
@@ -198,7 +198,7 @@ func (r *LogEntryRepository) queryLogEntries(ctx context.Context, query string, 
 }
 
 // Create inserts a new log entry and returns the created entry with ID.
-func (r *LogEntryRepository) Create(ctx context.Context, entry *models.LogEntry) (*models.LogEntry, error) {
+func (r *LogEntryRepository) Create(ctx context.Context, entry *logs_models.LogEntry) (*logs_models.LogEntry, error) {
 	metadataBytes := entry.Metadata
 	if metadataBytes == nil {
 		metadataBytes = []byte("{}")
@@ -223,13 +223,13 @@ func (r *LogEntryRepository) Create(ctx context.Context, entry *models.LogEntry)
 }
 
 // GetByID retrieves a log entry by its ID.
-func (r *LogEntryRepository) GetByID(ctx context.Context, id int64) (*models.LogEntry, error) {
+func (r *LogEntryRepository) GetByID(ctx context.Context, id int64) (*logs_models.LogEntry, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries WHERE id = $1`,
 		id,
 	)
 
-	var entry models.LogEntry
+	var entry logs_models.LogEntry
 	err := row.Scan(&entry.ID, &entry.UserID, &entry.Service, &entry.Level, &entry.Message, &entry.Metadata, &entry.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -242,7 +242,7 @@ func (r *LogEntryRepository) GetByID(ctx context.Context, id int64) (*models.Log
 }
 
 // GetByService retrieves log entries filtered by service name.
-func (r *LogEntryRepository) GetByService(ctx context.Context, service string, limit, offset int) ([]models.LogEntry, error) {
+func (r *LogEntryRepository) GetByService(ctx context.Context, service string, limit, offset int) ([]logs_models.LogEntry, error) {
 	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
 	         WHERE service = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	entries, err := r.queryLogEntries(ctx, query, service, limit, offset)
@@ -253,7 +253,7 @@ func (r *LogEntryRepository) GetByService(ctx context.Context, service string, l
 }
 
 // GetByLevel retrieves log entries filtered by level.
-func (r *LogEntryRepository) GetByLevel(ctx context.Context, level string, limit, offset int) ([]models.LogEntry, error) {
+func (r *LogEntryRepository) GetByLevel(ctx context.Context, level string, limit, offset int) ([]logs_models.LogEntry, error) {
 	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
 	         WHERE level = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	entries, err := r.queryLogEntries(ctx, query, level, limit, offset)
@@ -264,7 +264,7 @@ func (r *LogEntryRepository) GetByLevel(ctx context.Context, level string, limit
 }
 
 // GetByUser retrieves log entries for a specific user.
-func (r *LogEntryRepository) GetByUser(ctx context.Context, userID int64, limit, offset int) ([]models.LogEntry, error) {
+func (r *LogEntryRepository) GetByUser(ctx context.Context, userID int64, limit, offset int) ([]logs_models.LogEntry, error) {
 	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
 	         WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	entries, err := r.queryLogEntries(ctx, query, userID, limit, offset)
@@ -275,7 +275,7 @@ func (r *LogEntryRepository) GetByUser(ctx context.Context, userID int64, limit,
 }
 
 // GetRecent retrieves the most recent log entries.
-func (r *LogEntryRepository) GetRecent(ctx context.Context, limit int) ([]models.LogEntry, error) {
+func (r *LogEntryRepository) GetRecent(ctx context.Context, limit int) ([]logs_models.LogEntry, error) {
 	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
 	         ORDER BY created_at DESC LIMIT $1`
 	entries, err := r.queryLogEntries(ctx, query, limit)
@@ -385,12 +385,12 @@ func (r *LogEntryRepository) Count(ctx context.Context) (int64, error) {
 //
 // Usage Example:
 //
-//	entries := []*models.LogEntry{
+//	entries := []*logs_models.LogEntry{
 //		{Service: "portal", Level: "info", Message: "User login", Timestamp: time.Now()},
 //		{Service: "review", Level: "error", Message: "API timeout", Timestamp: time.Now()},
 //	}
 //	err := repo.BulkInsert(ctx, entries)
-func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*models.LogEntry) error {
+func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*logs_models.LogEntry) error {
 	if len(entries) == 0 {
 		return nil
 	}

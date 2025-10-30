@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/cache"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // TestNewDashboardCache creates a new dashboard cache.
@@ -29,7 +29,7 @@ func TestNewDashboardCache(t *testing.T) {
 func TestCacheSet(t *testing.T) {
 	// GIVEN: A cache and dashboard stats
 	c := cache.NewDashboardCache(5 * time.Minute)
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: time.Now(),
 	}
 
@@ -44,7 +44,7 @@ func TestCacheSet(t *testing.T) {
 func TestCacheGet(t *testing.T) {
 	// GIVEN: Cache with stored stats
 	c := cache.NewDashboardCache(5 * time.Minute)
-	originalStats := &models.DashboardStats{
+	originalStats := &logs_models.DashboardStats{
 		GeneratedAt: time.Now(),
 	}
 	err := c.Set(context.Background(), "dashboard", originalStats)
@@ -57,7 +57,7 @@ func TestCacheGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, retrieved)
 
-	stats, ok := retrieved.(*models.DashboardStats)
+	stats, ok := retrieved.(*logs_models.DashboardStats)
 	require.True(t, ok)
 	assert.Equal(t, originalStats.GeneratedAt, stats.GeneratedAt)
 }
@@ -79,7 +79,7 @@ func TestCacheMiss(t *testing.T) {
 func TestCacheExpiry(t *testing.T) {
 	// GIVEN: Cache with short TTL
 	c := cache.NewDashboardCache(100 * time.Millisecond)
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: time.Now(),
 	}
 	err := c.Set(context.Background(), "dashboard", stats)
@@ -98,7 +98,7 @@ func TestCacheExpiry(t *testing.T) {
 func TestCacheDelete(t *testing.T) {
 	// GIVEN: Cache with stored entry
 	c := cache.NewDashboardCache(5 * time.Minute)
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: time.Now(),
 	}
 	err := c.Set(context.Background(), "dashboard", stats)
@@ -118,7 +118,7 @@ func TestCacheDelete(t *testing.T) {
 func TestCacheClear(t *testing.T) {
 	// GIVEN: Cache with multiple entries
 	c := cache.NewDashboardCache(5 * time.Minute)
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: time.Now(),
 	}
 	err := c.Set(context.Background(), "key1", stats)
@@ -144,7 +144,7 @@ func TestCacheContextCancellation(t *testing.T) {
 	cancel()
 
 	c := cache.NewDashboardCache(5 * time.Minute)
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: time.Now(),
 	}
 
@@ -159,7 +159,7 @@ func TestCacheContextCancellation(t *testing.T) {
 func TestCacheServiceStatsGet(t *testing.T) {
 	// GIVEN: Cache with service stats
 	c := cache.NewDashboardCache(5 * time.Minute)
-	serviceStats := &models.LogStats{
+	serviceStats := &logs_models.LogStats{
 		Service:    "api-service",
 		TotalCount: 100,
 	}
@@ -177,8 +177,8 @@ func TestCacheServiceStatsGet(t *testing.T) {
 func TestCacheHealthStatsGet(t *testing.T) {
 	// GIVEN: Cache with health stats
 	c := cache.NewDashboardCache(5 * time.Minute)
-	healthStats := make(map[string]*models.ServiceHealth)
-	healthStats["service1"] = &models.ServiceHealth{
+	healthStats := make(map[string]*logs_models.ServiceHealth)
+	healthStats["service1"] = &logs_models.ServiceHealth{
 		Service: "service1",
 		Status:  "OK",
 	}

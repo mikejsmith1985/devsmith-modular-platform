@@ -1,4 +1,4 @@
-package services
+package review_services
 
 import (
 	"strings"

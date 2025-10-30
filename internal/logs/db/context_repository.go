@@ -1,6 +1,6 @@
-// Package db provides database access for log entries.
+// Package logs_db provides database access for log entries.
 // This package implements repository pattern for correlation context operations.
-package db
+package logs_db
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // Database constants for correlation queries
@@ -59,13 +59,13 @@ func (r *ContextRepository) GetCorrelatedLogs(
 	ctx context.Context,
 	correlationID string,
 	limit, offset int,
-) ([]models.LogEntry, error) {
+) ([]logs_models.LogEntry, error) {
 	if correlationID == "" {
 		return nil, errors.New("correlation_id required")
 	}
 
 	if r.db == nil {
-		return []models.LogEntry{}, nil
+		return []logs_models.LogEntry{}, nil
 	}
 
 	// Validate pagination
@@ -97,9 +97,9 @@ func (r *ContextRepository) GetCorrelatedLogs(
 		}
 	}()
 
-	var logs []models.LogEntry
+	var logs []logs_models.LogEntry
 	for rows.Next() {
-		var log models.LogEntry
+		var log logs_models.LogEntry
 		var contextJSON sql.NullString
 
 		err := rows.Scan(
@@ -117,7 +117,7 @@ func (r *ContextRepository) GetCorrelatedLogs(
 
 		// Parse context if present
 		if contextJSON.Valid {
-			ctx := &models.CorrelationContext{}
+			ctx := &logs_models.CorrelationContext{}
 			if err := json.Unmarshal([]byte(contextJSON.String), ctx); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal context: %w", err)
 			}

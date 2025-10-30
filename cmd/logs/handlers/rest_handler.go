@@ -1,4 +1,4 @@
-package handlers
+package cmd_logs_handlers
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // Pagination and query parameter constants
@@ -49,9 +49,9 @@ type LogService interface {
 // AlertThresholdService defines the interface for alert threshold operations.
 // This interface matches the AlertService implementation in internal/logs/services
 type AlertThresholdService interface {
-	CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error
-	GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error)
-	UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error
+	CreateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error
+	GetAlertConfig(ctx context.Context, service string) (*logs_models.AlertConfig, error)
+	UpdateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error
 }
 
 // parsePagination extracts and validates pagination parameters.
@@ -243,8 +243,8 @@ func DeleteLogs(svc LogService) gin.HandlerFunc {
 
 // ValidationAggregationInterface defines the interface for validation error aggregation.
 type ValidationAggregationInterface interface {
-	GetTopErrors(ctx context.Context, service string, limit int, days int) ([]models.ValidationError, error)
-	GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]models.ErrorTrend, error)
+	GetTopErrors(ctx context.Context, service string, limit int, days int) ([]logs_models.ValidationError, error)
+	GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]logs_models.ErrorTrend, error)
 }
 
 // GetDashboardStats handles GET /api/logs/dashboard/stats - returns real-time validation stats.
@@ -386,7 +386,7 @@ func CreateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 			return
 		}
 
-		config := &models.AlertConfig{
+		config := &logs_models.AlertConfig{
 			Service:                req.Service,
 			AlertEmail:             req.AlertEmail,
 			AlertWebhookURL:        req.AlertWebhookURL,
@@ -445,7 +445,7 @@ func UpdateAlertConfig(svc AlertThresholdService) gin.HandlerFunc {
 			return
 		}
 
-		config := &models.AlertConfig{
+		config := &logs_models.AlertConfig{
 			Service:                service,
 			ErrorThresholdPerMin:   req.ErrorThresholdPerMin,
 			WarningThresholdPerMin: req.WarningThresholdPerMin,

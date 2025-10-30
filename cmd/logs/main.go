@@ -15,8 +15,8 @@ import (
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
@@ -93,18 +93,18 @@ func main() {
 	debug.RegisterDebugRoutes(router, "logs")
 
 	// Initialize database repositories for REST API
-	logRepo := db.NewLogRepository(dbConn)
-	restSvc := services.NewRestLogService(logRepo, logger)
+	logRepo := logs_db.NewLogRepository(dbConn)
+	restSvc := logs_services.NewRestLogService(logRepo, logger)
 
 	// Issue #023: Production Enhancements - Initialize alert and aggregation services
-	alertConfigRepo := db.NewAlertConfigRepository(dbConn)
-	alertViolationRepo := db.NewAlertViolationRepository(dbConn)
+	alertConfigRepo := logs_db.NewAlertConfigRepository(dbConn)
+	alertViolationRepo := logs_db.NewAlertViolationRepository(dbConn)
 
 	// Create alert service for threshold management (implements AlertThresholdService interface)
-	alertSvc := services.NewAlertService(alertViolationRepo, alertConfigRepo, logRepo, logger)
+	alertSvc := logs_services.NewAlertService(alertViolationRepo, alertConfigRepo, logRepo, logger)
 
 	// Create validation aggregation service for analytics
-	validationAgg := services.NewValidationAggregation(logRepo, logger)
+	validationAgg := logs_services.NewValidationAggregation(logRepo, logger)
 
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
@@ -166,19 +166,19 @@ func main() {
 	})
 
 	// Initialize WebSocket hub
-	hub := services.NewWebSocketHub()
+	hub := logs_services.NewWebSocketHub()
 	go hub.Run()
 
 	// Register WebSocket routes
-	services.RegisterWebSocketRoutes(router, hub)
+	logs_services.RegisterWebSocketRoutes(router, hub)
 
 	// Health check endpoint (system-wide diagnostics)
 	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
 
 	// Phase 3: Health Intelligence - Initialize services
-	storageService := services.NewHealthStorageService(dbConn)
-	policyService := services.NewHealthPolicyService(dbConn)
-	repairService := services.NewAutoRepairService(dbConn, policyService)
+	storageService := logs_services.NewHealthStorageService(dbConn)
+	policyService := logs_services.NewHealthPolicyService(dbConn)
+	repairService := logs_services.NewAutoRepairService(dbConn, policyService)
 
 	// Initialize default policies on startup
 	if err := policyService.InitializeDefaultPolicies(context.Background()); err != nil {
@@ -201,7 +201,7 @@ func main() {
 	router.POST("/api/health/repair/:service", resthandlers.ManualRepair(repairService, storageService))
 
 	// Start health scheduler (runs background checks every 5 minutes)
-	scheduler := services.NewHealthScheduler(5*time.Minute, storageService, repairService)
+	scheduler := logs_services.NewHealthScheduler(5*time.Minute, storageService, repairService)
 	go scheduler.Start()
 
 	log.Println("Health intelligence system initialized - scheduler running every 5 minutes")

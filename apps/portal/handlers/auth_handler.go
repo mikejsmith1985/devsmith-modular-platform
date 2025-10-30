@@ -1,5 +1,5 @@
-// Package handlers contains the HTTP handlers for the Portal service.
-package handlers
+// Package portal_handlers contains the HTTP handlers for the Portal service.
+package portal_handlers
 
 import (
 	"database/sql"

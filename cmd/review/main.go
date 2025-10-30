@@ -8,12 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/review/handlers"
+	app_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -90,16 +90,16 @@ func main() {
 	}
 
 	// Repository and service setup
-	analysisRepo := db.NewAnalysisRepository(sqlDB)
+	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
 
 	// TODO: Replace with real Ollama client implementation
-	ollamaClient := &services.OllamaClientStub{}
+	ollamaClient := &review_services.OllamaClientStub{}
 
 	// Wire up services (if needed for future handler expansion)
-	_ = services.NewSkimService(ollamaClient, analysisRepo, reviewLogger)
-	_ = services.NewScanService(ollamaClient, analysisRepo, reviewLogger)
-	_ = services.NewDetailedService(ollamaClient, analysisRepo, reviewLogger)
-	_ = services.NewPreviewService(reviewLogger)
+	_ = review_services.NewSkimService(ollamaClient, analysisRepo, reviewLogger)
+	_ = review_services.NewScanService(ollamaClient, analysisRepo, reviewLogger)
+	_ = review_services.NewDetailedService(ollamaClient, analysisRepo, reviewLogger)
+	_ = review_services.NewPreviewService(reviewLogger)
 
 	// Prepare logging client to send lightweight events to Logs service (optional)
 	var logClient *logging.Client
@@ -110,7 +110,7 @@ func main() {
 	}
 
 	// Handler setup (UIHandler takes logger and optional logging client)
-	uiHandler := handlers.NewUIHandler(reviewLogger, logClient)
+	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient)
 
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)

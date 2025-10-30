@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +22,7 @@ type UserClaims struct {
 func TestDashboardWithOAuthCookies(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.GET("/dashboard", handlers.DashboardHandler)
+	router.GET("/dashboard", portal_handlers.DashboardHandler)
 
 	// Generate a valid JWT for the devsmith_token cookie
 	jwtKey := []byte("your-secret-key")

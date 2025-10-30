@@ -1,12 +1,12 @@
-// Package db provides database access and repository implementations for the portal service.
-package db
+// Package portal_db provides database access and repository implementations for the portal service.
+package portal_db
 
 import (
 	"context"
 	"database/sql"
 
 	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	portal_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
 // UserRepositoryImpl implements interfaces.UserRepository and handles CRUD operations for portal.users.
@@ -21,7 +21,7 @@ func NewUserRepository(db *sql.DB) authifaces.UserRepository {
 }
 
 // CreateOrUpdate inserts or updates a user in the portal.users table by GitHub ID.
-func (r *UserRepositoryImpl) CreateOrUpdate(ctx context.Context, user *models.User) error {
+func (r *UserRepositoryImpl) CreateOrUpdate(ctx context.Context, user *portal_models.User) error {
 	// Upsert user by GitHub ID
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO portal.users (github_id, username, email, avatar_url, github_access_token, created_at, updated_at)
@@ -37,11 +37,11 @@ func (r *UserRepositoryImpl) CreateOrUpdate(ctx context.Context, user *models.Us
 }
 
 // FindByGitHubID retrieves a user by GitHub ID from the portal.users table.
-func (r *UserRepositoryImpl) FindByGitHubID(ctx context.Context, githubID int64) (*models.User, error) {
+func (r *UserRepositoryImpl) FindByGitHubID(ctx context.Context, githubID int64) (*portal_models.User, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, github_id, username, email, avatar_url, github_access_token, created_at, updated_at
          FROM portal.users WHERE github_id = $1`, githubID)
-	var user models.User
+	var user portal_models.User
 	err := row.Scan(&user.ID, &user.GitHubID, &user.Username, &user.Email, &user.AvatarURL, &user.GitHubAccessToken, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -50,11 +50,11 @@ func (r *UserRepositoryImpl) FindByGitHubID(ctx context.Context, githubID int64)
 }
 
 // FindByID retrieves a user by ID from the portal.users table.
-func (r *UserRepositoryImpl) FindByID(ctx context.Context, id int) (*models.User, error) {
+func (r *UserRepositoryImpl) FindByID(ctx context.Context, id int) (*portal_models.User, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, github_id, username, email, avatar_url, github_access_token, created_at, updated_at
          FROM portal.users WHERE id = $1`, id)
-	var user models.User
+	var user portal_models.User
 	err := row.Scan(&user.ID, &user.GitHubID, &user.Username, &user.Email, &user.AvatarURL, &user.GitHubAccessToken, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err

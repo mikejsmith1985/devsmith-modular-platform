@@ -1,5 +1,5 @@
-// Package db provides database access for review sessions and repositories.
-package db
+// Package review_db provides database access for review sessions and repositories.
+package review_db
 
 import (
 	"context"

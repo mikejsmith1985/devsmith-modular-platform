@@ -1,12 +1,12 @@
-// Package db provides database access and repository implementations for logs.
-package db
+// Package logs_db provides database access and repository implementations for logs.
+package logs_db
 
 import (
 	"context"
 	"database/sql"
 	"testing"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,7 +77,7 @@ func TestAlertConfigRepository_CreateSimple_Success(t *testing.T) {
 	repo := NewAlertConfigRepository(db)
 	ctx := context.Background()
 
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "review",
 		ErrorThresholdPerMin:   10,
 		WarningThresholdPerMin: 5,
@@ -102,7 +102,7 @@ func TestAlertConfigRepository_CreateSimple_Success(t *testing.T) {
 
 	// Test: Create alert event
 	eventRepo := NewAlertEventRepository(db)
-	event := &models.AlertEvent{
+	event := &logs_models.AlertEvent{
 		ConfigID:       config.ID,
 		ErrorCount:     15,
 		ThresholdValue: 10,

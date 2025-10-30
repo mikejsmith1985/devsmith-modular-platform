@@ -1,12 +1,12 @@
-package services_test
+package analytics_services_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -17,12 +17,12 @@ func TestTrendService_AnalyzeTrends(t *testing.T) {
 	logger, _ := test.NewNullLogger()
 	mockAggRepo := &testutils.MockAggregationRepository{}
 
-	service := services.NewTrendService(mockAggRepo, logger)
+	service := analytics_services.NewTrendService(mockAggRepo, logger)
 
 	start := time.Now().Add(-1 * time.Hour)
 	end := time.Now()
 
-	mockAggRepo.On("FindByRange", mock.Anything, models.MetricType("log_count"), "service1", start, end).Return([]*models.Aggregation{
+	mockAggRepo.On("FindByRange", mock.Anything, analytics_models.MetricType("log_count"), "service1", start, end).Return([]*analytics_models.Aggregation{
 		{
 			MetricType: "log_count",
 			Service:    "service1",
@@ -46,7 +46,7 @@ func TestTrendService_AnalyzeTrends(t *testing.T) {
 		},
 	}, nil)
 
-	trend, err := service.AnalyzeTrends(context.Background(), models.MetricType("log_count"), "service1", start, end)
+	trend, err := service.AnalyzeTrends(context.Background(), analytics_models.MetricType("log_count"), "service1", start, end)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, trend)
@@ -59,12 +59,12 @@ func TestTrendService_GetTrends(t *testing.T) {
 	mockRepo := new(testutils.MockAggregationRepository)
 	logger, _ := test.NewNullLogger()
 
-	service := services.NewTrendService(mockRepo, logger)
+	service := analytics_services.NewTrendService(mockRepo, logger)
 
 	startTime := time.Date(2025, 10, 20, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 10, 21, 0, 0, 0, 0, time.UTC)
 
-	mockRepo.On("FindByRange", mock.Anything, models.MetricType("error_rate"), "service", startTime, endTime).Return([]*models.Aggregation{
+	mockRepo.On("FindByRange", mock.Anything, analytics_models.MetricType("error_rate"), "service", startTime, endTime).Return([]*analytics_models.Aggregation{
 		{
 			MetricType: "error_rate",
 			Service:    "service1",
@@ -81,7 +81,7 @@ func TestTrendService_GetTrends(t *testing.T) {
 		},
 	}, nil)
 
-	trends, err := service.GetTrends(context.Background(), models.MetricType("error_rate"), "service", startTime, endTime)
+	trends, err := service.GetTrends(context.Background(), analytics_models.MetricType("error_rate"), "service", startTime, endTime)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, trends.Trend)

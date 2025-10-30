@@ -3,12 +3,14 @@
 // templ: version: v0.3.960
 // GREEN PHASE: Minimal Templ for Detailed mode line-by-line view
 
-package templates
+package review_templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
+import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+)
 
 // DetailedModeLineByLine displays code line-by-line with analysis
 func DetailedModeLineByLine(lines []string) templ.Component {

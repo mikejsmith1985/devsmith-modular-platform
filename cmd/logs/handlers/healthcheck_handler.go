@@ -1,4 +1,4 @@
-package handlers
+package cmd_logs_handlers
 
 import (
 	"net/http"
@@ -97,4 +97,3 @@ func GetHealthCheck(c *gin.Context) {
 		c.JSON(http.StatusOK, report)
 	}
 }
-

@@ -1,4 +1,4 @@
-package services_test
+package logs_services_test
 
 import (
 	"context"

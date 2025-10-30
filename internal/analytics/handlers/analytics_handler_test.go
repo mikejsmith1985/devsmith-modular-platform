@@ -1,11 +1,11 @@
-package handlers
+package internal_analytics_handlers
 
 import (
 	"bytes"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,11 +14,11 @@ func TestNewAnalyticsHandler(t *testing.T) {
 	logger := logrus.New()
 
 	handler := NewAnalyticsHandler(
-		(*services.AggregatorService)(nil),
-		(*services.TrendService)(nil),
-		(*services.AnomalyService)(nil),
-		(*services.TopIssuesService)(nil),
-		(*services.ExportService)(nil),
+		(*analytics_services.AggregatorService)(nil),
+		(*analytics_services.TrendService)(nil),
+		(*analytics_services.AnomalyService)(nil),
+		(*analytics_services.TopIssuesService)(nil),
+		(*analytics_services.ExportService)(nil),
 		logger,
 	)
 
@@ -32,11 +32,11 @@ func TestRegisterRoutes(t *testing.T) {
 	logger := logrus.New()
 
 	handler := NewAnalyticsHandler(
-		(*services.AggregatorService)(nil),
-		(*services.TrendService)(nil),
-		(*services.AnomalyService)(nil),
-		(*services.TopIssuesService)(nil),
-		(*services.ExportService)(nil),
+		(*analytics_services.AggregatorService)(nil),
+		(*analytics_services.TrendService)(nil),
+		(*analytics_services.AnomalyService)(nil),
+		(*analytics_services.TopIssuesService)(nil),
+		(*analytics_services.ExportService)(nil),
 		logger,
 	)
 
@@ -66,11 +66,11 @@ func TestAnalyticsHandlerFields(t *testing.T) {
 	logger.SetOutput(bytes.NewBuffer(nil))
 
 	handler := NewAnalyticsHandler(
-		(*services.AggregatorService)(nil),
-		(*services.TrendService)(nil),
-		(*services.AnomalyService)(nil),
-		(*services.TopIssuesService)(nil),
-		(*services.ExportService)(nil),
+		(*analytics_services.AggregatorService)(nil),
+		(*analytics_services.TrendService)(nil),
+		(*analytics_services.AnomalyService)(nil),
+		(*analytics_services.TopIssuesService)(nil),
+		(*analytics_services.ExportService)(nil),
 		logger,
 	)
 

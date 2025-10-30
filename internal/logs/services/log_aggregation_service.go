@@ -1,5 +1,5 @@
-// Package services provides service implementations for logs operations.
-package services
+// Package logs_services provides service implementations for logs operations.
+package logs_services
 
 import (
 	"context"

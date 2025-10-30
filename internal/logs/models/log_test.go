@@ -1,11 +1,11 @@
-package models_test
+package logs_models_test
 
 //nolint:govet // Test file: struct literals need fields for assertions
 import (
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ import (
 func TestStatsStructure(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A LogStats instance
 	now := time.Now()
-	stats := &models.LogStats{
+	stats := &logs_models.LogStats{
 		Timestamp:  now,
 		Service:    "test-service",
 		TotalCount: 100,
@@ -42,7 +42,7 @@ func TestStatsStructure(t *testing.T) { //nolint:govet // struct fields needed f
 func TestConfigStructure(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: An AlertConfig instance
 	now := time.Now()
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "test-service",
 		ErrorThresholdPerMin:   100,
 		WarningThresholdPerMin: 50,
@@ -70,7 +70,7 @@ func TestConfigStructure(t *testing.T) { //nolint:govet // struct fields needed 
 func TestHealthStructure(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A ServiceHealth instance
 	now := time.Now()
-	health := &models.ServiceHealth{
+	health := &logs_models.ServiceHealth{
 		Service:       "test-service",
 		Status:        "OK",
 		LastCheckedAt: now,
@@ -90,7 +90,7 @@ func TestHealthStructure(t *testing.T) { //nolint:govet // struct fields needed 
 // TestServiceHealthWarningStatus validates service health warning status.
 func TestHealthWarningStatus(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A ServiceHealth with warnings
-	health := &models.ServiceHealth{
+	health := &logs_models.ServiceHealth{
 		Service:      "test-service", //nolint:govet // needed for assertions
 		Status:       "Warning",
 		ErrorCount:   0,  //nolint:govet // needed for assertions
@@ -107,7 +107,7 @@ func TestHealthWarningStatus(t *testing.T) { //nolint:govet // struct fields nee
 // TestServiceHealthErrorStatus validates service health error status.
 func TestHealthErrorStatus(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A ServiceHealth with errors
-	health := &models.ServiceHealth{
+	health := &logs_models.ServiceHealth{
 		Service:    "test-service", //nolint:govet // needed for assertions
 		Status:     "Error",
 		ErrorCount: 50, //nolint:govet // needed for assertions
@@ -123,7 +123,7 @@ func TestHealthErrorStatus(t *testing.T) { //nolint:govet // struct fields neede
 func TestErrorMessageStructure(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A TopErrorMessage instance
 	now := time.Now()
-	msg := &models.TopErrorMessage{
+	msg := &logs_models.TopErrorMessage{
 		Message:   "Connection timeout",
 		Service:   "api-service",
 		Level:     "error",
@@ -145,7 +145,7 @@ func TestErrorMessageStructure(t *testing.T) { //nolint:govet // struct fields n
 func TestThresholdViolationStructure(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: An AlertThresholdViolation instance
 	now := time.Now()
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "test-service",
 		Level:          "error",
 		CurrentCount:   150,
@@ -168,7 +168,7 @@ func TestThresholdViolationStructure(t *testing.T) { //nolint:govet // struct fi
 func TestThresholdViolationWithAlert(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: An AlertThresholdViolation with alert sent
 	now := time.Now()
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "test-service", //nolint:govet // needed for assertions
 		Level:          "error",        //nolint:govet // needed for assertions
 		CurrentCount:   150,            //nolint:govet // needed for assertions
@@ -188,19 +188,19 @@ func TestThresholdViolationWithAlert(t *testing.T) { //nolint:govet // struct fi
 func TestDashboardStatsStructure(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A DashboardStats instance
 	now := time.Now()
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:      now,
-		ServiceStats:     make(map[string]*models.LogStats),
-		ServiceHealth:    make(map[string]*models.ServiceHealth),
-		TopErrors:        []models.TopErrorMessage{},         //nolint:govet // needed for assertions
-		Violations:       []models.AlertThresholdViolation{}, //nolint:govet // needed for assertions
-		TimestampOne:     now.Add(-1 * time.Hour),            //nolint:govet // needed for assertions
-		TimestampOneDay:  now.Add(-24 * time.Hour),           //nolint:govet // needed for assertions
-		TimestampOneWeek: now.Add(-168 * time.Hour),          //nolint:govet // needed for assertions
+		ServiceStats:     make(map[string]*logs_models.LogStats),
+		ServiceHealth:    make(map[string]*logs_models.ServiceHealth),
+		TopErrors:        []logs_models.TopErrorMessage{},         //nolint:govet // needed for assertions
+		Violations:       []logs_models.AlertThresholdViolation{}, //nolint:govet // needed for assertions
+		TimestampOne:     now.Add(-1 * time.Hour),                 //nolint:govet // needed for assertions
+		TimestampOneDay:  now.Add(-24 * time.Hour),                //nolint:govet // needed for assertions
+		TimestampOneWeek: now.Add(-168 * time.Hour),               //nolint:govet // needed for assertions
 	}
 
 	// WHEN: Adding service stats
-	stats.ServiceStats["service1"] = &models.LogStats{
+	stats.ServiceStats["service1"] = &logs_models.LogStats{
 		Service:    "service1",
 		TotalCount: 100,
 	}
@@ -217,16 +217,16 @@ func TestDashboardStatsStructure(t *testing.T) { //nolint:govet // struct fields
 func TestDashboardStatsMultipleServices(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: A DashboardStats with multiple services
 	now := time.Now()
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:   now, //nolint:govet // needed for assertions
-		ServiceStats:  make(map[string]*models.LogStats),
-		ServiceHealth: make(map[string]*models.ServiceHealth), //nolint:govet // needed for assertions
+		ServiceStats:  make(map[string]*logs_models.LogStats),
+		ServiceHealth: make(map[string]*logs_models.ServiceHealth), //nolint:govet // needed for assertions
 	}
 
 	// WHEN: Adding multiple services
 	for i := 1; i <= 3; i++ {
 		service := "service" + string(rune('0'+i))
-		stats.ServiceStats[service] = &models.LogStats{
+		stats.ServiceStats[service] = &logs_models.LogStats{
 			Service:    service,
 			TotalCount: int64(i * 100),
 		}
@@ -243,7 +243,7 @@ func TestDashboardStatsMultipleServices(t *testing.T) { //nolint:govet // struct
 // TestLogStats validates LogStats with zero values.
 func TestLogStats(t *testing.T) { //nolint:govet // struct fields needed for assertions
 	// GIVEN: An empty LogStats
-	stats := &models.LogStats{}
+	stats := &logs_models.LogStats{}
 
 	// WHEN: Accessing default values
 	// THEN: Fields have zero values

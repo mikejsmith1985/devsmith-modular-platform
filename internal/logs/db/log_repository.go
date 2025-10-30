@@ -1,5 +1,5 @@
-// Package db provides database access and query/filter types for log entries.
-package db
+// Package logs_db provides database access and query/filter types for log entries.
+package logs_db
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // LogEntry represents a log entry in the database.
@@ -393,9 +393,9 @@ func (r *LogRepository) CountByServiceAndLevel(ctx context.Context, service, lev
 
 // FindTopMessages finds the most frequent log messages matching criteria.
 // nolint:dupl // Similar query pattern is acceptable for database operations
-func (r *LogRepository) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.LogMessage, error) {
+func (r *LogRepository) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]logs_models.LogMessage, error) {
 	if r.db == nil {
-		return []models.LogMessage{}, nil
+		return []logs_models.LogMessage{}, nil
 	}
 
 	if limit <= 0 {
@@ -419,7 +419,7 @@ func (r *LogRepository) FindTopMessages(ctx context.Context, service, level stri
 	//nolint:errcheck // Best effort to close rows
 	defer rows.Close()
 
-	var messages []models.LogMessage
+	var messages []logs_models.LogMessage
 	for rows.Next() {
 		var message string
 		var count int64
@@ -427,7 +427,7 @@ func (r *LogRepository) FindTopMessages(ctx context.Context, service, level stri
 		if err := rows.Scan(&message, &count, &lastSeen); err != nil {
 			return nil, fmt.Errorf("failed to scan message: %w", err)
 		}
-		messages = append(messages, models.LogMessage{
+		messages = append(messages, logs_models.LogMessage{
 			Message:  message,
 			Count:    int(count),
 			LastSeen: lastSeen,

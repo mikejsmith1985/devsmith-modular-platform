@@ -1,4 +1,4 @@
-package db
+package portal_db
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	portal_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -28,7 +28,7 @@ func TestUserRepository_CreateOrUpdateAndFind(t *testing.T) {
 	repo := NewUserRepository(db)
 	ctx := context.Background()
 
-	user := &models.User{
+	user := &portal_models.User{
 		GitHubID:          123456,
 		Username:          "testuser",
 		Email:             "test@example.com",

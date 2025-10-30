@@ -1,4 +1,4 @@
-package middleware
+package internal_review_middleware
 
 import (
 	"context"

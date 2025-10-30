@@ -1,5 +1,5 @@
-// Package db provides database access and repository implementations for logs.
-package db
+// Package logs_db provides database access and repository implementations for logs.
+package logs_db
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -111,7 +111,7 @@ func TestAlertConfigRepository_Create_WritesToDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	// Create alert config
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "review",
 		ErrorThresholdPerMin:   10,
 		WarningThresholdPerMin: 5,
@@ -145,7 +145,7 @@ func TestAlertConfigRepository_Update_WritesToDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	// Create initial config
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "portal",
 		ErrorThresholdPerMin:   5,
 		WarningThresholdPerMin: 2,
@@ -184,7 +184,7 @@ func TestAlertEventRepository_Create_WritesToDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	// First, create a config
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "analytics",
 		ErrorThresholdPerMin:   15,
 		WarningThresholdPerMin: 8,
@@ -194,7 +194,7 @@ func TestAlertEventRepository_Create_WritesToDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create alert event
-	event := &models.AlertEvent{
+	event := &logs_models.AlertEvent{
 		ConfigID:       config.ID,
 		ErrorCount:     20,
 		ThresholdValue: 15,
@@ -229,7 +229,7 @@ func TestAlertEventRepository_GetByConfigID_WritesToDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	// Create config
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "logs",
 		ErrorThresholdPerMin:   25,
 		WarningThresholdPerMin: 12,
@@ -241,7 +241,7 @@ func TestAlertEventRepository_GetByConfigID_WritesToDatabase(t *testing.T) {
 	// Create multiple alert events
 	eventIDs := make([]int64, 3)
 	for i := 0; i < 3; i++ {
-		event := &models.AlertEvent{
+		event := &logs_models.AlertEvent{
 			ConfigID:       config.ID,
 			ErrorCount:     30 + i*5,
 			ThresholdValue: 25,
@@ -278,7 +278,7 @@ func TestAlertConfigRepository_Delete_RemovesFromDatabase(t *testing.T) {
 	ctx := context.Background()
 
 	// Create config
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:              "temp-service",
 		ErrorThresholdPerMin: 10,
 		Enabled:              true,

@@ -1,5 +1,5 @@
-// Package handlers provides HTTP handlers for logs operations.
-package handlers
+// Package internal_logs_handlers provides HTTP handlers for logs operations.
+package internal_logs_handlers
 
 import (
 	"context"
@@ -7,20 +7,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/cache"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
 // CachedDashboardHandler provides caching layer for dashboard endpoints.
 type CachedDashboardHandler struct { //nolint:govet // struct alignment optimized for readability
-	dashboardService services.DashboardServiceInterface
+	dashboardService logs_services.DashboardServiceInterface
 	cache            *cache.DashboardCache
 	logger           *logrus.Logger
 }
 
 // NewCachedDashboardHandler creates a new cached dashboard handler.
 func NewCachedDashboardHandler(
-	dashboardService services.DashboardServiceInterface,
+	dashboardService logs_services.DashboardServiceInterface,
 	c *cache.DashboardCache,
 	logger *logrus.Logger,
 ) *CachedDashboardHandler {

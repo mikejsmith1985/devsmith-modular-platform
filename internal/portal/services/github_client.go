@@ -1,5 +1,5 @@
-// Package services provides GitHub API integration for the portal service.
-package services
+// Package portal_services provides GitHub API integration for the portal service.
+package portal_services
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"log"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	portal_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
 // GitHubClientImpl implements the GitHubClient interface for interacting with GitHub's API.
@@ -62,7 +62,7 @@ func (g *GitHubClientImpl) ExchangeCodeForToken(ctx context.Context, code string
 }
 
 // GetUserProfile fetches the authenticated user's GitHub profile using the access token.
-func (g *GitHubClientImpl) GetUserProfile(ctx context.Context, accessToken string) (*models.GitHubProfile, error) {
+func (g *GitHubClientImpl) GetUserProfile(ctx context.Context, accessToken string) (*portal_models.GitHubProfile, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", http.NoBody)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (g *GitHubClientImpl) GetUserProfile(ctx context.Context, accessToken strin
 	if err := json.NewDecoder(resp.Body).Decode(&profile); err != nil {
 		return nil, err
 	}
-	return &models.GitHubProfile{
+	return &portal_models.GitHubProfile{
 		ID:        profile.ID,
 		Username:  profile.Login,
 		Email:     profile.Email,

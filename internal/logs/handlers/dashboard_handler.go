@@ -1,5 +1,5 @@
-// Package handlers provides HTTP handlers for logs operations.
-package handlers
+// Package internal_logs_handlers provides HTTP handlers for logs operations.
+package internal_logs_handlers
 
 import (
 	"errors"
@@ -8,19 +8,19 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
 // DashboardHandler handles dashboard-related HTTP endpoints.
 type DashboardHandler struct {
-	dashboardService services.DashboardServiceInterface
+	dashboardService logs_services.DashboardServiceInterface
 	logger           *logrus.Logger
 }
 
 // NewDashboardHandler creates a new DashboardHandler.
-func NewDashboardHandler(dashboardService services.DashboardServiceInterface, logger *logrus.Logger) *DashboardHandler {
+func NewDashboardHandler(dashboardService logs_services.DashboardServiceInterface, logger *logrus.Logger) *DashboardHandler {
 	return &DashboardHandler{
 		dashboardService: dashboardService,
 		logger:           logger,
@@ -140,7 +140,7 @@ func (h *DashboardHandler) GetTopErrors(c *gin.Context) {
 	}
 
 	if errors == nil {
-		errors = []models.TopErrorMessage{}
+		errors = []logs_models.TopErrorMessage{}
 	}
 
 	c.JSON(http.StatusOK, Response{
@@ -149,7 +149,7 @@ func (h *DashboardHandler) GetTopErrors(c *gin.Context) {
 	})
 }
 
-// GetServiceHealth returns health status for all services.
+// GetServiceHealth returns health status for all logs_services.
 // @Summary Get Service Health
 // @Description Retrieve health status for all services
 // @Produce json
@@ -169,7 +169,7 @@ func (h *DashboardHandler) GetServiceHealth(c *gin.Context) {
 	}
 
 	if health == nil {
-		health = make(map[string]*models.ServiceHealth)
+		health = make(map[string]*logs_models.ServiceHealth)
 	}
 
 	c.JSON(http.StatusOK, Response{

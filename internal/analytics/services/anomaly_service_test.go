@@ -1,12 +1,12 @@
-package services_test
+package analytics_services_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/testutils"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -17,12 +17,12 @@ func TestAnomalyService_DetectAnomalies(t *testing.T) {
 	mockRepo := new(testutils.MockAggregationRepository)
 	logger := logrus.New()
 
-	service := services.NewAnomalyService(mockRepo, logger)
+	service := analytics_services.NewAnomalyService(mockRepo, logger)
 
 	start := time.Now().Add(-1 * time.Hour)
 	end := time.Now()
 
-	mockRepo.On("FindByRange", mock.Anything, models.MetricType("error_frequency"), "service1", start, end).Return([]*models.Aggregation{
+	mockRepo.On("FindByRange", mock.Anything, analytics_models.MetricType("error_frequency"), "service1", start, end).Return([]*analytics_models.Aggregation{
 		{Value: 100, TimeBucket: time.Now().Add(-1 * time.Hour)},
 		{Value: 105, TimeBucket: time.Now().Add(-45 * time.Minute)},
 		{Value: 400, TimeBucket: time.Now().Add(-30 * time.Minute)},
@@ -30,7 +30,7 @@ func TestAnomalyService_DetectAnomalies(t *testing.T) {
 		{Value: 1000, TimeBucket: time.Now().Add(-15 * time.Minute)}, // Extreme anomaly with reduced variance
 	}, nil)
 
-	anomalies, err := service.DetectAnomalies(context.Background(), models.MetricType("error_frequency"), "service1", start, end)
+	anomalies, err := service.DetectAnomalies(context.Background(), analytics_models.MetricType("error_frequency"), "service1", start, end)
 
 	assert.NoError(t, err)
 	assert.Greater(t, len(anomalies), 0, "Anomalies should not be empty")

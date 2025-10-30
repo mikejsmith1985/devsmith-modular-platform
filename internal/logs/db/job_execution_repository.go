@@ -1,5 +1,5 @@
-// Package db provides database access and repository implementations for logs.
-package db
+// Package logs_db provides database access and repository implementations for logs.
+package logs_db
 
 import (
 	"context"

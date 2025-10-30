@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
 // MockLogReader mocks the LogReaderInterface.
@@ -37,12 +37,12 @@ func (m *MockLogReader) CountByServiceAndLevel(ctx context.Context, service, lev
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *MockLogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.LogMessage, error) {
+func (m *MockLogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]logs_models.LogMessage, error) {
 	args := m.Called(ctx, service, level, start, end, limit)
 	if args.Get(0) == nil {
-		return []models.LogMessage{}, args.Error(1)
+		return []logs_models.LogMessage{}, args.Error(1)
 	}
-	return args.Get(0).([]models.LogMessage), args.Error(1)
+	return args.Get(0).([]logs_models.LogMessage), args.Error(1)
 }
 
 // TestDashboardEndToEnd tests complete dashboard flow.
@@ -51,10 +51,10 @@ func TestDashboardEndToEnd(t *testing.T) {
 	mockReader := new(MockLogReader)
 	mockReader.On("FindAllServices", mock.Anything).Return([]string{"api-service", "db-service"}, nil)
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(10), nil)
-	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.LogMessage{}, nil)
+	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]logs_models.LogMessage{}, nil)
 
 	logger := logrus.New()
-	dashboardService := services.NewDashboardService(mockReader, logger)
+	dashboardService := logs_services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Getting dashboard stats
 	stats, err := dashboardService.GetDashboardStats(context.Background())
@@ -73,10 +73,10 @@ func TestMultipleServicesDashboard(t *testing.T) {
 	mockReader := new(MockLogReader)
 	mockReader.On("FindAllServices", mock.Anything).Return(serviceList, nil)
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(50), nil)
-	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.LogMessage{}, nil)
+	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]logs_models.LogMessage{}, nil)
 
 	logger := logrus.New()
-	dashboardService := services.NewDashboardService(mockReader, logger)
+	dashboardService := logs_services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Getting dashboard stats
 	stats, err := dashboardService.GetDashboardStats(context.Background())
@@ -94,7 +94,7 @@ func TestErrorHandlingIntegration(t *testing.T) {
 	mockReader.On("FindAllServices", mock.Anything).Return(nil, sql.ErrNoRows)
 
 	logger := logrus.New()
-	dashboardService := services.NewDashboardService(mockReader, logger)
+	dashboardService := logs_services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Getting dashboard stats with error
 	stats, err := dashboardService.GetDashboardStats(context.Background())
@@ -107,7 +107,7 @@ func TestErrorHandlingIntegration(t *testing.T) {
 // TestAlertThresholdWorkflow tests alert threshold detection workflow.
 func TestAlertThresholdWorkflow(t *testing.T) {
 	// GIVEN: System with threshold violations
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "api-service",
 		Level:          "error",
 		CurrentCount:   150,
@@ -129,7 +129,7 @@ func TestAggregationJobWorkflow(t *testing.T) {
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(100), nil)
 
 	logger := logrus.New()
-	aggregationService := services.NewLogAggregationService(mockReader, logger)
+	aggregationService := logs_services.NewLogAggregationService(mockReader, logger)
 
 	// WHEN: Running hourly aggregation
 	err := aggregationService.AggregateLogsHourly(context.Background())
@@ -142,7 +142,7 @@ func TestAggregationJobWorkflow(t *testing.T) {
 func TestWebSocketRealtimeWorkflow(t *testing.T) {
 	// GIVEN: WebSocket service with connected clients
 	logger := logrus.New()
-	wsService := services.NewWebSocketRealtimeService(logger)
+	wsService := logs_services.NewWebSocketRealtimeService(logger)
 
 	// WHEN: Registering and unregistering connections
 	err1 := wsService.RegisterConnection(context.Background(), "client-1")
@@ -170,10 +170,10 @@ func TestConcurrentAccessWorkflow(t *testing.T) {
 	mockReader := new(MockLogReader)
 	mockReader.On("FindAllServices", mock.Anything).Return([]string{"api-service"}, nil)
 	mockReader.On("CountByServiceAndLevel", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(50), nil)
-	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.LogMessage{}, nil)
+	mockReader.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]logs_models.LogMessage{}, nil)
 
 	logger := logrus.New()
-	dashboardService := services.NewDashboardService(mockReader, logger)
+	dashboardService := logs_services.NewDashboardService(mockReader, logger)
 
 	// WHEN: Making concurrent requests
 	done := make(chan bool, 3)

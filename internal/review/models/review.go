@@ -1,5 +1,5 @@
-// Package models contains data structures for review service analysis results and code abstractions.
-package models
+// Package review_models contains data structures for review service analysis results and code abstractions.
+package review_models
 
 // ScanModeOutput contains results for Scan Mode analysis.
 // It includes a summary and a list of code matches.

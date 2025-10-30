@@ -1,11 +1,11 @@
-package handlers
+package cmd_logs_handlers
 
 import (
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
 // parseLimit extracts and validates limit from query parameters
@@ -28,7 +28,7 @@ func sendJSONResponse(c *gin.Context, data interface{}, count int) {
 }
 
 // GetHealthHistory returns recent health checks
-func GetHealthHistory(storage *services.HealthStorageService) gin.HandlerFunc {
+func GetHealthHistory(storage *logs_services.HealthStorageService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		limit := parseLimit(c, 50, 1000)
 		checks, err := storage.GetRecentChecks(c.Request.Context(), limit)
@@ -43,7 +43,7 @@ func GetHealthHistory(storage *services.HealthStorageService) gin.HandlerFunc {
 }
 
 // GetHealthTrends returns trend data for a service
-func GetHealthTrends(storage *services.HealthStorageService) gin.HandlerFunc {
+func GetHealthTrends(storage *logs_services.HealthStorageService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {
@@ -76,7 +76,7 @@ func GetHealthTrends(storage *services.HealthStorageService) gin.HandlerFunc {
 }
 
 // GetHealthPolicies returns all health policies
-func GetHealthPolicies(policy *services.HealthPolicyService) gin.HandlerFunc {
+func GetHealthPolicies(policy *logs_services.HealthPolicyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		policies, err := policy.GetAllPolicies(c.Request.Context())
 		if err != nil {
@@ -95,7 +95,7 @@ func GetHealthPolicies(policy *services.HealthPolicyService) gin.HandlerFunc {
 }
 
 // GetHealthPolicy returns a specific service's policy
-func GetHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
+func GetHealthPolicy(policy *logs_services.HealthPolicyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {
@@ -121,7 +121,7 @@ func GetHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 }
 
 // UpdateHealthPolicy updates a service's health policy
-func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
+func UpdateHealthPolicy(policy *logs_services.HealthPolicyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {
@@ -146,7 +146,7 @@ func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 			return
 		}
 
-		svcPolicy := &services.HealthPolicy{
+		svcPolicy := &logs_services.HealthPolicy{
 			ServiceName:       service,
 			MaxResponseTimeMs: req.MaxResponseTimeMs,
 			AutoRepairEnabled: req.AutoRepairEnabled,
@@ -171,7 +171,7 @@ func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 }
 
 // GetRepairHistory returns recent auto-repair actions
-func GetRepairHistory(repair *services.AutoRepairService) gin.HandlerFunc {
+func GetRepairHistory(repair *logs_services.AutoRepairService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		limit := parseLimit(c, 50, 1000)
 		repairs, err := repair.GetRepairHistory(c.Request.Context(), limit)
@@ -186,7 +186,7 @@ func GetRepairHistory(repair *services.AutoRepairService) gin.HandlerFunc {
 }
 
 // ManualRepair triggers a manual repair for a service
-func ManualRepair(repair *services.AutoRepairService, storage *services.HealthStorageService) gin.HandlerFunc {
+func ManualRepair(repair *logs_services.AutoRepairService, storage *logs_services.HealthStorageService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {

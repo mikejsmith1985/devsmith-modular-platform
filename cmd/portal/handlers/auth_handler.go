@@ -1,13 +1,13 @@
-// Package handlers contains HTTP handlers for the portal service.
-package handlers
+// Package cmd_portal_handlers contains HTTP handlers for the portal service.
+package cmd_portal_handlers
 
 import (
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/services"
+	portal_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/db"
+	portal_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/services"
 
 	// "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
 	"database/sql"
@@ -18,9 +18,9 @@ import (
 // RegisterAuthRoutes registers authentication-related routes for the portal service.
 func RegisterAuthRoutes(r *gin.Engine, dbConn *sql.DB) {
 	logger := zerolog.New(os.Stdout)
-	userRepo := db.NewUserRepository(dbConn)
-	githubClient := services.NewGitHubClient(os.Getenv("GITHUB_CLIENT_ID"), os.Getenv("GITHUB_CLIENT_SECRET"))
-	authService := services.NewAuthService(userRepo, githubClient, os.Getenv("JWT_SECRET"), &logger, nil, nil)
+	userRepo := portal_db.NewUserRepository(dbConn)
+	githubClient := portal_services.NewGitHubClient(os.Getenv("GITHUB_CLIENT_ID"), os.Getenv("GITHUB_CLIENT_SECRET"))
+	authService := portal_services.NewAuthService(userRepo, githubClient, os.Getenv("JWT_SECRET"), &logger, nil, nil)
 
 	r.GET("/auth/github/login", func(c *gin.Context) {
 		clientID := os.Getenv("GITHUB_CLIENT_ID")

@@ -1,4 +1,4 @@
-package services
+package logs_services
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +39,7 @@ func TestContextService_GenerateCorrelationID_Format(t *testing.T) {
 // TestContextService_EnrichContext_GeneratesID tests that enrichment generates missing ID
 func TestContextService_EnrichContext_GeneratesID(t *testing.T) {
 	service := NewContextService(nil)
-	ctx := &models.CorrelationContext{}
+	ctx := &logs_models.CorrelationContext{}
 
 	enriched := service.EnrichContext(ctx)
 
@@ -52,7 +52,7 @@ func TestContextService_EnrichContext_GeneratesID(t *testing.T) {
 func TestContextService_EnrichContext_PreservesExistingID(t *testing.T) {
 	service := NewContextService(nil)
 	existingID := "test-correlation-id-123"
-	ctx := &models.CorrelationContext{
+	ctx := &logs_models.CorrelationContext{
 		CorrelationID: existingID,
 	}
 
@@ -64,7 +64,7 @@ func TestContextService_EnrichContext_PreservesExistingID(t *testing.T) {
 // TestContextService_EnrichContext_AddsHostname tests that enrichment adds hostname
 func TestContextService_EnrichContext_AddsHostname(t *testing.T) {
 	service := NewContextService(nil)
-	ctx := &models.CorrelationContext{}
+	ctx := &logs_models.CorrelationContext{}
 
 	enriched := service.EnrichContext(ctx)
 
@@ -84,7 +84,7 @@ func TestContextService_EnrichContext_AddsEnvironment(t *testing.T) {
 	t.Run("WithEnvironmentVar", func(t *testing.T) {
 		os.Setenv("ENVIRONMENT", "production")
 		service := NewContextService(nil)
-		ctx := &models.CorrelationContext{}
+		ctx := &logs_models.CorrelationContext{}
 
 		enriched := service.EnrichContext(ctx)
 
@@ -94,7 +94,7 @@ func TestContextService_EnrichContext_AddsEnvironment(t *testing.T) {
 	t.Run("WithoutEnvironmentVar", func(t *testing.T) {
 		os.Unsetenv("ENVIRONMENT")
 		service := NewContextService(nil)
-		ctx := &models.CorrelationContext{}
+		ctx := &logs_models.CorrelationContext{}
 
 		enriched := service.EnrichContext(ctx)
 
@@ -110,7 +110,7 @@ func TestContextService_EnrichContext_AddsVersion(t *testing.T) {
 	t.Run("WithVersionVar", func(t *testing.T) {
 		os.Setenv("SERVICE_VERSION", "1.2.3")
 		service := NewContextService(nil)
-		ctx := &models.CorrelationContext{}
+		ctx := &logs_models.CorrelationContext{}
 
 		enriched := service.EnrichContext(ctx)
 
@@ -120,7 +120,7 @@ func TestContextService_EnrichContext_AddsVersion(t *testing.T) {
 	t.Run("WithoutVersionVar", func(t *testing.T) {
 		os.Unsetenv("SERVICE_VERSION")
 		service := NewContextService(nil)
-		ctx := &models.CorrelationContext{}
+		ctx := &logs_models.CorrelationContext{}
 
 		enriched := service.EnrichContext(ctx)
 
@@ -131,7 +131,7 @@ func TestContextService_EnrichContext_AddsVersion(t *testing.T) {
 // TestContextService_EnrichContext_SetsTimestamps tests that enrichment sets timestamps
 func TestContextService_EnrichContext_SetsTimestamps(t *testing.T) {
 	service := NewContextService(nil)
-	ctx := &models.CorrelationContext{}
+	ctx := &logs_models.CorrelationContext{}
 
 	beforeEnrich := time.Now()
 	enriched := service.EnrichContext(ctx)
@@ -147,7 +147,7 @@ func TestContextService_EnrichContext_SetsTimestamps(t *testing.T) {
 func TestContextService_EnrichContext_PreservesExistingTimestamps(t *testing.T) {
 	service := NewContextService(nil)
 	oldTime := time.Now().Add(-24 * time.Hour)
-	ctx := &models.CorrelationContext{
+	ctx := &logs_models.CorrelationContext{
 		CreatedAt: oldTime,
 	}
 
@@ -228,7 +228,7 @@ func TestContextService_EnrichContext_AllFields(t *testing.T) {
 	defer os.Unsetenv("SERVICE_VERSION")
 
 	service := NewContextService(nil)
-	ctx := &models.CorrelationContext{
+	ctx := &logs_models.CorrelationContext{
 		RequestID: "req-123",
 		Method:    "POST",
 		Path:      "/api/test",

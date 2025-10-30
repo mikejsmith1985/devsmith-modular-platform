@@ -1,14 +1,14 @@
-// Package middleware provides HTTP middleware for the logs service.
+// Package cmd_logs_middleware provides HTTP middleware for the logs service.
 // This package handles correlation context extraction and propagation for distributed tracing.
-package middleware
+package cmd_logs_middleware
 
 import (
 	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
 // HTTP header constants for correlation context
@@ -45,9 +45,9 @@ const (
 //
 // Example:
 //
-//	contextService := services.NewContextService(repo)
+//	contextService := logs_services.NewContextService(repo)
 //	router.Use(CorrelationMiddleware(contextService))
-func CorrelationMiddleware(contextService *services.ContextService) gin.HandlerFunc {
+func CorrelationMiddleware(contextService *logs_services.ContextService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Extract or generate correlation ID
 		correlationID := c.GetHeader(HeaderCorrelationID)
@@ -65,7 +65,7 @@ func CorrelationMiddleware(contextService *services.ContextService) gin.HandlerF
 		spanID := extractSpanID(traceID)
 
 		// Build correlation context from request
-		ctx := &models.CorrelationContext{
+		ctx := &logs_models.CorrelationContext{
 			CorrelationID: correlationID,
 			TraceID:       traceID,
 			SpanID:        spanID,
@@ -138,15 +138,15 @@ func extractSpanID(traceparent string) string {
 //	    ctx := GetCorrelationContext(c)
 //	    log.Printf("Correlation ID: %s", ctx.CorrelationID)
 //	}
-func GetCorrelationContext(c *gin.Context) *models.CorrelationContext {
+func GetCorrelationContext(c *gin.Context) *logs_models.CorrelationContext {
 	if ctx, exists := c.Get(ContextKey); exists {
-		if correlationCtx, ok := ctx.(*models.CorrelationContext); ok {
+		if correlationCtx, ok := ctx.(*logs_models.CorrelationContext); ok {
 			return correlationCtx
 		}
 	}
 
 	// Fallback: create minimal context from headers
-	return &models.CorrelationContext{
+	return &logs_models.CorrelationContext{
 		CorrelationID: c.GetHeader(HeaderCorrelationID),
 	}
 }

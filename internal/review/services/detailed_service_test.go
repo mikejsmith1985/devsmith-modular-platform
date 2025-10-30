@@ -1,4 +1,4 @@
-package services
+package review_services
 
 import (
 	"context"
@@ -74,7 +74,7 @@ func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
 		"lines": [
 			{
 				"line_num": 10,
-				"code": "db.Exec(sql)",
+				"code": "review_db.Exec(sql)",
 				"explanation": "Executes database query",
 				"complexity": "high",
 				"side_effects": ["Database write", "Triggers audit log"],
@@ -89,7 +89,7 @@ func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-	output, err := service.AnalyzeDetailed(context.Background(), 1, "db.go")
+	output, err := service.AnalyzeDetailed(context.Background(), 1, "review_db.go")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "high", output.Lines[0].Complexity)

@@ -1,23 +1,23 @@
-// Package handlers provides HTTP handlers for logs operations.
-package handlers
+// Package internal_logs_handlers provides HTTP handlers for logs operations.
+package internal_logs_handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
 // AlertHandler handles alert-related HTTP endpoints.
 type AlertHandler struct {
-	alertService services.AlertServiceInterface
+	alertService logs_services.AlertServiceInterface
 	logger       *logrus.Logger
 }
 
 // NewAlertHandler creates a new AlertHandler.
-func NewAlertHandler(alertService services.AlertServiceInterface, logger *logrus.Logger) *AlertHandler {
+func NewAlertHandler(alertService logs_services.AlertServiceInterface, logger *logrus.Logger) *AlertHandler {
 	return &AlertHandler{
 		alertService: alertService,
 		logger:       logger,
@@ -63,7 +63,7 @@ func (h *AlertHandler) CreateAlertConfig(c *gin.Context) {
 		return
 	}
 
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                req.Service,
 		ErrorThresholdPerMin:   req.ErrorThresholdPerMin,
 		WarningThresholdPerMin: req.WarningThresholdPerMin,
@@ -214,7 +214,7 @@ func (h *AlertHandler) CheckThresholds(c *gin.Context) {
 	}
 
 	if violations == nil {
-		violations = []models.AlertThresholdViolation{}
+		violations = []logs_models.AlertThresholdViolation{}
 	}
 
 	c.JSON(http.StatusOK, Response{

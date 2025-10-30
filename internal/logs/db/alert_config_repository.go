@@ -1,5 +1,5 @@
-// Package db provides database access and repository implementations for logs.
-package db
+// Package logs_db provides database access and repository implementations for logs.
+package logs_db
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // AlertConfigRepository handles database operations for alert configurations.
@@ -22,7 +22,7 @@ func NewAlertConfigRepository(db *sql.DB) *AlertConfigRepository {
 }
 
 // Create inserts a new alert configuration.
-func (r *AlertConfigRepository) Create(ctx context.Context, config *models.AlertConfig) error {
+func (r *AlertConfigRepository) Create(ctx context.Context, config *logs_models.AlertConfig) error {
 	if config == nil {
 		return errors.New("alert config cannot be nil")
 	}
@@ -57,7 +57,7 @@ func (r *AlertConfigRepository) Create(ctx context.Context, config *models.Alert
 }
 
 // GetByService retrieves an alert configuration by service name.
-func (r *AlertConfigRepository) GetByService(ctx context.Context, service string) (*models.AlertConfig, error) {
+func (r *AlertConfigRepository) GetByService(ctx context.Context, service string) (*logs_models.AlertConfig, error) {
 	query := `
 		SELECT id, service, error_threshold_per_min, warning_threshold_per_min, 
 		       alert_email, alert_webhook_url, enabled, created_at, updated_at
@@ -65,7 +65,7 @@ func (r *AlertConfigRepository) GetByService(ctx context.Context, service string
 		WHERE service = $1
 	`
 
-	config := &models.AlertConfig{}
+	config := &logs_models.AlertConfig{}
 	err := r.db.QueryRowContext(ctx, query, service).Scan(
 		&config.ID,
 		&config.Service,
@@ -89,7 +89,7 @@ func (r *AlertConfigRepository) GetByService(ctx context.Context, service string
 }
 
 // Update modifies an existing alert configuration.
-func (r *AlertConfigRepository) Update(ctx context.Context, config *models.AlertConfig) error {
+func (r *AlertConfigRepository) Update(ctx context.Context, config *logs_models.AlertConfig) error {
 	if config == nil || config.ID == 0 {
 		return errors.New("alert config must have valid ID")
 	}
@@ -135,7 +135,7 @@ func (r *AlertConfigRepository) Update(ctx context.Context, config *models.Alert
 }
 
 // GetAll retrieves all alert configurations.
-func (r *AlertConfigRepository) GetAll(ctx context.Context) ([]models.AlertConfig, error) {
+func (r *AlertConfigRepository) GetAll(ctx context.Context) ([]logs_models.AlertConfig, error) {
 	query := `
 		SELECT id, service, error_threshold_per_min, warning_threshold_per_min,
 		       alert_email, alert_webhook_url, enabled, created_at, updated_at
@@ -149,9 +149,9 @@ func (r *AlertConfigRepository) GetAll(ctx context.Context) ([]models.AlertConfi
 	}
 	defer rows.Close() //nolint:errcheck // close error ignored in defer
 
-	var configs []models.AlertConfig
+	var configs []logs_models.AlertConfig
 	for rows.Next() {
-		config := models.AlertConfig{}
+		config := logs_models.AlertConfig{}
 		scanErr := rows.Scan(
 			&config.ID,
 			&config.Service,

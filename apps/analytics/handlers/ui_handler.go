@@ -1,11 +1,11 @@
-// Package handlers provides HTTP handlers for the analytics UI service.
-package handlers
+// Package analytics_handlers provides HTTP handlers for the analytics UI service.
+package analytics_handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/templates"
+	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/templates"
 	"github.com/sirupsen/logrus"
 )
 
