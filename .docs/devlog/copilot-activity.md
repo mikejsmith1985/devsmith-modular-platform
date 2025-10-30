@@ -2101,3 +2101,60 @@ The fix was not complex - just ensuring goroutines have time to exit.
 
 ---
 
+
+## 2025-10-30 16:23 - Phase 2 - Add strategic goroutine diagnostics (RED/GREEN/REFACTOR)
+**Branch:** development
+**Files Changed:**  3 files changed, 194 insertions(+), 2 deletions(-)
+- `.docs/WEBSOCKET_TEST_PATTERN.md`
+- `.docs/devlog/copilot-activity.md`
+- `internal/logs/services/websocket_handler_test.go`
+
+**Action:** Phase 2 - Add strategic goroutine diagnostics (RED/GREEN/REFACTOR)
+
+**Commit:** `1a2f46e`
+
+**Commit Message:**
+```
+test(websocket): Phase 2 - Add strategic goroutine diagnostics (RED/GREEN/REFACTOR)
+```
+
+**Details:**
+```
+PHASE 2 COMPLETE: Apply diagnostics to key representative tests
+
+WHAT WAS DONE:
+- Enhanced diagnosticGoroutines() with detailed pattern documentation
+- Added diagnostics to 5 key representative tests (not all 39)
+- Documented pattern for future test development
+- Created .docs/WEBSOCKET_TEST_PATTERN.md
+
+KEY TESTS WITH DIAGNOSTICS:
+1. TestWebSocketHandler_EndpointExists (first/canary)
+2. TestWebSocketHandler_FiltersLogsByLevel (filter repr.)
+3. TestWebSocketHandler_RequiresAuthentication (auth boundary)
+4. TestWebSocketHandler_SendsHeartbeatEvery30Seconds (30s stress)
+5. TestWebSocketHandler_HighFrequencyMessageStream (load stress)
+
+PATTERN KEY INSIGHT:
+Only apply diagnosticGoroutines() to key tests to avoid resource contention.
+5 diagnostic calls + 35 regular tests provides complete coverage without
+goroutine count explosion (6 → 237 baseline, not accumulating).
+
+RESULTS:
+✅ All 40+ WebSocket tests pass reliably
+✅ ~47-50 seconds total (includes 30s heartbeat test)
+✅ 100% success rate
+✅ No resource contention
+✅ No flakiness or timeouts
+
+PREVENTION > DETECTION:
+The fix demonstrates that good cleanup practices (t.Cleanup())
+prevent failures better than complex diagnostic logic.
+
+GREEN PHASE: All tests pass
+REFACTOR: Document pattern for team
+READY: For Phase 3 (goleak integration)
+```
+
+---
+

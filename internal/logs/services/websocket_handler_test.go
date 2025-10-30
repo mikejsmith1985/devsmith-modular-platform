@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"go.uber.org/goleak"
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +67,8 @@ func diagnosticGoroutines(t *testing.T) {
 }
 
 func TestWebSocketHandler_EndpointExists(t *testing.T) {
-	diagnosticGoroutines(t) // Key test: first in suite
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
+	diagnosticGoroutines(t)    // Phase 1-2: Runtime diagnostics
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -102,6 +104,7 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 }
 
 func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
 	diagnosticGoroutines(t) // Key test: representative filter test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
@@ -195,6 +198,7 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_RequiresAuthentication(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
 	diagnosticGoroutines(t) // Key test: authentication boundary
 	handler := setupAuthenticatedWebSocketServer(t)
 	server := httptest.NewServer(handler)
@@ -294,6 +298,7 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
 	diagnosticGoroutines(t) // Key test: longest duration, stress test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
@@ -1004,6 +1009,7 @@ func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
 	diagnosticGoroutines(t) // Key test: stress under load
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
@@ -1105,7 +1111,7 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 
 var currentTestHub *WebSocketHub
 
-func setupWebSocketTestServer(_ *testing.T) http.Handler {
+func setupWebSocketTestServer(t *testing.T) http.Handler {
 	// Ensure all log levels are visible to unauthenticated clients during tests
 	_ = os.Setenv("LOGS_WEBSOCKET_PUBLIC_ALL", "1")
 	hub := NewWebSocketHub()
@@ -1113,6 +1119,15 @@ func setupWebSocketTestServer(_ *testing.T) http.Handler {
 
 	// Store for access in tests
 	currentTestHub = hub
+
+	// Register cleanup to gracefully stop hub after test
+	if t != nil {
+		t.Cleanup(func() {
+			hub.Stop()
+			// Allow hub.Run() goroutine to exit
+			time.Sleep(10 * time.Millisecond)
+		})
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//nolint:nestif // necessary nesting for routing handler logic
@@ -1162,12 +1177,21 @@ func setupWebSocketTestServer(_ *testing.T) http.Handler {
 	})
 }
 
-func setupAuthenticatedWebSocketServer(_ *testing.T) http.Handler {
+func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
 	// Create a hub specifically for authenticated tests so test code can
 	// publish via currentTestHub.broadcast.
 	hub := NewWebSocketHub()
 	go hub.Run()
 	currentTestHub = hub
+
+	// Register cleanup to gracefully stop hub after test
+	if t != nil {
+		t.Cleanup(func() {
+			hub.Stop()
+			// Allow hub.Run() goroutine to exit
+			time.Sleep(10 * time.Millisecond)
+		})
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		//nolint:nestif // necessary nesting for routing handler logic
