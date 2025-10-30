@@ -1,24 +1,24 @@
-// Package services provides the implementation of analytics services.
-package services
+// Package analytics_services provides the implementation of analytics services.
+package analytics_services
 
 import (
 	"context"
 	"math"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/sirupsen/logrus"
 )
 
 // AnomalyService provides methods to detect anomalies.
 type AnomalyService struct {
-	aggregationRepo db.AggregationRepositoryInterface
+	aggregationRepo analytics_db.AggregationRepositoryInterface
 	logger          *logrus.Logger
 }
 
 // NewAnomalyService creates a new instance of AnomalyService.
-func NewAnomalyService(aggregationRepo db.AggregationRepositoryInterface, logger *logrus.Logger) *AnomalyService {
+func NewAnomalyService(aggregationRepo analytics_db.AggregationRepositoryInterface, logger *logrus.Logger) *AnomalyService {
 	return &AnomalyService{
 		aggregationRepo: aggregationRepo,
 		logger:          logger,
@@ -26,7 +26,7 @@ func NewAnomalyService(aggregationRepo db.AggregationRepositoryInterface, logger
 }
 
 // DetectAnomalies identifies unusual spikes or dips in the data
-func (s *AnomalyService) DetectAnomalies(ctx context.Context, metricType models.MetricType, service string, start, end time.Time) ([]*models.Anomaly, error) {
+func (s *AnomalyService) DetectAnomalies(ctx context.Context, metricType analytics_models.MetricType, service string, start, end time.Time) ([]*analytics_models.Anomaly, error) {
 	s.logger.WithFields(logrus.Fields{
 		"metricType": metricType,
 		"service":    service,
@@ -50,7 +50,7 @@ func (s *AnomalyService) DetectAnomalies(ctx context.Context, metricType models.
 		return nil, nil
 	}
 
-	var anomalies []*models.Anomaly
+	var anomalies []*analytics_models.Anomaly
 	s.logger.Debug("Calculating mean and standard deviation")
 	mean, stddev := calculateStats(aggregations)
 	s.logger.WithFields(logrus.Fields{
@@ -75,7 +75,7 @@ func (s *AnomalyService) DetectAnomalies(ctx context.Context, metricType models.
 		}).Info("Evaluating aggregation for anomaly")
 
 		if math.Abs(zScore) > 1.5 { // Revert Z-score threshold to original value
-			anomaly := &models.Anomaly{
+			anomaly := &analytics_models.Anomaly{
 				MetricType: metricType,
 				Service:    service,
 				TimeBucket: agg.TimeBucket,
@@ -90,7 +90,7 @@ func (s *AnomalyService) DetectAnomalies(ctx context.Context, metricType models.
 	return anomalies, nil
 }
 
-func calculateStats(aggregations []*models.Aggregation) (mean, stddev float64) {
+func calculateStats(aggregations []*analytics_models.Aggregation) (mean, stddev float64) {
 	if len(aggregations) == 0 {
 		return 0, 0 // Avoid division by zero
 	}

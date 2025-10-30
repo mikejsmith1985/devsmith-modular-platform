@@ -14,9 +14,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx PostgreSQL driver for DB connection
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
+	handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 )
 
 func main() {
@@ -29,16 +31,37 @@ func main() {
 	// Create Gin router
 	router := gin.Default()
 
+	// Initialize instrumentation logger for this service (use validated config)
+	logsServiceURL, logsEnabled, err := config.LoadLogsConfigWithFallbackFor("portal")
+	if err != nil {
+		log.Fatalf("Failed to load logging configuration: %v", err)
+	}
+	if !logsEnabled {
+		log.Printf("Instrumentation/logging disabled: continuing startup without external logs")
+		logsServiceURL = "" // instrumentation will treat empty URL as disabled
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("portal", logsServiceURL)
+
 	// Middleware for logging requests (skip health checks to reduce noise)
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path != "/health" {
 			log.Printf("Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
+			// Log to instrumentation service asynchronously
+			//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+			instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+				"method": c.Request.Method,
+				"path":   c.Request.URL.Path,
+			})
 		}
 		c.Next()
 	})
 
 	// Health check endpoint (required for Docker health checks)
 	router.GET("/health", func(c *gin.Context) {
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
+			"status": "healthy",
+		})
 		c.JSON(http.StatusOK, gin.H{
 			"service": "portal",
 			"status":  "healthy",
@@ -68,9 +91,6 @@ func main() {
 	}
 
 	// Register authentication routes
-	// Import handlers package
-	// ...existing code...
-	// This import is implied: "github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
 	handlers.RegisterAuthRoutes(router, dbConn)
 
 	// Register debug routes (development only)
@@ -80,6 +100,7 @@ func main() {
 	authenticated := router.Group("/")
 	authenticated.Use(middleware.JWTAuthMiddleware())
 	authenticated.GET("/dashboard", handlers.DashboardHandler)
+	authenticated.GET("/dashboard/logs", handlers.LogsDashboardHandler)
 	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
 
 	// Load templates (path works in both local dev and Docker)

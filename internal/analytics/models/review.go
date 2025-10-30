@@ -1,4 +1,4 @@
-package models
+package analytics_models
 
 // ServiceAggregation represents aggregated data for a service.
 type ServiceAggregation struct {

@@ -4,7 +4,7 @@ package authifaces
 import (
 	"context"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	portal_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 )
 
 // AuthService defines authentication operations
@@ -12,10 +12,10 @@ import (
 type AuthService interface {
 	// AuthenticateWithGitHub completes OAuth flow and creates user session
 	// Returns user and JWT token on success
-	AuthenticateWithGitHub(ctx context.Context, code string) (*models.User, string, error)
+	AuthenticateWithGitHub(ctx context.Context, code string) (*portal_models.User, string, error)
 
 	// ValidateSession checks if JWT token is valid and returns user
-	ValidateSession(ctx context.Context, token string) (*models.User, error)
+	ValidateSession(ctx context.Context, token string) (*portal_models.User, error)
 
 	// RevokeSession invalidates the given JWT token
 	RevokeSession(ctx context.Context, token string) error
@@ -25,13 +25,13 @@ type AuthService interface {
 // Why interface: Enables testing services without real database
 type UserRepository interface {
 	// CreateOrUpdate inserts new user or updates existing (by GitHub ID)
-	CreateOrUpdate(ctx context.Context, user *models.User) error
+	CreateOrUpdate(ctx context.Context, user *portal_models.User) error
 
 	// FindByGitHubID retrieves user by their GitHub ID
-	FindByGitHubID(ctx context.Context, githubID int64) (*models.User, error)
+	FindByGitHubID(ctx context.Context, githubID int64) (*portal_models.User, error)
 
 	// FindByID retrieves user by internal database ID
-	FindByID(ctx context.Context, id int) (*models.User, error)
+	FindByID(ctx context.Context, id int) (*portal_models.User, error)
 }
 
 // GitHubClient defines operations for GitHub API integration
@@ -41,5 +41,5 @@ type GitHubClient interface {
 	ExchangeCodeForToken(ctx context.Context, code string) (string, error)
 
 	// GetUserProfile fetches authenticated user's GitHub profile
-	GetUserProfile(ctx context.Context, accessToken string) (*models.GitHubProfile, error)
+	GetUserProfile(ctx context.Context, accessToken string) (*portal_models.GitHubProfile, error)
 }

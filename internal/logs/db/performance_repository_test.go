@@ -1,4 +1,4 @@
-package db
+package logs_db
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -56,9 +56,9 @@ func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
 	repo := NewLogEntryRepository(db)
 
 	// Create 1000 log entries
-	logEntries := make([]*models.LogEntry, 1000)
+	logEntries := make([]*logs_models.LogEntry, 1000)
 	for i := 0; i < 1000; i++ {
-		logEntries[i] = &models.LogEntry{
+		logEntries[i] = &logs_models.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Test log entry %d", i),
@@ -86,9 +86,9 @@ func TestPerformanceRepository_BulkInsert_CompletesUnder500ms(t *testing.T) {
 
 	repo := NewLogEntryRepository(db)
 
-	logEntries := make([]*models.LogEntry, 1000)
+	logEntries := make([]*logs_models.LogEntry, 1000)
 	for i := 0; i < 1000; i++ {
-		logEntries[i] = &models.LogEntry{
+		logEntries[i] = &logs_models.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Perf test %d", i),
@@ -193,9 +193,9 @@ func TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond(t *testing.T)
 	start := time.Now()
 
 	for batch := 0; batch < numBatches; batch++ {
-		logEntries := make([]*models.LogEntry, batchSize)
+		logEntries := make([]*logs_models.LogEntry, batchSize)
 		for i := 0; i < batchSize; i++ {
-			logEntries[i] = &models.LogEntry{
+			logEntries[i] = &logs_models.LogEntry{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   fmt.Sprintf("Throughput test %d", batch*batchSize+i),
@@ -228,7 +228,7 @@ func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
 
 	// Record ingestion latencies for 100 operations
 	for i := 0; i < 100; i++ {
-		logEntry := &models.LogEntry{
+		logEntry := &logs_models.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Latency test %d", i),
@@ -237,7 +237,7 @@ func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
 		}
 
 		start := time.Now()
-		err := repo.BulkInsert(ctx, []*models.LogEntry{logEntry})
+		err := repo.BulkInsert(ctx, []*logs_models.LogEntry{logEntry})
 		latencies[i] = time.Since(start)
 
 		require.NoError(t, err)
@@ -258,9 +258,9 @@ func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
 	ctx := context.Background()
 
 	// Insert test data first
-	logEntries := make([]*models.LogEntry, 500)
+	logEntries := make([]*logs_models.LogEntry, 500)
 	for i := 0; i < 500; i++ {
-		logEntries[i] = &models.LogEntry{
+		logEntries[i] = &logs_models.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Query test %d", i),
@@ -305,9 +305,9 @@ func BenchmarkPerformanceRepository_BulkInsert_1000Logs(b *testing.B) {
 	repo := NewLogEntryRepository(db)
 	ctx := context.Background()
 
-	logEntries := make([]*models.LogEntry, 1000)
+	logEntries := make([]*logs_models.LogEntry, 1000)
 	for i := 0; i < 1000; i++ {
-		logEntries[i] = &models.LogEntry{
+		logEntries[i] = &logs_models.LogEntry{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Benchmark log %d", i),
@@ -333,7 +333,7 @@ func BenchmarkPerformanceRepository_SingleInsert(b *testing.B) {
 	repo := NewLogEntryRepository(db)
 	ctx := context.Background()
 
-	logEntry := &models.LogEntry{
+	logEntry := &logs_models.LogEntry{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Benchmark entry",
@@ -343,7 +343,7 @@ func BenchmarkPerformanceRepository_SingleInsert(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := repo.BulkInsert(ctx, []*models.LogEntry{logEntry})
+		err := repo.BulkInsert(ctx, []*logs_models.LogEntry{logEntry})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -372,9 +372,9 @@ func TestPerformanceRepository_WebSocket_100ConcurrentClients(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 
-			logEntries := make([]*models.LogEntry, logsPerClient)
+			logEntries := make([]*logs_models.LogEntry, logsPerClient)
 			for i := 0; i < logsPerClient; i++ {
-				logEntries[i] = &models.LogEntry{
+				logEntries[i] = &logs_models.LogEntry{
 					Timestamp: time.Now(),
 					Level:     "info",
 					Message:   fmt.Sprintf("Client %d log %d", id, i),

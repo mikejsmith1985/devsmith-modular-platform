@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -18,12 +18,12 @@ type MockAggregationRepository struct {
 
 // FindByRange retrieves mock aggregations within a specified time range.
 // It simulates the behavior of the actual repository method.
-func (m *MockAggregationRepository) FindByRange(ctx context.Context, metricType models.MetricType, service string, start, end time.Time) ([]*models.Aggregation, error) {
+func (m *MockAggregationRepository) FindByRange(ctx context.Context, metricType analytics_models.MetricType, service string, start, end time.Time) ([]*analytics_models.Aggregation, error) {
 	args := m.Called(ctx, metricType, service, start, end)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	result, ok := args.Get(0).([]*models.Aggregation)
+	result, ok := args.Get(0).([]*analytics_models.Aggregation)
 	if !ok {
 		log.Printf("Unexpected type for FindByRange result")
 		return nil, args.Error(1)
@@ -33,12 +33,12 @@ func (m *MockAggregationRepository) FindByRange(ctx context.Context, metricType 
 
 // FindTopIssues retrieves the top issues based on the specified criteria.
 // It simulates the behavior of the actual repository method.
-func (m *MockAggregationRepository) FindTopIssues(ctx context.Context, metricType models.MetricType, service string, start, end time.Time, limit int) ([]*models.Aggregation, error) {
+func (m *MockAggregationRepository) FindTopIssues(ctx context.Context, metricType analytics_models.MetricType, service string, start, end time.Time, limit int) ([]*analytics_models.Aggregation, error) {
 	args := m.Called(ctx, metricType, service, start, end, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	result, ok := args.Get(0).([]*models.Aggregation)
+	result, ok := args.Get(0).([]*analytics_models.Aggregation)
 	if !ok {
 		log.Printf("Unexpected type for FindTopIssues result")
 		return nil, args.Error(1)
@@ -48,14 +48,14 @@ func (m *MockAggregationRepository) FindTopIssues(ctx context.Context, metricTyp
 
 // SaveAggregation saves a mock aggregation.
 // It simulates the behavior of the actual repository method.
-func (m *MockAggregationRepository) SaveAggregation(ctx context.Context, aggregation *models.Aggregation) error {
+func (m *MockAggregationRepository) SaveAggregation(ctx context.Context, aggregation *analytics_models.Aggregation) error {
 	args := m.Called(ctx, aggregation)
 	return args.Error(0)
 }
 
 // Upsert creates or updates a mock aggregation.
 // It simulates the behavior of the actual repository method.
-func (m *MockAggregationRepository) Upsert(ctx context.Context, aggregation *models.Aggregation) error {
+func (m *MockAggregationRepository) Upsert(ctx context.Context, aggregation *analytics_models.Aggregation) error {
 	args := m.Called(ctx, aggregation)
 	return args.Error(0)
 }

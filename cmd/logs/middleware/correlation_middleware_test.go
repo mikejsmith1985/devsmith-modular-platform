@@ -1,4 +1,4 @@
-package middleware
+package cmd_logs_middleware
 
 import (
 	"net/http"
@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestCorrelationMiddleware_GeneratesID tests that middleware generates correlation ID when missing
 func TestCorrelationMiddleware_GeneratesID(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestCorrelationMiddleware_GeneratesID(t *testing.T) {
 
 // TestCorrelationMiddleware_PropagatesID tests that middleware preserves incoming correlation ID
 func TestCorrelationMiddleware_PropagatesID(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -48,7 +48,7 @@ func TestCorrelationMiddleware_PropagatesID(t *testing.T) {
 
 // TestCorrelationMiddleware_ExtractsTraceParent tests W3C traceparent format
 func TestCorrelationMiddleware_ExtractsTraceParent(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -68,7 +68,7 @@ func TestCorrelationMiddleware_ExtractsTraceParent(t *testing.T) {
 
 // TestCorrelationMiddleware_ExtractsCustomTraceID tests custom X-Trace-ID header
 func TestCorrelationMiddleware_ExtractsCustomTraceID(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -85,7 +85,7 @@ func TestCorrelationMiddleware_ExtractsCustomTraceID(t *testing.T) {
 
 // TestCorrelationMiddleware_ExtractsRequestID tests request ID extraction
 func TestCorrelationMiddleware_ExtractsRequestID(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -102,7 +102,7 @@ func TestCorrelationMiddleware_ExtractsRequestID(t *testing.T) {
 
 // TestCorrelationMiddleware_CapturesHTTPContext tests HTTP context capture
 func TestCorrelationMiddleware_CapturesHTTPContext(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -120,7 +120,7 @@ func TestCorrelationMiddleware_CapturesHTTPContext(t *testing.T) {
 
 // TestCorrelationMiddleware_AddsResponseHeaders tests response header setting
 func TestCorrelationMiddleware_AddsResponseHeaders(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -168,7 +168,7 @@ func TestGetCorrelationContext_Exists(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	expected := &models.CorrelationContext{
+	expected := &logs_models.CorrelationContext{
 		CorrelationID: "test-123",
 		TraceID:       "trace-456",
 	}
@@ -193,7 +193,7 @@ func TestGetCorrelationContext_Missing(t *testing.T) {
 
 // TestCorrelationMiddleware_UserContextExtraction tests user ID extraction
 func TestCorrelationMiddleware_UserContextExtraction(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -215,7 +215,7 @@ func TestCorrelationMiddleware_UserContextExtraction(t *testing.T) {
 
 // TestCorrelationMiddleware_EnrichesContext tests context enrichment
 func TestCorrelationMiddleware_EnrichesContext(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()
@@ -233,7 +233,7 @@ func TestCorrelationMiddleware_EnrichesContext(t *testing.T) {
 
 // TestCorrelationMiddleware_CompleteFlow tests complete flow with all headers
 func TestCorrelationMiddleware_CompleteFlow(t *testing.T) {
-	contextService := services.NewContextService(nil)
+	contextService := logs_services.NewContextService(nil)
 	middleware := CorrelationMiddleware(contextService)
 
 	w := httptest.NewRecorder()

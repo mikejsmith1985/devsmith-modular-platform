@@ -15,6 +15,7 @@ RETEST_FAILED=false
 SHOW_DIFF=false
 PROGRESSIVE=false
 AUTO_FIX=false
+SCAN_IMAGES=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -28,6 +29,7 @@ while [[ $# -gt 0 ]]; do
         --diff) SHOW_DIFF=true; shift ;;
         --progressive) PROGRESSIVE=true; shift ;;
         --auto-fix) AUTO_FIX=true; shift ;;
+            --scan-images) SCAN_IMAGES=true; shift ;;
         *) shift ;;
     esac
 done
@@ -58,6 +60,38 @@ declare -a ALL_ENDPOINTS=()
 declare -a ISSUES=()
 FAILED=0
 START_TIME=$(date +%s)
+
+# If requested, run image security scans early and capture results
+run_trivy_scan() {
+    # Prefer local script if available
+    if [[ -x "./scripts/trivy-scan.sh" ]]; then
+        echo "[docker-validate] Running image security scan (Trivy) via ./scripts/trivy-scan.sh..."
+        set +e
+        ./scripts/trivy-scan.sh image 2>&1 | tee /tmp/docker-validate-trivy.out
+        local exit_code=$?
+        set -e
+
+        # If Trivy returned non-zero, mark an issue but continue validation so we get runtime context too
+        if [[ $exit_code -ne 0 ]]; then
+            local trivy_summary
+            trivy_summary=$(tail -n +1 /tmp/docker-validate-trivy.out | sed -n '1,200p' | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+            add_issue "image_vulnerabilities" "error" "security" \
+                "Image security scan found HIGH/CRITICAL vulnerabilities or secrets" \
+                "Trivy scan reports issues. See trivy output summary in validation results." \
+                true "${trivy_summary}"
+            FAILED=1
+        else
+            echo "[docker-validate] Trivy image scan completed with no blocking HIGH/CRITICAL findings."
+        fi
+    else
+        echo "[docker-validate] Warning: ./scripts/trivy-scan.sh not found or not executable; skipping image scan"
+    fi
+}
+
+# If user requested image scanning, run it now before runtime validations
+if [[ "$SCAN_IMAGES" == "true" ]]; then
+    run_trivy_scan
+fi
 
 # Check results tracking
 declare -A CHECK_RESULTS=(

@@ -1,4 +1,4 @@
-package handlers
+package cmd_logs_handlers
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +16,7 @@ func TestGetCorrelatedLogs_Valid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId", GetCorrelatedLogs(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123?limit=50&offset=0", http.NoBody)
@@ -36,7 +36,7 @@ func TestGetCorrelatedLogs_MissingID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId", GetCorrelatedLogs(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/", http.NoBody)
@@ -53,7 +53,7 @@ func TestGetCorrelatedLogs_WithPagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId", GetCorrelatedLogs(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123?limit=100&offset=50", http.NoBody)
@@ -73,7 +73,7 @@ func TestGetCorrelatedLogs_LimitCapped(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId", GetCorrelatedLogs(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123?limit=5000", http.NoBody)
@@ -92,7 +92,7 @@ func TestGetCorrelationMetadata_Valid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId/metadata", GetCorrelationMetadata(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123/metadata", http.NoBody)
@@ -111,7 +111,7 @@ func TestGetCorrelationMetadata_MissingID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId/metadata", GetCorrelationMetadata(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/invalid/metadata", http.NoBody)
@@ -128,7 +128,7 @@ func TestGetTraceTimeline_Valid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId/timeline", GetTraceTimeline(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123/timeline", http.NoBody)
@@ -151,7 +151,7 @@ func TestGetTraceTimeline_MissingID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId/timeline", GetTraceTimeline(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/invalid/timeline", http.NoBody)
@@ -168,7 +168,7 @@ func TestGetCorrelatedLogs_ResponseFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId", GetCorrelatedLogs(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123", http.NoBody)
@@ -193,7 +193,7 @@ func TestGetCorrelationMetadata_ResponseFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId/metadata", GetCorrelationMetadata(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123/metadata", http.NoBody)
@@ -214,7 +214,7 @@ func TestGetTraceTimeline_ResponseFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	contextSvc := services.NewContextService(nil)
+	contextSvc := logs_services.NewContextService(nil)
 	router.GET("/api/logs/correlation/:correlationId/timeline", GetTraceTimeline(contextSvc))
 
 	req := httptest.NewRequest("GET", "/api/logs/correlation/test-123/timeline", http.NoBody)

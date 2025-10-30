@@ -1,5 +1,5 @@
-// Package models defines the data structures used in the logs service.
-package models
+// Package logs_models defines the data structures used in the logs service.
+package logs_models
 
 import "time"
 
@@ -86,4 +86,50 @@ type DashboardStats struct {
 	ServiceHealth    map[string]*ServiceHealth `json:"service_health"`
 	TopErrors        []TopErrorMessage         `json:"top_errors"`
 	Violations       []AlertThresholdViolation `json:"violations"`
+}
+
+// ValidationError represents a validation error with aggregated metadata.
+type ValidationError struct {
+	LastOccurrence   time.Time `json:"last_occurrence" db:"last_occurrence"`
+	ErrorType        string    `json:"error_type" db:"error_type"`
+	Message          string    `json:"message" db:"message"`
+	AffectedServices []string  `json:"affected_services"`
+	Count            int64     `json:"count" db:"count"`
+}
+
+// ErrorTrend represents error counts over a time period.
+type ErrorTrend struct {
+	Timestamp        time.Time        `json:"timestamp" db:"timestamp"`
+	ByType           map[string]int64 `json:"by_type"`
+	ErrorCount       int64            `json:"error_count" db:"error_count"`
+	ErrorRatePercent float64          `json:"error_rate_percent" db:"error_rate_percent"`
+}
+
+// AlertEvent represents a recorded alert event when thresholds are triggered.
+type AlertEvent struct {
+	TriggeredAt    time.Time `json:"triggered_at" db:"triggered_at"`
+	ErrorType      string    `json:"error_type" db:"error_type"`
+	ConfigID       int64     `json:"config_id" db:"config_id"`
+	ID             int64     `json:"id" db:"id"`
+	ErrorCount     int       `json:"error_count" db:"error_count"`
+	ThresholdValue int       `json:"threshold_value" db:"threshold_value"`
+	AlertSent      bool      `json:"alert_sent" db:"alert_sent"`
+}
+
+// LogExportOptions contains parameters for exporting logs.
+type LogExportOptions struct {
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Format    string    `json:"format"`     // json or csv
+	Service   string    `json:"service"`    // optional filter
+	ErrorType string    `json:"error_type"` // optional filter
+}
+
+// LogMessage represents a log message for dashboard display.
+type LogMessage struct {
+	LastSeen time.Time
+	Message  string
+	Service  string
+	Level    string
+	Count    int
 }

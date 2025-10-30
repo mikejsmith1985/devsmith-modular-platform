@@ -1,0 +1,9 @@
+// GREEN PHASE: Minimal Templ for Preview mode results
+package templates
+
+templ PreviewModeResult(results string) {
+  <section class="preview-results p-4 bg-base-100 rounded shadow" aria-labelledby="preview-heading" role="region">
+    <h2 id="preview-heading" class="text-lg font-bold mb-2">Preview Results</h2>
+    <pre class="whitespace-pre-wrap overflow-x-auto" tabindex="0">{results}</pre>
+  </section>
+}

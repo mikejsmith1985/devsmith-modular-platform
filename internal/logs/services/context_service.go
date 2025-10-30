@@ -1,6 +1,6 @@
-// Package services provides business logic for the logs service.
+// Package logs_services provides business logic for the logs service.
 // This package handles correlation context management for distributed tracing.
-package services
+package logs_services
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // Constants for context service configuration
@@ -38,7 +38,7 @@ const (
 // ContextService manages correlation context for distributed tracing.
 // It handles ID generation, context enrichment, and log retrieval for correlated requests.
 type ContextService struct {
-	repo *db.ContextRepository
+	repo *logs_db.ContextRepository
 }
 
 // NewContextService creates a new context service with the given repository.
@@ -46,10 +46,10 @@ type ContextService struct {
 //
 // Example:
 //
-//	repo := db.NewContextRepository(sqlDB)
+//	repo := logs_db.NewContextRepository(sqlDB)
 //	svc := NewContextService(repo)
 //	correlationID := svc.GenerateCorrelationID()
-func NewContextService(repo *db.ContextRepository) *ContextService {
+func NewContextService(repo *logs_db.ContextRepository) *ContextService {
 	return &ContextService{repo: repo}
 }
 
@@ -83,12 +83,12 @@ func (s *ContextService) GenerateCorrelationID() string {
 //
 // Example:
 //
-//	ctx := &models.CorrelationContext{Method: "POST", Path: "/api/logs"}
+//	ctx := &logs_models.CorrelationContext{Method: "POST", Path: "/api/logs"}
 //	enriched := svc.EnrichContext(ctx)
 //	// enriched now has hostname, environment, version, timestamps
-func (s *ContextService) EnrichContext(ctx *models.CorrelationContext) *models.CorrelationContext {
+func (s *ContextService) EnrichContext(ctx *logs_models.CorrelationContext) *logs_models.CorrelationContext {
 	if ctx == nil {
-		ctx = &models.CorrelationContext{}
+		ctx = &logs_models.CorrelationContext{}
 	}
 
 	// Generate ID if not provided
@@ -152,9 +152,9 @@ func (s *ContextService) GetCorrelatedLogs(
 	ctx context.Context,
 	correlationID string,
 	limit, offset int,
-) ([]models.LogEntry, error) {
+) ([]logs_models.LogEntry, error) {
 	if s.repo == nil {
-		return []models.LogEntry{}, nil
+		return []logs_models.LogEntry{}, nil
 	}
 
 	// Validate and normalize pagination parameters

@@ -1,12 +1,12 @@
-// Package services provides service implementations for logs operations.
-package services
+// Package logs_services provides service implementations for logs operations.
+package logs_services
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,7 +56,7 @@ func (s *WebSocketRealtimeService) UnregisterConnection(ctx context.Context, con
 }
 
 // BroadcastStats broadcasts current statistics to all connected clients.
-func (s *WebSocketRealtimeService) BroadcastStats(ctx context.Context, stats *models.DashboardStats) error {
+func (s *WebSocketRealtimeService) BroadcastStats(ctx context.Context, stats *logs_models.DashboardStats) error {
 	if stats == nil {
 		return fmt.Errorf("stats cannot be nil")
 	}
@@ -78,7 +78,7 @@ func (s *WebSocketRealtimeService) BroadcastStats(ctx context.Context, stats *mo
 }
 
 // BroadcastAlert broadcasts an alert to all connected clients.
-func (s *WebSocketRealtimeService) BroadcastAlert(ctx context.Context, violation *models.AlertThresholdViolation) error {
+func (s *WebSocketRealtimeService) BroadcastAlert(ctx context.Context, violation *logs_models.AlertThresholdViolation) error {
 	if violation == nil {
 		return fmt.Errorf("violation cannot be nil")
 	}

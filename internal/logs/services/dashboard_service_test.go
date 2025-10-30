@@ -1,11 +1,11 @@
-package services_test
+package logs_services_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -21,39 +21,39 @@ type MockDashboardService struct {
 }
 
 // GetDashboardStats mocks the GetDashboardStats method
-func (m *MockDashboardService) GetDashboardStats(ctx context.Context) (*models.DashboardStats, error) {
+func (m *MockDashboardService) GetDashboardStats(ctx context.Context) (*logs_models.DashboardStats, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.DashboardStats), args.Error(1)
+	return args.Get(0).(*logs_models.DashboardStats), args.Error(1)
 }
 
 // GetServiceStats mocks the GetServiceStats method
-func (m *MockDashboardService) GetServiceStats(ctx context.Context, service string, timeRange time.Duration) (*models.LogStats, error) {
+func (m *MockDashboardService) GetServiceStats(ctx context.Context, service string, timeRange time.Duration) (*logs_models.LogStats, error) {
 	args := m.Called(ctx, service, timeRange)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.LogStats), args.Error(1)
+	return args.Get(0).(*logs_models.LogStats), args.Error(1)
 }
 
 // GetTopErrors mocks the GetTopErrors method
-func (m *MockDashboardService) GetTopErrors(ctx context.Context, limit int, timeRange time.Duration) ([]models.TopErrorMessage, error) {
+func (m *MockDashboardService) GetTopErrors(ctx context.Context, limit int, timeRange time.Duration) ([]logs_models.TopErrorMessage, error) {
 	args := m.Called(ctx, limit, timeRange)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.TopErrorMessage), args.Error(1)
+	return args.Get(0).([]logs_models.TopErrorMessage), args.Error(1)
 }
 
 // GetServiceHealth mocks the GetServiceHealth method
-func (m *MockDashboardService) GetServiceHealth(ctx context.Context) (map[string]*models.ServiceHealth, error) {
+func (m *MockDashboardService) GetServiceHealth(ctx context.Context) (map[string]*logs_models.ServiceHealth, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(map[string]*models.ServiceHealth), args.Error(1)
+	return args.Get(0).(map[string]*logs_models.ServiceHealth), args.Error(1)
 }
 
 // TestGetDashboardStats_ReturnsValidStats validates dashboard stats retrieval.
@@ -62,12 +62,12 @@ func TestGetDashboardStats_ReturnsValidStats(t *testing.T) {
 	mockService := new(MockDashboardService)
 	now := time.Now()
 
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:   now,
-		ServiceStats:  make(map[string]*models.LogStats),
-		ServiceHealth: make(map[string]*models.ServiceHealth),
-		TopErrors:     []models.TopErrorMessage{},
-		Violations:    []models.AlertThresholdViolation{},
+		ServiceStats:  make(map[string]*logs_models.LogStats),
+		ServiceHealth: make(map[string]*logs_models.ServiceHealth),
+		TopErrors:     []logs_models.TopErrorMessage{},
+		Violations:    []logs_models.AlertThresholdViolation{},
 	}
 
 	mockService.On("GetDashboardStats", mock.Anything).Return(stats, nil)
@@ -82,26 +82,26 @@ func TestGetDashboardStats_ReturnsValidStats(t *testing.T) {
 	mockService.AssertCalled(t, "GetDashboardStats", mock.Anything)
 }
 
-// TestGetDashboardStats_IncludesMultipleServices validates dashboard includes all services.
+// TestGetDashboardStats_IncludesMultipleServices validates dashboard includes all logs_services.
 func TestGetDashboardStats_IncludesMultipleServices(t *testing.T) {
 	// GIVEN: Dashboard stats with multiple services
 	mockService := new(MockDashboardService)
 	now := time.Now()
 
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:   now,
-		ServiceStats:  make(map[string]*models.LogStats),
-		ServiceHealth: make(map[string]*models.ServiceHealth),
+		ServiceStats:  make(map[string]*logs_models.LogStats),
+		ServiceHealth: make(map[string]*logs_models.ServiceHealth),
 	}
 
 	// Add multiple services
 	services := []string{"portal", "review", "analytics", "logs"}
 	for _, svc := range services {
-		stats.ServiceStats[svc] = &models.LogStats{
+		stats.ServiceStats[svc] = &logs_models.LogStats{
 			Service:    svc,
 			TotalCount: 100,
 		}
-		stats.ServiceHealth[svc] = &models.ServiceHealth{
+		stats.ServiceHealth[svc] = &logs_models.ServiceHealth{
 			Service: svc,
 			Status:  "OK",
 		}
@@ -125,7 +125,7 @@ func TestGetServiceStats_ReturnsStatsForService(t *testing.T) {
 	now := time.Now()
 	timeRange := time.Hour
 
-	stats := &models.LogStats{
+	stats := &logs_models.LogStats{
 		Timestamp:  now,
 		Service:    "portal",
 		TotalCount: 250,
@@ -156,7 +156,7 @@ func TestGetServiceStats_CountByLevel(t *testing.T) {
 	mockService := new(MockDashboardService)
 	timeRange := time.Hour
 
-	stats := &models.LogStats{
+	stats := &logs_models.LogStats{
 		Service:    "analytics",
 		TotalCount: 1000,
 		CountByLevel: map[string]int64{
@@ -186,7 +186,7 @@ func TestGetTopErrors_ReturnsTopErrorMessages(t *testing.T) {
 	limit := 10
 	timeRange := 24 * time.Hour
 
-	topErrors := []models.TopErrorMessage{
+	topErrors := []logs_models.TopErrorMessage{
 		{
 			Message:   "database connection timeout",
 			Service:   "analytics",
@@ -225,9 +225,9 @@ func TestGetTopErrors_Limit(t *testing.T) {
 	limit := 5
 	timeRange := time.Hour
 
-	topErrors := make([]models.TopErrorMessage, limit)
+	topErrors := make([]logs_models.TopErrorMessage, limit)
 	for i := 0; i < limit; i++ {
-		topErrors[i] = models.TopErrorMessage{
+		topErrors[i] = logs_models.TopErrorMessage{
 			Message: "error message " + string(rune('A'+i)),
 			Count:   int64(100 - i*10),
 		}
@@ -249,7 +249,7 @@ func TestGetServiceHealth_ReturnsHealthStatus(t *testing.T) {
 	mockService := new(MockDashboardService)
 	now := time.Now()
 
-	health := map[string]*models.ServiceHealth{
+	health := map[string]*logs_models.ServiceHealth{
 		"portal": {
 			Service:       "portal",
 			Status:        "OK",
@@ -294,7 +294,7 @@ func TestGetServiceHealth_Status_OK(t *testing.T) {
 	// GIVEN: Service with no errors
 	mockService := new(MockDashboardService)
 
-	health := map[string]*models.ServiceHealth{
+	health := map[string]*logs_models.ServiceHealth{
 		"portal": {
 			Service:    "portal",
 			Status:     "OK",
@@ -317,7 +317,7 @@ func TestGetServiceHealth_Status_Warning(t *testing.T) {
 	// GIVEN: Service with some errors
 	mockService := new(MockDashboardService)
 
-	health := map[string]*models.ServiceHealth{
+	health := map[string]*logs_models.ServiceHealth{
 		"analytics": {
 			Service:      "analytics",
 			Status:       "Warning",
@@ -341,7 +341,7 @@ func TestGetServiceHealth_Status_Error(t *testing.T) {
 	// GIVEN: Service with many errors
 	mockService := new(MockDashboardService)
 
-	health := map[string]*models.ServiceHealth{
+	health := map[string]*logs_models.ServiceHealth{
 		"review": {
 			Service:    "review",
 			Status:     "Error",
@@ -393,7 +393,7 @@ func TestGetServiceStats_VariousTimeRanges(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stats := &models.LogStats{
+			stats := &logs_models.LogStats{
 				Service:    "test",
 				TotalCount: tc.expected,
 			}
@@ -415,7 +415,7 @@ func TestGetTopErrors_EmptyResult(t *testing.T) {
 	// GIVEN: A service with no errors
 	mockService := new(MockDashboardService)
 
-	mockService.On("GetTopErrors", mock.Anything, 10, time.Hour).Return([]models.TopErrorMessage{}, nil)
+	mockService.On("GetTopErrors", mock.Anything, 10, time.Hour).Return([]logs_models.TopErrorMessage{}, nil)
 
 	// WHEN: Getting top errors
 	result, err := mockService.GetTopErrors(context.Background(), 10, time.Hour)

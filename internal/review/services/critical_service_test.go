@@ -1,10 +1,11 @@
-package services
+package review_services
 
 import (
 	"context"
 	"testing"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -14,7 +15,8 @@ import (
 func TestCriticalService_AnalyzeCritical_FindsSecurityIssues(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"issues": [
@@ -23,18 +25,18 @@ func TestCriticalService_AnalyzeCritical_FindsSecurityIssues(t *testing.T) {
 				"category": "security",
 				"file": "auth.go",
 				"line": 10,
-				"code_snippet": "db.Query(userInput)",
+				"code_snippet": "review_db.Query(userInput)",
 				"description": "SQL injection vulnerability",
 				"impact": "Attacker can access entire database",
-				"fix_suggestion": "Use parameterized queries: db.Query(sql, userInput)"
+				"fix_suggestion": "Use parameterized queries: review_db.Query(sql, userInput)"
 			}
 		],
 		"summary": "Found 1 critical security issue",
 		"overall_grade": "D"
 	}`
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
-	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *models.AnalysisResult) bool {
-		return result.ReviewID == 1 && result.Mode == models.CriticalMode
+	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *review_models.AnalysisResult) bool {
+		return result.ReviewID == 1 && result.Mode == review_models.CriticalMode
 	})).Return(nil)
 
 	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
@@ -52,7 +54,8 @@ func TestCriticalService_AnalyzeCritical_FindsSecurityIssues(t *testing.T) {
 func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"issues": [
@@ -71,7 +74,7 @@ func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
 				"category": "performance",
 				"file": "users.go",
 				"line": 25,
-				"code_snippet": "for user in users: db.query()",
+				"code_snippet": "for user in users: review_db.query()",
 				"description": "N+1 query problem",
 				"impact": "Database overload with many users",
 				"fix_suggestion": "Use JOIN or batch query"
@@ -91,8 +94,8 @@ func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
 		"overall_grade": "C"
 	}`
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
-	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *models.AnalysisResult) bool {
-		return result.ReviewID == 1 && result.Mode == models.CriticalMode
+	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *review_models.AnalysisResult) bool {
+		return result.ReviewID == 1 && result.Mode == review_models.CriticalMode
 	})).Return(nil)
 
 	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
@@ -117,7 +120,8 @@ func TestCriticalService_AnalyzeCritical_MultipleIssueTypes(t *testing.T) {
 func TestCriticalService_AnalyzeCritical_CleanCode(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"issues": [],
@@ -125,8 +129,8 @@ func TestCriticalService_AnalyzeCritical_CleanCode(t *testing.T) {
 		"overall_grade": "A"
 	}`
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
-	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *models.AnalysisResult) bool {
-		return result.ReviewID == 1 && result.Mode == models.CriticalMode
+	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *review_models.AnalysisResult) bool {
+		return result.ReviewID == 1 && result.Mode == review_models.CriticalMode
 	})).Return(nil)
 
 	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")
@@ -141,12 +145,13 @@ func TestCriticalService_AnalyzeCritical_CleanCode(t *testing.T) {
 func TestCriticalService_AnalyzeCritical_InvalidJSON(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewCriticalService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewCriticalService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `Invalid JSON response`
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
-	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *models.AnalysisResult) bool {
-		return result.ReviewID == 1 && result.Mode == models.CriticalMode
+	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(result *review_models.AnalysisResult) bool {
+		return result.ReviewID == 1 && result.Mode == review_models.CriticalMode
 	})).Return(nil)
 
 	output, err := service.AnalyzeCritical(context.Background(), 1, "owner", "repo")

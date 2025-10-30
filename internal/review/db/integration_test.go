@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package db
+package review_db
 
 import (
 	"context"

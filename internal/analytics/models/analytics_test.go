@@ -1,4 +1,4 @@
-package models
+package analytics_models
 
 import (
 	"testing"

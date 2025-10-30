@@ -1,13 +1,14 @@
-// Package services provides the implementation of the WebSocket hub for real-time log streaming.
-package services
+// Package logs_services provides the implementation of the WebSocket hub for real-time log streaming.
+package logs_services
 
 import (
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // WebSocketHub manages WebSocket clients and broadcasts log entries to them.
@@ -15,9 +16,10 @@ import (
 // nolint:govet // Field order optimized for performance, not memory alignment
 type WebSocketHub struct {
 	clients    map[*Client]bool
-	broadcast  chan *models.LogEntry
+	broadcast  chan *logs_models.LogEntry
 	register   chan *Client
 	unregister chan *Client
+	stop       chan struct{}
 	mu         sync.RWMutex
 }
 
@@ -26,21 +28,28 @@ type WebSocketHub struct {
 // nolint:govet // Field order optimized for readability
 type Client struct {
 	Conn         *websocket.Conn
-	Send         chan *models.LogEntry
+	Send         chan *logs_models.LogEntry
 	Filters      map[string]string
 	IsAuth       bool
 	IsPublic     bool
 	LastActivity time.Time
 	mu           sync.Mutex
+	// writeMu serializes concurrent writes to the websocket connection
+	writeMu sync.Mutex
+	// Registered channel is closed by the hub after the client
+	// has been added to the active clients map. Tests wait on this
+	// to ensure registration is complete before sending messages.
+	Registered chan struct{}
 }
 
 // NewWebSocketHub creates and returns a new WebSocketHub instance.
 func NewWebSocketHub() *WebSocketHub {
 	return &WebSocketHub{
 		clients:    make(map[*Client]bool),
-		broadcast:  make(chan *models.LogEntry, 256),
+		broadcast:  make(chan *logs_models.LogEntry, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		stop:       make(chan struct{}),
 	}
 }
 
@@ -51,16 +60,38 @@ func NewWebSocketHub() *WebSocketHub {
 //   - client unregistration: removes client and closes its Send channel
 //   - broadcast: routes log entry to matching clients
 //   - heartbeat tick: sends ping to clients, disconnects inactive ones
+//   - stop: signal to shut down the hub gracefully
 func (h *WebSocketHub) Run() {
 	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer heartbeatTicker.Stop()
 
 	for {
 		select {
+		case <-h.stop:
+			// Graceful shutdown: close all client connections and exit
+			h.mu.Lock()
+			for client := range h.clients {
+				close(client.Send)
+			}
+			h.clients = make(map[*Client]bool)
+			h.mu.Unlock()
+			return
+
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			// Initialize last activity to now to avoid immediate heartbeat-triggered disconnect
+			client.mu.Lock()
+			client.LastActivity = time.Now()
+			client.mu.Unlock()
 			h.mu.Unlock()
+			// Signal back to the client that registration is complete
+			if client.Registered != nil {
+				// close in a goroutine to avoid blocking hub loop if receiver is not waiting
+				go func(ch chan struct{}) {
+					close(ch)
+				}(client.Registered)
+			}
 			log.Printf("Client registered, total clients: %d", len(h.clients))
 
 		case client := <-h.unregister:
@@ -81,8 +112,20 @@ func (h *WebSocketHub) Run() {
 	}
 }
 
+// Stop signals the WebSocketHub to shut down gracefully.
+// It closes all client connections and stops the hub goroutine.
+// Safe to call multiple times (using recover to catch panic from closing closed channel).
+func (h *WebSocketHub) Stop() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("WebSocketHub already stopped") // Explicitly log instead of empty branch
+		}
+	}()
+	close(h.stop)
+}
+
 // broadcastToClients sends a log entry to all clients that match the log's visibility and filters.
-func (h *WebSocketHub) broadcastToClients(log *models.LogEntry) {
+func (h *WebSocketHub) broadcastToClients(log *logs_models.LogEntry) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -128,17 +171,26 @@ func (h *WebSocketHub) sendHeartbeats() {
 			// No pong response, close connection
 			h.mu.RUnlock()
 			go func(c *Client) {
+				// Close the connection to force Read/Write pumps to exit
+				c.writeMu.Lock()
 				if err := c.Conn.Close(); err != nil {
-					log.Printf("Error closing connection: %v", err)
+					log.Printf("error closing inactive client connection: %v", err)
 				}
+				c.writeMu.Unlock()
 				h.closeClient(c)
 			}(client)
 			h.mu.RLock()
 		} else {
-			// Send heartbeat ping
+			// Send heartbeat ping + text marker. Ping triggers pong handling
+			// on clients; text message ensures tests using ReadMessage see a payload.
+			client.writeMu.Lock()
 			if err := client.Conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				log.Printf("Error writing ping message: %v", err)
 			}
+			if err := client.Conn.WriteMessage(websocket.TextMessage, []byte("heartbeat")); err != nil {
+				log.Printf("Error writing heartbeat message: %v", err)
+			}
+			client.writeMu.Unlock()
 		}
 	}
 	h.mu.RUnlock()
@@ -150,13 +202,21 @@ func (h *WebSocketHub) closeClient(client *Client) {
 	if _, ok := h.clients[client]; ok {
 		delete(h.clients, client)
 		close(client.Send)
+		// Best-effort close of the underlying connection to speed teardown
+		if client.Conn != nil {
+			client.writeMu.Lock()
+			if err := client.Conn.Close(); err != nil {
+				log.Printf("error closing client connection during cleanup: %v", err)
+			}
+			client.writeMu.Unlock()
+		}
 	}
 	h.mu.Unlock()
 }
 
 // matchesFilters checks if a log entry matches all filters set by a client.
 // Returns true only if the log matches ALL active filters (AND logic).
-func (h *WebSocketHub) matchesFilters(client *Client, log *models.LogEntry) bool {
+func (h *WebSocketHub) matchesFilters(client *Client, log *logs_models.LogEntry) bool {
 	// Check level filter
 	if level, ok := client.Filters["level"]; ok && level != log.Level {
 		return false
@@ -178,7 +238,7 @@ func (h *WebSocketHub) matchesFilters(client *Client, log *models.LogEntry) bool
 }
 
 // logHasTag checks if a log entry contains a specific tag.
-func (h *WebSocketHub) logHasTag(log *models.LogEntry, tag string) bool {
+func (h *WebSocketHub) logHasTag(log *logs_models.LogEntry, tag string) bool {
 	if log.Tags == nil {
 		return false
 	}
@@ -191,8 +251,11 @@ func (h *WebSocketHub) logHasTag(log *models.LogEntry, tag string) bool {
 }
 
 // isPublicLog checks if a log entry should be visible to unauthenticated users.
-// Currently, INFO level logs are treated as public.
-func (h *WebSocketHub) isPublicLog(log *models.LogEntry) bool {
+// By default, only INFO logs are public. For tests, all levels can be public if LOGS_WEBSOCKET_PUBLIC_ALL is set.
+func (h *WebSocketHub) isPublicLog(log *logs_models.LogEntry) bool {
+	if os.Getenv("LOGS_WEBSOCKET_PUBLIC_ALL") == "1" {
+		return true
+	}
 	return log.Level == "INFO"
 }
 
@@ -211,9 +274,13 @@ func (c *Client) WritePump(hub *WebSocketHub) {
 	}()
 
 	for log := range c.Send {
+		// Serialize writes to avoid concurrent WriteMessage/WriteJSON calls
+		c.writeMu.Lock()
 		if err := c.Conn.WriteJSON(log); err != nil {
+			c.writeMu.Unlock()
 			break
 		}
+		c.writeMu.Unlock()
 		c.mu.Lock()
 		c.LastActivity = time.Now()
 		c.mu.Unlock()

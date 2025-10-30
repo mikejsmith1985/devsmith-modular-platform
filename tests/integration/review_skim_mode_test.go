@@ -12,12 +12,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/mikejsmith1985/devsmith-modular-platform/cmd/review/handlers"
-	reviewdb "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	review_handlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/review/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 )
+
+// createTestInstrumentationLogger creates a dummy instrumentation logger for tests
+func createTestInstrumentationLogger() *instrumentation.ServiceInstrumentationLogger {
+	return instrumentation.NewServiceInstrumentationLogger("review-test", "http://localhost:8082")
+}
 
 func setupTestDB(t *testing.T) *sql.DB {
 	dbURL := os.Getenv("REVIEW_TEST_DB_URL")
@@ -50,14 +57,19 @@ func TestSkimMode_Integration(t *testing.T) {
 	_, err := db.Exec(`INSERT INTO reviews.sessions (id, user_id, title, code_source, github_repo, github_branch, pasted_code) VALUES (1001, 1, 'Test Review', 'github', 'mikejsmith1985/devsmith-modular-platform', 'main', '') ON CONFLICT (id) DO NOTHING`)
 	assert.NoError(t, err)
 
-	reviewRepo := reviewdb.NewReviewRepository(db)
+	reviewRepo := review_db.NewReviewRepository(db)
 	ollamaClient := &OllamaClientStub{}
 	analysisRepo := &MockAnalysisRepository{}
-	skimService := services.NewSkimService(ollamaClient, analysisRepo)
-	reviewService := services.NewReviewService(skimService, reviewRepo)
-	previewService := services.NewPreviewService()
-	scanService := services.NewScanService(ollamaClient, analysisRepo)
-	handler := handlers.NewReviewHandler(reviewService, previewService, skimService, scanService)
+	mockLogger := &testutils.MockLogger{}
+	skimService := review_services.NewSkimService(ollamaClient, analysisRepo, mockLogger)
+	reviewService := review_services.NewReviewService(skimService, reviewRepo)
+	previewService := review_services.NewPreviewService(mockLogger)
+	scanService := review_services.NewScanService(ollamaClient, analysisRepo, mockLogger)
+
+	// Create a dummy instrumentation logger for testing
+	instrLogger := createTestInstrumentationLogger()
+
+	handler := review_handlers.NewReviewHandler(reviewService, previewService, skimService, scanService, instrLogger)
 
 	r := gin.Default()
 	r.GET("/api/reviews/:id/skim", handler.GetSkimAnalysis)
@@ -85,9 +97,9 @@ func (o *OllamaClientStub) Generate(_ context.Context, _ string) (string, error)
 
 type MockAnalysisRepository struct{}
 
-func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID int64, mode string) (*models.AnalysisResult, error) {
-	if reviewID == 1001 && mode == models.SkimMode {
-		return &models.AnalysisResult{
+func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID int64, mode string) (*review_models.AnalysisResult, error) {
+	if reviewID == 1001 && mode == review_models.SkimMode {
+		return &review_models.AnalysisResult{
 			ReviewID: reviewID,
 			Mode:     mode,
 			Summary:  "Cached summary for test",
@@ -96,7 +108,7 @@ func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID
 	}
 	return nil, fmt.Errorf("not found")
 }
-func (m *MockAnalysisRepository) Create(_ context.Context, _ *models.AnalysisResult) error {
+func (m *MockAnalysisRepository) Create(_ context.Context, _ *review_models.AnalysisResult) error {
 	return nil
 }
 

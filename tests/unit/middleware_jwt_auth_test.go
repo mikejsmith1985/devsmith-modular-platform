@@ -1,4 +1,4 @@
-package handlers_test
+package integration
 
 import (
 	"log"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,14 +18,14 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	// Set up Gin context
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(middleware.JWTAuthMiddleware())
+	r.Use(portal_middleware.JWTAuthMiddleware())
 	r.GET("/protected", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 
 	// Generate a valid JWT token
-	// Define claims using handlers.UserClaims
-	claims := handlers.UserClaims{
+	// Define claims using portal_handlers.UserClaims
+	claims := portal_handlers.UserClaims{
 		Username:  "testuser",
 		Email:     "testuser@example.com",
 		AvatarURL: "https://avatars.githubusercontent.com/u/123456?v=4",
