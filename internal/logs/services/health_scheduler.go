@@ -9,29 +9,30 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
 )
 
-// HealthScheduler runs periodic health checks and repairs
+// HealthScheduler runs periodic health checks in the background
 type HealthScheduler struct {
-	interval      time.Duration
-	storage       *HealthStorageService
-	autoRepair    *AutoRepairService
-	running       bool
-	mu            sync.RWMutex
-	stop          chan struct{}
-	wg            sync.WaitGroup
-	lastCheckTime time.Time
+	interval          time.Duration
+	storageService    *HealthStorageService
+	autoRepairService *AutoRepairService
+	running           bool
+	mu                sync.Mutex
+	stopChan          chan struct{}
 }
 
 // NewHealthScheduler creates a new health scheduler
-func NewHealthScheduler(interval time.Duration, storage *HealthStorageService, repair *AutoRepairService) *HealthScheduler {
+func NewHealthScheduler(interval time.Duration, storage *HealthStorageService, autoRepair *AutoRepairService) *HealthScheduler {
+	if interval == 0 {
+		interval = 5 * time.Minute
+	}
 	return &HealthScheduler{
-		interval:   interval,
-		storage:    storage,
-		autoRepair: repair,
-		stop:       make(chan struct{}),
+		interval:          interval,
+		storageService:    storage,
+		autoRepairService: autoRepair,
+		stopChan:          make(chan struct{}),
 	}
 }
 
-// Start begins the scheduled health checks
+// Start begins the background health check scheduler
 func (s *HealthScheduler) Start() {
 	s.mu.Lock()
 	if s.running {
@@ -41,112 +42,94 @@ func (s *HealthScheduler) Start() {
 	s.running = true
 	s.mu.Unlock()
 
-	s.wg.Add(1)
 	go s.run()
-
-	fmt.Printf("Health scheduler started (interval: %v)\n", s.interval)
 }
 
-// Stop stops the scheduled health checks
+// Stop stops the background health check scheduler
 func (s *HealthScheduler) Stop() {
 	s.mu.Lock()
-	if !s.running {
-		s.mu.Unlock()
-		return
-	}
-	s.running = false
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 
-	close(s.stop)
-	s.wg.Wait()
-	fmt.Println("Health scheduler stopped")
+	if s.running {
+		s.running = false
+		close(s.stopChan)
+	}
 }
 
-// run performs the scheduled checks
+// run is the main scheduler loop
 func (s *HealthScheduler) run() {
-	defer s.wg.Done()
-
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	// Run initial check immediately
-	s.executeHealthCheck()
-
-	// Run periodic checks
 	for {
 		select {
-		case <-s.stop:
-			return
 		case <-ticker.C:
 			s.executeHealthCheck()
+		case <-s.stopChan:
+			return
 		}
 	}
 }
 
-// executeHealthCheck runs a full health check and handles repairs
+// executeHealthCheck runs a full health check and stores results
 func (s *HealthScheduler) executeHealthCheck() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	start := time.Now()
+	report := s.RunHealthCheck(ctx)
 
-	// Run the health check using the same configuration as CLI
-	report := s.buildAndRunHealthCheck()
-
-	// Store the report
-	_, err := s.storage.StoreHealthCheck(ctx, *report, "scheduled")
+	// Store the results
+	healthCheckID, err := s.storageService.StoreHealthCheck(ctx, &report, "scheduled")
 	if err != nil {
-		fmt.Printf("Error storing health check: %v\n", err)
+		fmt.Printf("Failed to store health check: %v\n", err)
+		return
 	}
 
-	// Analyze and perform repairs if needed
-	if _, err := s.autoRepair.AnalyzeAndRepair(ctx, report); err != nil {
-		fmt.Printf("Error during auto-repair: %v\n", err)
+	// If there are failures, trigger auto-repair
+	if report.Status != healthcheck.StatusPass {
+		issues := s.buildIssueMap(&report)
+		if len(issues) > 0 {
+			_, err := s.autoRepairService.AnalyzeAndRepair(ctx, healthCheckID, issues)
+			if err != nil {
+				fmt.Printf("Auto-repair failed: %v\n", err)
+			}
+		}
 	}
-
-	s.mu.Lock()
-	s.lastCheckTime = start
-	s.mu.Unlock()
-
-	fmt.Printf("Health check completed in %v\n", time.Since(start))
 }
 
-// buildAndRunHealthCheck constructs and executes a full health check
-func (s *HealthScheduler) buildAndRunHealthCheck() *healthcheck.HealthReport {
+// RunHealthCheck performs a complete health check
+func (s *HealthScheduler) RunHealthCheck(ctx context.Context) healthcheck.HealthReport {
 	runner := healthcheck.NewRunner()
 
-	// Add all Phase 1 checks
-	runner.AddChecker(&healthcheck.DockerChecker{
-		ProjectName: "devsmith-modular-platform",
-		Services:    []string{"nginx", "portal", "review", "logs", "analytics", "postgres"},
+	// Phase 1: Basic checks
+	runner.AddChecker(&healthcheck.DockerChecker{})
+	runner.AddChecker(&healthcheck.HTTPChecker{
+		CheckName: "portal",
+		URL:       "http://localhost:8080/health",
 	})
-
-	services := map[string]string{
-		"gateway": "http://localhost:3000/",
-		"portal":  "http://localhost:8080/health",
-		"review":  "http://localhost:8081/health",
-		"logs":    "http://localhost:8082/health",
-	}
-
-	for name, url := range services {
-		runner.AddChecker(&healthcheck.HTTPChecker{
-			CheckName: "http_" + name,
-			URL:       url,
-		})
-	}
-
+	runner.AddChecker(&healthcheck.HTTPChecker{
+		CheckName: "review",
+		URL:       "http://localhost:8081/health",
+	})
+	runner.AddChecker(&healthcheck.HTTPChecker{
+		CheckName: "logs",
+		URL:       "http://localhost:8082/health",
+	})
+	runner.AddChecker(&healthcheck.HTTPChecker{
+		CheckName: "analytics",
+		URL:       "http://localhost:8083/health",
+	})
 	runner.AddChecker(&healthcheck.DatabaseChecker{
-		CheckName:     "database",
-		ConnectionURL: "postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable",
+		CheckName:     "postgres",
+		ConnectionURL: "postgres://devsmith:devsmith@localhost:5432/devsmith?sslmode=disable",
 	})
 
-	// Add Phase 2 checks (advanced diagnostics)
+	// Phase 2: Advanced checks
 	runner.AddChecker(&healthcheck.GatewayChecker{
 		CheckName:  "gateway_routing",
 		ConfigPath: "docker/nginx/nginx.conf",
 		GatewayURL: "http://localhost:3000",
 	})
-
 	runner.AddChecker(&healthcheck.MetricsChecker{
 		CheckName: "performance_metrics",
 		Endpoints: []healthcheck.MetricEndpoint{
@@ -156,7 +139,6 @@ func (s *HealthScheduler) buildAndRunHealthCheck() *healthcheck.HealthReport {
 			{Name: "gateway", URL: "http://localhost:3000/"},
 		},
 	})
-
 	runner.AddChecker(&healthcheck.DependencyChecker{
 		CheckName: "service_dependencies",
 		Dependencies: map[string][]string{
@@ -173,31 +155,93 @@ func (s *HealthScheduler) buildAndRunHealthCheck() *healthcheck.HealthReport {
 		},
 	})
 
-	// Add Trivy security scanning
+	// Phase 3: Security checks (if Trivy available)
 	runner.AddChecker(&healthcheck.TrivyChecker{
-		CheckName: "security_scan",
+		CheckName: "trivy_images",
 		ScanType:  "image",
-		Targets:   []string{"devsmith/portal:latest", "devsmith/review:latest", "devsmith/logs:latest"},
-		TrivyPath: "scripts/trivy-scan.sh",
+		Targets:   []string{"devsmith-portal", "devsmith-review", "devsmith-logs", "devsmith-analytics"},
 	})
 
-	// Run all checks
-	// runner.Run() returns a value; take its address from a local variable
-	// to avoid taking the address of a temporary (invalid in Go).
-	result := runner.Run()
-	return &result
+	return runner.Run()
 }
 
-// GetLastCheckTime returns when the last health check ran
-func (s *HealthScheduler) GetLastCheckTime() time.Time {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.lastCheckTime
+// buildIssueMap creates a map of service -> issue type from health report
+func (s *HealthScheduler) buildIssueMap(report *healthcheck.HealthReport) map[string]string {
+	issues := make(map[string]string)
+
+	for _, check := range report.Checks {
+		if check.Status != healthcheck.StatusPass {
+			// Extract service name from check name
+			// e.g., "http_portal" -> "portal", "docker" -> map to services
+			serviceName := s.extractServiceName(check.Name)
+			if serviceName != "" {
+				issueType := s.classifyIssue(&check)
+				issues[serviceName] = issueType
+			}
+		}
+	}
+
+	return issues
 }
 
-// IsRunning returns whether the scheduler is currently running
-func (s *HealthScheduler) IsRunning() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.running
+// extractServiceName extracts the service name from a check name
+func (s *HealthScheduler) extractServiceName(checkName string) string {
+	switch checkName {
+	case "http_portal", "portal":
+		return "portal"
+	case "http_review", "review":
+		return "review"
+	case "http_logs", "logs":
+		return "logs"
+	case "http_analytics", "analytics":
+		return "analytics"
+	case "database", "postgres":
+		return "postgres"
+	case "docker":
+		return ""
+	default:
+		return ""
+	}
+}
+
+// classifyIssue determines the issue type from a check result
+func (s *HealthScheduler) classifyIssue(check *healthcheck.CheckResult) string {
+	message := check.Message
+	if check.Error != "" {
+		message = check.Error
+	}
+
+	// Classify based on error message/type
+	if check.Status == healthcheck.StatusFail {
+		if message == "" {
+			return "unknown"
+		}
+		if contains(message, "timeout", "deadline", "connection refused") {
+			return "timeout"
+		}
+		if contains(message, "crash", "exit", "killed") {
+			return "crash"
+		}
+		if contains(message, "dependency", "dependent") {
+			return "dependency"
+		}
+		return "unknown"
+	}
+
+	return "warning"
+}
+
+// contains checks if string contains any of the given substrings
+func contains(str string, substrs ...string) bool {
+	for _, substr := range substrs {
+		if len(str) > 0 && len(substr) > 0 {
+			// Simple substring check
+			for i := 0; i < len(str)-len(substr)+1; i++ {
+				if str[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
