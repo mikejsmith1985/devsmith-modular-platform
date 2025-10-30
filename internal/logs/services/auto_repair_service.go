@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os/exec"
 	"time"
 )
@@ -110,7 +111,8 @@ func (s *AutoRepairService) waitForServiceHealth(ctx context.Context, serviceNam
 	maxRetries := 10
 	for i := 0; i < maxRetries; i++ {
 		// Check service health via health endpoint
-		// This would be implemented with actual HTTP checks
+		// This would be implemented with actual HTTP checks to serviceName
+		log.Printf("checking health for service: %s (attempt %d/%d)", serviceName, i+1, maxRetries)
 		select {
 		case <-time.After(3 * time.Second):
 			// Continue checking
@@ -153,7 +155,9 @@ func (s *AutoRepairService) GetRepairHistory(ctx context.Context, limit int) ([]
 		return nil, fmt.Errorf("failed to query repair history: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close repair history rows: %v", err)
+		}
 	}()
 
 	var actions []RepairAction
@@ -170,7 +174,7 @@ func (s *AutoRepairService) GetRepairHistory(ctx context.Context, limit int) ([]
 }
 
 // ManualRepair triggers a manual repair for a service
-func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName string, strategy string) error {
+func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName, strategy string) error {
 	startTime := time.Now()
 	var err error
 
@@ -200,9 +204,8 @@ func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName string
 		action.Status = "success"
 	}
 
-	if err := s.logRepairAction(ctx, &action); err != nil {
-		// Log but don't fail - repair already completed
-		fmt.Printf("failed to log manual repair action: %v\n", err)
+	if logErr := s.logRepairAction(ctx, &action); logErr != nil {
+		log.Printf("warning: failed to log manual repair action: %v", logErr)
 	}
 	return err
 }

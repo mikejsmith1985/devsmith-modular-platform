@@ -29,13 +29,6 @@ const wsLogsPath = "/ws/logs"
 // WEBSOCKET ENDPOINT TESTS
 // ============================================================================
 
-// goroutineSnapshot captures goroutine count at a point in time
-type goroutineSnapshot struct {
-	count    int
-	testName string
-	phase    string
-}
-
 // diagnosticGoroutines creates a cleanup function that verifies no goroutine leaks.
 // PATTERN: Use this in key representative tests to verify cleanup reliability.
 // DO NOT add to all tests - causes resource contention.
@@ -1486,8 +1479,3 @@ func (p *inMemoryPubSub) Publish(entry *logs_models.LogEntry) {
 
 // testPubSub is a singleton used across tests when setupTestRedis is called.
 var testPubSub = newInMemoryPubSub()
-
-func isConnectionClosed(conn *websocket.Conn) bool {
-	_, _, err := conn.ReadMessage()
-	return err != nil
-}

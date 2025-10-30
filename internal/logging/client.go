@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -46,7 +47,9 @@ func (c *Client) Post(ctx context.Context, data map[string]interface{}) error {
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
-		_ = resp.Body.Close() // explicitly ignore error as response already processed
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("warning: failed to close response body: %v", err)
+		}
 	}()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("logs service returned status %d", resp.StatusCode)
