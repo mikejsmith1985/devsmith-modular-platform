@@ -17,6 +17,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 )
 
@@ -30,10 +31,14 @@ func main() {
 	// Create Gin router
 	router := gin.Default()
 
-	// Initialize instrumentation logger for this service
-	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
-	if logsServiceURL == "" {
-		logsServiceURL = "http://localhost:8082" // Default for local development
+	// Initialize instrumentation logger for this service (use validated config)
+	logsServiceURL, logsEnabled, err := config.LoadLogsConfigWithFallbackFor("portal")
+	if err != nil {
+		log.Fatalf("Failed to load logging configuration: %v", err)
+	}
+	if !logsEnabled {
+		log.Printf("Instrumentation/logging disabled: continuing startup without external logs")
+		logsServiceURL = "" // instrumentation will treat empty URL as disabled
 	}
 	instrLogger := instrumentation.NewServiceInstrumentationLogger("portal", logsServiceURL)
 

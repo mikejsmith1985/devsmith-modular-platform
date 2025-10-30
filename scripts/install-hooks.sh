@@ -47,15 +47,26 @@ else
     echo -e "${YELLOW}  ⚠️  Local config example not found${NC}"
 fi
 
+# Install pre-push hook
+if [ -f "$HOOKS_SRC/pre-push" ]; then
+    echo -e "${BLUE}→ Installing pre-push hook...${NC}"
+    cp "$HOOKS_SRC/pre-push" "$HOOKS_DEST/pre-push"
+    chmod +x "$HOOKS_DEST/pre-push"
+    echo -e "${GREEN}  ✓ Pre-push hook installed${NC}"
+else
+    echo -e "${YELLOW}  ⚠️  pre-push hook not found in $HOOKS_SRC${NC}"
+fi
+
 echo ""
 echo -e "${GREEN}✅ Git hooks installation complete!${NC}"
 echo ""
 echo -e "${BLUE}📖 Documentation:${NC}"
 echo -e "   Pre-commit guide: .docs/PRE-COMMIT-ENHANCEMENTS.md"
 echo ""
-echo -e "${BLUE}🧪 Test the hook:${NC}"
-echo -e "   .git/hooks/pre-commit --quick      # Fast validation"
-echo -e "   .git/hooks/pre-commit --standard   # Full validation"
+echo -e "${BLUE}🧪 Test the hooks:${NC}"
+echo -e "   Pre-commit: $HOOKS_DEST/pre-commit --quick      # (disabled - local commits are fast)"
+echo -e "   Pre-push:   $HOOKS_DEST/pre-push --standard     # Full validation before push"
+echo -e "   JSON mode:  $HOOKS_DEST/pre-push --json         # Machine-readable output"
 echo ""
 echo -e "${BLUE}⚙️  Configuration:${NC}"
 echo -e "   Team config:  .pre-commit-config.yaml (committed)"

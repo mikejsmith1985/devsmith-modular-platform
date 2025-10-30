@@ -1133,6 +1133,7 @@ Format response as JSON array of issues.`, code)
 - Tag-based filtering
 - Log storage and retrieval
 - AI-driven context analysis (optional)
+- **System health check monitoring** (integrated)
 
 **Dependencies:**
 - PostgreSQL (logs schema)
@@ -1144,6 +1145,127 @@ Format response as JSON array of issues.`, code)
 - `GET /api/logs` - Query logs (with filters)
 - `GET /api/logs/stats` - Log statistics
 - `WS /ws/logs` - Real-time log streaming
+- `GET /api/logs/healthcheck` - System-wide health diagnostics (JSON)
+- `GET /healthcheck` - Health check dashboard (UI)
+
+**Health Check Integration:**
+
+The Logs service includes an integrated health check system (`internal/healthcheck/`) that validates:
+- Docker container status for all services
+- HTTP health endpoints for each service
+- Database connectivity and responsiveness
+- Gateway routing and availability
+
+Available as both a standalone CLI tool (`cmd/healthcheck/`) and integrated into the Logs service API and dashboard.
+
+**Phase 3: Health Intelligence (NEW)**
+
+Extended with intelligent monitoring and auto-repair capabilities:
+
+**Core Components:**
+1. **Historical Trend Analysis** (`internal/logs/services/health_storage_service.go`)
+   - 30-day retention of health check results
+   - Response time trending and analysis
+   - Per-service performance metrics
+   - SQL-based querying for historical data
+
+2. **Intelligent Auto-Repair** (`internal/logs/services/auto_repair_service.go`)
+   - Issue classification (timeout, crash, dependency, security)
+   - Adaptive repair strategies:
+     - Timeout → `restart` (quick recovery)
+     - Crash → `rebuild` (fresh image)
+     - Dependency → `none` (can't repair this service)
+     - Security CRITICAL → `rebuild` (patch needed)
+   - Outcome tracking and logging
+
+3. **Security Scanning** (`internal/healthcheck/trivy.go`)
+   - Trivy integration for container image scanning
+   - Vulnerability count by severity (CRITICAL/HIGH/MEDIUM/LOW)
+   - Status determination based on findings
+   - Scheduled scanning every 5 minutes
+
+4. **Custom Health Policies** (`internal/logs/services/health_policy_service.go`)
+   - Per-service configuration
+   - Max response time thresholds
+   - Repair strategy selection
+   - Alert behavior settings
+   - Default policies for all services
+
+5. **Scheduled Monitoring** (`internal/logs/services/health_scheduler.go`)
+   - Background health checks every 5 minutes
+   - Includes Phase 1, Phase 2, and Phase 3 checks
+   - Automatic repair triggering based on policies
+   - Thread-safe concurrent execution
+
+**New REST API Endpoints:**
+```
+GET  /api/health/history?limit=50        # Recent health checks
+GET  /api/health/trends/:service?hours=24  # Service trend data
+GET  /api/health/policies                 # All service policies
+GET  /api/health/policies/:service        # Single service policy
+PUT  /api/health/policies/:service        # Update policy configuration
+GET  /api/health/repairs?limit=50         # Repair action history
+POST /api/health/repair/:service          # Manual repair trigger
+```
+
+**Dashboard Enhancements:**
+- **Historical Trends Tab** - 7-day performance charts, statistics, per-service analysis
+- **Security Scans Tab** - Trivy results, vulnerability heatmap, detailed listing
+- **Policies Tab** - Editable per-service policies with live updates
+
+**Database Schema (logs schema):**
+```sql
+-- New tables for Phase 3
+health_checks              -- Full health reports with retention
+health_check_details       -- Individual checker results
+security_scans             -- Trivy scan results
+auto_repairs               -- Repair action history
+health_policies            -- Per-service configuration
+```
+
+**Key Architectural Decisions:**
+
+1. **Integration into Logs Service (NOT Separate)**
+   - Single source of truth for observability
+   - Reuses existing database, auth, and UI
+   - Cross-correlation between health events and application logs
+   - No duplicate infrastructure
+
+2. **Intelligent Repair Strategy**
+   - Not just "restart" - analyzes issue type first
+   - Policy-based configuration per service
+   - Timeout vs. crash vs. security requires different fixes
+   - Dependency failures skip repair (dependencies must be fixed first)
+
+3. **Trivy Integration (NOT Custom Implementation)**
+   - Wraps existing `scripts/trivy-scan.sh`
+   - Leverages 20K+ starred open-source tool
+   - Maintains by Trivy team, not DevSmith
+   - Parses JSON output, counts by severity
+
+**Configuration (Environment Variables):**
+```bash
+HEALTH_CHECK_INTERVAL=5m              # Scheduler interval
+HEALTH_AUTO_REPAIR_ENABLED=true       # Global toggle
+HEALTH_RETENTION_DAYS=30              # Data retention
+TRIVY_PATH=scripts/trivy-scan.sh      # Trivy binary/script
+```
+
+**Default Repair Policies:**
+```go
+"portal":    {MaxResponseTime: 500ms, AutoRepair: true, Strategy: "restart"}
+"review":    {MaxResponseTime: 1000ms, AutoRepair: true, Strategy: "restart"}
+"logs":      {MaxResponseTime: 500ms, AutoRepair: false, Strategy: "none"}
+"analytics": {MaxResponseTime: 2000ms, AutoRepair: true, Strategy: "restart"}
+```
+
+**Future Enhancements (Phase 4+):**
+- WebSocket real-time health updates
+- Alert integrations (email, Slack)
+- Performance regression detection
+- Custom health check plugins
+- ML-based anomaly detection
+- Multi-environment support
 
 ### Analytics Service
 **Purpose:** Log analysis and insights
@@ -1601,6 +1723,41 @@ REDIS_PORT=6379
 - Response time degradation
 - Service health check failures
 - Database connection pool exhaustion
+
+### Cross-service logging configuration
+
+The platform uses a centralized Logs service reachable via the environment variable `LOGS_SERVICE_URL`.
+
+- Default values:
+  - In Docker: `http://logs:8082/api/logs`
+  - Local development: `http://localhost:8082/api/logs`
+
+- Per-service overrides: a service may set a per-service environment variable to override the default location. Example:
+  - `REVIEW_LOGS_URL` will take precedence for the Review service
+  - `PORTAL_LOGS_URL` will take precedence for the Portal service
+
+- Startup policy (`LOGS_STRICT`):
+  - `true` (default): startup validates `LOGS_SERVICE_URL` (or per-service override) and fails fast on invalid configuration.
+  - `false`: startup logs a warning and proceeds with logging disabled (best-effort instrumentation will no-op).
+
+Instrumented services should use the platform helper `internal/logging.NewClient(endpoint)` and the config helpers `internal/config.LoadLogsConfigFor(service)` or `LoadLogsConfigWithFallbackFor(service)` to resolve the effective endpoint and honor `LOGS_STRICT`.
+
+Usage example (pseudo):
+```
+url, enabled, err := config.LoadLogsConfigWithFallbackFor("review")
+if enabled {
+    client := logging.NewClient(url)
+    instrumentation := instrumentation.New(client)
+} else {
+    instrumentation := instrumentation.NewNoop()
+}
+```
+
+Documented precedence:
+1. Per-service override: `<SERVICE>_LOGS_URL` (uppercase service name)
+2. `LOGS_SERVICE_URL`
+3. Default based on `ENVIRONMENT` (`docker` vs local)
+
 
 ---
 

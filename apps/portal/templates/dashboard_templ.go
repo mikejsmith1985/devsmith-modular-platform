@@ -270,29 +270,7 @@ func ServiceCard(service ServiceInfo) templ.Component {
 	})
 }
 
-type DashboardUser struct {
-	Username  string
-	Email     string
-	AvatarURL string
-}
-
-type ServiceInfo struct {
-	Name        string
-	Description string
-	URL         string
-	Icon        string
-	Status      string
-}
-
-// LogsDashboardData holds pre-fetched data for server-side rendering
-type LogsDashboardData struct {
-	User      DashboardUser
-	Stats     interface{}
-	TopErrors interface{}
-	Trends    interface{}
-}
-
-// LogsDashboard renders the logs dashboard page with analytics and alerts
+// LogsDashboard renders the logs dashboard page with pre-populated data
 func LogsDashboard(data LogsDashboardData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -333,7 +311,7 @@ func LogsDashboard(data LogsDashboardData) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.AvatarURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 86, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 72, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -346,7 +324,7 @@ func LogsDashboard(data LogsDashboardData) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 86, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 72, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -359,13 +337,13 @@ func LogsDashboard(data LogsDashboardData) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 87, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 73, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div></div></header><main class=\"logs-dashboard-main\"><!-- Time Range Selector --><div class=\"controls-bar\"><div class=\"time-range-selector\"><label for=\"time-range\">Time Range:</label> <select id=\"time-range\" name=\"time_range\" onchange=\"updateDashboard()\"><option value=\"last_hour\">Last Hour</option> <option value=\"last_6_hours\">Last 6 Hours</option> <option value=\"last_24_hours\" selected>Last 24 Hours</option> <option value=\"last_7_days\">Last 7 Days</option></select></div><div class=\"service-filter\"><label for=\"service-filter\">Service:</label> <select id=\"service-filter\" name=\"service\" onchange=\"updateDashboard()\"><option value=\"\">All Services</option> <option value=\"review\">Review</option> <option value=\"analytics\">Analytics</option> <option value=\"logs\">Logs</option> <option value=\"portal\">Portal</option></select></div><button id=\"refresh-btn\" class=\"btn-secondary\" onclick=\"refreshDashboard()\">🔄 Refresh</button></div><!-- Dashboard Grid --><div class=\"dashboard-grid\"><!-- Stats Cards --><div class=\"stats-section\"><h2>Service Statistics</h2><div class=\"stats-grid\"><div class=\"stat-card\"><div class=\"stat-label\">Total Logs</div><div class=\"stat-value\" id=\"stat-total-logs\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Error Rate</div><div class=\"stat-value\" id=\"stat-error-rate\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Warning Count</div><div class=\"stat-value\" id=\"stat-warning-count\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Active Services</div><div class=\"stat-value\" id=\"stat-active-services\">--</div></div></div></div><!-- Top Errors Section --><div class=\"top-errors-section\"><h2>🚨 Top Errors</h2><div class=\"top-errors-list\" id=\"top-errors-list\"><div class=\"loading\">Loading errors...</div></div></div><!-- Trends Section --><div class=\"trends-section\"><h2>📈 Error Trends</h2><div class=\"trends-chart\" id=\"trends-chart\"><div class=\"loading\">Loading trends...</div></div></div><!-- Alert Management Section --><div class=\"alert-management-section\"><h2>⚠️ Alert Configuration</h2><div class=\"alert-config-container\"><div class=\"alert-controls\"><button class=\"btn-primary\" onclick=\"showAddAlertModal()\">+ New Alert</button></div><div class=\"alerts-list\" id=\"alerts-list\"><div class=\"loading\">Loading alerts...</div></div></div></div></div></main><!-- Add Alert Modal --><div id=\"add-alert-modal\" class=\"modal\" style=\"display: none;\"><div class=\"modal-content\"><div class=\"modal-header\"><h3>Create New Alert</h3><button class=\"btn-close\" onclick=\"closeAddAlertModal()\">×</button></div><form id=\"add-alert-form\" onsubmit=\"saveAlert(event)\"><div class=\"form-group\"><label for=\"alert-service\">Service:</label> <select id=\"alert-service\" name=\"service\" required><option value=\"\">-- Select Service --</option> <option value=\"review\">Review</option> <option value=\"analytics\">Analytics</option> <option value=\"logs\">Logs</option> <option value=\"portal\">Portal</option></select></div><div class=\"form-group\"><label for=\"alert-error-threshold\">Error Threshold (per min):</label> <input type=\"number\" id=\"alert-error-threshold\" name=\"error_threshold_per_min\" min=\"1\" max=\"1000\" value=\"10\" required></div><div class=\"form-group\"><label for=\"alert-warning-threshold\">Warning Threshold (per min):</label> <input type=\"number\" id=\"alert-warning-threshold\" name=\"warning_threshold_per_min\" min=\"0\" max=\"1000\" value=\"5\" required></div><div class=\"form-group\"><label for=\"alert-email\">Email:</label> <input type=\"email\" id=\"alert-email\" name=\"alert_email\" placeholder=\"alerts@example.com\"></div><div class=\"form-actions\"><button type=\"submit\" class=\"btn-primary\">Create Alert</button> <button type=\"button\" class=\"btn-secondary\" onclick=\"closeAddAlertModal()\">Cancel</button></div></form></div></div></div><script src=\"/static/js/logs-dashboard.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div></div></header><main class=\"logs-dashboard-main\"><!-- Dashboard Grid --><div class=\"dashboard-grid\"><!-- Stats Cards --><div class=\"stats-section\"><h2>Service Statistics</h2><div class=\"stats-grid\"><div class=\"stat-card\"><div class=\"stat-label\">Total Logs</div><div class=\"stat-value\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Error Rate</div><div class=\"stat-value\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Warning Count</div><div class=\"stat-value\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Active Services</div><div class=\"stat-value\">--</div></div></div></div><!-- Top Errors Section --><div class=\"top-errors-section\"><h2>🚨 Top Errors</h2><div class=\"top-errors-list\"><div class=\"empty-state\">No errors found</div></div></div><!-- Trends Section --><div class=\"trends-section\"><h2>📈 Error Trends</h2><div class=\"trends-chart\"><div class=\"empty-state\">No trend data available</div></div></div><!-- Alert Management Section --><div class=\"alert-management-section\"><h2>⚠️ Alert Configuration</h2><div class=\"alert-config-container\"><div class=\"alert-controls\"><a href=\"/api/logs/dashboard/logs\" class=\"btn-primary\">View Full Dashboard</a></div><p>Alert management available at the Logs service dashboard.</p></div></div></div></main></div><style>\n\t\t\t.logs-dashboard-container {\n\t\t\t\tdisplay: flex;\n\t\t\t\tflex-direction: column;\n\t\t\t\tmin-height: 100vh;\n\t\t\t\tbackground: #f5f7fa;\n\t\t\t}\n\n\t\t\t.logs-dashboard-header {\n\t\t\t\tbackground: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n\t\t\t\tcolor: white;\n\t\t\t\tpadding: 30px;\n\t\t\t\tdisplay: flex;\n\t\t\t\tjustify-content: space-between;\n\t\t\t\talign-items: center;\n\t\t\t\tbox-shadow: 0 2px 8px rgba(0,0,0,0.1);\n\t\t\t}\n\n\t\t\t.logs-dashboard-header h1 {\n\t\t\t\tmargin: 0 0 8px 0;\n\t\t\t\tfont-size: 28px;\n\t\t\t}\n\n\t\t\t.header-subtitle {\n\t\t\t\tmargin: 0;\n\t\t\t\topacity: 0.9;\n\t\t\t\tfont-size: 14px;\n\t\t\t}\n\n\t\t\t.logs-dashboard-main {\n\t\t\t\tflex: 1;\n\t\t\t\tpadding: 30px;\n\t\t\t}\n\n\t\t\t.dashboard-grid {\n\t\t\t\tdisplay: grid;\n\t\t\t\tgap: 25px;\n\t\t\t}\n\n\t\t\t.stats-grid {\n\t\t\t\tdisplay: grid;\n\t\t\t\tgrid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n\t\t\t\tgap: 15px;\n\t\t\t}\n\n\t\t\t.stat-card {\n\t\t\t\tbackground: white;\n\t\t\t\tpadding: 20px;\n\t\t\t\tborder-radius: 8px;\n\t\t\t\tbox-shadow: 0 1px 3px rgba(0,0,0,0.08);\n\t\t\t}\n\n\t\t\t.stat-label {\n\t\t\t\tfont-size: 12px;\n\t\t\t\tcolor: #666;\n\t\t\t\ttext-transform: uppercase;\n\t\t\t\tmargin-bottom: 10px;\n\t\t\t}\n\n\t\t\t.stat-value {\n\t\t\t\tfont-size: 32px;\n\t\t\t\tfont-weight: bold;\n\t\t\t\tcolor: #333;\n\t\t\t\tmargin-bottom: 8px;\n\t\t\t}\n\n\t\t\t.top-errors-section, .trends-section, .alert-management-section {\n\t\t\t\tbackground: white;\n\t\t\t\tpadding: 25px;\n\t\t\t\tborder-radius: 8px;\n\t\t\t\tbox-shadow: 0 1px 3px rgba(0,0,0,0.08);\n\t\t\t}\n\n\t\t\t.top-errors-section h2, .trends-section h2, .alert-management-section h2 {\n\t\t\t\tmargin-top: 0;\n\t\t\t\tmargin-bottom: 20px;\n\t\t\t\tfont-size: 18px;\n\t\t\t\tcolor: #333;\n\t\t\t}\n\n\t\t\t.empty-state {\n\t\t\t\tpadding: 40px;\n\t\t\t\ttext-align: center;\n\t\t\t\tcolor: #999;\n\t\t\t}\n\n\t\t\t.btn-primary {\n\t\t\t\tdisplay: inline-block;\n\t\t\t\tpadding: 10px 20px;\n\t\t\t\tbackground: #667eea;\n\t\t\t\tcolor: white;\n\t\t\t\tborder-radius: 4px;\n\t\t\t\ttext-decoration: none;\n\t\t\t\tfont-weight: 600;\n\t\t\t}\n\n\t\t\t.alert-config-container {\n\t\t\t\ttext-align: center;\n\t\t\t}\n\n\t\t\t.alert-config-container p {\n\t\t\t\tcolor: #666;\n\t\t\t\tmargin-top: 15px;\n\t\t\t}\n\t\t</style>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

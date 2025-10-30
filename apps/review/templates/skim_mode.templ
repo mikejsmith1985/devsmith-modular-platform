@@ -1,0 +1,18 @@
+// GREEN PHASE: Minimal Templ for Skim mode function list
+package templates
+
+// SkimModeFunctionList displays a list of functions in Skim mode
+templ SkimModeFunctionList(functions []string) {
+	<section class="function-list p-4 bg-base-100 rounded shadow" aria-labelledby="skim-heading" role="region">
+		<h2 id="skim-heading" class="text-lg font-bold mb-2">Functions</h2>
+		<ul class="divide-y divide-base-200">
+			for _, f := range functions {
+				<li class="py-2">
+					<button class="expand btn btn-link w-full text-left" aria-expanded="false" hx-get={ "/api/review/sessions/function/" + f } hx-target="next li" hx-swap="afterend">
+						{ f }
+					</button>
+				</li>
+			}
+		</ul>
+	</section>
+}

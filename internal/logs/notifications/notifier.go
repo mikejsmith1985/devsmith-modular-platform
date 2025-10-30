@@ -120,13 +120,13 @@ func (en *EmailNotifier) Send(ctx context.Context, violation *models.AlertThresh
 // validateConfig validates the email configuration.
 func (en *EmailNotifier) validateConfig() error {
 	if en.config.Host == "" {
-		return errors.New("SMTP host is required")
+		return errors.New("invalid smtp configuration: host is required")
 	}
 	if en.config.Port == 0 {
-		return errors.New("SMTP port is required")
+		return errors.New("invalid smtp configuration: port is required")
 	}
 	if en.config.FromAddr == "" {
-		return errors.New("from address is required")
+		return errors.New("invalid smtp configuration: from address is required")
 	}
 	return nil
 }
