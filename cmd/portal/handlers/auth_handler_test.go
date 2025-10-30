@@ -1,4 +1,4 @@
-package handlers
+package cmd_portal_handlers
 
 import (
 	"fmt"

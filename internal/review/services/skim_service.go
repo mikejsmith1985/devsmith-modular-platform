@@ -1,4 +1,4 @@
-package services
+package review_services
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -27,17 +27,17 @@ func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 }
 
 // AnalyzeSkim performs Skim Mode analysis for the given review session and repository.
-func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.SkimModeOutput, error) {
+func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner, repoName string) (*review_models.SkimModeOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
 	s.logger.Info("AnalyzeSkim called", "correlation_id", correlationID, "review_id", reviewID, "repo_owner", repoOwner, "repo_name", repoName)
 
-	existing, err := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, models.SkimMode)
+	existing, err := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, review_models.SkimMode)
 	if err != nil && err.Error() != "not found" {
 		s.logger.Error("SkimService: cache lookup failed", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("cache lookup failed: %w", err)
 	}
 	if existing != nil {
-		var output models.SkimModeOutput
+		var output review_models.SkimModeOutput
 		if unmarshalErr := json.Unmarshal([]byte(existing.Metadata), &output); unmarshalErr != nil {
 			s.logger.Error("SkimService: failed to unmarshal existing metadata", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
 			return nil, fmt.Errorf("failed to unmarshal existing metadata: %w", unmarshalErr)
@@ -67,9 +67,9 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner
 		s.logger.Error("SkimService: failed to marshal output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to marshal skim analysis output: %w", err)
 	}
-	result := &models.AnalysisResult{
+	result := &review_models.AnalysisResult{
 		ReviewID:  reviewID,
-		Mode:      models.SkimMode,
+		Mode:      review_models.SkimMode,
 		Prompt:    prompt,
 		RawOutput: rawOutput,
 		Summary:   output.Summary,
@@ -102,8 +102,8 @@ Repository: https://github.com/%s/%s`, owner, repo, owner, repo)
 }
 
 // Fix parseSkimOutput to handle errors properly
-func (s *SkimService) parseSkimOutput(raw string) (*models.SkimModeOutput, error) {
-	var output models.SkimModeOutput
+func (s *SkimService) parseSkimOutput(raw string) (*review_models.SkimModeOutput, error) {
+	var output review_models.SkimModeOutput
 	if err := json.Unmarshal([]byte(raw), &output); err != nil {
 		return nil, fmt.Errorf("failed to parse skim output: %w", err)
 	}

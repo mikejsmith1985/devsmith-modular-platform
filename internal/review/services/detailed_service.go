@@ -1,5 +1,5 @@
-// Package services contains business logic for review service reading modes, including Detailed Mode.
-package services
+// Package review_services contains business logic for review service reading modes, including Detailed Mode.
+package review_services
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -79,7 +79,7 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, sessionID int, fi
 		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "session_id", sessionID, "error", err)
 		return nil, fmt.Errorf("failed to unmarshal detailed analysis output: %w", err)
 	}
-	result := &models.AnalysisResult{
+	result := &review_models.AnalysisResult{
 		ReviewID:  int64(sessionID),
 		Mode:      "detailed",
 		Prompt:    prompt,

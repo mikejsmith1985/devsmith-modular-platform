@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/notifications"
 )
 
@@ -59,7 +59,7 @@ func TestEmailNotifierSendValidation(t *testing.T) {
 	}
 	notifier := notifications.NewEmailNotifier(config)
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "api-service",
 		Level:          "error",
 		CurrentCount:   150,
@@ -91,7 +91,7 @@ func TestEmailNotifierValidation(t *testing.T) {
 	notifier := notifications.NewEmailNotifier(config)
 
 	// THEN: Send should fail with validation error
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service: "test-service",
 		Level:   "error",
 	}
@@ -118,7 +118,7 @@ func TestWebhookNotifierSend(t *testing.T) {
 	// GIVEN: A webhook notifier and alert violation
 	notifier := notifications.NewWebhookNotifier("https://example.com/webhooks/alerts")
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "api-service",
 		Level:          "error",
 		CurrentCount:   150,
@@ -140,7 +140,7 @@ func TestWebhookNotifierValidation(t *testing.T) {
 	notifier := notifications.NewWebhookNotifier("https://example.com")
 
 	// WHEN: Sending to invalid URL
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service: "test-service",
 		Level:   "error",
 	}
@@ -164,7 +164,7 @@ func TestNotifierContextCancellation(t *testing.T) {
 		FromAddr: "noreply@example.com",
 	})
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service: "test-service",
 		Level:   "error",
 	}

@@ -1,12 +1,12 @@
-package services_test
+package analytics_services_test
 
 import (
 	"bytes"
 	"context"
 	"testing"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -27,7 +27,7 @@ func TestAggregatorService_RunHourlyAggregation(t *testing.T) {
 	mockAggRepo := new(testutils.MockAggregationRepository)
 	mockLogReader := new(testutils.MockLogReader)
 
-	service := services.NewAggregatorService(mockAggRepo, mockLogReader, logger)
+	service := analytics_services.NewAggregatorService(mockAggRepo, mockLogReader, logger)
 
 	// Capture logs programmatically
 	var logBuffer bytes.Buffer
@@ -53,7 +53,7 @@ func TestAggregatorService_RunHourlyAggregation(t *testing.T) {
 	}
 
 	// Refine Upsert mock setup to ensure it matches Aggregation objects
-	mockAggRepo.On("Upsert", mock.Anything, mock.MatchedBy(func(agg *models.Aggregation) bool {
+	mockAggRepo.On("Upsert", mock.Anything, mock.MatchedBy(func(agg *analytics_models.Aggregation) bool {
 		logger.Debugf("Upsert called with aggregation: %+v", agg)
 		return (agg.Service == "service1" || agg.Service == "service2") &&
 			(agg.Value == 10)
@@ -111,7 +111,7 @@ func TestAggregatorService_AnalyzeAggregations(t *testing.T) {
 	logReader := new(testutils.MockLogReader) // Updated to use the mock implementation
 	logger, _ := test.NewNullLogger()
 
-	service := services.NewAggregatorService(mockRepo, logReader, logger)
+	service := analytics_services.NewAggregatorService(mockRepo, logReader, logger)
 
 	// Add mock setup for FindAllServices
 	logReader.On("FindAllServices", mock.Anything).Return([]string{"service1", "service2"}, nil)
@@ -125,7 +125,7 @@ func TestAggregatorService_AnalyzeAggregations(t *testing.T) {
 	logReader.On("CountByServiceAndLevel", mock.Anything, "service2", "error", mock.Anything, mock.Anything).Return(10, nil)
 
 	// Mock setup for Upsert method
-	mockRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*models.Aggregation")).Return(nil).Maybe()
+	mockRepo.On("Upsert", mock.Anything, mock.AnythingOfType("*analytics_models.Aggregation")).Return(nil).Maybe()
 
 	// Define test cases and assertions here
 	t.Log("Invoking RunHourlyAggregation")
@@ -147,7 +147,7 @@ func TestAggregatorService_FindAllServices_IsCalled(t *testing.T) {
 	mockAggRepo := new(testutils.MockAggregationRepository)
 	mockLogReader := new(testutils.MockLogReader)
 
-	service := services.NewAggregatorService(mockAggRepo, mockLogReader, logger)
+	service := analytics_services.NewAggregatorService(mockAggRepo, mockLogReader, logger)
 
 	mockLogReader.On("FindAllServices", mock.Anything).Return([]string{service1}, nil)
 	mockLogReader.On("CountByServiceAndLevel", mock.Anything, service1, logLevelInfo, mock.Anything, mock.Anything).Return(10, nil)

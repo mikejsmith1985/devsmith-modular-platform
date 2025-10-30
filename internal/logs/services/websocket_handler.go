@@ -1,6 +1,6 @@
-// Package services provides WebSocket handler implementation for real-time log streaming.
+// Package logs_services provides WebSocket handler implementation for real-time log streaming.
 // It implements the WebSocket upgrade, filter parsing, and authentication for the Logs service.
-package services
+package logs_services
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // WebSocketHandler handles HTTP to WebSocket upgrade and connection setup.
@@ -62,7 +62,7 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Create client with filters and auth info
 	client := &Client{
 		Conn:         conn,
-		Send:         make(chan *models.LogEntry, 256),
+		Send:         make(chan *logs_models.LogEntry, 256),
 		Filters:      filters,
 		IsAuth:       isAuthenticated,
 		IsPublic:     isPublic,

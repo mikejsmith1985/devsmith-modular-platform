@@ -1,5 +1,5 @@
-// Package models contains data structures for analytics.
-package models
+// Package analytics_models contains data structures for analytics.
+package analytics_models
 
 import "time"
 

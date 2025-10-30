@@ -1,6 +1,6 @@
-// Package handlers provides HTTP request handlers for the review service.
+// Package cmd_review_handlers provides HTTP request handlers for the review service.
 // The validation_helper module provides composite validation functions for use in handlers.
-package handlers
+package cmd_review_handlers
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
 // ValidateRequest runs a series of validator functions and returns HTTP error if any fail.
@@ -58,32 +58,32 @@ func ValidateRequest(c *gin.Context, validators ...func() error) bool {
 //   - error: nil if all applicable validations pass, wrapped error with field name on failure
 func ValidateCreateReviewRequest(title, codeSource, pastedCode, githubRepo, githubBranch string) error {
 	// Validate title (always required)
-	if err := services.ValidateTitle(title); err != nil {
+	if err := review_services.ValidateTitle(title); err != nil {
 		return fmt.Errorf("title: %w", err)
 	}
 
 	// Validate code source (always required)
-	if err := services.ValidateCodeSource(codeSource); err != nil {
+	if err := review_services.ValidateCodeSource(codeSource); err != nil {
 		return fmt.Errorf("code_source: %w", err)
 	}
 
 	// Conditional validation: pasted code
 	if codeSource == "paste" && pastedCode != "" {
-		if err := services.ValidateCodeContent(pastedCode); err != nil {
+		if err := review_services.ValidateCodeContent(pastedCode); err != nil {
 			return fmt.Errorf("pasted_code: %w", err)
 		}
 	}
 
 	// Conditional validation: GitHub repository
 	if codeSource == "github" && githubRepo != "" {
-		if err := services.ValidateGitHubURL(githubRepo); err != nil {
+		if err := review_services.ValidateGitHubURL(githubRepo); err != nil {
 			return fmt.Errorf("github_repo: %w", err)
 		}
 	}
 
 	// Conditional validation: GitHub branch
 	if codeSource == "github" && githubBranch != "" {
-		if err := services.ValidateGitHubBranch(githubBranch); err != nil {
+		if err := review_services.ValidateGitHubBranch(githubBranch); err != nil {
 			return fmt.Errorf("github_branch: %w", err)
 		}
 	}
@@ -102,12 +102,12 @@ func ValidateCreateReviewRequest(title, codeSource, pastedCode, githubRepo, gith
 //   - error: nil if all validations pass, wrapped error with field name on failure
 func ValidateScanRequest(readingMode, query string) error {
 	// Validate reading mode
-	if err := services.ValidateReadingMode(readingMode); err != nil {
+	if err := review_services.ValidateReadingMode(readingMode); err != nil {
 		return fmt.Errorf("reading_mode: %w", err)
 	}
 
 	// Validate query
-	if err := services.ValidateScanQuery(query); err != nil {
+	if err := review_services.ValidateScanQuery(query); err != nil {
 		return fmt.Errorf("query: %w", err)
 	}
 
@@ -123,7 +123,7 @@ func ValidateScanRequest(readingMode, query string) error {
 // Returns:
 //   - error: nil if mode is valid, error otherwise
 func ValidateReadingModeRequest(mode string) error {
-	return services.ValidateReadingMode(mode)
+	return review_services.ValidateReadingMode(mode)
 }
 
 // logValidationFailure sends a validation error log to the logs service.

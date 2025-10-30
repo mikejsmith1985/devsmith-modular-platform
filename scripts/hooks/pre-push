@@ -24,11 +24,11 @@ fi
 
 # 2. IMPORTS CHECK (goimports)
 echo "2️⃣  Checking imports (goimports)..."
-if ! goimports -l . 2>/dev/null | grep -q "\.go"; then
-    echo "✅ PASSED: Imports correct"
-else
+if goimports -l . 2>/dev/null | grep -q "\.go"; then
     echo "❌ FAILED: Imports not resolved. Run: goimports -w ."
     FAILED=1
+else
+    echo "✅ PASSED: Imports correct"
 fi
 
 # 3. BUILD CHECK
@@ -40,16 +40,18 @@ else
     echo "✅ PASSED: Code compiles"
 fi
 
-# 4. LINTING CHECK (golangci-lint) - CRITICAL
+# 4. LINTING CHECK (golangci-lint) - STRICT
 echo "4️⃣  Checking linting (golangci-lint)..."
 if ! command -v golangci-lint &>/dev/null; then
     echo "⚠️  WARNING: golangci-lint not installed"
     echo "   Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
 else
-    if golangci-lint run ./... 2>&1 | tee /tmp/lint-output.txt | grep -q "^"; then
-        # golangci-lint outputs issues if there are any
-        echo "❌ FAILED: Linting errors found:"
-        cat /tmp/lint-output.txt | head -30
+    # Capture output and check for ANY linting issues (errors or warnings)
+    LINT_OUTPUT=$(golangci-lint run ./... 2>&1 || true)
+    # Check if there's any output (which means issues found)
+    if echo "$LINT_OUTPUT" | grep -qE "^[^[:space:]].*\.go:[0-9]+"; then
+        echo "❌ FAILED: Linting errors/warnings found:"
+        echo "$LINT_OUTPUT" | head -30
         FAILED=1
     else
         echo "✅ PASSED: No linting errors"
@@ -65,29 +67,37 @@ else
     echo "✅ PASSED: Go vet clean"
 fi
 
-# 6. TEST COMPILATION
+# 6. TEST COMPILATION (BLOCKING)
 echo "6️⃣  Checking test compilation..."
-if ! go test -c ./cmd/... ./internal/... ./apps/... 2>&1 >/dev/null; then
-    echo "⚠️  WARNING: Tests don't compile (codebase has package structure issues)"
-    echo "   This is non-blocking - critical quality gates (build, lint, vet) passed"
-else
+# Note: We skip explicit compilation since go test ./... -short compiles implicitly
+# and avoids the "cannot write test binary" conflicts that arise from -c flag
+if ! go test ./... -c -o /tmp/test.binary 2>&1 | grep -q "^"; then
+    # Test succeeded, no output
     echo "✅ PASSED: Tests compile"
+else
+    # If go test -c has issues, fall back to running tests which implicitly compiles
+    if ! go test ./... -short -run TestNothing 2>&1 >/dev/null; then
+        echo "❌ FAILED: Tests don't compile. Fix package structure issues."
+        FAILED=1
+    else
+        echo "✅ PASSED: Tests compile"
+    fi
 fi
 
-# 7. TESTS RUN
+# 7. TESTS RUN (BLOCKING)
 echo "7️⃣  Running tests..."
-if ! go test -short ./cmd/... ./internal/... ./apps/... 2>&1 >/dev/null; then
-    echo "⚠️  WARNING: Some tests failed (codebase has package structure issues)"
-    echo "   This is non-blocking - critical quality gates (build, lint, vet) passed"
+if ! go test ./... -short 2>&1 >/dev/null; then
+    echo "❌ FAILED: Tests failed"
+    FAILED=1
 else
     echo "✅ PASSED: All tests passed"
 fi
 
-# 8. RACE CONDITION CHECK
+# 8. RACE CONDITION CHECK (BLOCKING)
 echo "8️⃣  Checking for race conditions..."
-if ! go test -race -short ./cmd/... ./internal/... ./apps/... 2>&1 >/dev/null; then
-    echo "⚠️  WARNING: Race detection failed (codebase has package structure issues)"
-    echo "   This is non-blocking - critical quality gates (build, lint, vet) passed"
+if ! go test ./... -race -short 2>&1 >/dev/null; then
+    echo "❌ FAILED: Race conditions detected"
+    FAILED=1
 else
     echo "✅ PASSED: No race conditions"
 fi
@@ -100,16 +110,10 @@ if [[ $FAILED -eq 0 ]]; then
     echo "════════════════════════════════════════════════════════════"
     exit 0
 else
-    echo "❌ CHECKS FAILED - Push blocked"
-    echo ""
-    echo "FIX REQUIRED:"
-    echo "  1. Run: gofmt -w ."
-    echo "  2. Run: goimports -w ."
-    echo "  3. Run: go build ./..."
-    echo "  4. Run: golangci-lint run ./..."
-    echo "  5. Run: go test ./..."
-    echo ""
-    echo "Then try pushing again."
+    echo "❌ PRE-PUSH VALIDATION FAILED"
     echo "════════════════════════════════════════════════════════════"
+    echo ""
+    echo "❌ CANNOT PUSH - Fix the issues above and try again"
+    echo ""
     exit 1
 fi

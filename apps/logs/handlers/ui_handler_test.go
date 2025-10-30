@@ -1,4 +1,4 @@
-package handlers
+package logs_handlers
 
 import (
 	"bytes"

@@ -1,13 +1,13 @@
-// Package handlers provides HTTP handlers for the logs UI service.
-package handlers
+// Package logs_handlers provides HTTP handlers for the logs UI service.
+package logs_handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/templates"
+	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 

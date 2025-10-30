@@ -1,5 +1,5 @@
-// Package middleware provides HTTP middleware for the review service.
-package middleware
+// Package internal_review_middleware provides HTTP middleware for the review service.
+package internal_review_middleware
 
 import (
 	"context"

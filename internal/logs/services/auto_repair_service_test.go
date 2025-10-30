@@ -1,4 +1,4 @@
-package services
+package logs_services
 
 import (
 	"testing"

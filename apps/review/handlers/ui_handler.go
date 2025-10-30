@@ -1,4 +1,4 @@
-package handlers
+package review_handlers
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
+	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )

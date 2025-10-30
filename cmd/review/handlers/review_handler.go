@@ -1,4 +1,4 @@
-package handlers
+package cmd_review_handlers
 
 import (
 	"context"
@@ -7,22 +7,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
 // ReviewHandler handles HTTP requests for the review service.
 type ReviewHandler struct {
 	scanService    ScanServiceInterface
-	skimService    *services.SkimService
+	skimService    *review_services.SkimService
 	reviewService  ReviewServiceInterface
-	previewService *services.PreviewService
+	previewService *review_services.PreviewService
 	instrLogger    *instrumentation.ServiceInstrumentationLogger
 }
 
 // NewReviewHandler creates a new instance of ReviewHandler.
-func NewReviewHandler(reviewService ReviewServiceInterface, previewService *services.PreviewService, skimService *services.SkimService, scanService ScanServiceInterface, instrLogger *instrumentation.ServiceInstrumentationLogger) *ReviewHandler {
+func NewReviewHandler(reviewService ReviewServiceInterface, previewService *review_services.PreviewService, skimService *review_services.SkimService, scanService ScanServiceInterface, instrLogger *instrumentation.ServiceInstrumentationLogger) *ReviewHandler {
 	return &ReviewHandler{
 		reviewService:  reviewService,
 		previewService: previewService,
@@ -113,7 +113,7 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 		return
 	}
 
-	review := &db.Review{
+	review := &review_db.Review{
 		UserID:       req.UserID,
 		Title:        req.Title,
 		CodeSource:   req.CodeSource,
@@ -146,18 +146,18 @@ func (h *ReviewHandler) CreateReviewSession(c *gin.Context) {
 	c.JSON(http.StatusCreated, created)
 }
 
-// ReviewServiceInterface defines the contract for review-related services.
+// ReviewServiceInterface defines the contract for review-related review_services.
 type ReviewServiceInterface interface {
 	// GetReview retrieves a review by its ID.
-	GetReview(ctx context.Context, id int64) (*models.Review, error)
+	GetReview(ctx context.Context, id int64) (*review_models.Review, error)
 	// CreateReview creates a new review.
-	CreateReview(ctx context.Context, review *db.Review) (*db.Review, error)
+	CreateReview(ctx context.Context, review *review_db.Review) (*review_db.Review, error)
 }
 
-// ScanServiceInterface defines the contract for scan-related services.
+// ScanServiceInterface defines the contract for scan-related review_services.
 type ScanServiceInterface interface {
 	// AnalyzeScan analyzes the scan for a given review.
-	AnalyzeScan(ctx context.Context, reviewID int64, query string) (*models.ScanModeOutput, error)
+	AnalyzeScan(ctx context.Context, reviewID int64, query string) (*review_models.ScanModeOutput, error)
 }
 
 // GetSkimAnalysis handles GET /api/reviews/:id/skim

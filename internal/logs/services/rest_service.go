@@ -1,5 +1,5 @@
-// Package services provides service implementations for logs operations.
-package services
+// Package logs_services provides service implementations for logs operations.
+package logs_services
 
 import (
 	"context"
@@ -8,18 +8,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	"github.com/sirupsen/logrus"
 )
 
 // RestLogService implements REST API operations for logs.
 type RestLogService struct {
-	repo   *db.LogRepository
+	repo   *logs_db.LogRepository
 	logger *logrus.Logger
 }
 
 // NewRestLogService creates a new RestLogService.
-func NewRestLogService(repo *db.LogRepository, logger *logrus.Logger) *RestLogService {
+func NewRestLogService(repo *logs_db.LogRepository, logger *logrus.Logger) *RestLogService {
 	return &RestLogService{
 		repo:   repo,
 		logger: logger,
@@ -32,7 +32,7 @@ func (s *RestLogService) Insert(ctx context.Context, entry map[string]interface{
 		return 0, errors.New("repository not configured")
 	}
 
-	logEntry := &db.LogEntry{
+	logEntry := &logs_db.LogEntry{
 		Service:   extractString(entry, "service"),
 		Level:     extractString(entry, "level"),
 		Message:   extractString(entry, "message"),
@@ -67,7 +67,7 @@ func (s *RestLogService) Query(
 		offset = o
 	}
 
-	queryFilters := &db.QueryFilters{
+	queryFilters := &logs_db.QueryFilters{
 		Service: extractString(filters, "service"),
 		Level:   extractString(filters, "level"),
 		Search:  extractString(filters, "search"),
@@ -75,7 +75,7 @@ func (s *RestLogService) Query(
 		To:      parseTime(extractString(filters, "to")),
 	}
 
-	pageOpts := db.PageOptions{
+	pageOpts := logs_db.PageOptions{
 		Limit:  limit,
 		Offset: offset,
 	}
@@ -181,7 +181,7 @@ func parseTime(s string) time.Time {
 	return time.Time{}
 }
 
-func mapLogEntryToInterface(entry *db.LogEntry) map[string]interface{} {
+func mapLogEntryToInterface(entry *logs_db.LogEntry) map[string]interface{} {
 	return map[string]interface{}{
 		"id":         entry.ID,
 		"service":    entry.Service,

@@ -1,11 +1,11 @@
-package db
+package analytics_db
 
 import (
 	"context"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 )
 
 // LogReader provides READ-ONLY access to logs.entries
@@ -31,7 +31,7 @@ func (r *LogReader) CountByServiceAndLevel(ctx context.Context, service, level s
 }
 
 // FindTopMessages finds most frequent log messages within a time range
-func (r *LogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.IssueItem, error) {
+func (r *LogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]analytics_models.IssueItem, error) {
 	query := `
 		SELECT message, COUNT(*) AS count, MAX(created_at) AS last_seen
 		FROM logs.entries
@@ -46,9 +46,9 @@ func (r *LogReader) FindTopMessages(ctx context.Context, service, level string, 
 	}
 	defer rows.Close()
 
-	var issues []models.IssueItem
+	var issues []analytics_models.IssueItem
 	for rows.Next() {
-		issue := models.IssueItem{}
+		issue := analytics_models.IssueItem{}
 		if err := rows.Scan(&issue.Message, &issue.Count, &issue.LastSeen); err != nil {
 			return nil, err
 		}

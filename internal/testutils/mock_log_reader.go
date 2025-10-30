@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -30,13 +30,13 @@ func (m *MockLogReader) CountByServiceAndLevel(ctx context.Context, service, lev
 
 // FindLogs provides a mocked implementation with logging.
 // It simulates the behavior of the actual LogReader method.
-func (m *MockLogReader) FindLogs(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*models.LogEntry, error) {
+func (m *MockLogReader) FindLogs(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*analytics_models.LogEntry, error) {
 	log.Printf("MockLogReader.FindLogs called with filters=%v, limit=%d, offset=%d", filters, limit, offset)
 	args := m.Called(ctx, filters, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	entries, ok := args.Get(0).([]*models.LogEntry)
+	entries, ok := args.Get(0).([]*analytics_models.LogEntry)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type for log entries: %T", args.Get(0))
 	}
@@ -60,13 +60,13 @@ func (m *MockLogReader) FindAllServices(ctx context.Context) ([]string, error) {
 // FindTopMessages provides a mocked implementation with logging.
 // It simulates the behavior of the actual LogReader method.
 // Ensure error return values are checked and handled appropriately.
-func (m *MockLogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.IssueItem, error) {
+func (m *MockLogReader) FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]analytics_models.IssueItem, error) {
 	log.Printf("MockLogReader.FindTopMessages called with service=%s, level=%s, startTime=%v, endTime=%v, limit=%d", service, level, start, end, limit)
 	args := m.Called(ctx, service, level, start, end, limit)
 	if err := args.Error(1); err != nil {
 		return nil, err
 	}
-	if result, ok := args.Get(0).([]models.IssueItem); ok {
+	if result, ok := args.Get(0).([]analytics_models.IssueItem); ok {
 		return result, nil
 	}
 	return nil, args.Error(1)
@@ -74,13 +74,13 @@ func (m *MockLogReader) FindTopMessages(ctx context.Context, service, level stri
 
 // FindAggregations provides a mocked implementation with logging.
 // It simulates the behavior of the actual LogReader method.
-func (m *MockLogReader) FindAggregations(ctx context.Context, service, level string, startTime, endTime time.Time) ([]*models.Aggregation, error) {
+func (m *MockLogReader) FindAggregations(ctx context.Context, service, level string, startTime, endTime time.Time) ([]*analytics_models.Aggregation, error) {
 	log.Printf("MockLogReader.FindAggregations called with service=%s, level=%s, startTime=%v, endTime=%v", service, level, startTime, endTime)
 	args := m.Called(ctx, service, level, startTime, endTime)
 	if err := args.Error(1); err != nil {
 		return nil, err
 	}
-	if result, ok := args.Get(0).([]*models.Aggregation); ok {
+	if result, ok := args.Get(0).([]*analytics_models.Aggregation); ok {
 		return result, nil
 	}
 	return nil, args.Error(1)
@@ -89,13 +89,13 @@ func (m *MockLogReader) FindAggregations(ctx context.Context, service, level str
 // FindByRange provides a mocked implementation with logging.
 // It simulates the behavior of the actual LogReader method.
 // Ensure error return values are checked and handled appropriately.
-func (m *MockLogReader) FindByRange(ctx context.Context, metricType, service string, start, end time.Time) ([]models.IssueItem, error) {
+func (m *MockLogReader) FindByRange(ctx context.Context, metricType, service string, start, end time.Time) ([]analytics_models.IssueItem, error) {
 	log.Printf("MockLogReader.FindByRange called with metricType=%s, service=%s, start=%v, end=%v", metricType, service, start, end)
 	args := m.Called(ctx, metricType, service, start, end)
 	if err := args.Error(1); err != nil {
 		return nil, err
 	}
-	if result, ok := args.Get(0).([]models.IssueItem); ok {
+	if result, ok := args.Get(0).([]analytics_models.IssueItem); ok {
 		return result, nil
 	}
 	return nil, args.Error(1)

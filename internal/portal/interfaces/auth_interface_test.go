@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	portal_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -14,20 +14,20 @@ type MockAuthService struct {
 	mock.Mock
 }
 
-func (m *MockAuthService) AuthenticateWithGitHub(ctx context.Context, code string) (*models.User, string, error) {
+func (m *MockAuthService) AuthenticateWithGitHub(ctx context.Context, code string) (*portal_models.User, string, error) {
 	args := m.Called(ctx, code)
 	if args.Get(0) == nil {
 		return nil, args.String(1), args.Error(2)
 	}
-	return args.Get(0).(*models.User), args.String(1), args.Error(2)
+	return args.Get(0).(*portal_models.User), args.String(1), args.Error(2)
 }
 
-func (m *MockAuthService) ValidateSession(ctx context.Context, token string) (*models.User, error) {
+func (m *MockAuthService) ValidateSession(ctx context.Context, token string) (*portal_models.User, error) {
 	args := m.Called(ctx, token)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+	return args.Get(0).(*portal_models.User), args.Error(1)
 }
 
 func (m *MockAuthService) RevokeSession(ctx context.Context, token string) error {
@@ -40,25 +40,25 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
-func (m *MockUserRepository) CreateOrUpdate(ctx context.Context, user *models.User) error {
+func (m *MockUserRepository) CreateOrUpdate(ctx context.Context, user *portal_models.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
 }
 
-func (m *MockUserRepository) FindByGitHubID(ctx context.Context, githubID int64) (*models.User, error) {
+func (m *MockUserRepository) FindByGitHubID(ctx context.Context, githubID int64) (*portal_models.User, error) {
 	args := m.Called(ctx, githubID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+	return args.Get(0).(*portal_models.User), args.Error(1)
 }
 
-func (m *MockUserRepository) FindByID(ctx context.Context, id int) (*models.User, error) {
+func (m *MockUserRepository) FindByID(ctx context.Context, id int) (*portal_models.User, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.User), args.Error(1)
+	return args.Get(0).(*portal_models.User), args.Error(1)
 }
 
 // MockGitHubClient implements GitHubClient for testing
@@ -71,12 +71,12 @@ func (m *MockGitHubClient) ExchangeCodeForToken(ctx context.Context, code string
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockGitHubClient) GetUserProfile(ctx context.Context, accessToken string) (*models.GitHubProfile, error) {
+func (m *MockGitHubClient) GetUserProfile(ctx context.Context, accessToken string) (*portal_models.GitHubProfile, error) {
 	args := m.Called(ctx, accessToken)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.GitHubProfile), args.Error(1)
+	return args.Get(0).(*portal_models.GitHubProfile), args.Error(1)
 }
 
 // Tests for interface implementations
@@ -97,7 +97,7 @@ func TestMockAuthService_Methods(t *testing.T) {
 	ctx := context.Background()
 
 	// Test AuthenticateWithGitHub
-	user := &models.User{Username: "test"}
+	user := &portal_models.User{Username: "test"}
 	mock.On("AuthenticateWithGitHub", ctx, "code123").Return(user, "token", nil)
 
 	// Test ValidateSession
@@ -112,7 +112,7 @@ func TestMockAuthService_Methods(t *testing.T) {
 func TestMockUserRepository_Methods(t *testing.T) {
 	mock := new(MockUserRepository)
 	ctx := context.Background()
-	user := &models.User{ID: 1, Username: "test"}
+	user := &portal_models.User{ID: 1, Username: "test"}
 
 	// Test CreateOrUpdate
 	mock.On("CreateOrUpdate", ctx, user).Return(nil)
@@ -129,7 +129,7 @@ func TestMockUserRepository_Methods(t *testing.T) {
 func TestMockGitHubClient_Methods(t *testing.T) {
 	mock := new(MockGitHubClient)
 	ctx := context.Background()
-	profile := &models.GitHubProfile{Username: "octocat", ID: 1}
+	profile := &portal_models.GitHubProfile{Username: "octocat", ID: 1}
 
 	// Test ExchangeCodeForToken
 	mock.On("ExchangeCodeForToken", ctx, "code").Return("token", nil)

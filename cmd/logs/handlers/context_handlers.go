@@ -1,11 +1,11 @@
-// Package handlers provides HTTP handlers for the Logs service API.
-package handlers
+// Package cmd_logs_handlers provides HTTP handlers for the Logs service API.
+package cmd_logs_handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
 // HTTP handler constants for correlation endpoints
@@ -50,7 +50,7 @@ const (
 //
 // Response (400 Bad Request): Missing correlation ID
 // Response (500 Internal Server Error): Database query error
-func GetCorrelatedLogs(svc *services.ContextService) gin.HandlerFunc {
+func GetCorrelatedLogs(svc *logs_services.ContextService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		correlationID := c.Param(ParamCorrelationID)
 		if correlationID == "" {
@@ -92,7 +92,7 @@ func GetCorrelatedLogs(svc *services.ContextService) gin.HandlerFunc {
 //
 // Response (400 Bad Request): Missing correlation ID
 // Response (500 Internal Server Error): Database query error
-func GetCorrelationMetadata(svc *services.ContextService) gin.HandlerFunc {
+func GetCorrelationMetadata(svc *logs_services.ContextService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		correlationID := c.Param(ParamCorrelationID)
 		if correlationID == "" {
@@ -113,7 +113,7 @@ func GetCorrelationMetadata(svc *services.ContextService) gin.HandlerFunc {
 // GetTraceTimeline handles GET /api/logs/correlation/:correlationId/timeline.
 //
 // Returns a chronological timeline of all events in a correlation,
-// suitable for visualizing request flow through distributed services.
+// suitable for visualizing request flow through distributed logs_services.
 //
 // Response (200 OK):
 //
@@ -143,7 +143,7 @@ func GetCorrelationMetadata(svc *services.ContextService) gin.HandlerFunc {
 //
 // Response (400 Bad Request): Missing correlation ID
 // Response (500 Internal Server Error): Database query error
-func GetTraceTimeline(svc *services.ContextService) gin.HandlerFunc {
+func GetTraceTimeline(svc *logs_services.ContextService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		correlationID := c.Param(ParamCorrelationID)
 		if correlationID == "" {

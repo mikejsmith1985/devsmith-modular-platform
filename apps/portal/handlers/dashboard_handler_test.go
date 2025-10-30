@@ -1,4 +1,4 @@
-package handlers_test
+package portal_handlers_test
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 )
 
 func TestDashboardHandler(t *testing.T) {
@@ -24,14 +24,14 @@ func TestDashboardHandler(t *testing.T) {
 	c.Request = req
 
 	// Mock user claims using UserClaims structure
-	c.Set("user", &handlers.UserClaims{
+	c.Set("user", &portal_handlers.UserClaims{
 		Username:  "testuser",
 		Email:     "testuser@example.com",
 		AvatarURL: "https://example.com/avatar.png",
 	})
 
 	// Call handler
-	handlers.DashboardHandler(c)
+	portal_handlers.DashboardHandler(c)
 
 	// Assertions
 	require.Equal(t, http.StatusOK, w.Code)
@@ -46,7 +46,7 @@ func TestGetUserInfoHandler(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 
 	// Mock user claims using UserClaims structure
-	c.Set("user", &handlers.UserClaims{
+	c.Set("user", &portal_handlers.UserClaims{
 		Username:  "testuser",
 		Email:     "testuser@example.com",
 		AvatarURL: "https://example.com/avatar.png",
@@ -55,7 +55,7 @@ func TestGetUserInfoHandler(t *testing.T) {
 	})
 
 	// Call handler
-	handlers.GetUserInfoHandler(c)
+	portal_handlers.GetUserInfoHandler(c)
 
 	// Assertions
 	require.Equal(t, http.StatusOK, w.Code)

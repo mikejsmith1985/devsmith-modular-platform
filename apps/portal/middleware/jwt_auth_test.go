@@ -1,4 +1,4 @@
-package middleware
+package portal_middleware
 
 import (
 	"net/http"

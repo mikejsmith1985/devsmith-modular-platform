@@ -14,8 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx PostgreSQL driver for DB connection
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
+	handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
@@ -91,9 +91,6 @@ func main() {
 	}
 
 	// Register authentication routes
-	// Import handlers package
-	// ...existing code...
-	// This import is implied: "github.com/mikejsmith1985/devsmith-modular-platform/cmd/portal/handlers"
 	handlers.RegisterAuthRoutes(router, dbConn)
 
 	// Register debug routes (development only)

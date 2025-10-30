@@ -1,4 +1,4 @@
-package templates
+package portal_templates
 
 // Small type definitions used by generated templ files. These are minimal
 // shims so the generated template code compiles. If richer models are

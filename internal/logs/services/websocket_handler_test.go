@@ -1,8 +1,8 @@
-// Package services provides WebSocket handler tests for real-time log streaming.
+// Package logs_services provides WebSocket handler tests for real-time log streaming.
 // GREEN Phase: Implementation tests for Issue #32 requirements.
 // nolint:bodyclose // websocket.Dial response bodies are managed by DefaultDialer; test fixture cleanup is acceptable
 // nolint:nestif // nested complexity in handler setup functions is necessary for routing logic
-package services
+package logs_services
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,9 +76,9 @@ func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "info msg", Service: "test"}
-	hub.broadcast <- &models.LogEntry{Level: "ERROR", Message: "error msg", Service: "test"}
-	hub.broadcast <- &models.LogEntry{Level: "WARN", Message: "warn msg", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info msg", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error msg", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "WARN", Message: "warn msg", Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
@@ -98,9 +98,9 @@ func TestWebSocketHandler_FiltersLogsByService(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Service: "review", Level: "INFO", Message: "review msg"}
-	hub.broadcast <- &models.LogEntry{Service: "portal", Level: "INFO", Message: "portal msg"}
-	hub.broadcast <- &models.LogEntry{Service: "analytics", Level: "INFO", Message: "analytics msg"}
+	hub.broadcast <- &logs_models.LogEntry{Service: "review", Level: "INFO", Message: "review msg"}
+	hub.broadcast <- &logs_models.LogEntry{Service: "portal", Level: "INFO", Message: "portal msg"}
+	hub.broadcast <- &logs_models.LogEntry{Service: "analytics", Level: "INFO", Message: "analytics msg"}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
@@ -120,8 +120,8 @@ func TestWebSocketHandler_FiltersByTags(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Tags: []string{"warning"}, Level: "INFO", Message: "warning log"}
-	hub.broadcast <- &models.LogEntry{Tags: []string{"critical"}, Level: "ERROR", Message: "critical log"}
+	hub.broadcast <- &logs_models.LogEntry{Tags: []string{"warning"}, Level: "INFO", Message: "warning log"}
+	hub.broadcast <- &logs_models.LogEntry{Tags: []string{"critical"}, Level: "ERROR", Message: "critical log"}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
@@ -140,9 +140,9 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Level: "ERROR", Service: "review", Tags: []string{"critical"}}
-	hub.broadcast <- &models.LogEntry{Level: "ERROR", Service: "portal", Tags: []string{"critical"}}
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Service: "review", Tags: []string{"critical"}}
+	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "review", Tags: []string{"critical"}}
+	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "portal", Tags: []string{"critical"}}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Service: "review", Tags: []string{"critical"}}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
@@ -219,8 +219,8 @@ func TestWebSocketHandler_AuthenticatedUsersSeeAllLogs(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Level: "ERROR", Message: "private", Service: "test"}
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "public", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public", Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 	var msg map[string]interface{}
@@ -239,8 +239,8 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Level: "ERROR", Message: "private"}
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "public"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public"}
 
 	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 	var msg map[string]interface{}
@@ -321,11 +321,11 @@ func TestWebSocketHandler_ResetsHeartbeatOnActivity(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "reset heartbeat"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "reset heartbeat"}
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	conn.ReadMessage()
 
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "another message"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "another message"}
 	conn.SetReadDeadline(time.Now().Add(31 * time.Second))
 	_, _, err = conn.ReadMessage()
 
@@ -422,7 +422,7 @@ func TestWebSocketHandler_DropsSlowConsumers(t *testing.T) {
 
 	hub := currentTestHub
 	for i := 0; i < 1000; i++ {
-		hub.broadcast <- &models.LogEntry{
+		hub.broadcast <- &logs_models.LogEntry{
 			Level:   "INFO",
 			Message: fmt.Sprintf("message %d", i),
 			Service: "test",
@@ -454,7 +454,7 @@ func TestWebSocketHandler_QueuesMessagesForFastConsumers(t *testing.T) {
 	hub := currentTestHub
 	go func() {
 		for i := 0; i < 100; i++ {
-			hub.broadcast <- &models.LogEntry{
+			hub.broadcast <- &logs_models.LogEntry{
 				Level:   "INFO",
 				Message: fmt.Sprintf("message %d", i),
 				Service: "test",
@@ -491,7 +491,7 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	sentCount := 0
 	for i := 0; i < 500; i++ {
 		select {
-		case hub.broadcast <- &models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:
+		case hub.broadcast <- &logs_models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:
 			sentCount++
 		default:
 			// Channel full, stop sending
@@ -540,11 +540,11 @@ func TestWebSocketHandler_BroadcastsViaPubSub(t *testing.T) {
 
 	// Publish via the test pubsub so all instances receive the message
 	if pub, ok := redis1.(*inMemoryPubSub); ok {
-		pub.Publish(&models.LogEntry{Level: "ERROR", Message: "cross-instance message"})
+		pub.Publish(&logs_models.LogEntry{Level: "ERROR", Message: "cross-instance message"})
 	} else {
 		// Fallback: if redis isn't our pubsub, write to current hub directly
 		hub1 := currentTestHub
-		hub1.broadcast <- &models.LogEntry{Level: "ERROR", Message: "cross-instance message"}
+		hub1.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "cross-instance message"}
 	}
 
 	conn1.SetReadDeadline(time.Now().Add(1 * time.Second))
@@ -576,7 +576,7 @@ func TestWebSocketHandler_PubSubScalesTo100Instances(t *testing.T) {
 		go func() {
 			// All setupTestRedis() calls return the shared in-memory pubsub
 			pub := setupTestRedis(t).(*inMemoryPubSub)
-			pub.Publish(&models.LogEntry{Level: "INFO", Message: "broadcast to all"})
+			pub.Publish(&logs_models.LogEntry{Level: "INFO", Message: "broadcast to all"})
 		}()
 	}
 
@@ -678,7 +678,7 @@ func TestWebSocketHandler_BroadcastPerformance1000Connections(t *testing.T) {
 	hub := currentTestHub
 	startTime := time.Now()
 	for i := 0; i < 100; i++ {
-		hub.broadcast <- &models.LogEntry{
+		hub.broadcast <- &logs_models.LogEntry{
 			Level:   "INFO",
 			Message: fmt.Sprintf("load test message %d", i),
 			Service: "test",
@@ -701,7 +701,7 @@ func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
 
 	hub := currentTestHub
 	startTime := time.Now()
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "latency test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "latency test"}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	_, _, err = conn.ReadMessage()
@@ -727,7 +727,7 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 
 	hub := currentTestHub
 	time.Sleep(50 * time.Millisecond) // Ensure client is registered
-	hub.broadcast <- &models.LogEntry{
+	hub.broadcast <- &logs_models.LogEntry{
 		ID:        123,
 		Level:     "ERROR",
 		Message:   "Test message",
@@ -763,7 +763,7 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 
 	hub := currentTestHub
 	time.Sleep(50 * time.Millisecond) // Ensure clients are registered
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "broadcast message"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "broadcast message"}
 
 	conn1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -834,7 +834,7 @@ func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
 	}
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	_, _, _ = conn.ReadMessage()
@@ -886,7 +886,7 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "after disconnect"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "after disconnect"}
 
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	_, _, err := conn2.ReadMessage()
@@ -918,8 +918,8 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 
 	hub := currentTestHub
 	time.Sleep(200 * time.Millisecond) // Ensure clients are registered
-	hub.broadcast <- &models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
-	hub.broadcast <- &models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
+	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
 
 	conn1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -983,7 +983,7 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 	// have a chance to process messages under varying CPU load.
 	go func() {
 		for i := 0; i < 1000; i++ {
-			hub.broadcast <- &models.LogEntry{
+			hub.broadcast <- &logs_models.LogEntry{
 				Message: fmt.Sprintf("msg %d", i),
 				Level:   "INFO",
 				Service: "test",
@@ -1020,7 +1020,7 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 
 	hub := currentTestHub
 	largeMessage := strings.Repeat("x", 10000)
-	hub.broadcast <- &models.LogEntry{
+	hub.broadcast <- &logs_models.LogEntry{
 		Message: largeMessage,
 		Level:   "ERROR",
 		Service: "test",
@@ -1045,7 +1045,7 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 	defer conn.Close()
 
 	hub := currentTestHub
-	hub.broadcast <- &models.LogEntry{
+	hub.broadcast <- &logs_models.LogEntry{
 		Level:   "ERROR",
 		Message: "panic: nil pointer dereference",
 		Service: "review",
@@ -1094,7 +1094,7 @@ func setupWebSocketTestServer(_ *testing.T) http.Handler {
 
 			client := &Client{
 				Conn:         conn,
-				Send:         make(chan *models.LogEntry, 256),
+				Send:         make(chan *logs_models.LogEntry, 256),
 				Filters:      filters,
 				IsAuth:       false,
 				IsPublic:     true,
@@ -1161,7 +1161,7 @@ func setupAuthenticatedWebSocketServer(_ *testing.T) http.Handler {
 
 			client := &Client{
 				Conn:         conn,
-				Send:         make(chan *models.LogEntry, 256),
+				Send:         make(chan *logs_models.LogEntry, 256),
 				Filters:      filters,
 				IsAuth:       true,
 				IsPublic:     false,
@@ -1211,7 +1211,7 @@ func setupPublicWebSocketServer(_ *testing.T) http.Handler {
 
 			client := &Client{
 				Conn:         conn,
-				Send:         make(chan *models.LogEntry, 256),
+				Send:         make(chan *logs_models.LogEntry, 256),
 				Filters:      filters,
 				IsAuth:       false,
 				IsPublic:     true,
@@ -1355,7 +1355,7 @@ func setupWebSocketWithRedis(t *testing.T, redis interface{}) http.Handler {
 
 			client := &Client{
 				Conn:         conn,
-				Send:         make(chan *models.LogEntry, 256),
+				Send:         make(chan *logs_models.LogEntry, 256),
 				Filters:      filters,
 				IsAuth:       false,
 				IsPublic:     true,
@@ -1387,24 +1387,24 @@ func setupTestRedis(_ *testing.T) interface{} {
 // and Publish broadcasts to all subscriber channels (best-effort, non-blocking).
 type inMemoryPubSub struct {
 	mu   sync.Mutex
-	subs []chan *models.LogEntry
+	subs []chan *logs_models.LogEntry
 }
 
 func newInMemoryPubSub() *inMemoryPubSub {
-	return &inMemoryPubSub{subs: make([]chan *models.LogEntry, 0)}
+	return &inMemoryPubSub{subs: make([]chan *logs_models.LogEntry, 0)}
 }
 
-func (p *inMemoryPubSub) Subscribe() chan *models.LogEntry {
-	ch := make(chan *models.LogEntry, 256)
+func (p *inMemoryPubSub) Subscribe() chan *logs_models.LogEntry {
+	ch := make(chan *logs_models.LogEntry, 256)
 	p.mu.Lock()
 	p.subs = append(p.subs, ch)
 	p.mu.Unlock()
 	return ch
 }
 
-func (p *inMemoryPubSub) Publish(entry *models.LogEntry) {
+func (p *inMemoryPubSub) Publish(entry *logs_models.LogEntry) {
 	p.mu.Lock()
-	subs := append([]chan *models.LogEntry(nil), p.subs...)
+	subs := append([]chan *logs_models.LogEntry(nil), p.subs...)
 	p.mu.Unlock()
 
 	for _, ch := range subs {
