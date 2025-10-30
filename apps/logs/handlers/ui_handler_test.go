@@ -15,14 +15,14 @@ import (
 
 func TestNewUIHandler(t *testing.T) {
 	logger := logrus.New()
-	handler := NewUIHandler(logger)
+	handler := NewUIHandler(logger, nil)
 
 	assert.NotNil(t, handler)
 	assert.Equal(t, logger, handler.logger)
 }
 
 func TestNewUIHandler_NilLogger(t *testing.T) {
-	handler := NewUIHandler(nil)
+	handler := NewUIHandler(nil, nil)
 	assert.NotNil(t, handler)
 	assert.Nil(t, handler.logger)
 }
@@ -149,7 +149,7 @@ func TestRegisterUIRoutes_DashboardRoute(t *testing.T) {
 	router := gin.New()
 	logger := logrus.New()
 	logger.Out = io.Discard
-	
+
 	uiHandler := NewUIHandler(logger, nil)
 	RegisterUIRoutes(router, uiHandler)
 
@@ -233,7 +233,7 @@ func TestUIHandler_DashboardHandler_AllFilterOptions(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -261,7 +261,7 @@ func TestUIHandler_DashboardHandler_InputElements(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -282,7 +282,7 @@ func TestUIHandler_DashboardHandler_ValidHTML(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -314,7 +314,7 @@ func TestUIHandler_DashboardHandler_NavbarPresent(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -332,7 +332,7 @@ func TestUIHandler_DashboardHandler_MetaTags(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -350,7 +350,7 @@ func TestUIHandler_DashboardHandler_TitleTag(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -371,7 +371,7 @@ func TestRegisterUIRoutes_NilRouter(t *testing.T) {
 
 	logger := logrus.New()
 	logger.Out = io.Discard
-	
+
 	uiHandler := NewUIHandler(logger, nil)
 	RegisterUIRoutes(nil, uiHandler)
 }
@@ -391,7 +391,7 @@ func TestUIHandler_DashboardHandler_ContentType(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -410,7 +410,7 @@ func TestUIHandler_HealthHandler_Status200(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
@@ -442,7 +442,7 @@ func TestUIHandler_DashboardHandler_OnlyGET(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
@@ -458,7 +458,7 @@ func TestUIHandler_DashboardHandler_WithQueryParams(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/?test=value&foo=bar", http.NoBody)
@@ -475,7 +475,7 @@ func TestUIHandler_DashboardHandler_BodyNotEmpty(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
@@ -491,7 +491,7 @@ func TestUIHandler_HealthHandler_JSONFormat(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
@@ -509,7 +509,7 @@ func TestUIHandler_HealthHandler_ContainsServiceField(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
@@ -527,7 +527,7 @@ func TestUIHandler_HealthHandler_ContainsStatusField(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
@@ -545,7 +545,7 @@ func BenchmarkUIHandler_DashboardHandler(b *testing.B) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/", uiHandler.DashboardHandler)
 
 	b.ResetTimer()
@@ -562,7 +562,7 @@ func BenchmarkUIHandler_HealthHandler(b *testing.B) {
 	logger := logrus.New()
 	logger.Out = io.Discard
 
-	uiHandler := NewUIHandler(logger)
+	uiHandler := NewUIHandler(logger, nil)
 	router.GET("/health", uiHandler.HealthHandler)
 
 	b.ResetTimer()
