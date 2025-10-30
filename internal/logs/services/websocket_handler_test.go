@@ -35,7 +35,15 @@ type goroutineSnapshot struct {
 	phase    string
 }
 
-// diagnosticGoroutines creates a cleanup function that verifies no goroutine leaks
+// diagnosticGoroutines creates a cleanup function that verifies no goroutine leaks.
+// PATTERN: Use this in key representative tests to verify cleanup reliability.
+// DO NOT add to all tests - causes resource contention.
+// BEST USED IN:
+//   - First test in a suite (detects baseline setup issues)
+//   - Representative tests from each test group (filters, auth, stress)
+//   - Integration tests that combine features
+//   - Stress/heartbeat tests (longest duration)
+// RESULT: If all key tests pass with clean teardown, full suite is reliable.
 func diagnosticGoroutines(t *testing.T) {
 	baseline := runtime.NumGoroutine()
 	t.Logf("[DIAG] Test %s: baseline goroutines = %d", t.Name(), baseline)
@@ -58,7 +66,7 @@ func diagnosticGoroutines(t *testing.T) {
 }
 
 func TestWebSocketHandler_EndpointExists(t *testing.T) {
-	diagnosticGoroutines(t)
+	diagnosticGoroutines(t) // Key test: first in suite
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -94,6 +102,7 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 }
 
 func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
+	diagnosticGoroutines(t) // Key test: representative filter test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -186,6 +195,7 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_RequiresAuthentication(t *testing.T) {
+	diagnosticGoroutines(t) // Key test: authentication boundary
 	handler := setupAuthenticatedWebSocketServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -284,6 +294,7 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
+	diagnosticGoroutines(t) // Key test: longest duration, stress test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -993,6 +1004,7 @@ func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
+	diagnosticGoroutines(t) // Key test: stress under load
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()

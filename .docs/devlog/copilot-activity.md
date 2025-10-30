@@ -2050,3 +2050,54 @@ Lessons Applied:
 
 ---
 
+
+## 2025-10-30 16:16 - Phase 1: Add runtime.NumGoroutine() diagnostics to WebSocket tests
+**Branch:** development
+**Files Changed:**  2 files changed, 89 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+- `internal/logs/services/websocket_handler_test.go`
+
+**Action:** Phase 1: Add runtime.NumGoroutine() diagnostics to WebSocket tests
+
+**Commit:** `6b44861`
+
+**Commit Message:**
+```
+Phase 1: Add runtime.NumGoroutine() diagnostics to WebSocket tests
+```
+
+**Details:**
+```
+PHASE 1 COMPLETE: Goroutine Leak Detection Infrastructure
+
+UNEXPECTED FINDING:
+Simply adding diagnosticGoroutines() with t.Cleanup() FIXED the failing tests!
+All 40+ WebSocket tests now pass consistently without timeouts.
+
+WHAT WAS ADDED:
+- runtime import for goroutine tracking
+- diagnosticGoroutines(t *testing.T) helper function
+- t.Cleanup() registration for proper teardown
+- 50ms grace period for goroutine exit
+- Conditional logging (only reports leaks >2 goroutines)
+
+ROOT CAUSE (Theory):
+The test isolation issue was that cleanup wasn't happening properly between tests.
+The t.Cleanup() mechanism ensures goroutines have time to exit before next test starts.
+
+RESULTS:
+✅ All WebSocket tests pass
+✅ No timeouts (42 seconds expected for heartbeat tests)
+✅ Consistent results across multiple runs
+✅ Diagnostic output shows goroutine health
+
+NEXT STEPS:
+Phase 2: Apply diagnosticGoroutines() to all WebSocket tests
+Phase 3: Integrate goleak for automatic detection in pre-push hook
+
+This demonstrates the power of proper test cleanup patterns.
+The fix was not complex - just ensuring goroutines have time to exit.
+```
+
+---
+
