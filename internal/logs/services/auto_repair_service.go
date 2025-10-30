@@ -111,7 +111,8 @@ func (s *AutoRepairService) waitForServiceHealth(ctx context.Context, serviceNam
 	maxRetries := 10
 	for i := 0; i < maxRetries; i++ {
 		// Check service health via health endpoint
-		// This would be implemented with actual HTTP checks
+		// This would be implemented with actual HTTP checks to serviceName
+		log.Printf("checking health for service: %s (attempt %d/%d)", serviceName, i+1, maxRetries)
 		select {
 		case <-time.After(3 * time.Second):
 			// Continue checking
