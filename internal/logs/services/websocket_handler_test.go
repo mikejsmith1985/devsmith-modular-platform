@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"go.uber.org/goleak"
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 const wsLogsPath = "/ws/logs"
@@ -44,6 +44,7 @@ type goroutineSnapshot struct {
 //   - Representative tests from each test group (filters, auth, stress)
 //   - Integration tests that combine features
 //   - Stress/heartbeat tests (longest duration)
+//
 // RESULT: If all key tests pass with clean teardown, full suite is reliable.
 func diagnosticGoroutines(t *testing.T) {
 	baseline := runtime.NumGoroutine()
@@ -57,10 +58,10 @@ func diagnosticGoroutines(t *testing.T) {
 		leaked := after - baseline
 
 		if leaked > 2 {
-			t.Logf("[DIAG] LEAK DETECTED in %s: baseline=%d, after=%d, leaked=%d", 
+			t.Logf("[DIAG] LEAK DETECTED in %s: baseline=%d, after=%d, leaked=%d",
 				t.Name(), baseline, after, leaked)
 		} else {
-			t.Logf("[DIAG] Test %s: no leaks (baseline=%d, after=%d)", 
+			t.Logf("[DIAG] Test %s: no leaks (baseline=%d, after=%d)",
 				t.Name(), baseline, after)
 		}
 	})
@@ -68,7 +69,7 @@ func diagnosticGoroutines(t *testing.T) {
 
 func TestWebSocketHandler_EndpointExists(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
-	diagnosticGoroutines(t)    // Phase 1-2: Runtime diagnostics
+	diagnosticGoroutines(t)                                                                                                                                // Phase 1-2: Runtime diagnostics
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -105,7 +106,7 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 
 func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
-	diagnosticGoroutines(t) // Key test: representative filter test
+	diagnosticGoroutines(t)                                                                                                                                // Key test: representative filter test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -199,7 +200,7 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 
 func TestWebSocketHandler_RequiresAuthentication(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
-	diagnosticGoroutines(t) // Key test: authentication boundary
+	diagnosticGoroutines(t)                                                                                                                                // Key test: authentication boundary
 	handler := setupAuthenticatedWebSocketServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -299,7 +300,7 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 
 func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
-	diagnosticGoroutines(t) // Key test: longest duration, stress test
+	diagnosticGoroutines(t)                                                                                                                                // Key test: longest duration, stress test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -1010,7 +1011,7 @@ func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
 
 func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
-	diagnosticGoroutines(t) // Key test: stress under load
+	diagnosticGoroutines(t)                                                                                                                                // Key test: stress under load
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
