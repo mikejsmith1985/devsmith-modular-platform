@@ -117,12 +117,15 @@ func Handler2() {
 	t.Run("handles directory with no duplicates", func(t *testing.T) {
 		tmpDir := t.TempDir()
 
-		// Create two different files
+		// Create two files with DIFFERENT code structures
 		file1 := filepath.Join(tmpDir, "file1.go")
 		err := os.WriteFile(file1, []byte(`package main
 func Foo() {
 	x := 1
 	y := 2
+	z := 3
+	a := 4
+	b := 5
 }
 `), 0o644)
 		require.NoError(t, err)
@@ -130,8 +133,8 @@ func Foo() {
 		file2 := filepath.Join(tmpDir, "file2.go")
 		err = os.WriteFile(file2, []byte(`package main
 func Bar() {
-	a := 1
-	b := 2
+	result := calculateSomething()
+	return result
 }
 `), 0o644)
 		require.NoError(t, err)
@@ -140,6 +143,7 @@ func Bar() {
 		duplicates, err := dd.ScanDirectory(tmpDir)
 
 		assert.NoError(t, err)
+		// With truly different code, should find 0 duplicates
 		assert.Equal(t, 0, len(duplicates))
 	})
 }
@@ -168,7 +172,11 @@ func Test() {
 		duplicates, err := dd.ScanDirectory(tmpDir)
 
 		assert.NoError(t, err)
+		// ScanDirectory returns a slice, not a pointer - check it's not nil
+		// (empty slice is valid when no duplicates found)
 		assert.NotNil(t, duplicates)
+		// With only one file, should find 0 duplicates
+		assert.Equal(t, 0, len(duplicates))
 	})
 
 	t.Run("skips test files", func(t *testing.T) {
@@ -196,7 +204,8 @@ func TestFoo() {
 		duplicates, err := dd.ScanDirectory("/nonexistent/path")
 
 		assert.Error(t, err)
-		assert.Nil(t, duplicates)
+		// Returns empty slice on error (not nil)
+		assert.Equal(t, 0, len(duplicates))
 	})
 }
 

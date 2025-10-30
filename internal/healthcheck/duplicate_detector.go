@@ -75,10 +75,14 @@ func (dd *DuplicateDetector) ScanDirectory(rootPath string) ([]DuplicateBlock, e
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan directory: %w", err)
+		return []DuplicateBlock{}, fmt.Errorf("failed to scan directory: %w", err)
 	}
 
-	return dd.findDuplicates(allBlocks), nil
+	duplicates := dd.findDuplicates(allBlocks)
+	if duplicates == nil {
+		duplicates = []DuplicateBlock{}
+	}
+	return duplicates, nil
 }
 
 // extractCodeBlocks extracts code blocks from a file
