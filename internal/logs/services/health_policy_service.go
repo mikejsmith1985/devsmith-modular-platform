@@ -76,6 +76,14 @@ var DefaultPolicies = map[string]HealthPolicy{
 
 // GetPolicy retrieves a policy for a service
 func (s *HealthPolicyService) GetPolicy(ctx context.Context, serviceName string) (*HealthPolicy, error) {
+	// If db is nil, return default policy
+	if s.db == nil {
+		if defaultPolicy, ok := DefaultPolicies[serviceName]; ok {
+			return &defaultPolicy, nil
+		}
+		return nil, fmt.Errorf("service not found: %s", serviceName)
+	}
+
 	var policy HealthPolicy
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, service_name, max_response_time_ms, auto_repair_enabled, repair_strategy, alert_on_warn, alert_on_fail, policy_json, updated_at
