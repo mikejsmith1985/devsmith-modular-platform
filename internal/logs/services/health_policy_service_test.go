@@ -1,22 +1,22 @@
 package services
 
 import (
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestDefaultPolicies(t *testing.T) {
-	defaults := DefaultPolicies()
-
+func TestDefaultPolicies_AllServicesConfigured(t *testing.T) {
 	expectedServices := []string{"portal", "review", "logs", "analytics"}
 
 	for _, svc := range expectedServices {
-		if _, ok := defaults[svc]; !ok {
-			t.Errorf("Default policy missing for service: %s", svc)
-		}
+		_, ok := DefaultPolicies[svc]
+		assert.True(t, ok, "Default policy missing for service: %s", svc)
 	}
 }
 
-func TestDefaultPoliciesConfiguration(t *testing.T) {
+func TestDefaultPolicies_ValidConfiguration(t *testing.T) {
 	tests := []struct {
 		service         string
 		expectedMax     int
@@ -49,43 +49,30 @@ func TestDefaultPoliciesConfiguration(t *testing.T) {
 		},
 	}
 
-	defaults := DefaultPolicies()
-
 	for _, tt := range tests {
 		t.Run(tt.service, func(t *testing.T) {
-			policy, ok := defaults[tt.service]
-			if !ok {
-				t.Fatalf("Policy not found for service: %s", tt.service)
-			}
+			policy, ok := DefaultPolicies[tt.service]
+			assert.True(t, ok, "Policy not found for service: %s", tt.service)
 
-			if policy.MaxResponseTimeMS != tt.expectedMax {
-				t.Errorf("Expected max %dms, got %dms", tt.expectedMax, policy.MaxResponseTimeMS)
-			}
-			if policy.RepairStrategy != tt.expectedRepair {
-				t.Errorf("Expected strategy %s, got %s", tt.expectedRepair, policy.RepairStrategy)
-			}
-			if policy.AutoRepairEnabled != tt.expectedEnabled {
-				t.Errorf("Expected auto-repair %v, got %v", tt.expectedEnabled, policy.AutoRepairEnabled)
-			}
+			assert.Equal(t, tt.expectedMax, policy.MaxResponseTimeMs)
+			assert.Equal(t, tt.expectedRepair, policy.RepairStrategy)
+			assert.Equal(t, tt.expectedEnabled, policy.AutoRepairEnabled)
 		})
 	}
 }
 
-func TestPolicyServiceDefaults(t *testing.T) {
-	// Test that when a policy is not found, defaults are returned
-	defaults := DefaultPolicies()
+func TestGetPolicy_DefaultPolicy(t *testing.T) {
+	service := NewHealthPolicyService(nil)
+	policy, err := service.GetPolicy(context.Background(), "portal")
 
-	for svcName, expectedPolicy := range defaults {
-		t.Run(svcName, func(t *testing.T) {
-			if expectedPolicy.ServiceName != svcName {
-				t.Errorf("Service name mismatch: expected %s, got %s", svcName, expectedPolicy.ServiceName)
-			}
-			if expectedPolicy.MaxResponseTimeMS == 0 {
-				t.Error("MaxResponseTimeMS not set")
-			}
-			if expectedPolicy.RepairStrategy == "" {
-				t.Error("RepairStrategy not set")
-			}
-		})
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, policy)
+	assert.Equal(t, DefaultPolicies["portal"].ServiceName, policy.ServiceName)
+}
+
+func TestGetPolicy_UnknownService_Error(t *testing.T) {
+	service := NewHealthPolicyService(nil)
+	_, err := service.GetPolicy(context.Background(), "nonexistent")
+
+	assert.Error(t, err)
 }

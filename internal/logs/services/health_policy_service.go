@@ -3,119 +3,89 @@ package services
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 )
 
-// HealthPolicy defines health check behavior for a service
+// HealthPolicy represents a health policy for a service
 type HealthPolicy struct {
 	ID                  int       `json:"id"`
 	ServiceName         string    `json:"service_name"`
-	MaxResponseTimeMS   int       `json:"max_response_time_ms"`
+	MaxResponseTimeMs   int       `json:"max_response_time_ms"`
 	AutoRepairEnabled   bool      `json:"auto_repair_enabled"`
-	RepairStrategy      string    `json:"repair_strategy"` // 'restart', 'rebuild', 'none'
+	RepairStrategy      string    `json:"repair_strategy"` // restart, rebuild, none
 	AlertOnWarn         bool      `json:"alert_on_warn"`
 	AlertOnFail         bool      `json:"alert_on_fail"`
-	PolicyJSON          map[string]interface{} `json:"policy_json,omitempty"`
+	PolicyJSON          string    `json:"policy_json,omitempty"`
 	UpdatedAt           time.Time `json:"updated_at"`
-	CreatedAt           time.Time `json:"created_at"`
 }
 
-// HealthPolicyService manages health check policies
+// HealthPolicyService manages health policies for services
 type HealthPolicyService struct {
 	db *sql.DB
 }
 
-// NewHealthPolicyService creates a new policy service
+// NewHealthPolicyService creates a new health policy service
 func NewHealthPolicyService(db *sql.DB) *HealthPolicyService {
 	return &HealthPolicyService{db: db}
 }
 
-// DefaultPolicies returns sensible defaults for all services
-func DefaultPolicies() map[string]HealthPolicy {
-	return map[string]HealthPolicy{
-		"portal": {
-			ServiceName:       "portal",
-			MaxResponseTimeMS: 500,
-			AutoRepairEnabled: true,
-			RepairStrategy:    "restart",
-			AlertOnWarn:       false,
-			AlertOnFail:       true,
-		},
-		"review": {
-			ServiceName:       "review",
-			MaxResponseTimeMS: 1000,
-			AutoRepairEnabled: true,
-			RepairStrategy:    "restart",
-			AlertOnWarn:       false,
-			AlertOnFail:       true,
-		},
-		"logs": {
-			ServiceName:       "logs",
-			MaxResponseTimeMS: 500,
-			AutoRepairEnabled: false,
-			RepairStrategy:    "none",
-			AlertOnWarn:       false,
-			AlertOnFail:       true,
-		},
-		"analytics": {
-			ServiceName:       "analytics",
-			MaxResponseTimeMS: 2000,
-			AutoRepairEnabled: true,
-			RepairStrategy:    "restart",
-			AlertOnWarn:       false,
-			AlertOnFail:       true,
-		},
-	}
+// DefaultPolicies defines default policies for each service
+var DefaultPolicies = map[string]HealthPolicy{
+	"portal": {
+		ServiceName:       "portal",
+		MaxResponseTimeMs: 500,
+		AutoRepairEnabled: true,
+		RepairStrategy:    "restart",
+		AlertOnWarn:       false,
+		AlertOnFail:       true,
+	},
+	"review": {
+		ServiceName:       "review",
+		MaxResponseTimeMs: 1000,
+		AutoRepairEnabled: true,
+		RepairStrategy:    "restart",
+		AlertOnWarn:       false,
+		AlertOnFail:       true,
+	},
+	"logs": {
+		ServiceName:       "logs",
+		MaxResponseTimeMs: 500,
+		AutoRepairEnabled: false,
+		RepairStrategy:    "none",
+		AlertOnWarn:       false,
+		AlertOnFail:       true,
+	},
+	"analytics": {
+		ServiceName:       "analytics",
+		MaxResponseTimeMs: 2000,
+		AutoRepairEnabled: true,
+		RepairStrategy:    "restart",
+		AlertOnWarn:       false,
+		AlertOnFail:       true,
+	},
 }
 
 // GetPolicy retrieves a policy for a service
 func (s *HealthPolicyService) GetPolicy(ctx context.Context, serviceName string) (*HealthPolicy, error) {
-	query := `
-		SELECT id, service_name, max_response_time_ms, auto_repair_enabled, repair_strategy, 
-		       alert_on_warn, alert_on_fail, policy_json, updated_at, created_at
-		FROM logs.health_policies
-		WHERE service_name = $1
-	`
-
 	var policy HealthPolicy
-	var policyJSON sql.NullString
-
-	err := s.db.QueryRowContext(ctx, query, serviceName).Scan(
-		&policy.ID,
-		&policy.ServiceName,
-		&policy.MaxResponseTimeMS,
-		&policy.AutoRepairEnabled,
-		&policy.RepairStrategy,
-		&policy.AlertOnWarn,
-		&policy.AlertOnFail,
-		&policyJSON,
-		&policy.UpdatedAt,
-		&policy.CreatedAt,
-	)
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, service_name, max_response_time_ms, auto_repair_enabled, repair_strategy, alert_on_warn, alert_on_fail, policy_json, updated_at
+		 FROM logs.health_policies
+		 WHERE service_name = $1`,
+		serviceName,
+	).Scan(&policy.ID, &policy.ServiceName, &policy.MaxResponseTimeMs, &policy.AutoRepairEnabled, &policy.RepairStrategy, &policy.AlertOnWarn, &policy.AlertOnFail, &policy.PolicyJSON, &policy.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		// Return default policy if not found
-		defaults := DefaultPolicies()
-		if defaultPolicy, ok := defaults[serviceName]; ok {
+		if defaultPolicy, ok := DefaultPolicies[serviceName]; ok {
 			return &defaultPolicy, nil
 		}
-		return nil, fmt.Errorf("policy not found for service %s and no default available", serviceName)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to query policy: %w", err)
+		return nil, fmt.Errorf("service not found: %s", serviceName)
 	}
 
-	// Unmarshal policy JSON if present
-	if policyJSON.Valid {
-		var policyMap map[string]interface{}
-		if err := json.Unmarshal([]byte(policyJSON.String), &policyMap); err != nil {
-			// Log warning but don't fail
-			fmt.Printf("Warning: failed to unmarshal policy JSON: %v\n", err)
-		} else {
-			policy.PolicyJSON = policyMap
-		}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query policy: %w", err)
 	}
 
 	return &policy, nil
@@ -123,81 +93,64 @@ func (s *HealthPolicyService) GetPolicy(ctx context.Context, serviceName string)
 
 // GetAllPolicies retrieves all policies
 func (s *HealthPolicyService) GetAllPolicies(ctx context.Context) ([]HealthPolicy, error) {
-	query := `
-		SELECT id, service_name, max_response_time_ms, auto_repair_enabled, repair_strategy,
-		       alert_on_warn, alert_on_fail, policy_json, updated_at, created_at
-		FROM logs.health_policies
-		ORDER BY service_name ASC
-	`
-
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, service_name, max_response_time_ms, auto_repair_enabled, repair_strategy, alert_on_warn, alert_on_fail, policy_json, updated_at
+		 FROM logs.health_policies
+		 ORDER BY service_name`,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query policies: %w", err)
 	}
 	defer rows.Close()
 
 	var policies []HealthPolicy
-
 	for rows.Next() {
-		var policy HealthPolicy
-		var policyJSON sql.NullString
-
-		err := rows.Scan(
-			&policy.ID,
-			&policy.ServiceName,
-			&policy.MaxResponseTimeMS,
-			&policy.AutoRepairEnabled,
-			&policy.RepairStrategy,
-			&policy.AlertOnWarn,
-			&policy.AlertOnFail,
-			&policyJSON,
-			&policy.UpdatedAt,
-			&policy.CreatedAt,
-		)
+		var p HealthPolicy
+		err := rows.Scan(&p.ID, &p.ServiceName, &p.MaxResponseTimeMs, &p.AutoRepairEnabled, &p.RepairStrategy, &p.AlertOnWarn, &p.AlertOnFail, &p.PolicyJSON, &p.UpdatedAt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan policy: %w", err)
+			continue
 		}
-
-		if policyJSON.Valid {
-			var policyMap map[string]interface{}
-			if err := json.Unmarshal([]byte(policyJSON.String), &policyMap); err == nil {
-				policy.PolicyJSON = policyMap
-			}
-		}
-
-		policies = append(policies, policy)
+		policies = append(policies, p)
 	}
 
 	return policies, rows.Err()
 }
 
-// UpdatePolicy updates an existing policy
+// UpdatePolicy updates a policy for a service
 func (s *HealthPolicyService) UpdatePolicy(ctx context.Context, policy *HealthPolicy) error {
-	var policyJSON sql.NullString
+	// Check if policy exists
+	var id int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id FROM logs.health_policies WHERE service_name = $1`,
+		policy.ServiceName,
+	).Scan(&id)
 
-	if policy.PolicyJSON != nil && len(policy.PolicyJSON) > 0 {
-		jsonBytes, err := json.Marshal(policy.PolicyJSON)
-		if err != nil {
-			return fmt.Errorf("failed to marshal policy JSON: %w", err)
-		}
-		policyJSON = sql.NullString{String: string(jsonBytes), Valid: true}
+	if err == sql.ErrNoRows {
+		// Insert new policy
+		return s.createPolicy(ctx, policy)
 	}
 
-	query := `
-		UPDATE logs.health_policies
-		SET max_response_time_ms = $1, auto_repair_enabled = $2, repair_strategy = $3,
-		    alert_on_warn = $4, alert_on_fail = $5, policy_json = $6, updated_at = NOW()
-		WHERE service_name = $7
-	`
+	if err != nil {
+		return fmt.Errorf("failed to check existing policy: %w", err)
+	}
 
-	result, err := s.db.ExecContext(ctx,
-		query,
-		policy.MaxResponseTimeMS,
+	// Update existing policy
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE logs.health_policies
+		 SET max_response_time_ms = $1,
+		     auto_repair_enabled = $2,
+		     repair_strategy = $3,
+		     alert_on_warn = $4,
+		     alert_on_fail = $5,
+		     policy_json = $6,
+		     updated_at = NOW()
+		 WHERE service_name = $7`,
+		policy.MaxResponseTimeMs,
 		policy.AutoRepairEnabled,
 		policy.RepairStrategy,
 		policy.AlertOnWarn,
 		policy.AlertOnFail,
-		policyJSON,
+		policy.PolicyJSON,
 		policy.ServiceName,
 	)
 
@@ -205,46 +158,22 @@ func (s *HealthPolicyService) UpdatePolicy(ctx context.Context, policy *HealthPo
 		return fmt.Errorf("failed to update policy: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		// Policy doesn't exist, create it
-		return s.createPolicy(ctx, policy)
-	}
-
 	return nil
 }
 
-// createPolicy creates a new policy
+// createPolicy creates a new policy for a service
 func (s *HealthPolicyService) createPolicy(ctx context.Context, policy *HealthPolicy) error {
-	var policyJSON sql.NullString
-
-	if policy.PolicyJSON != nil && len(policy.PolicyJSON) > 0 {
-		jsonBytes, err := json.Marshal(policy.PolicyJSON)
-		if err != nil {
-			return fmt.Errorf("failed to marshal policy JSON: %w", err)
-		}
-		policyJSON = sql.NullString{String: string(jsonBytes), Valid: true}
-	}
-
-	query := `
-		INSERT INTO logs.health_policies
-		(service_name, max_response_time_ms, auto_repair_enabled, repair_strategy, alert_on_warn, alert_on_fail, policy_json)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`
-
 	_, err := s.db.ExecContext(ctx,
-		query,
+		`INSERT INTO logs.health_policies
+		 (service_name, max_response_time_ms, auto_repair_enabled, repair_strategy, alert_on_warn, alert_on_fail, policy_json, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
 		policy.ServiceName,
-		policy.MaxResponseTimeMS,
+		policy.MaxResponseTimeMs,
 		policy.AutoRepairEnabled,
 		policy.RepairStrategy,
 		policy.AlertOnWarn,
 		policy.AlertOnFail,
-		policyJSON,
+		policy.PolicyJSON,
 	)
 
 	if err != nil {
@@ -254,20 +183,40 @@ func (s *HealthPolicyService) createPolicy(ctx context.Context, policy *HealthPo
 	return nil
 }
 
-// InitializeDefaultPolicies creates default policies if they don't exist
+// InitializeDefaultPolicies creates default policies for all known services
 func (s *HealthPolicyService) InitializeDefaultPolicies(ctx context.Context) error {
-	defaults := DefaultPolicies()
-
-	for _, policy := range defaults {
-		// Check if policy exists
-		_, err := s.GetPolicy(ctx, policy.ServiceName)
+	for _, policy := range DefaultPolicies {
+		p := policy // Create copy
+		err := s.UpdatePolicy(ctx, &p)
 		if err != nil {
-			// Policy doesn't exist, create it
-			if err := s.createPolicy(ctx, &policy); err != nil {
-				fmt.Printf("Warning: failed to create default policy for %s: %v\n", policy.ServiceName, err)
-			}
+			fmt.Printf("failed to initialize policy for %s: %v\n", policy.ServiceName, err)
 		}
 	}
-
 	return nil
+}
+
+// GetRepairStrategy returns the appropriate repair strategy for a service based on issue type
+func (s *HealthPolicyService) GetRepairStrategy(ctx context.Context, serviceName string, issueType string) (string, error) {
+	policy, err := s.GetPolicy(ctx, serviceName)
+	if err != nil {
+		return "none", err
+	}
+
+	if !policy.AutoRepairEnabled {
+		return "none", nil
+	}
+
+	// Override strategy for specific issue types
+	switch issueType {
+	case "timeout":
+		return "restart", nil
+	case "crash":
+		return "rebuild", nil
+	case "security":
+		return "rebuild", nil
+	case "dependency":
+		return "none", nil // Can't repair dependency issues
+	default:
+		return policy.RepairStrategy, nil
+	}
 }
