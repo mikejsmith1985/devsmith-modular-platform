@@ -1,10 +1,10 @@
-package handlers
+package review_handlers
 
 import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ func TestRegisterPreviewUIRoutes(t *testing.T) {
 	router := gin.New()
 
 	// Create a nil preview service for testing route registration
-	var previewService *services.PreviewService
+	var previewService *review_services.PreviewService
 
 	RegisterPreviewUIRoutes(router, previewService)
 

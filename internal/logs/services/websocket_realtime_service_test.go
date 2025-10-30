@@ -1,11 +1,11 @@
-package services_test
+package logs_services_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -33,13 +33,13 @@ func (m *MockWebSocketRealtimeService) UnregisterConnection(ctx context.Context,
 }
 
 // BroadcastStats mocks the BroadcastStats method
-func (m *MockWebSocketRealtimeService) BroadcastStats(ctx context.Context, stats *models.DashboardStats) error {
+func (m *MockWebSocketRealtimeService) BroadcastStats(ctx context.Context, stats *logs_models.DashboardStats) error {
 	args := m.Called(ctx, stats)
 	return args.Error(0)
 }
 
 // BroadcastAlert mocks the BroadcastAlert method
-func (m *MockWebSocketRealtimeService) BroadcastAlert(ctx context.Context, violation *models.AlertThresholdViolation) error {
+func (m *MockWebSocketRealtimeService) BroadcastAlert(ctx context.Context, violation *logs_models.AlertThresholdViolation) error {
 	args := m.Called(ctx, violation)
 	return args.Error(0)
 }
@@ -124,10 +124,10 @@ func TestBroadcastStats_SendsToAllConnections(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 	now := time.Now()
 
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:   now,
-		ServiceStats:  make(map[string]*models.LogStats),
-		ServiceHealth: make(map[string]*models.ServiceHealth),
+		ServiceStats:  make(map[string]*logs_models.LogStats),
+		ServiceHealth: make(map[string]*logs_models.ServiceHealth),
 	}
 
 	mockService.On("BroadcastStats", mock.Anything, stats).Return(nil)
@@ -146,7 +146,7 @@ func TestBroadcastStats_UpdatesMultipleClients(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 	now := time.Now()
 
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: now,
 	}
 
@@ -174,7 +174,7 @@ func TestBroadcastAlert_SendsToAllConnections(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 	now := time.Now()
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "portal",
 		Level:          "error",
 		CurrentCount:   150,
@@ -198,7 +198,7 @@ func TestBroadcastAlert_UrgentMessage(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 	now := time.Now()
 
-	criticalViolation := &models.AlertThresholdViolation{
+	criticalViolation := &logs_models.AlertThresholdViolation{
 		Service:        "analytics",
 		Level:          "error",
 		CurrentCount:   500,
@@ -260,12 +260,12 @@ func TestBroadcastStats_RealtimeUpdates(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 
 	now := time.Now()
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt: now,
 	}
 
 	// Mock broadcast multiple times
-	mockService.On("BroadcastStats", mock.Anything, mock.MatchedBy(func(s *models.DashboardStats) bool {
+	mockService.On("BroadcastStats", mock.Anything, mock.MatchedBy(func(s *logs_models.DashboardStats) bool {
 		return s.GeneratedAt.Before(time.Now().Add(time.Second))
 	})).Return(nil)
 
@@ -302,7 +302,7 @@ func TestBroadcastStats_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	stats := &models.DashboardStats{}
+	stats := &logs_models.DashboardStats{}
 
 	mockService.On("BroadcastStats", mock.Anything, stats).Return(context.Canceled)
 
@@ -348,7 +348,7 @@ func TestBroadcastAlert_MultipleViolations(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 	now := time.Now()
 
-	violations := []models.AlertThresholdViolation{
+	violations := []logs_models.AlertThresholdViolation{
 		{Service: "portal", Level: "error", CurrentCount: 150, ThresholdValue: 100, Timestamp: now},
 		{Service: "analytics", Level: "error", CurrentCount: 300, ThresholdValue: 200, Timestamp: now},
 		{Service: "review", Level: "warning", CurrentCount: 100, ThresholdValue: 80, Timestamp: now},
@@ -401,18 +401,18 @@ func TestBroadcastStats_WithServiceData(t *testing.T) {
 	mockService := new(MockWebSocketRealtimeService)
 	now := time.Now()
 
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:   now,
-		ServiceStats:  make(map[string]*models.LogStats),
-		ServiceHealth: make(map[string]*models.ServiceHealth),
+		ServiceStats:  make(map[string]*logs_models.LogStats),
+		ServiceHealth: make(map[string]*logs_models.ServiceHealth),
 	}
 
 	// Add service data
-	stats.ServiceStats["portal"] = &models.LogStats{
+	stats.ServiceStats["portal"] = &logs_models.LogStats{
 		Service:    "portal",
 		TotalCount: 100,
 	}
-	stats.ServiceHealth["portal"] = &models.ServiceHealth{
+	stats.ServiceHealth["portal"] = &logs_models.ServiceHealth{
 		Service: "portal",
 		Status:  "OK",
 	}

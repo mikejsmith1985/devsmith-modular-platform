@@ -1,4 +1,4 @@
-package handlers
+package portal_handlers
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/templates"
+	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/templates"
 )
 
 // DashboardHandler serves the main dashboard page

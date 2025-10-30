@@ -1,12 +1,12 @@
-package services_test
+package analytics_services_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -19,13 +19,13 @@ func TestTopIssuesService_GetTopIssues(t *testing.T) {
 
 	// Add log to verify service initialization
 	logger.Debug("Initializing TopIssuesService")
-	service := services.NewTopIssuesService(mockRepo, logger)
+	service := analytics_services.NewTopIssuesService(mockRepo, logger)
 
 	// Simplify mock setup to use mock.Anything for all arguments
 	// Add log to verify mock setup
 	logger.Debug("Setting up mock for FindTopMessages")
 	mockRepo.On("FindTopMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return([]models.IssueItem{
+		Return([]analytics_models.IssueItem{
 			{Service: "service1", Level: "error", Message: "Error 1", Count: int(15), Value: 0.0, LastSeen: time.Now()},
 			{Service: "service2", Level: "error", Message: "Error 2", Count: int(10), Value: 0.0, LastSeen: time.Now()},
 		}, nil).Run(func(args mock.Arguments) {

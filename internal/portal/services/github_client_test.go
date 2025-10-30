@@ -1,4 +1,4 @@
-package services
+package portal_services
 
 import (
 	"context"

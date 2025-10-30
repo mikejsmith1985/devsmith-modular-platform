@@ -1,5 +1,5 @@
-// Package db provides database access and repository implementations for logs.
-package db
+// Package logs_db provides database access and repository implementations for logs.
+package logs_db
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // AlertEventRepository handles database operations for alert events.
@@ -22,7 +22,7 @@ func NewAlertEventRepository(db *sql.DB) *AlertEventRepository {
 }
 
 // Create inserts a new alert event.
-func (r *AlertEventRepository) Create(ctx context.Context, event *models.AlertEvent) error {
+func (r *AlertEventRepository) Create(ctx context.Context, event *logs_models.AlertEvent) error {
 	if event == nil {
 		return errors.New("alert event cannot be nil")
 	}
@@ -54,14 +54,14 @@ func (r *AlertEventRepository) Create(ctx context.Context, event *models.AlertEv
 }
 
 // GetByID retrieves an alert event by ID.
-func (r *AlertEventRepository) GetByID(ctx context.Context, id int64) (*models.AlertEvent, error) {
+func (r *AlertEventRepository) GetByID(ctx context.Context, id int64) (*logs_models.AlertEvent, error) {
 	query := `
 		SELECT id, config_id, error_count, threshold_value, error_type, alert_sent, triggered_at
 		FROM logs.alert_events
 		WHERE id = $1
 	`
 
-	event := &models.AlertEvent{}
+	event := &logs_models.AlertEvent{}
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&event.ID,
 		&event.ConfigID,
@@ -85,7 +85,7 @@ func (r *AlertEventRepository) GetByID(ctx context.Context, id int64) (*models.A
 // GetByConfigID retrieves all alert events for a specific config.
 //
 //nolint:dupl // Acceptable duplication: similar query pattern but different domain models
-func (r *AlertEventRepository) GetByConfigID(ctx context.Context, configID int64) ([]models.AlertEvent, error) {
+func (r *AlertEventRepository) GetByConfigID(ctx context.Context, configID int64) ([]logs_models.AlertEvent, error) {
 	query := `
 		SELECT id, config_id, error_count, threshold_value, error_type, alert_sent, triggered_at
 		FROM logs.alert_events
@@ -99,9 +99,9 @@ func (r *AlertEventRepository) GetByConfigID(ctx context.Context, configID int64
 	}
 	defer rows.Close() //nolint:errcheck // ignore close error in defer block
 
-	var events []models.AlertEvent
+	var events []logs_models.AlertEvent
 	for rows.Next() {
-		event := models.AlertEvent{}
+		event := logs_models.AlertEvent{}
 		scanErr := rows.Scan(
 			&event.ID,
 			&event.ConfigID,

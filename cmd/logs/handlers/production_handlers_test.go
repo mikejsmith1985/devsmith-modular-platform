@@ -1,5 +1,5 @@
-// Package handlers contains HTTP request handlers for the logs service.
-package handlers
+// Package cmd_logs_handlers contains HTTP request handlers for the logs service.
+package cmd_logs_handlers
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -21,18 +21,18 @@ type MockValidationAggregation struct {
 	mock.Mock
 }
 
-func (m *MockValidationAggregation) GetTopErrors(ctx context.Context, service string, limit, days int) ([]models.ValidationError, error) {
+func (m *MockValidationAggregation) GetTopErrors(ctx context.Context, service string, limit, days int) ([]logs_models.ValidationError, error) {
 	if m.Called(ctx, service, limit, days).Get(0) != nil {
-		return m.Called(ctx, service, limit, days).Get(0).([]models.ValidationError), m.Called(ctx, service, limit, days).Error(1)
+		return m.Called(ctx, service, limit, days).Get(0).([]logs_models.ValidationError), m.Called(ctx, service, limit, days).Error(1)
 	}
-	return []models.ValidationError{}, nil
+	return []logs_models.ValidationError{}, nil
 }
 
-func (m *MockValidationAggregation) GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]models.ErrorTrend, error) {
+func (m *MockValidationAggregation) GetErrorTrends(ctx context.Context, service string, days int, interval string) ([]logs_models.ErrorTrend, error) {
 	if m.Called(ctx, service, days, interval).Get(0) != nil {
-		return m.Called(ctx, service, days, interval).Get(0).([]models.ErrorTrend), m.Called(ctx, service, days, interval).Error(1)
+		return m.Called(ctx, service, days, interval).Get(0).([]logs_models.ErrorTrend), m.Called(ctx, service, days, interval).Error(1)
 	}
-	return []models.ErrorTrend{}, nil
+	return []logs_models.ErrorTrend{}, nil
 }
 
 // MockAlertThresholdService implements alert service interface for testing
@@ -40,30 +40,30 @@ type MockAlertThresholdService struct {
 	mock.Mock
 }
 
-func (m *MockAlertThresholdService) CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
+func (m *MockAlertThresholdService) CreateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
-func (m *MockAlertThresholdService) GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error) {
+func (m *MockAlertThresholdService) GetAlertConfig(ctx context.Context, service string) (*logs_models.AlertConfig, error) {
 	args := m.Called(ctx, service)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.AlertConfig), args.Error(1)
+	return args.Get(0).(*logs_models.AlertConfig), args.Error(1)
 }
 
-func (m *MockAlertThresholdService) UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
+func (m *MockAlertThresholdService) UpdateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
-func (m *MockAlertThresholdService) GetAll(ctx context.Context) ([]models.AlertConfig, error) {
+func (m *MockAlertThresholdService) GetAll(ctx context.Context) ([]logs_models.AlertConfig, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
-		return []models.AlertConfig{}, args.Error(1)
+		return []logs_models.AlertConfig{}, args.Error(1)
 	}
-	return args.Get(0).([]models.AlertConfig), args.Error(1)
+	return args.Get(0).([]logs_models.AlertConfig), args.Error(1)
 }
 
 // TestGetDashboardStats_Valid tests retrieving dashboard statistics
@@ -74,14 +74,14 @@ func TestGetDashboardStats_Valid(t *testing.T) {
 	mockAgg := &MockValidationAggregation{}
 
 	// Setup mock expectations
-	mockAgg.On("GetTopErrors", mock.Anything, "review", 10, 1).Return([]models.ValidationError{
+	mockAgg.On("GetTopErrors", mock.Anything, "review", 10, 1).Return([]logs_models.ValidationError{
 		{
 			ErrorType: "validation_error",
 			Message:   "Invalid input",
 			Count:     5,
 		},
 	}, nil)
-	mockAgg.On("GetErrorTrends", mock.Anything, "review", 1, "hourly").Return([]models.ErrorTrend{
+	mockAgg.On("GetErrorTrends", mock.Anything, "review", 1, "hourly").Return([]logs_models.ErrorTrend{
 		{
 			Timestamp:        time.Now(),
 			ErrorCount:       5,
@@ -113,8 +113,8 @@ func TestGetDashboardStats_InvalidTimeRange(t *testing.T) {
 	mockAgg := &MockValidationAggregation{}
 
 	// Setup mock expectations (won't be called if validation catches error)
-	mockAgg.On("GetTopErrors", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.ValidationError{}, nil)
-	mockAgg.On("GetErrorTrends", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]models.ErrorTrend{}, nil)
+	mockAgg.On("GetTopErrors", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]logs_models.ValidationError{}, nil)
+	mockAgg.On("GetErrorTrends", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]logs_models.ErrorTrend{}, nil)
 
 	router.GET("/api/logs/dashboard/stats", GetDashboardStats(mockAgg))
 
@@ -133,7 +133,7 @@ func TestGetTopErrors_Valid(t *testing.T) {
 
 	mockAgg := &MockValidationAggregation{}
 	mockAgg.On("GetTopErrors", mock.MatchedBy(func(ctx context.Context) bool { return true }), "review", 10, 7).
-		Return([]models.ValidationError{
+		Return([]logs_models.ValidationError{
 			{
 				ErrorType:        "validation_error",
 				Message:          "code exceeds maximum size",
@@ -163,7 +163,7 @@ func TestGetErrorTrends_Valid(t *testing.T) {
 
 	mockAgg := &MockValidationAggregation{}
 	mockAgg.On("GetErrorTrends", mock.MatchedBy(func(ctx context.Context) bool { return true }), "review", 7, "hourly").
-		Return([]models.ErrorTrend{
+		Return([]logs_models.ErrorTrend{
 			{
 				Timestamp:        time.Now(),
 				ErrorCount:       42,
@@ -241,7 +241,7 @@ func TestCreateAlertConfig_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockService := &MockAlertThresholdService{}
-	mockService.On("CreateAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *models.AlertConfig) bool {
+	mockService.On("CreateAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *logs_models.AlertConfig) bool {
 		config.ID = 1
 		return true
 	})).Return(nil)
@@ -273,7 +273,7 @@ func TestGetAlertConfig_Valid(t *testing.T) {
 
 	mockService := &MockAlertThresholdService{}
 	mockService.On("GetAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), "review").
-		Return(&models.AlertConfig{
+		Return(&logs_models.AlertConfig{
 			ID:                     1,
 			Service:                "review",
 			ErrorThresholdPerMin:   10,
@@ -301,7 +301,7 @@ func TestUpdateAlertConfig_Valid(t *testing.T) {
 	router := gin.New()
 
 	mockService := &MockAlertThresholdService{}
-	mockService.On("UpdateAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *models.AlertConfig) bool { return true })).Return(nil)
+	mockService.On("UpdateAlertConfig", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.MatchedBy(func(config *logs_models.AlertConfig) bool { return true })).Return(nil)
 
 	router.PUT("/api/logs/alert-config/:service", UpdateAlertConfig(mockService))
 

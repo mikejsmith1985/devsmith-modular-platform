@@ -1,5 +1,5 @@
-// Package handlers contains HTTP request handlers for the portal service.
-package handlers
+// Package cmd_portal_handlers contains HTTP request handlers for the portal service.
+package cmd_portal_handlers
 
 import (
 	"context"

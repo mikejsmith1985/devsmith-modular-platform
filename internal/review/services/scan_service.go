@@ -1,4 +1,4 @@
-package services
+package review_services
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -37,7 +37,7 @@ func NewScanService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 // AnalyzeScan performs Scan Mode analysis for the given review session and query.
 // Returns a ScanModeOutput with matches and summary, or an error if analysis fails.
 // Logs all major steps and errors with correlation ID for traceability.
-func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string) (*models.ScanModeOutput, error) {
+func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string) (*review_models.ScanModeOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
 	s.logger.Info("AnalyzeScan called", "correlation_id", correlationID, "review_id", reviewID, "query", query)
 
@@ -56,7 +56,7 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query str
 	}
 	s.logger.Info("AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", durationMs)
 
-	var output models.ScanModeOutput
+	var output review_models.ScanModeOutput
 	unmarshalErr := json.Unmarshal([]byte(rawOutput), &output)
 	if unmarshalErr != nil {
 		s.logger.Error("Failed to unmarshal scan analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
@@ -69,9 +69,9 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query str
 		return nil, fmt.Errorf("scan analysis marshal error: %w", marshalErr)
 	}
 
-	result := &models.AnalysisResult{
+	result := &review_models.AnalysisResult{
 		ReviewID:  reviewID,
-		Mode:      models.ScanMode,
+		Mode:      review_models.ScanMode,
 		Prompt:    prompt,
 		RawOutput: rawOutput,
 		Summary:   output.Summary,

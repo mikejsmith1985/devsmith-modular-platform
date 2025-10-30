@@ -1,5 +1,5 @@
-// Package models provides domain models for the review service.
-package models
+// Package review_models provides domain models for the review service.
+package review_models
 
 import (
 	"context"

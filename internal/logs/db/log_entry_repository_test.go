@@ -1,17 +1,16 @@
-package db
+package logs_db
 
 import (
 	"encoding/json"
 	"testing"
 
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 func TestLogEntry_Struct(t *testing.T) {
-	entry := &models.LogEntry{
+	entry := &logs_models.LogEntry{
 		ID:      1,
 		UserID:  42,
 		Service: "portal",
@@ -98,7 +97,7 @@ func TestLogEntry_ValidLogLevels(t *testing.T) {
 	levels := []string{"debug", "info", "warn", "error"}
 
 	for _, level := range levels {
-		entry := &models.LogEntry{
+		entry := &logs_models.LogEntry{
 			Level: level,
 		}
 		assert.Equal(t, level, entry.Level)
@@ -109,7 +108,7 @@ func TestLogEntry_ValidServices(t *testing.T) {
 	services := []string{"portal", "review", "logging", "analytics", "build"}
 
 	for _, service := range services {
-		entry := &models.LogEntry{
+		entry := &logs_models.LogEntry{
 			Service: service,
 		}
 		assert.Equal(t, service, entry.Service)
@@ -132,7 +131,7 @@ func TestLogEntry_MetadataHandling(t *testing.T) {
 	metadataJSON, err := json.Marshal(complexMetadata)
 	require.NoError(t, err)
 
-	entry := &models.LogEntry{
+	entry := &logs_models.LogEntry{
 		ID:       1,
 		UserID:   10,
 		Service:  "portal",

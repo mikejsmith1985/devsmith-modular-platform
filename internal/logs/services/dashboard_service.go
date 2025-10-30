@@ -1,11 +1,11 @@
-// Package services provides service implementations for logs operations.
-package services
+// Package logs_services provides service implementations for logs operations.
+package logs_services
 
 import (
 	"context"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,7 +19,7 @@ type DashboardService struct {
 type LogReaderInterface interface {
 	FindAllServices(ctx context.Context) ([]string, error)
 	CountByServiceAndLevel(ctx context.Context, service, level string, start, end time.Time) (int64, error)
-	FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]models.LogMessage, error)
+	FindTopMessages(ctx context.Context, service, level string, start, end time.Time, limit int) ([]logs_models.LogMessage, error)
 }
 
 // NewDashboardService creates a new DashboardService.
@@ -31,14 +31,14 @@ func NewDashboardService(logReader LogReaderInterface, logger *logrus.Logger) *D
 }
 
 // GetDashboardStats returns aggregated statistics for the dashboard.
-func (s *DashboardService) GetDashboardStats(ctx context.Context) (*models.DashboardStats, error) {
+func (s *DashboardService) GetDashboardStats(ctx context.Context) (*logs_models.DashboardStats, error) {
 	now := time.Now()
-	stats := &models.DashboardStats{
+	stats := &logs_models.DashboardStats{
 		GeneratedAt:      now,
-		ServiceStats:     make(map[string]*models.LogStats),
-		ServiceHealth:    make(map[string]*models.ServiceHealth),
-		TopErrors:        []models.TopErrorMessage{},
-		Violations:       []models.AlertThresholdViolation{},
+		ServiceStats:     make(map[string]*logs_models.LogStats),
+		ServiceHealth:    make(map[string]*logs_models.ServiceHealth),
+		TopErrors:        []logs_models.TopErrorMessage{},
+		Violations:       []logs_models.AlertThresholdViolation{},
 		TimestampOne:     now.Add(-1 * time.Hour),
 		TimestampOneDay:  now.Add(-24 * time.Hour),
 		TimestampOneWeek: now.Add(-7 * 24 * time.Hour),
@@ -79,11 +79,11 @@ func (s *DashboardService) GetDashboardStats(ctx context.Context) (*models.Dashb
 }
 
 // GetServiceStats returns statistics for a specific service.
-func (s *DashboardService) GetServiceStats(ctx context.Context, service string, timeRange time.Duration) (*models.LogStats, error) {
+func (s *DashboardService) GetServiceStats(ctx context.Context, service string, timeRange time.Duration) (*logs_models.LogStats, error) {
 	now := time.Now()
 	start := now.Add(-timeRange)
 
-	stats := &models.LogStats{
+	stats := &logs_models.LogStats{
 		Timestamp:    now,
 		Service:      service,
 		CountByLevel: make(map[string]int64),
@@ -117,7 +117,7 @@ func (s *DashboardService) GetServiceStats(ctx context.Context, service string, 
 }
 
 // GetTopErrors returns the top error messages within a time range.
-func (s *DashboardService) GetTopErrors(ctx context.Context, limit int, timeRange time.Duration) ([]models.TopErrorMessage, error) {
+func (s *DashboardService) GetTopErrors(ctx context.Context, limit int, timeRange time.Duration) ([]logs_models.TopErrorMessage, error) {
 	now := time.Now()
 	start := now.Add(-timeRange)
 
@@ -125,10 +125,10 @@ func (s *DashboardService) GetTopErrors(ctx context.Context, limit int, timeRang
 	services, err := s.logReader.FindAllServices(ctx)
 	if err != nil {
 		s.logger.WithError(err).Error("Failed to get services for top errors")
-		return []models.TopErrorMessage{}, nil
+		return []logs_models.TopErrorMessage{}, nil
 	}
 
-	allErrors := make([]models.TopErrorMessage, 0)
+	allErrors := make([]logs_models.TopErrorMessage, 0)
 
 	// Collect errors from all services
 	for _, service := range services {
@@ -139,7 +139,7 @@ func (s *DashboardService) GetTopErrors(ctx context.Context, limit int, timeRang
 		}
 
 		for _, issue := range issues {
-			allErrors = append(allErrors, models.TopErrorMessage{
+			allErrors = append(allErrors, logs_models.TopErrorMessage{
 				Message:   issue.Message,
 				Service:   issue.Service,
 				Level:     issue.Level,
@@ -159,11 +159,11 @@ func (s *DashboardService) GetTopErrors(ctx context.Context, limit int, timeRang
 }
 
 // GetServiceHealth returns health status for all services.
-func (s *DashboardService) GetServiceHealth(ctx context.Context) (map[string]*models.ServiceHealth, error) {
+func (s *DashboardService) GetServiceHealth(ctx context.Context) (map[string]*logs_models.ServiceHealth, error) {
 	now := time.Now()
 	oneHourAgo := now.Add(-1 * time.Hour)
 
-	health := make(map[string]*models.ServiceHealth)
+	health := make(map[string]*logs_models.ServiceHealth)
 
 	// Get all services
 	services, err := s.logReader.FindAllServices(ctx)
@@ -182,8 +182,8 @@ func (s *DashboardService) GetServiceHealth(ctx context.Context) (map[string]*mo
 }
 
 // calculateServiceHealth determines the health status of a service.
-func (s *DashboardService) calculateServiceHealth(ctx context.Context, service string, start, end time.Time) *models.ServiceHealth {
-	health := &models.ServiceHealth{
+func (s *DashboardService) calculateServiceHealth(ctx context.Context, service string, start, end time.Time) *logs_models.ServiceHealth {
+	health := &logs_models.ServiceHealth{
 		Service:       service,
 		Status:        "OK",
 		LastCheckedAt: time.Now(),

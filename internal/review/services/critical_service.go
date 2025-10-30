@@ -1,4 +1,4 @@
-package services
+package review_services
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -25,7 +25,7 @@ func NewCriticalService(ollamaClient OllamaClientInterface, analysisRepo Analysi
 
 // AnalyzeCritical performs a detailed analysis of a repository in Critical Mode.
 // It generates a report identifying various issues and returns the analysis output.
-func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.CriticalModeOutput, error) {
+func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, repoOwner, repoName string) (*review_models.CriticalModeOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
 	s.logger.Info("AnalyzeCritical called", "correlation_id", correlationID, "review_id", reviewID, "repo_owner", repoOwner, "repo_name", repoName)
 
@@ -66,7 +66,7 @@ Return JSON:
 	}
 	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds())
 
-	var output models.CriticalModeOutput
+	var output review_models.CriticalModeOutput
 	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
 		s.logger.Error("Failed to unmarshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
 		return nil, fmt.Errorf("failed to unmarshal critical analysis output: %w", unmarshalErr)
@@ -77,9 +77,9 @@ Return JSON:
 		s.logger.Error("Failed to marshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to marshal critical analysis output: %w", err)
 	}
-	result := &models.AnalysisResult{
+	result := &review_models.AnalysisResult{
 		ReviewID:  reviewID,
-		Mode:      models.CriticalMode,
+		Mode:      review_models.CriticalMode,
 		Prompt:    prompt,
 		RawOutput: rawOutput,
 		Summary:   output.Summary,

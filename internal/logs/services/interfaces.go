@@ -1,44 +1,44 @@
-// Package services provides service interfaces for logs operations.
-package services
+// Package logs_services provides service interfaces for logs operations.
+package logs_services
 
 import (
 	"context"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // DashboardServiceInterface defines the contract for dashboard operations.
 type DashboardServiceInterface interface {
 	// GetDashboardStats returns aggregated statistics for the dashboard
-	GetDashboardStats(ctx context.Context) (*models.DashboardStats, error)
+	GetDashboardStats(ctx context.Context) (*logs_models.DashboardStats, error)
 
 	// GetServiceStats returns statistics for a specific service
-	GetServiceStats(ctx context.Context, service string, timeRange time.Duration) (*models.LogStats, error)
+	GetServiceStats(ctx context.Context, service string, timeRange time.Duration) (*logs_models.LogStats, error)
 
 	// GetTopErrors returns the top error messages within a time range
-	GetTopErrors(ctx context.Context, limit int, timeRange time.Duration) ([]models.TopErrorMessage, error)
+	GetTopErrors(ctx context.Context, limit int, timeRange time.Duration) ([]logs_models.TopErrorMessage, error)
 
 	// GetServiceHealth returns health status for all services
-	GetServiceHealth(ctx context.Context) (map[string]*models.ServiceHealth, error)
+	GetServiceHealth(ctx context.Context) (map[string]*logs_models.ServiceHealth, error)
 }
 
 // AlertServiceInterface defines the contract for alert operations.
 type AlertServiceInterface interface {
 	// CreateAlertConfig creates a new alert configuration
-	CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error
+	CreateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error
 
 	// UpdateAlertConfig updates an existing alert configuration
-	UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error
+	UpdateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error
 
 	// GetAlertConfig retrieves alert configuration for a service
-	GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error)
+	GetAlertConfig(ctx context.Context, service string) (*logs_models.AlertConfig, error)
 
 	// CheckThresholds checks if current log counts exceed alert thresholds
-	CheckThresholds(ctx context.Context) ([]models.AlertThresholdViolation, error)
+	CheckThresholds(ctx context.Context) ([]logs_models.AlertThresholdViolation, error)
 
 	// SendAlert sends an alert via email or webhook
-	SendAlert(ctx context.Context, violation *models.AlertThresholdViolation) error
+	SendAlert(ctx context.Context, violation *logs_models.AlertThresholdViolation) error
 }
 
 // LogAggregationServiceInterface defines the contract for log aggregation operations.
@@ -65,10 +65,10 @@ type WebSocketRealtimeServiceInterface interface {
 	UnregisterConnection(ctx context.Context, connectionID string) error
 
 	// BroadcastStats broadcasts current statistics to all connected clients
-	BroadcastStats(ctx context.Context, stats *models.DashboardStats) error
+	BroadcastStats(ctx context.Context, stats *logs_models.DashboardStats) error
 
 	// BroadcastAlert broadcasts an alert to all connected clients
-	BroadcastAlert(ctx context.Context, violation *models.AlertThresholdViolation) error
+	BroadcastAlert(ctx context.Context, violation *logs_models.AlertThresholdViolation) error
 
 	// GetConnectionCount returns the number of active connections
 	GetConnectionCount(ctx context.Context) (int, error)

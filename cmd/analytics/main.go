@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/handlers"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
+	app_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/handlers"
+	analytics_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/db"
 	analytics_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/handlers"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
@@ -44,14 +44,14 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	aggregationRepo := db.NewAggregationRepository(dbPool)
-	logReader := db.NewLogReader(dbPool)
+	aggregationRepo := analytics_db.NewAggregationRepository(dbPool)
+	logReader := analytics_db.NewLogReader(dbPool)
 
-	aggregatorService := services.NewAggregatorService(aggregationRepo, logReader, logger)
-	trendService := services.NewTrendService(aggregationRepo, logger)
-	anomalyService := services.NewAnomalyService(aggregationRepo, logger)
-	topIssuesService := services.NewTopIssuesService(logReader, logger)
-	exportService := services.NewExportService(aggregationRepo, logger)
+	aggregatorService := analytics_services.NewAggregatorService(aggregationRepo, logReader, logger)
+	trendService := analytics_services.NewTrendService(aggregationRepo, logger)
+	anomalyService := analytics_services.NewAnomalyService(aggregationRepo, logger)
+	topIssuesService := analytics_services.NewTopIssuesService(logReader, logger)
+	exportService := analytics_services.NewExportService(aggregationRepo, logger)
 
 	apiHandler := analytics_handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
 
@@ -78,7 +78,7 @@ func main() {
 	apiHandler.RegisterRoutes(router)
 
 	// Register UI routes
-	handlers.RegisterUIRoutes(router, logger)
+	app_handlers.RegisterUIRoutes(router, logger)
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "analytics")

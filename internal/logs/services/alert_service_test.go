@@ -1,5 +1,5 @@
 //nolint:govet // Test file: struct literal fields needed for assertions
-package services_test
+package logs_services_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,37 +19,37 @@ type MockAlertService struct {
 }
 
 // CreateAlertConfig mocks the CreateAlertConfig method
-func (m *MockAlertService) CreateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
+func (m *MockAlertService) CreateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
 // UpdateAlertConfig mocks the UpdateAlertConfig method
-func (m *MockAlertService) UpdateAlertConfig(ctx context.Context, config *models.AlertConfig) error {
+func (m *MockAlertService) UpdateAlertConfig(ctx context.Context, config *logs_models.AlertConfig) error {
 	args := m.Called(ctx, config)
 	return args.Error(0)
 }
 
 // GetAlertConfig mocks the GetAlertConfig method
-func (m *MockAlertService) GetAlertConfig(ctx context.Context, service string) (*models.AlertConfig, error) {
+func (m *MockAlertService) GetAlertConfig(ctx context.Context, service string) (*logs_models.AlertConfig, error) {
 	args := m.Called(ctx, service)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.AlertConfig), args.Error(1)
+	return args.Get(0).(*logs_models.AlertConfig), args.Error(1)
 }
 
 // CheckThresholds mocks the CheckThresholds method
-func (m *MockAlertService) CheckThresholds(ctx context.Context) ([]models.AlertThresholdViolation, error) {
+func (m *MockAlertService) CheckThresholds(ctx context.Context) ([]logs_models.AlertThresholdViolation, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.AlertThresholdViolation), args.Error(1)
+	return args.Get(0).([]logs_models.AlertThresholdViolation), args.Error(1)
 }
 
 // SendAlert mocks the SendAlert method
-func (m *MockAlertService) SendAlert(ctx context.Context, violation *models.AlertThresholdViolation) error {
+func (m *MockAlertService) SendAlert(ctx context.Context, violation *logs_models.AlertThresholdViolation) error {
 	args := m.Called(ctx, violation)
 	return args.Error(0)
 }
@@ -58,7 +58,7 @@ func (m *MockAlertService) SendAlert(ctx context.Context, violation *models.Aler
 func TestCreateAlertConfig_CreatesNewConfig(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: An alert service and new alert config
 	mockService := new(MockAlertService)
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "portal",
 		ErrorThresholdPerMin:   100,
 		WarningThresholdPerMin: 50,
@@ -79,7 +79,7 @@ func TestCreateAlertConfig_CreatesNewConfig(t *testing.T) { //nolint:govet // st
 // TestCreateAlertConfig_ValidatesRequiredFields validates required fields.
 func TestCreateAlertConfig_ValidatesRequiredFields(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: Alert config with missing service
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		ErrorThresholdPerMin: 100,
 		AlertEmail:           "admin@example.com",
 	}
@@ -97,7 +97,7 @@ func TestGetAlertConfig_ReturnsConfig(t *testing.T) { //nolint:govet // struct l
 	mockService := new(MockAlertService)
 	now := time.Now()
 
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service:                "analytics",
 		ErrorThresholdPerMin:   200,
 		WarningThresholdPerMin: 100,
@@ -141,7 +141,7 @@ func TestGetAlertConfig_NotFound(t *testing.T) { //nolint:govet // struct litera
 func TestUpdateAlertConfig_UpdatesExisting(t *testing.T) { //nolint:govet // struct literal fields needed for test assertions
 	// GIVEN: An existing alert config to update
 	mockService := new(MockAlertService)
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		ID:                     1,
 		Service:                "portal",
 		ErrorThresholdPerMin:   150, // Updated from 100
@@ -166,7 +166,7 @@ func TestCheckThresholds_DetectsViolations(t *testing.T) { //nolint:govet // str
 	mockService := new(MockAlertService)
 	now := time.Now()
 
-	violations := []models.AlertThresholdViolation{
+	violations := []logs_models.AlertThresholdViolation{
 		{
 			Service:        "analytics",
 			Level:          "error",
@@ -203,7 +203,7 @@ func TestCheckThresholds_NoViolations(t *testing.T) { //nolint:govet // struct l
 	// GIVEN: Services within thresholds
 	mockService := new(MockAlertService)
 
-	mockService.On("CheckThresholds", mock.Anything).Return([]models.AlertThresholdViolation{}, nil)
+	mockService.On("CheckThresholds", mock.Anything).Return([]logs_models.AlertThresholdViolation{}, nil)
 
 	// WHEN: Checking thresholds
 	result, err := mockService.CheckThresholds(context.Background())
@@ -219,7 +219,7 @@ func TestSendAlert_SendsEmail(t *testing.T) { //nolint:govet // struct literal f
 	mockService := new(MockAlertService)
 	now := time.Now()
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "portal",
 		Level:          "error",
 		CurrentCount:   150,
@@ -243,7 +243,7 @@ func TestSendAlert_SendsWebhook(t *testing.T) { //nolint:govet // struct literal
 	mockService := new(MockAlertService)
 	now := time.Now()
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "analytics",
 		Level:          "error",
 		CurrentCount:   300,
@@ -272,7 +272,7 @@ func TestAlertConfig_DisabledAlerts(t *testing.T) { //nolint:govet // struct lit
 	// GIVEN: Alert config that is disabled
 	mockService := new(MockAlertService)
 
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service: "review",
 		Enabled: false,
 		ID:      1,
@@ -293,7 +293,7 @@ func TestAlertConfig_EnabledAlerts(t *testing.T) { //nolint:govet // struct lite
 	// GIVEN: Alert config that is enabled
 	mockService := new(MockAlertService)
 
-	config := &models.AlertConfig{
+	config := &logs_models.AlertConfig{
 		Service: "portal",
 		Enabled: true,
 		ID:      1,
@@ -315,7 +315,7 @@ func TestCheckThresholds_MultipleServices(t *testing.T) { //nolint:govet // stru
 	mockService := new(MockAlertService)
 	now := time.Now()
 
-	violations := []models.AlertThresholdViolation{
+	violations := []logs_models.AlertThresholdViolation{
 		{Service: "portal", Level: "error", CurrentCount: 150, ThresholdValue: 100, Timestamp: now},
 		{Service: "analytics", Level: "error", CurrentCount: 300, ThresholdValue: 200, Timestamp: now},
 		{Service: "review", Level: "warning", CurrentCount: 100, ThresholdValue: 80, Timestamp: now},
@@ -336,7 +336,7 @@ func TestAlertThresholdViolation_AlertSentTracking(t *testing.T) { //nolint:gove
 	// GIVEN: Violation initially without alert sent
 	now := time.Now()
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service:        "portal",
 		Level:          "error",
 		CurrentCount:   150,
@@ -365,7 +365,7 @@ func TestSendAlert_ContextCancellation(t *testing.T) { //nolint:govet // struct 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	violation := &models.AlertThresholdViolation{
+	violation := &logs_models.AlertThresholdViolation{
 		Service: "portal",
 		Level:   "error",
 	}
@@ -384,7 +384,7 @@ func TestCreateAlertConfig_StoresMultipleConfigs(t *testing.T) { //nolint:govet 
 	// GIVEN: Alert service
 	mockService := new(MockAlertService)
 
-	configs := []*models.AlertConfig{
+	configs := []*logs_models.AlertConfig{
 		{Service: "portal", ErrorThresholdPerMin: 100},
 		{Service: "analytics", ErrorThresholdPerMin: 200},
 		{Service: "review", ErrorThresholdPerMin: 150},
@@ -406,13 +406,13 @@ func TestUpdateAlertConfig_UpdatesThreshold(t *testing.T) { //nolint:govet // st
 	// GIVEN: Existing config with initial threshold
 	mockService := new(MockAlertService)
 
-	oldConfig := &models.AlertConfig{
+	oldConfig := &logs_models.AlertConfig{
 		ID:                   1,
 		Service:              "portal",
 		ErrorThresholdPerMin: 100,
 	}
 
-	newConfig := &models.AlertConfig{
+	newConfig := &logs_models.AlertConfig{
 		ID:                   1,
 		Service:              "portal",
 		ErrorThresholdPerMin: 150, // Updated

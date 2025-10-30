@@ -1,4 +1,4 @@
-package models
+package portal_models
 
 import (
 	"testing"

@@ -12,26 +12,26 @@ import (
 
 // DuplicateBlock represents a potential duplicate code block
 type DuplicateBlock struct {
-	File1     string
-	File2     string
+	File1      string
+	File2      string
 	StartLine1 int
 	StartLine2 int
-	Lines     int
-	Content   string
+	Lines      int
+	Content    string
 }
 
 // DuplicateDetector finds duplicate code blocks
 type DuplicateDetector struct {
-	minLines  int
+	minLines   int
 	codeBlocks map[string]*CodeBlock
 }
 
 // CodeBlock represents a code segment
 type CodeBlock struct {
-	File      string
-	StartLine int
-	EndLine   int
-	Content   string
+	File       string
+	StartLine  int
+	EndLine    int
+	Content    string
 	Normalized string
 }
 
@@ -54,7 +54,7 @@ func (dd *DuplicateDetector) ScanDirectory(rootPath string) ([]DuplicateBlock, e
 		if err != nil {
 			return err
 		}
-		
+
 		// Skip test files, vendor, and hidden directories
 		if info.IsDir() {
 			if strings.HasPrefix(info.Name(), ".") || info.Name() == "vendor" {
@@ -175,7 +175,7 @@ func normalizeCode(code string) string {
 	// Remove variable names, keep structure
 	re := regexp.MustCompile(`[a-zA-Z_]\w*`)
 	normalized := re.ReplaceAllString(code, "VAR")
-	
+
 	// Collapse whitespace
 	fields := strings.Fields(normalized)
 	return strings.Join(fields, " ")

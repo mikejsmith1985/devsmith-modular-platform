@@ -1,5 +1,5 @@
-// Package services provides the implementation of the WebSocket hub for real-time log streaming.
-package services
+// Package logs_services provides the implementation of the WebSocket hub for real-time log streaming.
+package logs_services
 
 import (
 	"log"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // WebSocketHub manages WebSocket clients and broadcasts log entries to them.
@@ -16,7 +16,7 @@ import (
 // nolint:govet // Field order optimized for performance, not memory alignment
 type WebSocketHub struct {
 	clients    map[*Client]bool
-	broadcast  chan *models.LogEntry
+	broadcast  chan *logs_models.LogEntry
 	register   chan *Client
 	unregister chan *Client
 	mu         sync.RWMutex
@@ -27,7 +27,7 @@ type WebSocketHub struct {
 // nolint:govet // Field order optimized for readability
 type Client struct {
 	Conn         *websocket.Conn
-	Send         chan *models.LogEntry
+	Send         chan *logs_models.LogEntry
 	Filters      map[string]string
 	IsAuth       bool
 	IsPublic     bool
@@ -45,7 +45,7 @@ type Client struct {
 func NewWebSocketHub() *WebSocketHub {
 	return &WebSocketHub{
 		clients:    make(map[*Client]bool),
-		broadcast:  make(chan *models.LogEntry, 256),
+		broadcast:  make(chan *logs_models.LogEntry, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
@@ -100,7 +100,7 @@ func (h *WebSocketHub) Run() {
 }
 
 // broadcastToClients sends a log entry to all clients that match the log's visibility and filters.
-func (h *WebSocketHub) broadcastToClients(log *models.LogEntry) {
+func (h *WebSocketHub) broadcastToClients(log *logs_models.LogEntry) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -187,7 +187,7 @@ func (h *WebSocketHub) closeClient(client *Client) {
 
 // matchesFilters checks if a log entry matches all filters set by a client.
 // Returns true only if the log matches ALL active filters (AND logic).
-func (h *WebSocketHub) matchesFilters(client *Client, log *models.LogEntry) bool {
+func (h *WebSocketHub) matchesFilters(client *Client, log *logs_models.LogEntry) bool {
 	// Check level filter
 	if level, ok := client.Filters["level"]; ok && level != log.Level {
 		return false
@@ -209,7 +209,7 @@ func (h *WebSocketHub) matchesFilters(client *Client, log *models.LogEntry) bool
 }
 
 // logHasTag checks if a log entry contains a specific tag.
-func (h *WebSocketHub) logHasTag(log *models.LogEntry, tag string) bool {
+func (h *WebSocketHub) logHasTag(log *logs_models.LogEntry, tag string) bool {
 	if log.Tags == nil {
 		return false
 	}
@@ -223,7 +223,7 @@ func (h *WebSocketHub) logHasTag(log *models.LogEntry, tag string) bool {
 
 // isPublicLog checks if a log entry should be visible to unauthenticated users.
 // By default, only INFO logs are public. For tests, all levels can be public if LOGS_WEBSOCKET_PUBLIC_ALL is set.
-func (h *WebSocketHub) isPublicLog(log *models.LogEntry) bool {
+func (h *WebSocketHub) isPublicLog(log *logs_models.LogEntry) bool {
 	if os.Getenv("LOGS_WEBSOCKET_PUBLIC_ALL") == "1" {
 		return true
 	}
