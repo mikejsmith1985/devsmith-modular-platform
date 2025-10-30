@@ -46,9 +46,9 @@ func (s *SearchService) ExecuteSearch(ctx context.Context, queryString string) (
 		return []map[string]interface{}{}, nil
 	}
 
-	_, err := s.parser.ParseAndValidate(queryString)
+	q, err := s.parser.ParseAndValidate(queryString)
 	if err != nil {
-		return nil, fmt.Errorf("invalid query: %w", err)
+		return nil, err
 	}
 
 	// Try cache first
@@ -102,7 +102,7 @@ func (s *SearchService) ExecuteSearch(ctx context.Context, queryString string) (
 	}
 
 	// Parse query to a Query structure for matching
-	q, _ := s.parser.ParseAndValidate(queryString)
+	// q, _ := s.parser.ParseAndValidate(queryString) // This line is removed as q is now directly assigned
 
 	// Filter sample dataset by query
 	results := make([]map[string]interface{}, 0)
@@ -307,132 +307,116 @@ func matchQuery(q *Query, item map[string]interface{}) bool {
 
 	// Boolean operations
 	if q.BooleanOp != nil {
-		op := q.BooleanOp.Operator
-		if strings.ToUpper(op) == "OR" {
-			for _, cond := range q.BooleanOp.Conditions {
-				if cq, ok := cond.(*Query); ok {
-					if matchQuery(cq, item) {
-						if q.IsNegated {
-							return false
-						}
-						return true
-					}
-				}
-			}
-			if q.IsNegated {
-				return true
-			}
-			return false
-		}
-		// AND
-		for _, cond := range q.BooleanOp.Conditions {
-			if cq, ok := cond.(*Query); ok {
-				if !matchQuery(cq, item) {
-					if q.IsNegated {
-						return true
-					}
-					return false
-				}
-			}
-		}
-		if q.IsNegated {
-			return false
-		}
-		return true
+		return matchBoolean(q, item)
 	}
 
 	// Regex
 	if q.IsRegex {
-		msg, _ := item["message"].(string)
-		re, err := regexp.Compile(q.RegexPattern)
-		if err != nil {
-			return false
-		}
-		matched := re.MatchString(msg)
-		if q.IsNegated {
-			return !matched
-		}
-		return matched
+		return matchRegex(q, item)
 	}
 
 	// Field-specific matching
 	if len(q.Fields) > 0 {
-		for field, value := range q.Fields {
-			switch field {
-			case "message":
-				msg, _ := item["message"].(string)
-				if !strings.Contains(msg, value) {
-					if q.IsNegated {
-						return true
-					}
-					return false
-				}
-			case "service":
-				svc, _ := item["service"].(string)
-				if svc != value {
-					if q.IsNegated {
-						return true
-					}
-					return false
-				}
-			case "level":
-				lvl, _ := item["level"].(string)
-				if lvl != value {
-					if q.IsNegated {
-						return true
-					}
-					return false
-				}
-			case "tags":
-				// tags may be a slice of strings
-				if tags, ok := item["tags"].([]string); ok {
-					found := false
-					for _, t := range tags {
-						if t == value {
-							found = true
-							break
-						}
-					}
-					if !found {
-						if q.IsNegated {
-							return true
-						}
-						return false
-					}
-				} else {
-					if q.IsNegated {
-						return true
-					}
-					return false
-				}
-			default:
-				// Unknown field; fail conservative
-				if q.IsNegated {
-					return true
-				}
-				return false
-			}
-		}
-		// All fields matched
-		if q.IsNegated {
-			return false
-		}
-		return true
+		return matchFields(q, item)
 	}
 
-	// Free-text: check message/service/level
+	// Free-text search
 	if q.Text != "" {
-		text := q.Text
-		msg, _ := item["message"].(string)
-		svc, _ := item["service"].(string)
-		lvl, _ := item["level"].(string)
-		matched := strings.Contains(msg, text) || strings.Contains(svc, text) || strings.Contains(lvl, text)
-		if q.IsNegated {
-			return !matched
-		}
-		return matched
+		return matchText(q, item)
 	}
 
 	// Default: matches
 	return true
+}
+
+// matchBoolean handles OR/AND operations with negation.
+func matchBoolean(q *Query, item map[string]interface{}) bool {
+	op := strings.ToUpper(q.BooleanOp.Operator)
+	isOr := op == "OR"
+
+	for _, cond := range q.BooleanOp.Conditions {
+		if cq, ok := cond.(*Query); ok {
+			condMatches := matchQuery(cq, item)
+			if isOr && condMatches {
+				return !q.IsNegated
+			}
+			if !isOr && !condMatches {
+				return q.IsNegated
+			}
+		}
+	}
+
+	// OR: no conditions matched; AND: all conditions matched
+	return isOr == q.IsNegated
+}
+
+// matchRegex matches using compiled regular expression.
+func matchRegex(q *Query, item map[string]interface{}) bool {
+	msg, ok := item["message"].(string)
+	if !ok {
+		msg = ""
+	}
+
+	re, err := regexp.Compile(q.RegexPattern)
+	if err != nil {
+		return false
+	}
+
+	matched := re.MatchString(msg)
+	if q.IsNegated {
+		return !matched
+	}
+	return matched
+}
+
+// matchFields matches all field-specific conditions.
+func matchFields(q *Query, item map[string]interface{}) bool {
+	for field, value := range q.Fields {
+		if !matchFieldValue(item, field, value) {
+			return q.IsNegated
+		}
+	}
+	// All fields matched
+	return !q.IsNegated
+}
+
+// matchFieldValue checks if a field matches its expected value.
+func matchFieldValue(item map[string]interface{}, field, value string) bool {
+	switch field {
+	case "message":
+		msg, ok := item["message"].(string)
+		return ok && strings.Contains(msg, value)
+	case "service":
+		svc, ok := item["service"].(string)
+		return ok && svc == value
+	case "level":
+		lvl, ok := item["level"].(string)
+		return ok && lvl == value
+	case "tags":
+		tags, ok := item["tags"].([]string)
+		if !ok {
+			return false
+		}
+		for _, t := range tags {
+			if t == value {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+// matchText searches free-text across message, service, and level.
+func matchText(q *Query, item map[string]interface{}) bool {
+	msg, _ := item["message"].(string)
+	svc, _ := item["service"].(string)
+	lvl, _ := item["level"].(string)
+
+	matched := strings.Contains(msg, q.Text) || strings.Contains(svc, q.Text) || strings.Contains(lvl, q.Text)
+	if q.IsNegated {
+		return !matched
+	}
+	return matched
 }

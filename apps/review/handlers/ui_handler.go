@@ -134,8 +134,14 @@ func (h *UIHandler) SessionProgressSSE(c *gin.Context) {
 	defer ticker.Stop()
 
 	// send initial event
-	_, _ = c.Writer.Write([]byte("event: progress\n"))
-	_, _ = c.Writer.Write([]byte("data: {\"percent\": 0, \"message\": \"Queued\"}\n\n"))
+	if _, err := c.Writer.WriteString("event: progress\n"); err != nil {
+		h.logger.Error("failed to write SSE header", "error", err)
+		return
+	}
+	if _, err := c.Writer.WriteString("data: {\"percent\": 0, \"message\": \"Queued\"}\n\n"); err != nil {
+		h.logger.Error("failed to write SSE data", "error", err)
+		return
+	}
 	flusher.Flush()
 
 	// Loop and send updates until complete or client disconnect
@@ -145,30 +151,44 @@ func (h *UIHandler) SessionProgressSSE(c *gin.Context) {
 			h.logger.Info("SSE client disconnected", "session_id", sessionID)
 			return
 		case <-ticker.C:
-			// simple ramp-up logic for demo purposes
-			if percent < 30 {
-				percent += 5
-			} else if percent < 70 {
-				percent += 8
-			} else {
-				percent += 10
-			}
+			percent = updateProgressPercent(percent)
 			if percent > 100 {
 				percent = 100
 			}
 
 			msg := fmt.Sprintf("event: progress\n data: {\"percent\": %d, \"message\": \"Processing\"}\n\n", percent)
-			_, _ = c.Writer.Write([]byte(msg))
+			if _, err := c.Writer.WriteString(msg); err != nil {
+				h.logger.Error("failed to write SSE progress", "error", err)
+				return
+			}
 			flusher.Flush()
 
 			if percent >= 100 {
 				// send a final complete event
-				_, _ = c.Writer.Write([]byte("event: progress\n"))
-				_, _ = c.Writer.Write([]byte("data: {\"percent\": 100, \"message\": \"Complete\"}\n\n"))
+				if _, err := c.Writer.WriteString("event: progress\n"); err != nil {
+					h.logger.Error("failed to write SSE final header", "error", err)
+					return
+				}
+				if _, err := c.Writer.WriteString("data: {\"percent\": 100, \"message\": \"Complete\"}\n\n"); err != nil {
+					h.logger.Error("failed to write SSE final data", "error", err)
+					return
+				}
 				flusher.Flush()
 				return
 			}
 		}
+	}
+}
+
+// updateProgressPercent calculates the next progress percentage based on current value.
+func updateProgressPercent(current int) int {
+	switch {
+	case current < 30:
+		return current + 5
+	case current < 70:
+		return current + 8
+	default:
+		return current + 10
 	}
 }
 

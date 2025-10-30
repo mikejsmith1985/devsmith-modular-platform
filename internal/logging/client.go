@@ -1,3 +1,4 @@
+// Package logging provides a client for sending logs to the DevSmith Logging service.
 package logging
 
 import (
@@ -9,28 +10,28 @@ import (
 	"time"
 )
 
-// Client is a minimal HTTP client for sending logs to the Logs service.
+// Client sends logs to the logging service via HTTP.
 type Client struct {
-	endpoint string
-	client   *http.Client
+	endpoint   string
+	httpClient *http.Client
 }
 
 // NewClient creates a new logging client that posts to the provided endpoint.
 func NewClient(endpoint string) *Client {
 	return &Client{
 		endpoint: endpoint,
-		client: &http.Client{
+		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
 	}
 }
 
 // Post sends a JSON payload to the logs service. payload will be marshaled to JSON.
-func (c *Client) Post(ctx context.Context, payload interface{}) error {
+func (c *Client) Post(ctx context.Context, data map[string]interface{}) error {
 	if c == nil {
 		return fmt.Errorf("logging client is nil")
 	}
-	body, err := json.Marshal(payload)
+	body, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("marshal payload: %w", err)
 	}
@@ -40,11 +41,13 @@ func (c *Client) Post(ctx context.Context, payload interface{}) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.client.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("post to logs service: %w", err)
+		return fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() // explicitly ignore error as response already processed
+	}()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("logs service returned status %d", resp.StatusCode)
 	}
