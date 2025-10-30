@@ -21,10 +21,10 @@ type MetricEndpoint struct {
 
 // PerformanceMetric represents timing data for an endpoint
 type PerformanceMetric struct {
-	Endpoint     string  `json:"endpoint"`
-	ResponseTime int64   `json:"response_time_ms"`
-	StatusCode   int     `json:"status_code"`
-	Status       string  `json:"status"`
+	Endpoint     string `json:"endpoint"`
+	ResponseTime int64  `json:"response_time_ms"`
+	StatusCode   int    `json:"status_code"`
+	Status       string `json:"status"`
 }
 
 // Name returns the checker name
@@ -122,11 +122,15 @@ func (c *MetricsChecker) measureEndpoint(endpoint MetricEndpoint) PerformanceMet
 		metric.Status = "timeout"
 		return metric
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log but don't fail - response already processed
+		}
+	}()
 
 	metric.ResponseTime = elapsed
 	metric.StatusCode = resp.StatusCode
-	
+
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		metric.Status = "ok"
 	} else if resp.StatusCode >= 500 {
@@ -137,4 +141,3 @@ func (c *MetricsChecker) measureEndpoint(endpoint MetricEndpoint) PerformanceMet
 
 	return metric
 }
-

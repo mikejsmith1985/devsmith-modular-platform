@@ -97,7 +97,10 @@ func determineOverallStatus(checks []CheckResult) CheckStatus {
 
 // getSystemInfo gathers system information
 func getSystemInfo() SystemInfo {
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
 	environment := os.Getenv("ENVIRONMENT")
 	if environment == "" {
 		environment = "unknown"
@@ -110,4 +113,3 @@ func getSystemInfo() SystemInfo {
 		Timestamp:   time.Now(),
 	}
 }
-

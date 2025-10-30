@@ -18,12 +18,12 @@ type TrivyChecker struct {
 
 // TrivyScanResult represents parsed Trivy scan output
 type TrivyScanResult struct {
-	ScanType    string         `json:"scan_type"`
-	Target      string         `json:"target"`
-	Critical    int            `json:"critical"`
-	High        int            `json:"high"`
-	Medium      int            `json:"medium"`
-	Low         int            `json:"low"`
+	ScanType        string       `json:"scan_type"`
+	Target          string       `json:"target"`
+	Critical        int          `json:"critical"`
+	High            int          `json:"high"`
+	Medium          int          `json:"medium"`
+	Low             int          `json:"low"`
 	Vulnerabilities []VulnResult `json:"vulnerabilities,omitempty"`
 }
 

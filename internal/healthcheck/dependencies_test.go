@@ -119,4 +119,3 @@ func TestDependencyChecker_Check_AllHealthy(t *testing.T) {
 		t.Errorf("Expected status pass when all healthy, got %s", result.Status)
 	}
 }
-

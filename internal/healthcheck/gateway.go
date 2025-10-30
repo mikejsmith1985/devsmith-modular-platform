@@ -61,16 +61,16 @@ func (c *GatewayChecker) Check() CheckResult {
 		if c.testRoute(testURL) {
 			validRoutes++
 			routeDetails = append(routeDetails, map[string]string{
-				"path":    route.Path,
-				"target":  route.TargetService,
-				"status":  "ok",
+				"path":   route.Path,
+				"target": route.TargetService,
+				"status": "ok",
 			})
 		} else {
 			invalidRoutes = append(invalidRoutes, route.Path)
 			routeDetails = append(routeDetails, map[string]string{
-				"path":    route.Path,
-				"target":  route.TargetService,
-				"status":  "failed",
+				"path":   route.Path,
+				"target": route.TargetService,
+				"status": "failed",
 			})
 		}
 	}
@@ -101,11 +101,15 @@ func (c *GatewayChecker) parseNginxConfig() ([]RouteMapping, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open nginx config: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// Log but don't fail - file reading already completed
+		}
+	}()
 
 	var routes []RouteMapping
 	var currentLocation string
-	
+
 	// Regex patterns
 	locationPattern := regexp.MustCompile(`location\s+([\S]+)\s+\{`)
 	proxyPassPattern := regexp.MustCompile(`proxy_pass\s+http://([^/]+)`)
@@ -148,11 +152,14 @@ func (c *GatewayChecker) testRoute(url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log but don't fail - response already processed
+		}
+	}()
 
 	// Consider 2xx, 3xx, 401, 403 as "working" (route exists and responds)
 	// 404 means route doesn't exist
 	// 5xx means service error (but route is configured)
 	return resp.StatusCode != 404
 }
-

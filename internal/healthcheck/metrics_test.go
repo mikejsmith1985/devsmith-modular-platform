@@ -104,4 +104,3 @@ func TestMetricsChecker_Check(t *testing.T) {
 		t.Errorf("Expected 2 metrics, got %d", len(metrics))
 	}
 }
-
