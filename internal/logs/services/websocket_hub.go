@@ -118,7 +118,7 @@ func (h *WebSocketHub) Run() {
 func (h *WebSocketHub) Stop() {
 	defer func() {
 		if r := recover(); r != nil {
-			// Already stopped, ignore
+			log.Printf("WebSocketHub already stopped") // Explicitly log instead of empty branch
 		}
 	}()
 	close(h.stop)
@@ -173,7 +173,9 @@ func (h *WebSocketHub) sendHeartbeats() {
 			go func(c *Client) {
 				// Close the connection to force Read/Write pumps to exit
 				c.writeMu.Lock()
-				_ = c.Conn.Close()
+				if err := c.Conn.Close(); err != nil {
+					log.Printf("error closing inactive client connection: %v", err)
+				}
 				c.writeMu.Unlock()
 				h.closeClient(c)
 			}(client)
@@ -203,7 +205,9 @@ func (h *WebSocketHub) closeClient(client *Client) {
 		// Best-effort close of the underlying connection to speed teardown
 		if client.Conn != nil {
 			client.writeMu.Lock()
-			_ = client.Conn.Close()
+			if err := client.Conn.Close(); err != nil {
+				log.Printf("error closing client connection during cleanup: %v", err)
+			}
 			client.writeMu.Unlock()
 		}
 	}
