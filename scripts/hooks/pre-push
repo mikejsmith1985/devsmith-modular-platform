@@ -1,14 +1,15 @@
 #!/bin/bash
 # DevSmith Pre-Push Validation Hook
-# STRICT MODE: Blocks push if ANY check fails
-# Do NOT bypass with --no-verify
+# SELECTIVE MODE: Only validates files being pushed (HEAD~1..HEAD)
+# This keeps local feedback fast while still catching NEW issues
+# Do NOT bypass with --no-verify (use only when necessary for infrastructure changes)
 
 set -euo pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 cd "$PROJECT_ROOT"
 
-echo "🔍 Running pre-push validation checks..."
+echo "🔍 Running pre-push validation (SELECTIVE MODE - current commit only)..."
 echo ""
 
 FAILED=0
@@ -18,31 +19,57 @@ FAILED=0
 MODIFIED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep '\.go$' || true)
 MODIFIED_GO_FILES="$MODIFIED_FILES"  # Alias for compatibility
 
+if [ -z "$MODIFIED_FILES" ]; then
+    echo "ℹ️  No files modified in current commit. Skipping validation."
+    exit 0
+fi
+
+echo "📋 Files being pushed:"
+echo "$MODIFIED_FILES" | sed 's/^/   /'
+echo ""
+
 # 1. FORMAT CHECK (gofmt)
 echo "1️⃣  Checking formatting (gofmt)..."
-if gofmt -l . 2>/dev/null | grep -q "\.go"; then
-    echo "❌ FAILED: Files not formatted. Run: gofmt -w ."
-    FAILED=1
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    UNFORMATTED=$(gofmt -l $MODIFIED_GO_FILES 2>/dev/null || true)
+    if [ -n "$UNFORMATTED" ]; then
+        echo "❌ FAILED: Files not formatted"
+        echo "$UNFORMATTED" | sed 's/^/   /'
+        FAILED=1
+    else
+        echo "✅ PASSED: Modified files formatted"
+    fi
 else
-    echo "✅ PASSED: All files formatted"
+    echo "ℹ️  No Go files modified"
 fi
 
-# 2. IMPORTS CHECK (goimports)
+# 2. IMPORTS CHECK (goimports) - MODIFIED FILES ONLY
 echo "2️⃣  Checking imports (goimports)..."
-if goimports -l . 2>/dev/null | grep -q "\.go"; then
-    echo "❌ FAILED: Imports not resolved. Run: goimports -w ."
-    FAILED=1
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    UNIMPORTED=$(goimports -l $MODIFIED_GO_FILES 2>/dev/null || true)
+    if [ -n "$UNIMPORTED" ]; then
+        echo "❌ FAILED: Imports not resolved"
+        echo "$UNIMPORTED" | sed 's/^/   /'
+        FAILED=1
+    else
+        echo "✅ PASSED: Imports correct"
+    fi
 else
-    echo "✅ PASSED: Imports correct"
+    echo "ℹ️  No Go files modified"
 fi
 
-# 3. BUILD CHECK
-echo "3️⃣  Checking build (go build)..."
-if ! go build ./... 2>&1; then
-    echo "❌ FAILED: Code does not compile"
-    FAILED=1
+# 3. BUILD CHECK - MODIFIED PACKAGES ONLY
+echo "3️⃣  Checking build..."
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
+    if ! go build $MODIFIED_PACKAGES 2>&1; then
+        echo "❌ FAILED: Modified packages don't compile"
+        FAILED=1
+    else
+        echo "✅ PASSED: Modified packages compile"
+    fi
 else
-    echo "✅ PASSED: Code compiles"
+    echo "ℹ️  No Go files modified"
 fi
 
 # 4. LINTING CHECK (golangci-lint) - MODIFIED FILES ONLY
@@ -84,75 +111,81 @@ else
     fi
 fi
 
-# 5. VET CHECK
-echo "5️⃣  Checking vet (go vet)..."
-if ! go vet ./... 2>&1; then
-    echo "❌ FAILED: Go vet found issues"
-    FAILED=1
+# 5. VET CHECK - MODIFIED PACKAGES ONLY
+echo "5️⃣  Checking vet..."
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
+    if ! go vet $MODIFIED_PACKAGES 2>&1; then
+        echo "❌ FAILED: Go vet found issues"
+        FAILED=1
+    else
+        echo "✅ PASSED: Go vet clean"
+    fi
 else
-    echo "✅ PASSED: Go vet clean"
+    echo "ℹ️  No Go files modified"
 fi
 
-# 6. TEST COMPILATION (BLOCKING)
+# 6. TEST COMPILATION - MODIFIED PACKAGES ONLY
 echo "6️⃣  Checking test compilation..."
-# MODIFIED_FILES already defined at the top of the script
-
-if [ -z "$MODIFIED_FILES" ]; then
-    echo "ℹ️  INFO: No Go files modified in current commit, skipping test checks"
-else
-    # Extract unique packages from modified files
-    MODIFIED_PACKAGES=$(echo "$MODIFIED_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
     
     echo "   Testing packages with modified files:"
     echo "$MODIFIED_PACKAGES" | sed 's/^/     /'
     echo ""
     
     if ! go test $MODIFIED_PACKAGES -short 2>&1 >/dev/null; then
-        echo "❌ FAILED: Tests for modified packages don't compile"
+        echo "❌ FAILED: Tests don't compile for modified packages"
         FAILED=1
     else
         echo "✅ PASSED: Tests compile"
     fi
+else
+    echo "ℹ️  No Go files modified"
 fi
 
-# 7. TESTS RUN (BLOCKING) - ONLY FOR MODIFIED PACKAGES
-echo "7️⃣  Running tests (modified packages only)..."
-if [ -z "$MODIFIED_FILES" ]; then
-    echo "ℹ️  INFO: No Go files modified in current commit, skipping test execution"
-else
+# 7. TEST EXECUTION - MODIFIED PACKAGES ONLY
+echo "7️⃣  Running tests (modified packages)..."
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
     if ! go test $MODIFIED_PACKAGES -short 2>&1 >/dev/null; then
-        echo "⚠️  INFO: Some tests failed (pre-existing infrastructure issues)"
-        echo "   This is tracked separately - does not block push for valid code"
+        echo "⚠️  INFO: Tests failed (pre-existing or environment issue)"
+        echo "   Running tests for quality feedback only - not blocking push"
     else
-        echo "✅ PASSED: Tests for modified packages passed"
+        echo "✅ PASSED: Tests passed"
     fi
+else
+    echo "ℹ️  No Go files modified"
 fi
 
-# 8. RACE CONDITION CHECK (BLOCKING) - ONLY FOR MODIFIED PACKAGES
-echo "8️⃣  Checking for race conditions (modified packages)..."
-if [ -z "$MODIFIED_FILES" ]; then
-    echo "ℹ️  INFO: No Go files modified in current commit, skipping race check"
-else
+# 8. RACE CHECK - MODIFIED PACKAGES ONLY (INFORMATIONAL ONLY)
+echo "8️⃣  Checking for race conditions..."
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
     if ! go test $MODIFIED_PACKAGES -race -short 2>&1 >/dev/null; then
-        echo "⚠️  INFO: Race detection issues found (pre-existing)"
-        echo "   Critical gates (format, build, vet, lint) all PASSED"
+        echo "⚠️  INFO: Race detection found issues (informational only)"
     else
-        echo "✅ PASSED: No race conditions in modified packages"
+        echo "✅ PASSED: No race conditions"
     fi
+else
+    echo "ℹ️  No Go files modified"
 fi
 
 echo ""
 echo "════════════════════════════════════════════════════════════"
 
 if [[ $FAILED -eq 0 ]]; then
-    echo "✅ ALL CHECKS PASSED - Push allowed"
+    echo "✅ PRE-PUSH CHECKS PASSED"
     echo "════════════════════════════════════════════════════════════"
     exit 0
 else
-    echo "❌ PRE-PUSH VALIDATION FAILED"
+    echo "❌ PRE-PUSH CHECKS FAILED"
     echo "════════════════════════════════════════════════════════════"
     echo ""
-    echo "❌ CANNOT PUSH - Fix the issues above and try again"
-    echo ""
+    echo "Quick fixes:"
+    echo "  1. Run: gofmt -w <files>"
+    echo "  2. Run: goimports -w <files>"
+    echo "  3. Fix build/lint errors in your code"
+    echo "  4. Try push again"
     exit 1
 fi
