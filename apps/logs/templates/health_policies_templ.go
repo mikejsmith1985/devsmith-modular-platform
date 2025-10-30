@@ -131,7 +131,7 @@ func PolicyCard(policy services.HealthPolicy) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(policy.MaxResponseTimeMS)))
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(policy.MaxResponseTimeMs)))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/health_policies.templ`, Line: 76, Col: 52}
 		}
@@ -278,7 +278,7 @@ func PolicySummary(policy services.HealthPolicy) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
-		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(policy.MaxResponseTimeMS)))
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(policy.MaxResponseTimeMs)))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/health_policies.templ`, Line: 165, Col: 90}
 		}

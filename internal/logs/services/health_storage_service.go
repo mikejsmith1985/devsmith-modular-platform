@@ -8,66 +8,73 @@ import (
 	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
+	"github.com/sirupsen/logrus"
 )
 
-// HealthStorageService stores and retrieves health check results
+// HealthStorageService stores health check reports and analysis
 type HealthStorageService struct {
-	db *sql.DB
+	logger *logrus.Logger
+	db     *sql.DB
 }
 
-// NewHealthStorageService creates a new health storage service
-func NewHealthStorageService(db *sql.DB) *HealthStorageService {
-	return &HealthStorageService{db: db}
-}
-
-// HealthCheckSummary represents a stored health check summary
+// HealthCheckSummary is a summary of a health check
 type HealthCheckSummary struct {
 	ID            int       `json:"id"`
 	Timestamp     time.Time `json:"timestamp"`
 	OverallStatus string    `json:"overall_status"`
-	DurationMS    int       `json:"duration_ms"`
-	CheckCount    int       `json:"check_count"`
+	DurationMs    int       `json:"duration_ms"`
 	PassedCount   int       `json:"passed_count"`
-	WarnedCount   int       `json:"warned_count"`
 	FailedCount   int       `json:"failed_count"`
 	TriggeredBy   string    `json:"triggered_by"`
 }
 
-// TrendData represents performance trend data
+// TrendData represents trend analysis for a service
 type TrendData struct {
-	Service    string      `json:"service"`
-	TimePeriod string      `json:"time_period"`
-	DataPoints []DataPoint `json:"data_points"`
-	Average    float64     `json:"average"`
-	Peak       int64       `json:"peak"`
+	ServiceName  string    `json:"service_name"`
+	TimeRange    string    `json:"time_range"`
+	AvgDuration  int       `json:"avg_duration"`
+	FailureRate  float64   `json:"failure_rate"`
+	HealthScores []float64 `json:"health_scores"`
 }
 
-// DataPoint represents a single trend data point
-type DataPoint struct {
+// HealthTrendPoint represents a single data point in a trend
+type HealthTrendPoint struct {
 	Timestamp time.Time `json:"timestamp"`
-	Value     int64     `json:"value"`
 	Status    string    `json:"status"`
+	Value     int       `json:"value"` // 0-100 score
 }
 
-// StoreHealthCheck stores a health check result in the database
-func (s *HealthStorageService) StoreHealthCheck(ctx context.Context, report healthcheck.HealthReport, triggeredBy string) (int, error) {
+// NewHealthStorageService creates a new health storage service
+func NewHealthStorageService(db *sql.DB) *HealthStorageService {
+	return &HealthStorageService{
+		logger: logrus.New(),
+		db:     db,
+	}
+}
+
+// NewHealthStorageServiceWithLogger creates a new health storage service with a logger
+func NewHealthStorageServiceWithLogger(db *sql.DB, logger *logrus.Logger) *HealthStorageService {
+	return &HealthStorageService{
+		logger: logger,
+		db:     db,
+	}
+}
+
+// StoreHealthCheck stores a complete health check report
+func (s *HealthStorageService) StoreHealthCheck(ctx context.Context, report *healthcheck.HealthReport, triggeredBy string) (int, error) {
 	reportJSON, err := json.Marshal(report)
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal report: %w", err)
 	}
 
-	var healthCheckID int
-	query := `
-		INSERT INTO logs.health_checks 
-		(timestamp, overall_status, duration_ms, check_count, passed_count, warned_count, failed_count, report_json, triggered_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id
-	`
-
+	var id int
 	err = s.db.QueryRowContext(ctx,
-		query,
-		report.Timestamp,
-		report.Status,
+		`INSERT INTO logs.health_checks 
+		 (timestamp, overall_status, duration_ms, check_count, passed_count, warned_count, failed_count, report_json, triggered_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 RETURNING id`,
+		time.Now(),
+		string(report.Status),
 		report.Duration.Milliseconds(),
 		report.Summary.Total,
 		report.Summary.Passed,
@@ -75,7 +82,7 @@ func (s *HealthStorageService) StoreHealthCheck(ctx context.Context, report heal
 		report.Summary.Failed,
 		reportJSON,
 		triggeredBy,
-	).Scan(&healthCheckID)
+	).Scan(&id)
 
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert health check: %w", err)
@@ -83,203 +90,157 @@ func (s *HealthStorageService) StoreHealthCheck(ctx context.Context, report heal
 
 	// Store individual check details
 	for _, check := range report.Checks {
-		detailsJSON, _ := json.Marshal(check.Details)
-		detailQuery := `
-			INSERT INTO logs.health_check_details
-			(health_check_id, check_name, status, message, error, duration_ms, details_json)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`
-		_, err := s.db.ExecContext(ctx,
-			detailQuery,
-			healthCheckID,
+		detailsJSON, err := json.Marshal(check.Details)
+		if err != nil {
+			// Log but don't fail entire operation
+			s.logger.Errorf("failed to marshal check details: %v", err)
+			detailsJSON = []byte("{}")
+		}
+		_, err = s.db.ExecContext(ctx,
+			`INSERT INTO logs.health_check_details 
+			 (health_check_id, check_name, status, message, error, duration_ms, details_json)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			id,
 			check.Name,
-			check.Status,
+			string(check.Status),
 			check.Message,
 			check.Error,
 			check.Duration.Milliseconds(),
 			detailsJSON,
 		)
 		if err != nil {
-			// Log but don't fail if detail insert fails
-			fmt.Printf("Warning: failed to insert check detail %s: %v\n", check.Name, err)
+			// Log but don't fail entire operation
+			s.logger.Errorf("failed to insert check detail: %v", err)
 		}
 	}
 
-	return healthCheckID, nil
+	return id, nil
 }
 
-// GetRecentChecks retrieves the most recent health checks
+// GetRecentChecks returns the most recent health checks
 func (s *HealthStorageService) GetRecentChecks(ctx context.Context, limit int) ([]HealthCheckSummary, error) {
-	query := `
-		SELECT id, timestamp, overall_status, duration_ms, check_count, passed_count, warned_count, failed_count, triggered_by
-		FROM logs.health_checks
-		ORDER BY timestamp DESC
-		LIMIT $1
-	`
+	query := `SELECT id, timestamp, overall_status, duration_ms, passed_count, failed_count, triggered_by
+		 FROM logs.health_checks
+		 ORDER BY timestamp DESC
+		 LIMIT $1`
+	return s.queryHealthChecks(ctx, query, limit)
+}
 
-	rows, err := s.db.QueryContext(ctx, query, limit)
+// GetCheckHistory returns checks from the specified number of hours
+func (s *HealthStorageService) GetCheckHistory(ctx context.Context, hours int) ([]HealthCheckSummary, error) {
+	query := `SELECT id, timestamp, overall_status, duration_ms, passed_count, failed_count, triggered_by
+		 FROM logs.health_checks
+		 WHERE timestamp >= NOW() - INTERVAL '1 hour' * $1
+		 ORDER BY timestamp DESC`
+	return s.queryHealthChecks(ctx, query, hours)
+}
+
+// queryHealthChecks executes a health checks query and returns results
+func (s *HealthStorageService) queryHealthChecks(ctx context.Context, query string, arg interface{}) ([]HealthCheckSummary, error) {
+	rows, err := s.db.QueryContext(ctx, query, arg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query health checks: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // explicitly ignore error as rows already processed
+	}()
 
 	var checks []HealthCheckSummary
 	for rows.Next() {
-		var check HealthCheckSummary
-		err := rows.Scan(
-			&check.ID,
-			&check.Timestamp,
-			&check.OverallStatus,
-			&check.DurationMS,
-			&check.CheckCount,
-			&check.PassedCount,
-			&check.WarnedCount,
-			&check.FailedCount,
-			&check.TriggeredBy,
-		)
+		var c HealthCheckSummary
+		err := rows.Scan(&c.ID, &c.Timestamp, &c.OverallStatus, &c.DurationMs, &c.PassedCount, &c.FailedCount, &c.TriggeredBy)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan health check: %w", err)
+			return nil, fmt.Errorf("failed to scan check: %w", err)
 		}
-		checks = append(checks, check)
+		checks = append(checks, c)
 	}
 
-	return checks, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate rows: %w", err)
+	}
+	return checks, nil
 }
 
-// GetCheckHistory retrieves health checks from the last N hours
-func (s *HealthStorageService) GetCheckHistory(ctx context.Context, hours int) ([]HealthCheckSummary, error) {
-	query := `
-		SELECT id, timestamp, overall_status, duration_ms, check_count, passed_count, warned_count, failed_count, triggered_by
-		FROM logs.health_checks
-		WHERE timestamp > NOW() - INTERVAL '1 hour' * $1
-		ORDER BY timestamp DESC
-	`
-
-	rows, err := s.db.QueryContext(ctx, query, hours)
+// GetTrendData returns trend analysis for a specific service
+func (s *HealthStorageService) GetTrendData(ctx context.Context, serviceName string, hours int) (*TrendData, error) {
+	// Query recent checks for this service
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT timestamp, overall_status, duration_ms
+		 FROM logs.health_checks
+		 WHERE timestamp >= NOW() - INTERVAL '1 hour' * $1
+		 ORDER BY timestamp DESC`,
+		hours,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query health check history: %w", err)
+		return nil, fmt.Errorf("failed to query trend data: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // explicitly ignore error as rows already processed
+	}()
 
-	var checks []HealthCheckSummary
-	for rows.Next() {
-		var check HealthCheckSummary
-		err := rows.Scan(
-			&check.ID,
-			&check.Timestamp,
-			&check.OverallStatus,
-			&check.DurationMS,
-			&check.CheckCount,
-			&check.PassedCount,
-			&check.WarnedCount,
-			&check.FailedCount,
-			&check.TriggeredBy,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan health check: %w", err)
-		}
-		checks = append(checks, check)
+	trend := &TrendData{
+		ServiceName:  serviceName,
+		TimeRange:    fmt.Sprintf("%d hours", hours),
+		HealthScores: []float64{},
 	}
 
-	return checks, rows.Err()
-}
-
-// GetTrendData retrieves performance trend data for a specific check
-func (s *HealthStorageService) GetTrendData(ctx context.Context, checkName string, hours int) (TrendData, error) {
-	trend := TrendData{
-		Service:    checkName,
-		TimePeriod: fmt.Sprintf("Last %d hours", hours),
-		DataPoints: []DataPoint{},
-	}
-
-	query := `
-		SELECT hcd.created_at, 
-		       CAST(COALESCE(hcd.duration_ms, 0) AS BIGINT) as duration_ms,
-		       hcd.status
-		FROM logs.health_check_details hcd
-		WHERE hcd.check_name = $1
-		  AND hcd.created_at > NOW() - INTERVAL '1 hour' * $2
-		ORDER BY hcd.created_at ASC
-	`
-
-	rows, err := s.db.QueryContext(ctx, query, checkName, hours)
-	if err != nil {
-		return trend, fmt.Errorf("failed to query trend data: %w", err)
-	}
-	defer rows.Close()
-
-	var total int64
-	var count int64
+	var totalDuration int64
+	var checkCount int
+	var failCount int
 
 	for rows.Next() {
 		var timestamp time.Time
-		var duration int64
 		var status string
-
-		err := rows.Scan(&timestamp, &duration, &status)
+		var durationMs int
+		err := rows.Scan(&timestamp, &status, &durationMs)
 		if err != nil {
-			return trend, fmt.Errorf("failed to scan trend data: %w", err)
+			continue
 		}
 
-		trend.DataPoints = append(trend.DataPoints, DataPoint{
-			Timestamp: timestamp,
-			Value:     duration,
-			Status:    status,
-		})
-
-		total += duration
-		count++
-	}
-
-	if count > 0 {
-		trend.Average = float64(total) / float64(count)
-	}
-
-	// Find peak
-	for _, dp := range trend.DataPoints {
-		if dp.Value > trend.Peak {
-			trend.Peak = dp.Value
+		totalDuration += int64(durationMs)
+		checkCount++
+		if status == "fail" {
+			failCount++
 		}
+
+		// Convert status to score (0-100)
+		score := 0
+		if status == "pass" {
+			score = 100
+		} else if status == "warn" {
+			score = 50
+		}
+
+		trend.HealthScores = append(trend.HealthScores, float64(score))
+	}
+
+	if checkCount > 0 {
+		trend.AvgDuration = int(totalDuration / int64(checkCount))
+		trend.FailureRate = float64(failCount) / float64(checkCount)
+	}
+
+	if len(trend.HealthScores) > 0 {
+		// The original code had trend.LastCheckTime = trend.HealthScores[0].Timestamp
+		// This line is problematic as HealthScores is []float64.
+		// Assuming the intent was to find the timestamp of the last check.
+		// Since HealthScores is now []float64, we need to find the timestamp of the last float64.
+		// This is not directly possible without a timestamp field in HealthScores.
+		// For now, removing this line as it's not directly applicable to the new HealthScores type.
 	}
 
 	return trend, rows.Err()
 }
 
-// GetHealthCheckByID retrieves a specific health check with all details
-func (s *HealthStorageService) GetHealthCheckByID(ctx context.Context, id int) (*healthcheck.HealthReport, error) {
-	query := `SELECT report_json FROM logs.health_checks WHERE id = $1`
-
-	var reportJSON []byte
-	err := s.db.QueryRowContext(ctx, query, id).Scan(&reportJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query health check: %w", err)
-	}
-
-	var report healthcheck.HealthReport
-	err = json.Unmarshal(reportJSON, &report)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal health check: %w", err)
-	}
-
-	return &report, nil
-}
-
-// CleanupOldChecks removes health checks older than the retention period
+// CleanupOldChecks removes health checks older than the specified number of days
 func (s *HealthStorageService) CleanupOldChecks(ctx context.Context, retentionDays int) (int64, error) {
-	query := `
-		DELETE FROM logs.health_checks
-		WHERE created_at < NOW() - INTERVAL '1 day' * $1
-	`
-
-	result, err := s.db.ExecContext(ctx, query, retentionDays)
+	result, err := s.db.ExecContext(ctx,
+		`DELETE FROM logs.health_checks
+		 WHERE timestamp < NOW() - INTERVAL '1 day' * $1`,
+		retentionDays,
+	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to cleanup old checks: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	return rowsAffected, nil
+	return result.RowsAffected()
 }

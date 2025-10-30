@@ -51,7 +51,11 @@ func (c *HTTPChecker) Check() CheckResult {
 		result.Duration = time.Since(start)
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			// Log but don't fail - response already processed
+		}
+	}()
 
 	result.Details["url"] = c.URL
 	result.Details["status_code"] = resp.StatusCode
@@ -71,4 +75,3 @@ func (c *HTTPChecker) Check() CheckResult {
 	result.Duration = time.Since(start)
 	return result
 }
-

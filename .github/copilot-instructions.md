@@ -550,7 +550,288 @@ export const authService = {
 - Enables confident refactoring (tests protect against regressions)
 - Aligns with platform mission (supervising AI, not trusting blindly)
 
-### Step 3.5: Docker Validation Workflow 🐳 (NEW)
+### Step 3.5: Health Check CLI (NEW) 🏥 - REQUIRED FOR REVIEW FEATURES
+
+**IMPORTANT: Use the Health Check CLI instead of `docker-validate.sh` for system diagnostics while implementing Review features.**
+
+The DevSmith Health Check app provides faster diagnostics and supports continuous monitoring during development.
+
+#### When to Use Health Check CLI vs Docker Validation
+
+**Use health check CLI (`./scripts/health-check-cli.sh`) for:**
+- Quick system diagnostics before starting work
+- Verifying all services are healthy
+- Diagnosing specific service failures
+- Continuous monitoring while developing (watch mode)
+- Real-time health tracking with `--watch` flag
+
+**Use docker-validate.sh for:**
+- Complete infrastructure validation (before creating PR)
+- Pre-commit comprehensive endpoint checks
+- Full service endpoint discovery and status
+
+#### Health Check CLI Usage
+
+**Basic health check (human-readable output):**
+```bash
+./scripts/health-check-cli.sh
+# Output: ✅ All services healthy, response times, status summary
+```
+
+**JSON output (for parsing and scripting):**
+```bash
+./scripts/health-check-cli.sh --json
+# Parse specific sections:
+./scripts/health-check-cli.sh --json | jq '.Summary'
+```
+
+**Continuous monitoring (watch mode - 5 second interval):**
+```bash
+./scripts/health-check-cli.sh --watch
+# Runs continuously, press Ctrl+C to stop
+# Great for monitoring while implementing features
+```
+
+**Watch mode with JSON output:**
+```bash
+./scripts/health-check-cli.sh --watch --json
+```
+
+**Get help:**
+```bash
+./scripts/health-check-cli.sh --help
+```
+
+#### Workflow Examples
+
+**Example 1: Before Starting Development**
+```bash
+# Terminal 1: Verify system is healthy
+./scripts/health-check-cli.sh
+
+# Expected output:
+# ✅ All services healthy
+# ✅ Database: responding (2ms)
+# ✅ Gateway: responding (1ms)
+# ✅ Services: 4/4 healthy
+```
+
+**Example 2: While Implementing Review Features**
+```bash
+# Terminal 1: Monitor health continuously
+./scripts/health-check-cli.sh --watch
+
+# Terminal 2: Make code changes
+vim internal/review/services/scan_service.go
+
+# Terminal 3: Rebuild and test
+docker-compose up -d --build review
+go test ./internal/review/services/...
+```
+
+**Example 3: Debugging Service Issues**
+```bash
+# Get JSON output with full details
+./scripts/health-check-cli.sh --json
+
+# Parse specific service status
+./scripts/health-check-cli.sh --json | jq '.Report.Checks[] | select(.Name=="review")'
+
+# Check Phase 2 advanced diagnostics (gateway, metrics, dependencies)
+./scripts/health-check-cli.sh --json | jq '.Report.Checks[] | select(.Name | contains("gateway"))'
+
+# Extract summary
+./scripts/health-check-cli.sh --json | jq '.Summary'
+```
+
+#### Health Check Phases
+
+**Phase 1 Checks (Always Run):**
+- Docker container status for all services
+- HTTP health endpoints responsiveness
+- Database connectivity and response time
+- Service status summary
+
+**Phase 2 Checks (Advanced):**
+- Gateway routing validation (nginx.conf parsing)
+- Performance metrics (response time analysis)
+- Service interdependencies
+
+**Phase 3 Checks (Intelligence):**
+- Security scans (Trivy integration)
+- Historical trend analysis
+- Auto-repair policies
+- Health policies
+
+#### Integration with TDD + Docker Workflow
+
+**Complete development cycle:**
+
+```bash
+# 1. Start health monitoring in background
+./scripts/health-check-cli.sh --watch &
+MONITOR_PID=$!
+
+# 2. Write failing tests (RED phase)
+vim internal/review/services/scan_service_test.go
+go test ./internal/review/services/...
+# Expected: FAIL
+
+# 3. Implement feature (GREEN phase)
+vim internal/review/services/scan_service.go
+go test ./internal/review/services/...
+# Expected: PASS
+
+# 4. Rebuild Docker container
+docker-compose up -d --build review
+
+# 5. Check health (monitor shows real-time status)
+# (Already running in Terminal 1 via --watch)
+
+# 6. Full validation before PR
+./scripts/docker-validate.sh
+
+# 7. Stop health monitor
+kill $MONITOR_PID
+```
+
+#### Common Workflows
+
+**Quick health check before working:**
+```bash
+./scripts/health-check-cli.sh && echo "✅ Ready to start"
+```
+
+**Monitor health while making changes:**
+```bash
+./scripts/health-check-cli.sh --watch &
+# Make changes in another terminal
+# Monitor shows status updates every 5 seconds
+```
+
+**Troubleshoot specific service:**
+```bash
+./scripts/health-check-cli.sh --json | jq '.Report | {Status, Issues: [.Checks[] | select(.Status!="pass")]}'
+```
+
+**Check if system is ready for PR creation (MANDATORY BEFORE CREATING PR):**
+```bash
+./scripts/health-check-cli.sh --pr
+# If all passes, ready for PR
+# If any fails, fix issues and run again
+```
+
+**Quick mode during rapid development:**
+```bash
+./scripts/health-check-cli.sh --quick
+# Faster feedback, Phase 1 checks only
+```
+
+#### PR Validation Workflow (MANDATORY)
+
+**CRITICAL: Always run `--pr` mode before creating a PR**
+
+```bash
+# Comprehensive validation (all phases + endpoints)
+./scripts/health-check-cli.sh --pr
+
+# Expected output:
+# 🔍 Comprehensive PR Validation
+# Step 1: Health Checks (Phase 1 + 2)
+# ✅ All services healthy
+# Step 2: Full Endpoint Validation
+# ✅ Endpoint validation passed
+# Step 3: Summary
+# ✅ PR validation PASSED
+# Ready to create PR
+```
+
+**If PR validation fails:**
+```bash
+# Debug with JSON output
+./scripts/health-check-cli.sh --pr --json
+
+# See what failed
+./scripts/health-check-cli.sh --pr --json | jq '.Checks[] | select(.Status!="pass")'
+
+# Fix the issues, then re-run
+./scripts/health-check-cli.sh --pr
+```
+
+**In a script (CI/automation):**
+```bash
+STATUS=$(./scripts/health-check-cli.sh --pr --json | jq -r '.Status')
+if [[ "$STATUS" == "pass" ]]; then
+  echo "✅ Ready to create PR"
+  # Create PR
+else
+  echo "❌ Fix validation issues first"
+  exit 1
+fi
+```
+
+#### Complete Development + PR Workflow
+
+```bash
+# 1. Before starting (verify system)
+./scripts/health-check-cli.sh
+
+# 2. Start monitoring (Terminal 1)
+./scripts/health-check-cli.sh --watch
+
+# 3. Write tests (RED phase) - Terminal 2
+vim internal/review/services/scan_service_test.go
+go test ./internal/review/services/...
+
+# 4. Implement feature (GREEN phase)
+vim internal/review/services/scan_service.go
+go test ./internal/review/services/...
+
+# 5. Rebuild and verify health (Terminal 3)
+docker-compose up -d --build review
+./scripts/health-check-cli.sh
+
+# 6. Comprehensive PR validation (before creating PR)
+./scripts/health-check-cli.sh --pr
+
+# 7. If all green, create PR
+gh pr create --base development ...
+```
+
+#### Troubleshooting Health Check
+
+**If healthcheck binary not found:**
+```bash
+# Build it
+go build -o healthcheck ./cmd/healthcheck
+
+# Verify
+./healthcheck --format human
+```
+
+**If services are down:**
+```bash
+# Start containers
+docker-compose up -d
+
+# Wait a moment, then check
+sleep 5
+./scripts/health-check-cli.sh
+```
+
+**If you see connection errors:**
+```bash
+# Check containers are running
+docker-compose ps
+
+# Check logs for specific service
+docker-compose logs review --tail=20
+
+# Rebuild if needed
+docker-compose up -d --build
+```
+
+### Step 3.5: Docker Validation Workflow 🐳
 
 **CRITICAL: Services run in Docker containers. Never run them locally with `go run`.**
 
@@ -567,9 +848,16 @@ Port 8083  → Analytics service (INTERNAL - don't access directly)
 
 **Key Rule:** Users access everything through `http://localhost:3000`. Direct service ports are internal only.
 
-#### Validation Workflow
+#### Quick Validation Workflow
 
-**1. After making code changes:**
+**1. During development (quick checks with health-check-cli.sh):**
+```bash
+# See previous section for health check CLI usage
+./scripts/health-check-cli.sh --watch
+```
+
+**2. Before committing (full validation with docker-validate.sh):**
+
 ```bash
 # Check if containers are running
 docker-compose ps

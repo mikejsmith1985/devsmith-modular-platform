@@ -174,4 +174,3 @@ func TestCalculateSummary(t *testing.T) {
 		t.Errorf("Expected 1 unknown, got %d", summary.Unknown)
 	}
 }
-

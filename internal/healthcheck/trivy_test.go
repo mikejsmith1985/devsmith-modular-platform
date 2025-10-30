@@ -6,12 +6,12 @@ import (
 
 func TestTrivyCheckerParsing(t *testing.T) {
 	tests := []struct {
-		name              string
-		jsonOutput        []byte
-		expectedCritical  int
-		expectedHigh      int
-		expectedMedium    int
-		expectedLow       int
+		name             string
+		jsonOutput       []byte
+		expectedCritical int
+		expectedHigh     int
+		expectedMedium   int
+		expectedLow      int
 	}{
 		{
 			name:             "Empty output (no vulns)",
@@ -100,7 +100,7 @@ func TestTrivyCheckerStatusDetermination(t *testing.T) {
 				derivedStatus = StatusWarn
 			} else if tt.medium > 0 {
 				derivedStatus = StatusWarn
-			} else if (tt.critical+tt.high+tt.medium+tt.low) == 0 {
+			} else if (tt.critical + tt.high + tt.medium + tt.low) == 0 {
 				// No vulnerabilities detected -> PASS
 				derivedStatus = StatusPass
 			} else {

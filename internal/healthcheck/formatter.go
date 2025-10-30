@@ -87,4 +87,3 @@ func getStatusSymbol(status CheckStatus) string {
 		return "?"
 	}
 }
-

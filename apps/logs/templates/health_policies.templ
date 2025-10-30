@@ -73,7 +73,7 @@ templ PolicyCard(policy services.HealthPolicy) {
 					<input 
 						type="number" 
 						name="max_response_time_ms" 
-						value={ string(rune(policy.MaxResponseTimeMS)) }
+						value={ string(rune(policy.MaxResponseTimeMs)) }
 						class="input input-bordered" 
 						min="100" 
 						max="10000"
@@ -162,7 +162,7 @@ templ PolicySummary(policy services.HealthPolicy) {
 	<div class="flex justify-between items-center p-4 border-b">
 		<div>
 			<p class="font-semibold">{ policy.ServiceName }</p>
-			<p class="text-xs text-gray-500">Max Response: { string(rune(policy.MaxResponseTimeMS)) }ms</p>
+			<p class="text-xs text-gray-500">Max Response: { string(rune(policy.MaxResponseTimeMs)) }ms</p>
 		</div>
 		<div class="flex gap-3">
 			if policy.AutoRepairEnabled {

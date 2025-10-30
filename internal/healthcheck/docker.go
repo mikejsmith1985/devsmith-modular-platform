@@ -87,4 +87,3 @@ func (c *DockerChecker) Check() CheckResult {
 	result.Duration = time.Since(start)
 	return result
 }
-

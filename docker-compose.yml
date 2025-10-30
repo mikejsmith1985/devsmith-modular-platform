@@ -27,6 +27,8 @@ services:
     volumes:
       - ${PWD}/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./apps/portal/static/:/usr/share/nginx/html:ro
+      # Ensure nginx can create runtime cache/temp directories
+      - nginx-cache:/var/cache/nginx
     ports:
       - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
     depends_on:
@@ -168,3 +170,4 @@ networks:
 
 volumes:
   postgres_data:
+  nginx-cache:

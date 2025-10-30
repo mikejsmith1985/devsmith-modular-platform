@@ -60,7 +60,7 @@ func (c *DependencyChecker) Check() CheckResult {
 			status = "unhealthy"
 		} else if healthyDeps < len(deps) {
 			status = "degraded"
-			unhealthyChains = append(unhealthyChains, 
+			unhealthyChains = append(unhealthyChains,
 				fmt.Sprintf("%s (missing: %d/%d deps)", service, len(deps)-healthyDeps, len(deps)))
 		} else {
 			healthyServices++
@@ -106,4 +106,3 @@ func (c *DependencyChecker) isServiceHealthy(healthURL string) bool {
 	checkResult := checker.Check()
 	return checkResult.Status == StatusPass
 }
-

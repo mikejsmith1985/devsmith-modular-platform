@@ -8,49 +8,63 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
+// parseLimit extracts and validates limit from query parameters
+func parseLimit(c *gin.Context, defaultLimit, maxLimit int) int {
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= maxLimit {
+			return l
+		}
+	}
+	return defaultLimit
+}
+
+// sendJSONResponse writes a JSON response with standard format
+func sendJSONResponse(c *gin.Context, data interface{}, count int) {
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    data,
+		"count":   count,
+	})
+}
+
 // GetHealthHistory returns recent health checks
 func GetHealthHistory(storage *services.HealthStorageService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		limit := 50
-		if l := c.Query("limit"); l != "" {
-			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-				limit = parsed
-			}
-		}
-
+		limit := parseLimit(c, 50, 1000)
 		checks, err := storage.GetRecentChecks(c.Request.Context(), limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve health history",
+			})
 			return
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    checks,
-			"count":   len(checks),
-		})
+		sendJSONResponse(c, checks, len(checks))
 	}
 }
 
-// GetHealthTrends returns trend data for a specific check
+// GetHealthTrends returns trend data for a service
 func GetHealthTrends(storage *services.HealthStorageService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "service parameter required"})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Service name required",
+			})
 			return
 		}
 
 		hours := 24
-		if h := c.Query("hours"); h != "" {
-			if parsed, err := strconv.Atoi(h); err == nil && parsed > 0 {
-				hours = parsed
+		if hoursStr := c.Query("hours"); hoursStr != "" {
+			if h, err := strconv.Atoi(hoursStr); err == nil && h > 0 && h <= 720 {
+				hours = h
 			}
 		}
 
 		trend, err := storage.GetTrendData(c.Request.Context(), service, hours)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve trend data",
+			})
 			return
 		}
 
@@ -62,11 +76,13 @@ func GetHealthTrends(storage *services.HealthStorageService) gin.HandlerFunc {
 }
 
 // GetHealthPolicies returns all health policies
-func GetHealthPolicies(policyService *services.HealthPolicyService) gin.HandlerFunc {
+func GetHealthPolicies(policy *services.HealthPolicyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		policies, err := policyService.GetAllPolicies(c.Request.Context())
+		policies, err := policy.GetAllPolicies(c.Request.Context())
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve policies",
+			})
 			return
 		}
 
@@ -78,106 +94,138 @@ func GetHealthPolicies(policyService *services.HealthPolicyService) gin.HandlerF
 	}
 }
 
-// GetHealthPolicy returns a specific service policy
-func GetHealthPolicy(policyService *services.HealthPolicyService) gin.HandlerFunc {
+// GetHealthPolicy returns a specific service's policy
+func GetHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "service parameter required"})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Service name required",
+			})
 			return
 		}
 
-		policy, err := policyService.GetPolicy(c.Request.Context(), service)
+		svcPolicy, err := policy.GetPolicy(c.Request.Context(), service)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Policy not found",
+			})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"data":    policy,
+			"data":    svcPolicy,
 		})
 	}
 }
 
-// UpdateHealthPolicy updates a service policy
-func UpdateHealthPolicy(policyService *services.HealthPolicyService) gin.HandlerFunc {
+// UpdateHealthPolicy updates a service's health policy
+func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		service := c.Param("service")
 		if service == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "service parameter required"})
-			return
-		}
-
-		var policy services.HealthPolicy
-		if err := c.BindJSON(&policy); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		policy.ServiceName = service
-
-		if err := policyService.UpdatePolicy(c.Request.Context(), &policy); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "policy updated successfully",
-			"data":    policy,
-		})
-	}
-}
-
-// GetRepairHistory returns auto-repair history
-func GetRepairHistory(repairService *services.AutoRepairService) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		limit := 50
-		if l := c.Query("limit"); l != "" {
-			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-				limit = parsed
-			}
-		}
-
-		repairs, err := repairService.GetRepairHistory(c.Request.Context(), limit)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    repairs,
-			"count":   len(repairs),
-		})
-	}
-}
-
-// ManualRepair manually triggers a repair for a service
-func ManualRepair(repairService *services.AutoRepairService, storage *services.HealthStorageService) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		service := c.Param("service")
-		if service == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "service parameter required"})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Service name required",
+			})
 			return
 		}
 
 		var req struct {
-			IssueType string `json:"issue_type" binding:"required"`
-			Strategy  string `json:"strategy" binding:"oneof=restart rebuild rollback"`
+			AutoRepairEnabled bool   `json:"auto_repair_enabled"`
+			AlertOnWarn       bool   `json:"alert_on_warn"`
+			AlertOnFail       bool   `json:"alert_on_fail"`
+			MaxResponseTimeMs int    `json:"max_response_time_ms"`
+			RepairStrategy    string `json:"repair_strategy"`
 		}
 
-		if err := c.BindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid request body",
+			})
 			return
 		}
 
-		// In production, this would be better implemented by having a public method
-		// For now, trigger through the analysis system by creating a synthetic health report
+		svcPolicy := &services.HealthPolicy{
+			ServiceName:       service,
+			MaxResponseTimeMs: req.MaxResponseTimeMs,
+			AutoRepairEnabled: req.AutoRepairEnabled,
+			RepairStrategy:    req.RepairStrategy,
+			AlertOnWarn:       req.AlertOnWarn,
+			AlertOnFail:       req.AlertOnFail,
+		}
+
+		if err := policy.UpdatePolicy(c.Request.Context(), svcPolicy); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to update policy",
+			})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "repair requested - will be processed on next health check cycle",
+			"data":    svcPolicy,
+			"message": "Policy updated successfully",
+		})
+	}
+}
+
+// GetRepairHistory returns recent auto-repair actions
+func GetRepairHistory(repair *services.AutoRepairService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		limit := parseLimit(c, 50, 1000)
+		repairs, err := repair.GetRepairHistory(c.Request.Context(), limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to retrieve repair history",
+			})
+			return
+		}
+		sendJSONResponse(c, repairs, len(repairs))
+	}
+}
+
+// ManualRepair triggers a manual repair for a service
+func ManualRepair(repair *services.AutoRepairService, storage *services.HealthStorageService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		service := c.Param("service")
+		if service == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Service name required",
+			})
+			return
+		}
+
+		var req struct {
+			Strategy string `json:"strategy"` // restart or rebuild
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid request body",
+			})
+			return
+		}
+
+		if req.Strategy == "" {
+			req.Strategy = "restart"
+		}
+
+		// Execute manual repair
+		err := repair.ManualRepair(c.Request.Context(), service, req.Strategy)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Repair failed",
+				"details": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success":  true,
+			"message":  "Repair initiated successfully",
+			"service":  service,
+			"strategy": req.Strategy,
 		})
 	}
 }

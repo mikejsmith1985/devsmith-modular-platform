@@ -98,4 +98,3 @@ func TestGatewayChecker_parseNginxConfig_FileNotFound(t *testing.T) {
 		t.Error("Expected error for nonexistent file, got nil")
 	}
 }
-
