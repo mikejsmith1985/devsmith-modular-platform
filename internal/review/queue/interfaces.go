@@ -34,7 +34,7 @@ type RequestStatus struct {
 	State     string // queued, processing, complete, failed
 }
 
-// Queue defines the queue interface.
+// Queue defines the interface for a request queue.
 type Queue interface {
 	Enqueue(ctx context.Context, req *AIRequest) error
 	Dequeue(ctx context.Context) (*AIRequest, error)

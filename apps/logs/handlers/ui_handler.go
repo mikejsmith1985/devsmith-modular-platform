@@ -13,8 +13,8 @@ import (
 
 // UIHandler handles UI requests for the logs service
 type UIHandler struct {
-	logger           *logrus.Logger
-	policyService    *services.HealthPolicyService
+	logger        *logrus.Logger
+	policyService *services.HealthPolicyService
 }
 
 // NewUIHandler creates a new UI handler
