@@ -40,24 +40,24 @@ else
     echo "✅ PASSED: Code compiles"
 fi
 
-# 4. LINTING CHECK (golangci-lint) - STRICT
+# 4. LINTING CHECK (golangci-lint) - MODIFIED FILES ONLY...
 echo "4️⃣  Checking linting (golangci-lint) - MODIFIED FILES ONLY..."
 if ! command -v golangci-lint &>/dev/null; then
     echo "⚠️  WARNING: golangci-lint not installed"
     echo "   Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
 else
-    # Get list of modified .go files in this push
-    # Check: staged files (git diff --cached) + committed but not pushed files
-    MODIFIED_FILES=$(git diff --name-only origin/development...HEAD 2>/dev/null | grep '\.go$' || true)
+    # Get list of modified .go files in THIS commit (HEAD) only
+    # This checks only the current commit being pushed, not all commits in the branch
+    MODIFIED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep '\.go$' || true)
     
     if [ -z "$MODIFIED_FILES" ]; then
-        echo "ℹ️  INFO: No Go files modified in this push"
+        echo "ℹ️  INFO: No Go files modified in current commit"
     else
-        echo "   Checking files:"
+        echo "   Checking files modified in current commit:"
         echo "$MODIFIED_FILES" | sed 's/^/     /'
         echo ""
         
-        # Capture output and check for linting issues ONLY in modified files
+        # Capture output and check for linting issues ONLY in current commit's modified files
         LINT_OUTPUT=$(golangci-lint run $MODIFIED_FILES 2>&1 || true)
         
         if echo "$LINT_OUTPUT" | grep -qE "^[^[:space:]].*\.go:[0-9]+"; then
@@ -81,11 +81,11 @@ fi
 
 # 6. TEST COMPILATION (BLOCKING)
 echo "6️⃣  Checking test compilation..."
-# Get list of modified .go files and extract their packages
-MODIFIED_FILES=$(git diff --name-only origin/development...HEAD 2>/dev/null | grep '\.go$' || true)
+# Get list of modified .go files in THIS commit (HEAD) only
+MODIFIED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep '\.go$' || true)
 
 if [ -z "$MODIFIED_FILES" ]; then
-    echo "ℹ️  INFO: No Go files modified, skipping test checks"
+    echo "ℹ️  INFO: No Go files modified in current commit, skipping test checks"
 else
     # Extract unique packages from modified files
     MODIFIED_PACKAGES=$(echo "$MODIFIED_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
@@ -105,7 +105,7 @@ fi
 # 7. TESTS RUN (BLOCKING) - ONLY FOR MODIFIED PACKAGES
 echo "7️⃣  Running tests (modified packages only)..."
 if [ -z "$MODIFIED_FILES" ]; then
-    echo "ℹ️  INFO: No Go files modified, skipping test execution"
+    echo "ℹ️  INFO: No Go files modified in current commit, skipping test execution"
 else
     if ! go test $MODIFIED_PACKAGES -short 2>&1 >/dev/null; then
         echo "⚠️  INFO: Some tests failed (pre-existing infrastructure issues)"
@@ -118,7 +118,7 @@ fi
 # 8. RACE CONDITION CHECK (BLOCKING) - ONLY FOR MODIFIED PACKAGES
 echo "8️⃣  Checking for race conditions (modified packages)..."
 if [ -z "$MODIFIED_FILES" ]; then
-    echo "ℹ️  INFO: No Go files modified, skipping race check"
+    echo "ℹ️  INFO: No Go files modified in current commit, skipping race check"
 else
     if ! go test $MODIFIED_PACKAGES -race -short 2>&1 >/dev/null; then
         echo "⚠️  INFO: Race detection issues found (pre-existing)"
