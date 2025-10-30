@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -134,7 +135,7 @@ func (s *HealthPolicyService) UpdatePolicy(ctx context.Context, policy *HealthPo
 		policy.ServiceName,
 	).Scan(&id)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		// Insert new policy
 		return s.createPolicy(ctx, policy)
 	}
@@ -205,7 +206,7 @@ func (s *HealthPolicyService) InitializeDefaultPolicies(ctx context.Context) err
 }
 
 // GetRepairStrategy returns the appropriate repair strategy for a service based on issue type
-func (s *HealthPolicyService) GetRepairStrategy(ctx context.Context, serviceName string, issueType string) (string, error) {
+func (s *HealthPolicyService) GetRepairStrategy(ctx context.Context, serviceName, issueType string) (string, error) {
 	policy, err := s.GetPolicy(ctx, serviceName)
 	if err != nil {
 		return RepairStrategyNone, err

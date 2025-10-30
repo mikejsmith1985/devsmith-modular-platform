@@ -20,9 +20,6 @@ func parseLimit(c *gin.Context, defaultLimit, maxLimit int) int {
 
 // sendJSONResponse writes a JSON response with standard format
 func sendJSONResponse(c *gin.Context, data interface{}, count int) {
-	if _, err := c.Writer.WriteString(""); err == nil {
-		// Successfully able to write to response
-	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    data,
@@ -135,11 +132,11 @@ func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 		}
 
 		var req struct {
-			MaxResponseTimeMs int    `json:"max_response_time_ms"`
 			AutoRepairEnabled bool   `json:"auto_repair_enabled"`
-			RepairStrategy    string `json:"repair_strategy"`
 			AlertOnWarn       bool   `json:"alert_on_warn"`
 			AlertOnFail       bool   `json:"alert_on_fail"`
+			MaxResponseTimeMs int    `json:"max_response_time_ms"`
+			RepairStrategy    string `json:"repair_strategy"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
