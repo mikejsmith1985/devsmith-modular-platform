@@ -5,15 +5,17 @@ package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import (
-	"context"
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
 
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
-)
+type PreviewFileNode struct {
+	Name        string
+	Description string
+	Children    []PreviewFileNode
+}
 
 func PreviewMode(
-	fileTree []interface{},
+	fileTree []PreviewFileNode,
 	boundedContexts []string,
 	techStack []string,
 	architecturePattern string,
@@ -46,13 +48,8 @@ func PreviewMode(
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		// Convert fileTree to []previewFileNode for rendering
-		var previewNodes []previewFileNode
 		for _, node := range fileTree {
-			previewNodes = append(previewNodes, convertToPreviewFileNode(node))
-		}
-		for _, node := range previewNodes {
-			templ_7745c5c3_Err = renderPreviewFileNode(ctx, templ_7745c5c3_Buffer, node)
+			templ_7745c5c3_Err = PreviewFileNodeComponent(node).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -156,72 +153,79 @@ func PreviewMode(
 	})
 }
 
-// previewFileNode is a local struct for rendering the file tree
-type previewFileNode struct {
-	Name        string
-	Description string
-	Children    []previewFileNode
-}
-
-// Recursively convert from PreviewFileNode (from fileTree) to previewFileNode
-func convertToPreviewFileNode(node interface{}) previewFileNode {
-	// Use reflection to support generated struct (since PreviewFileNode is not defined here)
-	// This is a workaround for generated code; in real code, use the actual type
-	m, ok := node.(map[string]interface{})
-	if ok {
-		var children []previewFileNode
-		if c, exists := m["Children"]; exists {
-			if arr, ok := c.([]interface{}); ok {
-				for _, child := range arr {
-					children = append(children, convertToPreviewFileNode(child))
+func PreviewFileNodeComponent(node PreviewFileNode) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var9 == nil {
+			templ_7745c5c3_Var9 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"ml-4 border-l-2 pl-2 mb-2\"><span class=\"font-mono text-blue-600 dark:text-blue-400\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(node.Name)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/preview.templ`, Line: 59, Col: 70}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span> <span class=\"text-xs text-gray-500 ml-2\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(node.Description)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/preview.templ`, Line: 60, Col: 61}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if len(node.Children) > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			for _, child := range node.Children {
+				templ_7745c5c3_Err = PreviewFileNodeComponent(child).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
 				}
 			}
-		}
-		name, _ := m["Name"].(string)
-		desc, _ := m["Description"].(string)
-		return previewFileNode{Name: name, Description: desc, Children: children}
-	}
-	// fallback: try type assertion
-	if n, ok := node.(previewFileNode); ok {
-		return n
-	}
-	return previewFileNode{}
-}
-
-// Inline rendering function for previewFileNode
-func renderPreviewFileNode(ctx context.Context, w *templruntime.Buffer, node previewFileNode) error {
-	if _, err := w.Write([]byte(`<div class="ml-4 border-l-2 pl-2 mb-2"><span class="font-mono text-blue-600 dark:text-blue-400">`)); err != nil {
-		return err
-	}
-	if _, err := w.Write([]byte(node.Name)); err != nil {
-		return err
-	}
-	if _, err := w.Write([]byte(`</span> <span class="text-xs text-gray-500 ml-2">`)); err != nil {
-		return err
-	}
-	if _, err := w.Write([]byte(node.Description)); err != nil {
-		return err
-	}
-	if _, err := w.Write([]byte(`</span> `)); err != nil {
-		return err
-	}
-	if len(node.Children) > 0 {
-		if _, err := w.Write([]byte(`<div>`)); err != nil {
-			return err
-		}
-		for _, child := range node.Children {
-			if err := renderPreviewFileNode(ctx, w, child); err != nil {
-				return err
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
 		}
-		if _, err := w.Write([]byte(`</div>`)); err != nil {
-			return err
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
 		}
-	}
-	if _, err := w.Write([]byte(`</div>`)); err != nil {
-		return err
-	}
-	return nil
+		return nil
+	})
 }
 
 // Helper function to convert string array to comma-separated string

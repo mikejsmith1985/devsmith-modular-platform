@@ -38,6 +38,9 @@ func NewServiceInstrumentationLogger(serviceName, logsServiceURL string) *Servic
 
 // LogEvent logs a generic event asynchronously.
 func (l *ServiceInstrumentationLogger) LogEvent(ctx context.Context, eventType string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	logEntry := l.buildLogEntry("info", eventType, metadata, ctx)
 	l.sendAsync(logEntry)
 	return nil // Always return nil - never block on logging
@@ -45,6 +48,9 @@ func (l *ServiceInstrumentationLogger) LogEvent(ctx context.Context, eventType s
 
 // LogValidationFailure logs a validation failure.
 func (l *ServiceInstrumentationLogger) LogValidationFailure(ctx context.Context, errorType, message string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
@@ -57,6 +63,9 @@ func (l *ServiceInstrumentationLogger) LogValidationFailure(ctx context.Context,
 
 // LogSecurityViolation logs a security violation.
 func (l *ServiceInstrumentationLogger) LogSecurityViolation(ctx context.Context, errorType, message string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
@@ -69,6 +78,9 @@ func (l *ServiceInstrumentationLogger) LogSecurityViolation(ctx context.Context,
 
 // LogError logs an error event.
 func (l *ServiceInstrumentationLogger) LogError(ctx context.Context, errorType, message string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
