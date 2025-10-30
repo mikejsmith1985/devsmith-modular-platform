@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -13,8 +14,9 @@ import (
 	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +27,14 @@ func main() {
 	if port == "" {
 		port = "8082"
 	}
+
+	// Initialize instrumentation logger for this service
+	// Note: Logs service has circular dependency prevention built in
+	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
+	if logsServiceURL == "" {
+		logsServiceURL = "http://localhost:8082" // Default for local development
+	}
+	instrLogger := instrumentation.NewServiceInstrumentationLogger("logs", logsServiceURL)
 
 	// Initialize logger
 	logger := logrus.New()
@@ -59,18 +69,42 @@ func main() {
 	// Initialize Gin router
 	router := gin.Default()
 
+	// Middleware for logging requests (skip health checks in event log, but still track them)
+	router.Use(func(c *gin.Context) {
+		// Log all requests asynchronously (health checks too, for observability)
+		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
+		instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+		})
+		c.Next()
+	})
+
+	// Middleware to inject DATABASE_URL into context for health checks
+	router.Use(func(c *gin.Context) {
+		c.Set("DATABASE_URL", dbURL)
+		c.Next()
+	})
+
 	// Serve static files for logs dashboard
 	router.Static("/static", "./apps/logs/static")
-
-	// Register UI routes for dashboard
-	apphandlers.RegisterUIRoutes(router, logger)
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "logs")
 
 	// Initialize database repositories for REST API
-	logRepo := db.NewLogRepository(dbConn)
-	restSvc := services.NewRestLogService(logRepo, logger)
+	logRepo := logs_db.NewLogRepository(dbConn)
+	restSvc := logs_services.NewRestLogService(logRepo, logger)
+
+	// Issue #023: Production Enhancements - Initialize alert and aggregation services
+	alertConfigRepo := logs_db.NewAlertConfigRepository(dbConn)
+	alertViolationRepo := logs_db.NewAlertViolationRepository(dbConn)
+
+	// Create alert service for threshold management (implements AlertThresholdService interface)
+	alertSvc := logs_services.NewAlertService(alertViolationRepo, alertConfigRepo, logRepo, logger)
+
+	// Create validation aggregation service for analytics
+	validationAgg := logs_services.NewValidationAggregation(logRepo, logger)
 
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
@@ -106,12 +140,71 @@ func main() {
 		resthandlers.DeleteLogs(restSvc)(c)
 	})
 
+	// Issue #023: Production Enhancements - Dashboard & Alert Endpoints
+	// Dashboard statistics endpoint
+	router.GET("/api/logs/dashboard/stats", func(c *gin.Context) {
+		resthandlers.GetDashboardStats(validationAgg)(c)
+	})
+
+	// Validation analytics endpoints
+	router.GET("/api/logs/validations/top-errors", func(c *gin.Context) {
+		resthandlers.GetTopErrors(validationAgg)(c)
+	})
+	router.GET("/api/logs/validations/trends", func(c *gin.Context) {
+		resthandlers.GetErrorTrends(validationAgg)(c)
+	})
+
+	// Alert configuration management endpoints
+	router.POST("/api/logs/alert-config", func(c *gin.Context) {
+		resthandlers.CreateAlertConfig(alertSvc)(c)
+	})
+	router.GET("/api/logs/alert-config/:service", func(c *gin.Context) {
+		resthandlers.GetAlertConfig(alertSvc)(c)
+	})
+	router.PUT("/api/logs/alert-config/:service", func(c *gin.Context) {
+		resthandlers.UpdateAlertConfig(alertSvc)(c)
+	})
+
 	// Initialize WebSocket hub
-	hub := services.NewWebSocketHub()
+	hub := logs_services.NewWebSocketHub()
 	go hub.Run()
 
 	// Register WebSocket routes
-	services.RegisterWebSocketRoutes(router, hub)
+	logs_services.RegisterWebSocketRoutes(router, hub)
+
+	// Health check endpoint (system-wide diagnostics)
+	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
+
+	// Phase 3: Health Intelligence - Initialize services
+	storageService := logs_services.NewHealthStorageService(dbConn)
+	policyService := logs_services.NewHealthPolicyService(dbConn)
+	repairService := logs_services.NewAutoRepairService(dbConn, policyService)
+
+	// Initialize default policies on startup
+	if err := policyService.InitializeDefaultPolicies(context.Background()); err != nil {
+		log.Printf("Warning: Failed to initialize health policies: %v", err)
+	}
+
+	// Initialize UI handler with policy service
+	uiHandler := apphandlers.NewUIHandler(logger, policyService)
+
+	// Register UI routes for dashboard
+	apphandlers.RegisterUIRoutes(router, uiHandler)
+
+	// Register Phase 3 API endpoints
+	router.GET("/api/health/history", resthandlers.GetHealthHistory(storageService))
+	router.GET("/api/health/trends/:service", resthandlers.GetHealthTrends(storageService))
+	router.GET("/api/health/policies", resthandlers.GetHealthPolicies(policyService))
+	router.GET("/api/health/policies/:service", resthandlers.GetHealthPolicy(policyService))
+	router.PUT("/api/health/policies/:service", resthandlers.UpdateHealthPolicy(policyService))
+	router.GET("/api/health/repairs", resthandlers.GetRepairHistory(repairService))
+	router.POST("/api/health/repair/:service", resthandlers.ManualRepair(repairService, storageService))
+
+	// Start health scheduler (runs background checks every 5 minutes)
+	scheduler := logs_services.NewHealthScheduler(5*time.Minute, storageService, repairService)
+	go scheduler.Start()
+
+	log.Println("Health intelligence system initialized - scheduler running every 5 minutes")
 
 	log.Printf("Starting logs service on port %s", port)
 

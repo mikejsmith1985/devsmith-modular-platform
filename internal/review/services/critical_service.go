@@ -1,11 +1,13 @@
-package services
+package review_services
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
 // CriticalService provides methods for analyzing repositories in Critical Mode.
@@ -13,16 +15,20 @@ import (
 type CriticalService struct {
 	ollamaClient OllamaClientInterface
 	analysisRepo AnalysisRepositoryInterface
+	logger       logger.Interface
 }
 
 // NewCriticalService creates a new instance of CriticalService with the provided dependencies.
-func NewCriticalService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRepositoryInterface) *CriticalService {
-	return &CriticalService{ollamaClient: ollamaClient, analysisRepo: analysisRepo}
+func NewCriticalService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRepositoryInterface, logger logger.Interface) *CriticalService {
+	return &CriticalService{ollamaClient: ollamaClient, analysisRepo: analysisRepo, logger: logger}
 }
 
 // AnalyzeCritical performs a detailed analysis of a repository in Critical Mode.
 // It generates a report identifying various issues and returns the analysis output.
-func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, repoOwner, repoName string) (*models.CriticalModeOutput, error) {
+func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, repoOwner, repoName string) (*review_models.CriticalModeOutput, error) {
+	correlationID := ctx.Value(logger.CorrelationIDKey)
+	s.logger.Info("AnalyzeCritical called", "correlation_id", correlationID, "review_id", reviewID, "repo_owner", repoOwner, "repo_name", repoName)
+
 	prompt := fmt.Sprintf(`Review repository %s/%s in Critical Mode.
 
 Identify:
@@ -51,39 +57,40 @@ Return JSON:
   "overall_grade": "C"
 }`, repoOwner, repoName)
 
-	// Check and handle errors for Generate
+	start := time.Now()
 	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
+	duration := time.Since(start)
 	if err != nil {
+		s.logger.Error("Critical analysis AI call failed", "correlation_id", correlationID, "review_id", reviewID, "error", err, "duration_ms", duration.Milliseconds())
 		return nil, fmt.Errorf("failed to generate critical analysis: %w", err)
 	}
+	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds())
 
-	var output models.CriticalModeOutput
-
-	// Avoid shadowing the error variable
+	var output review_models.CriticalModeOutput
 	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
+		s.logger.Error("Failed to unmarshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
 		return nil, fmt.Errorf("failed to unmarshal critical analysis output: %w", unmarshalErr)
 	}
 
-	// Check and handle errors for Marshal
 	metadataJSON, err := json.Marshal(output)
 	if err != nil {
+		s.logger.Error("Failed to marshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to marshal critical analysis output: %w", err)
 	}
-	result := &models.AnalysisResult{
+	result := &review_models.AnalysisResult{
 		ReviewID:  reviewID,
-		Mode:      models.CriticalMode,
+		Mode:      review_models.CriticalMode,
 		Prompt:    prompt,
 		RawOutput: rawOutput,
 		Summary:   output.Summary,
 		Metadata:  string(metadataJSON),
 		ModelUsed: "qwen2.5-coder:32b",
 	}
-
-	// Ensure the result is saved and handle errors
 	if err := s.analysisRepo.Create(ctx, result); err != nil {
+		s.logger.Error("Failed to save critical analysis result", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to save analysis result: %w", err)
 	}
-
+	s.logger.Info("Critical analysis completed and saved", "correlation_id", correlationID, "review_id", reviewID)
 	return &output, nil
 }
 

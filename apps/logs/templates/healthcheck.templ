@@ -1,0 +1,186 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+)
+
+// HealthCheckDashboard renders the health check dashboard
+templ HealthCheckDashboard(report healthcheck.HealthReport, policies []services.HealthPolicy) {
+	@Layout("System Health Check") {
+		<div class="container mx-auto p-6">
+			<!-- Header -->
+			<div class="mb-6">
+				<h1 class="text-3xl font-bold mb-2">System Health Check</h1>
+				<p class="text-gray-600">Real-time platform diagnostics and management</p>
+			</div>
+
+			<!-- Tab Navigation -->
+			<div class="tabs tabs-bordered mb-6">
+				<input type="radio" name="health_tabs" class="tab" aria-label="Health Status" checked />
+				<div class="tab-content p-4">
+					@HealthStatusTab(report)
+				</div>
+
+				<input type="radio" name="health_tabs" class="tab" aria-label="Trends" />
+				<div class="tab-content p-4">
+					@HealthTrendsTab([]string{"portal", "review", "logs", "analytics"})
+				</div>
+
+				<input type="radio" name="health_tabs" class="tab" aria-label="Security" />
+				<div class="tab-content p-4">
+					@SecurityScansTab()
+				</div>
+
+				<input type="radio" name="health_tabs" class="tab" aria-label="Policies" />
+				<div class="tab-content p-4">
+					@HealthPoliciesTab(policies)
+				</div>
+			</div>
+		</div>
+	}
+}
+
+// HealthStatusTab renders the main health status display
+templ HealthStatusTab(report healthcheck.HealthReport) {
+	<div class="space-y-6">
+		<!-- Overall Status Card -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title">Overall Status</h2>
+				<div class="flex items-center gap-4">
+					if report.Status == healthcheck.StatusPass {
+						<div class="badge badge-success badge-lg">✓ HEALTHY</div>
+					} else if report.Status == healthcheck.StatusWarn {
+						<div class="badge badge-warning badge-lg">⚠ DEGRADED</div>
+					} else {
+						<div class="badge badge-error badge-lg">✗ UNHEALTHY</div>
+					}
+					<span class="text-sm text-gray-600">
+						Last checked: { report.Timestamp.Format("2006-01-02 15:04:05") }
+					</span>
+					<span class="text-sm text-gray-600">
+						Duration: { report.Duration.String() }
+					</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Summary Stats -->
+		<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+			<div class="stat bg-base-100 shadow rounded-lg">
+				<div class="stat-title">Total Checks</div>
+				<div class="stat-value text-primary">{ string(rune(report.Summary.Total)) }</div>
+			</div>
+			<div class="stat bg-base-100 shadow rounded-lg">
+				<div class="stat-title">Passed</div>
+				<div class="stat-value text-success">{ string(rune(report.Summary.Passed)) }</div>
+			</div>
+			<div class="stat bg-base-100 shadow rounded-lg">
+				<div class="stat-title">Warnings</div>
+				<div class="stat-value text-warning">{ string(rune(report.Summary.Warned)) }</div>
+			</div>
+			<div class="stat bg-base-100 shadow rounded-lg">
+				<div class="stat-title">Failed</div>
+				<div class="stat-value text-error">{ string(rune(report.Summary.Failed)) }</div>
+			</div>
+		</div>
+
+		<!-- Individual Checks -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title mb-4">Detailed Results</h2>
+				<div class="space-y-4">
+					for _, check := range report.Checks {
+						<div class="border border-base-300 rounded-lg p-4">
+							<div class="flex items-center justify-between mb-2">
+								<div class="flex items-center gap-2">
+									if check.Status == healthcheck.StatusPass {
+										<span class="text-success text-xl">✓</span>
+									} else if check.Status == healthcheck.StatusWarn {
+										<span class="text-warning text-xl">⚠</span>
+									} else {
+										<span class="text-error text-xl">✗</span>
+									}
+									<h3 class="font-bold">{ check.Name }</h3>
+								</div>
+								if check.Status == healthcheck.StatusPass {
+									<div class="badge badge-success">PASS</div>
+								} else if check.Status == healthcheck.StatusWarn {
+									<div class="badge badge-warning">WARN</div>
+								} else {
+									<div class="badge badge-error">FAIL</div>
+								}
+							</div>
+							<p class="text-sm text-gray-700 mb-2">{ check.Message }</p>
+							if check.Error != "" {
+								<div class="alert alert-error mt-2">
+									<span class="text-xs">{ check.Error }</span>
+								</div>
+							}
+							<div class="text-xs text-gray-500 mt-2">
+								Duration: { check.Duration.String() }
+							</div>
+							if len(check.Details) > 0 {
+								<div class="collapse collapse-arrow mt-2">
+									<input type="checkbox"/>
+									<div class="collapse-title text-xs font-medium">
+										Show Details
+									</div>
+									<div class="collapse-content">
+										<div class="bg-base-200 p-2 rounded text-xs">
+											<pre class="whitespace-pre-wrap">{ formatDetails(check.Details) }</pre>
+										</div>
+									</div>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+
+		<!-- System Info -->
+		<div class="card bg-base-100 shadow-xl">
+			<div class="card-body">
+				<h2 class="card-title">System Information</h2>
+				<div class="grid grid-cols-2 gap-4 text-sm">
+					<div>
+						<span class="font-bold">Environment:</span> { report.SystemInfo.Environment }
+					</div>
+					<div>
+						<span class="font-bold">Hostname:</span> { report.SystemInfo.Hostname }
+					</div>
+					<div>
+						<span class="font-bold">Go Version:</span> { report.SystemInfo.GoVersion }
+					</div>
+					<div>
+						<span class="font-bold">Timestamp:</span> { report.SystemInfo.Timestamp.Format("2006-01-02 15:04:05") }
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Refresh Button -->
+		<div class="flex justify-center">
+			<button
+				class="btn btn-primary"
+				hx-get="/healthcheck"
+				hx-target="body"
+				hx-swap="innerHTML"
+			>
+				Refresh Health Check
+			</button>
+		</div>
+	</div>
+}
+
+func formatDetails(details map[string]interface{}) string {
+	result := ""
+	for key, value := range details {
+		result += fmt.Sprintf("%s: %v\n", key, value)
+	}
+	return result
+}
+

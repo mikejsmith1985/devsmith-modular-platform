@@ -1,4 +1,4 @@
-package handlers_test
+package integration
 
 import (
 	"bytes"
@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHandleTestLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.POST("/auth/test-login", handlers.HandleTestLogin)
+	router.POST("/auth/test-login", portal_handlers.HandleTestLogin)
 
 	t.Run("Invalid JSON request", func(t *testing.T) {
 		body := `{"username": "testuser", "email": "test@example.com"` // Missing closing brace
@@ -24,7 +24,7 @@ func TestHandleTestLogin(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = req
 
-		handlers.HandleTestLogin(c)
+		portal_handlers.HandleTestLogin(c)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "Invalid JSON format")
@@ -38,7 +38,7 @@ func TestHandleTestLogin(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = req
 
-		handlers.HandleTestLogin(c)
+		portal_handlers.HandleTestLogin(c)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "Missing required fields in request body")

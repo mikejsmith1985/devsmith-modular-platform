@@ -1,27 +1,27 @@
-// Package handlers provides HTTP handlers for the analytics service.
-package handlers
+// Package internal_analytics_handlers provides HTTP handlers for the analytics service.
+package internal_analytics_handlers
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/sirupsen/logrus"
 )
 
 // AnalyticsHandler handles HTTP requests for the analytics service.
 // It provides methods for running aggregations, fetching trends, anomalies, top issues, and exporting data.
 type AnalyticsHandler struct {
-	aggregatorService *services.AggregatorService
-	trendService      *services.TrendService
-	anomalyService    *services.AnomalyService
-	topIssuesService  *services.TopIssuesService
-	exportService     *services.ExportService
+	aggregatorService *analytics_services.AggregatorService
+	trendService      *analytics_services.TrendService
+	anomalyService    *analytics_services.AnomalyService
+	topIssuesService  *analytics_services.TopIssuesService
+	exportService     *analytics_services.ExportService
 	logger            *logrus.Logger
 }
 
 // NewAnalyticsHandler creates a new instance of AnalyticsHandler.
-func NewAnalyticsHandler(aggregatorService *services.AggregatorService, trendService *services.TrendService, anomalyService *services.AnomalyService, topIssuesService *services.TopIssuesService, exportService *services.ExportService, logger *logrus.Logger) *AnalyticsHandler {
+func NewAnalyticsHandler(aggregatorService *analytics_services.AggregatorService, trendService *analytics_services.TrendService, anomalyService *analytics_services.AnomalyService, topIssuesService *analytics_services.TopIssuesService, exportService *analytics_services.ExportService, logger *logrus.Logger) *AnalyticsHandler {
 	return &AnalyticsHandler{
 		aggregatorService: aggregatorService,
 		trendService:      trendService,

@@ -1,14 +1,16 @@
-package services
+package review_services
 
 import (
 	"context"
 	"testing"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAnalyzePreview_ReturnsExpectedFields(t *testing.T) {
-	service := NewPreviewService()
+	mockLogger := &testutils.MockLogger{}
+	service := NewPreviewService(mockLogger)
 	result, err := service.AnalyzePreview(context.Background(), "testdata/sample_project")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

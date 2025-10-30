@@ -1,11 +1,12 @@
-package services
+package review_services
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -19,14 +20,14 @@ func (m *MockOllamaClient) Generate(ctx context.Context, prompt string) (string,
 
 type MockAnalysisRepository struct{ mock.Mock }
 
-func (m *MockAnalysisRepository) FindByReviewAndMode(ctx context.Context, reviewID int64, mode string) (*models.AnalysisResult, error) {
+func (m *MockAnalysisRepository) FindByReviewAndMode(ctx context.Context, reviewID int64, mode string) (*review_models.AnalysisResult, error) {
 	args := m.Called(ctx, reviewID, mode)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*models.AnalysisResult), args.Error(1)
+	return args.Get(0).(*review_models.AnalysisResult), args.Error(1)
 }
-func (m *MockAnalysisRepository) Create(ctx context.Context, result *models.AnalysisResult) error {
+func (m *MockAnalysisRepository) Create(ctx context.Context, result *review_models.AnalysisResult) error {
 	args := m.Called(ctx, result)
 	return args.Error(0)
 }
@@ -34,9 +35,10 @@ func (m *MockAnalysisRepository) Create(ctx context.Context, result *models.Anal
 func TestSkimService_AnalyzeSkim_Success(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewSkimService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewSkimService(mockOllama, mockRepo, mockLogger)
 
-	mockRepo.On("FindByReviewAndMode", mock.Anything, int64(1), models.SkimMode).
+	mockRepo.On("FindByReviewAndMode", mock.Anything, int64(1), review_models.SkimMode).
 		Return(nil, fmt.Errorf("not found"))
 
 	aiResponse := `{"functions": [], "interfaces": [], "data_models": [], "workflows": [], "summary": "Test"}`

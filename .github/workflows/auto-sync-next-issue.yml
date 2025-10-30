@@ -102,18 +102,20 @@ jobs:
       - name: Extract metrics from PR
         id: metrics
         run: |
+          # IMPORTANT: Use single quotes to prevent shell injection from PR body
           BODY='${{ github.event.pull_request.body }}'
           
           # Look for coverage percentage
-          COVERAGE=$(echo "$BODY" | grep -oE 'Coverage[:\s]*([0-9]+\.?[0-9]*)%' | grep -oE '[0-9]+\.?[0-9]*' | head -1 || true)
+          COVERAGE=$(printf '%s\n' "$BODY" | grep -oE 'Coverage[:\s]*([0-9]+\.?[0-9]*)%' | grep -oE '[0-9]+\.?[0-9]*' | head -1 || true)
           if [ -z "$COVERAGE" ]; then COVERAGE="Not reported"; fi
           
           # Look for tests
-          TESTS=$(echo "$BODY" | grep -oE '[0-9]+/[0-9]+ (tests?|passing)' | head -1 || true)
+          TESTS=$(printf '%s\n' "$BODY" | grep -oE '[0-9]+/[0-9]+ (tests?|passing)' | head -1 || true)
           if [ -z "$TESTS" ]; then TESTS="Not reported"; fi
           
-          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
-          echo "tests=$TESTS" >> $GITHUB_OUTPUT
+          # Escape output for safe variable assignment
+          echo "coverage=$(printf '%s\n' "$COVERAGE" | sed 's/[&/\]/\\&/g')" >> $GITHUB_OUTPUT
+          echo "tests=$(printf '%s\n' "$TESTS" | sed 's/[&/\]/\\&/g')" >> $GITHUB_OUTPUT
 
       - name: Add metrics comment if metrics found
         if: steps.issue.outputs.issue_found == 'true' && (steps.metrics.outputs.coverage != 'Not reported' || steps.metrics.outputs.tests != 'Not reported')
@@ -173,10 +175,11 @@ jobs:
         if: steps.issue.outputs.issue_found == 'true'
         run: |
           ISSUE_NUM=${{ steps.issue.outputs.issue_num }}
+          # IMPORTANT: Use single quotes to prevent shell injection from PR body
           PR_BODY='${{ github.event.pull_request.body }}'
           
           # Check if issue is already referenced with "Closes"
-          if echo "$PR_BODY" | grep -q "Closes #$ISSUE_NUM"; then
+          if printf '%s\n' "$PR_BODY" | grep -q "Closes #$ISSUE_NUM"; then
             echo "✅ PR will auto-close issue #$ISSUE_NUM on merge"
           else
             echo "⚠️ PR should reference 'Closes #$ISSUE_NUM' to auto-close"

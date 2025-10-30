@@ -1,5 +1,5 @@
-// Package models defines the data structures used in the logs service.
-package models
+// Package logs_models defines the data structures used in the logs service.
+package logs_models
 
 import (
 	"database/sql/driver"

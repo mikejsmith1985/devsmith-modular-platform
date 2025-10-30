@@ -1,5 +1,5 @@
-// Package services provides authentication and user management logic for the portal service.
-package services
+// Package portal_services provides authentication and user management logic for the portal service.
+package portal_services
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	authifaces "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/interfaces"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+	portal_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 	reviewservices "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/rs/zerolog"
 )
@@ -38,7 +38,7 @@ func NewAuthService(userRepo authifaces.UserRepository, githubClient authifaces.
 }
 
 // AuthenticateWithGitHub authenticates a user using a GitHub OAuth code and returns the user and JWT token.
-func (s *AuthService) AuthenticateWithGitHub(ctx context.Context, code string) (*models.User, string, error) {
+func (s *AuthService) AuthenticateWithGitHub(ctx context.Context, code string) (*portal_models.User, string, error) {
 	token, err := s.githubClient.ExchangeCodeForToken(ctx, code)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("GitHub token exchange failed")
@@ -49,7 +49,7 @@ func (s *AuthService) AuthenticateWithGitHub(ctx context.Context, code string) (
 		s.logger.Error().Err(err).Msg("GitHub profile fetch failed")
 		return nil, "", fmt.Errorf("profile fetch failed: %w", err)
 	}
-	user := &models.User{
+	user := &portal_models.User{
 		GitHubID:          profile.ID,
 		Username:          profile.Username,
 		Email:             profile.Email,
@@ -70,7 +70,7 @@ func (s *AuthService) AuthenticateWithGitHub(ctx context.Context, code string) (
 }
 
 // ValidateSession validates a JWT token and returns the associated user if valid.
-func (s *AuthService) ValidateSession(ctx context.Context, token string) (*models.User, error) {
+func (s *AuthService) ValidateSession(ctx context.Context, token string) (*portal_models.User, error) {
 	claims := &jwt.RegisteredClaims{}
 	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		return s.jwtSecret, nil
@@ -98,7 +98,7 @@ func (s *AuthService) RevokeSession(ctx context.Context, token string) error {
 	// For MVP, just let token expire (stateless JWT)
 	return nil
 }
-func (s *AuthService) generateJWT(user *models.User) (string, error) {
+func (s *AuthService) generateJWT(user *portal_models.User) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Subject:   fmt.Sprintf("%d", user.ID),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.tokenExpiry)),

@@ -9,13 +9,13 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
+	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	"github.com/sirupsen/logrus"
 )
 
 // NotifierInterface defines the contract for alert notifiers.
 type NotifierInterface interface {
-	Send(ctx context.Context, violation *models.AlertThresholdViolation, recipient string) error
+	Send(ctx context.Context, violation *logs_models.AlertThresholdViolation, recipient string) error
 }
 
 // EmailConfig holds SMTP configuration.
@@ -69,7 +69,7 @@ func NewEmailNotifierWithRetry(config EmailConfig, retryConfig RetryConfig) *Ema
 }
 
 // Send sends an email notification with retry logic.
-func (en *EmailNotifier) Send(ctx context.Context, violation *models.AlertThresholdViolation, recipient string) error {
+func (en *EmailNotifier) Send(ctx context.Context, violation *logs_models.AlertThresholdViolation, recipient string) error {
 	if ctx.Err() != nil {
 		return fmt.Errorf("context cancelled: %w", ctx.Err())
 	}
@@ -120,19 +120,19 @@ func (en *EmailNotifier) Send(ctx context.Context, violation *models.AlertThresh
 // validateConfig validates the email configuration.
 func (en *EmailNotifier) validateConfig() error {
 	if en.config.Host == "" {
-		return errors.New("SMTP host is required")
+		return errors.New("invalid smtp configuration: host is required")
 	}
 	if en.config.Port == 0 {
-		return errors.New("SMTP port is required")
+		return errors.New("invalid smtp configuration: port is required")
 	}
 	if en.config.FromAddr == "" {
-		return errors.New("from address is required")
+		return errors.New("invalid smtp configuration: from address is required")
 	}
 	return nil
 }
 
 // sendEmail sends a single email attempt.
-func (en *EmailNotifier) sendEmail(violation *models.AlertThresholdViolation, recipient string) error {
+func (en *EmailNotifier) sendEmail(violation *logs_models.AlertThresholdViolation, recipient string) error {
 	subject := fmt.Sprintf("Alert: %s - %s threshold exceeded", violation.Service, violation.Level)
 	body := fmt.Sprintf(
 		"Service: %s\nLevel: %s\nCurrent Count: %d\nThreshold: %d\nTime: %s\n",
@@ -184,7 +184,7 @@ func NewWebhookNotifierWithRetry(baseURL string, retryConfig RetryConfig) *Webho
 }
 
 // Send sends a webhook notification with retry logic.
-func (wn *WebhookNotifier) Send(ctx context.Context, violation *models.AlertThresholdViolation, webhookURL string) error {
+func (wn *WebhookNotifier) Send(ctx context.Context, violation *logs_models.AlertThresholdViolation, webhookURL string) error {
 	if ctx.Err() != nil {
 		return fmt.Errorf("context cancelled: %w", ctx.Err())
 	}

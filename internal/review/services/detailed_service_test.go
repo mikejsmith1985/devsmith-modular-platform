@@ -1,9 +1,10 @@
-package services
+package review_services
 
 import (
 	"context"
 	"testing"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -12,7 +13,8 @@ import (
 func TestDetailedService_AnalyzeDetailed_Success(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewDetailedService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"lines": [
@@ -52,7 +54,8 @@ func TestDetailedService_AnalyzeDetailed_Success(t *testing.T) {
 func TestDetailedService_AnalyzeDetailed_EmptyFilePath(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewDetailedService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
 
 	_, err := service.AnalyzeDetailed(context.Background(), 1, "")
 
@@ -64,13 +67,14 @@ func TestDetailedService_AnalyzeDetailed_EmptyFilePath(t *testing.T) {
 func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
 	mockOllama := new(MockOllamaClient)
 	mockRepo := new(MockAnalysisRepository)
-	service := NewDetailedService(mockOllama, mockRepo)
+	mockLogger := &testutils.MockLogger{}
+	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
 
 	aiResponse := `{
 		"lines": [
 			{
 				"line_num": 10,
-				"code": "db.Exec(sql)",
+				"code": "review_db.Exec(sql)",
 				"explanation": "Executes database query",
 				"complexity": "high",
 				"side_effects": ["Database write", "Triggers audit log"],
@@ -85,7 +89,7 @@ func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
 	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 
-	output, err := service.AnalyzeDetailed(context.Background(), 1, "db.go")
+	output, err := service.AnalyzeDetailed(context.Background(), 1, "review_db.go")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "high", output.Lines[0].Complexity)

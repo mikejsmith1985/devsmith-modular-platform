@@ -11,8 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,12 +38,12 @@ func TestPortalLoginFlow(t *testing.T) {
 	os.Setenv("REDIRECT_URI", "https://localhost:3000/auth/callback")
 
 	// Register auth routes (includes /auth/test-login)
-	handlers.RegisterAuthRoutes(router, nil)
+	portal_handlers.RegisterAuthRoutes(router, nil)
 
 	// Register dashboard route with JWT middleware (like in main.go)
 	authenticated := router.Group("/")
-	authenticated.Use(middleware.JWTAuthMiddleware())
-	authenticated.GET("/dashboard", handlers.DashboardHandler)
+	authenticated.Use(portal_middleware.JWTAuthMiddleware())
+	authenticated.GET("/dashboard", portal_handlers.DashboardHandler)
 
 	// Simulate user visiting /auth/login
 	req := httptest.NewRequest("GET", "/auth/login", http.NoBody)

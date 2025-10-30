@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,8 +20,8 @@ func TestMockAggregationRepository(t *testing.T) {
 	assert.Equal(t, []string{"service1", "service2"}, services)
 
 	// Test Upsert
-	agg := &models.Aggregation{
-		MetricType: models.ErrorFrequency,
+	agg := &analytics_models.Aggregation{
+		MetricType: analytics_models.ErrorFrequency,
 		Service:    "test",
 		Value:      100,
 		TimeBucket: time.Now(),

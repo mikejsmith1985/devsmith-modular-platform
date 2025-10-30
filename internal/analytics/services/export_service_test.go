@@ -1,12 +1,12 @@
-package services_test
+package analytics_services_test
 
 import (
 	"context"
 	"os"
 	"testing"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
+	analytics_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/models"
+	analytics_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/analytics/testutils"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -17,9 +17,9 @@ func TestExportService_ExportData(t *testing.T) {
 	mockRepo := new(testutils.MockAggregationRepository)
 	logger, _ := test.NewNullLogger()
 
-	service := services.NewExportService(mockRepo, logger)
+	service := analytics_services.NewExportService(mockRepo, logger)
 
-	mockRepo.On("FindByRange", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*models.Aggregation{
+	mockRepo.On("FindByRange", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*analytics_models.Aggregation{
 		{MetricType: "error_rate", Service: "service1", Value: 10},
 		{MetricType: "error_rate", Service: "service2", Value: 20},
 	}, nil)

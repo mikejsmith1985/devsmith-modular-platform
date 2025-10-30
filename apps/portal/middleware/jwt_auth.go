@@ -1,5 +1,5 @@
-// Package middleware provides reusable middleware components for the DevSmith platform.
-package middleware
+// Package portal_middleware provides reusable middleware components for the DevSmith platform.
+package portal_middleware
 
 import (
 	"log"
@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 )
 
 // JWTAuthMiddleware validates JWT tokens and adds user claims to the context
@@ -26,7 +26,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Parse token with UserClaims structure
-		token, err := jwt.ParseWithClaims(tokenString, &handlers.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, &portal_handlers.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 			// Validate the signing method
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
@@ -51,7 +51,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		log.Printf("[DEBUG] Token claims: %v", token.Claims)
 
 		// Add claims to context
-		if claims, ok := token.Claims.(*handlers.UserClaims); ok && token.Valid {
+		if claims, ok := token.Claims.(*portal_handlers.UserClaims); ok && token.Valid {
 			c.Set("user", claims)
 			log.Printf("[DEBUG] User claims extracted: %v", claims)
 
