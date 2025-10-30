@@ -40,33 +40,42 @@ else
     echo "✅ PASSED: Code compiles"
 fi
 
-# 4. LINTING CHECK (golangci-lint) - MODIFIED FILES ONLY...
-echo "4️⃣  Checking linting (golangci-lint) - MODIFIED FILES ONLY..."
+# 4. LINTING CHECK (golangci-lint) - MODIFIED FILES ONLY
+echo "4️⃣  Checking linting (golangci-lint)..."
 if ! command -v golangci-lint &>/dev/null; then
     echo "⚠️  WARNING: golangci-lint not installed"
-    echo "   Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
 else
-    # Get list of modified .go files in THIS commit (HEAD) only
-    # This checks only the current commit being pushed, not all commits in the branch
-    MODIFIED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep '\.go$' || true)
-    
-    if [ -z "$MODIFIED_FILES" ]; then
-        echo "ℹ️  INFO: No Go files modified in current commit"
-    else
-        echo "   Checking files modified in current commit:"
-        echo "$MODIFIED_FILES" | sed 's/^/     /'
+    if [ -n "$MODIFIED_GO_FILES" ]; then
+        # Extract unique PACKAGES from modified files (not individual files)
+        # This gives golangci-lint proper context for type checking
+        MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
+        
+        echo "   Linting packages with modified files:"
+        echo "$MODIFIED_PACKAGES" | sed 's/^/     /'
         echo ""
         
-        # Capture output and check for linting issues ONLY in current commit's modified files
-        LINT_OUTPUT=$(golangci-lint run $MODIFIED_FILES 2>&1 || true)
+        # Run golangci-lint on packages (not individual files)
+        # This prevents false "undefined" errors from missing import context
+        LINT_OUTPUT=$(golangci-lint run $MODIFIED_PACKAGES 2>&1 || true)
         
-        if echo "$LINT_OUTPUT" | grep -qE "^[^[:space:]].*\.go:[0-9]+"; then
-            echo "❌ FAILED: Linting errors in modified files:"
-            echo "$LINT_OUTPUT" | head -30
+        # Filter output to only show errors from MODIFIED files
+        # This prevents errors in other files in the same package from being reported
+        FILTERED_OUTPUT=""
+        for FILE in $MODIFIED_GO_FILES; do
+            if echo "$LINT_OUTPUT" | grep -q "^$FILE:"; then
+                FILTERED_OUTPUT=$(echo "$FILTERED_OUTPUT"; echo "$LINT_OUTPUT" | grep "^$FILE:")
+            fi
+        done
+        
+        if [ -n "$FILTERED_OUTPUT" ]; then
+            echo "❌ FAILED: Linting errors in modified files"
+            echo "$FILTERED_OUTPUT" | head -20 | sed 's/^/   /'
             FAILED=1
         else
             echo "✅ PASSED: Modified files lint clean"
         fi
+    else
+        echo "ℹ️  No Go files modified"
     fi
 fi
 
