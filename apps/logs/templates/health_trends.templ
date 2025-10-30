@@ -117,7 +117,7 @@ templ TrendDataRow(service string, trend services.TrendData) {
 		<div class="flex gap-8">
 			<div class="text-right">
 				<p class="text-sm text-gray-600">Avg</p>
-				<p class="text-lg font-semibold">{ fmt.Sprintf("%.0fms", trend.AvgDuration) }</p>
+				<p class="text-lg font-semibold">{ fmt.Sprintf("%dms", trend.AvgDuration) }</p>
 			</div>
 			<div class="text-right">
 				<p class="text-sm text-gray-600">Failure Rate</p>
