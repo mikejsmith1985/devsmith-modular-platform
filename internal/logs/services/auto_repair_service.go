@@ -73,7 +73,10 @@ func (s *AutoRepairService) AnalyzeAndRepair(ctx context.Context, healthCheckID 
 		}
 
 		// Log repair action
-		s.logRepairAction(ctx, &action)
+		if err := s.logRepairAction(ctx, &action); err != nil {
+			// Log but don't fail - repair already completed or attempted
+			fmt.Printf("failed to log repair action: %v\n", err)
+		}
 		actions = append(actions, action)
 	}
 
@@ -149,7 +152,9 @@ func (s *AutoRepairService) GetRepairHistory(ctx context.Context, limit int) ([]
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repair history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // explicitly ignore error as rows already processed
+	}()
 
 	var actions []RepairAction
 	for rows.Next() {
@@ -195,6 +200,9 @@ func (s *AutoRepairService) ManualRepair(ctx context.Context, serviceName string
 		action.Status = "success"
 	}
 
-	s.logRepairAction(ctx, &action)
+	if err := s.logRepairAction(ctx, &action); err != nil {
+		// Log but don't fail - repair already completed
+		fmt.Printf("failed to log manual repair action: %v\n", err)
+	}
 	return err
 }
