@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -103,7 +104,7 @@ func (c *GatewayChecker) parseNginxConfig() ([]RouteMapping, error) {
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			// Log but don't fail - file reading already completed
+			log.Printf("warning: failed to close nginx config file: %v", err)
 		}
 	}()
 
@@ -154,7 +155,7 @@ func (c *GatewayChecker) testRoute(url string) bool {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			// Log but don't fail - response already processed
+			log.Printf("warning: failed to close response body: %v", err)
 		}
 	}()
 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -118,7 +119,9 @@ func (s *HealthPolicyService) GetAllPolicies(ctx context.Context) ([]HealthPolic
 		return nil, fmt.Errorf("failed to query policies: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close health policies rows: %v", err)
+		}
 	}()
 
 	var policies []HealthPolicy

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
@@ -142,7 +143,9 @@ func (s *HealthStorageService) queryHealthChecks(ctx context.Context, query stri
 		return nil, fmt.Errorf("failed to query health checks: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close health checks rows: %v", err)
+		}
 	}()
 
 	var checks []HealthCheckSummary
@@ -175,7 +178,9 @@ func (s *HealthStorageService) GetTrendData(ctx context.Context, serviceName str
 		return nil, fmt.Errorf("failed to query trend data: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // explicitly ignore error as rows already processed
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close health checks rows: %v", err)
+		}
 	}()
 
 	trend := &TrendData{
@@ -219,14 +224,8 @@ func (s *HealthStorageService) GetTrendData(ctx context.Context, serviceName str
 		trend.FailureRate = float64(failCount) / float64(checkCount)
 	}
 
-	if len(trend.HealthScores) > 0 {
-		// The original code had trend.LastCheckTime = trend.HealthScores[0].Timestamp
-		// This line is problematic as HealthScores is []float64.
-		// Assuming the intent was to find the timestamp of the last check.
-		// Since HealthScores is now []float64, we need to find the timestamp of the last float64.
-		// This is not directly possible without a timestamp field in HealthScores.
-		// For now, removing this line as it's not directly applicable to the new HealthScores type.
-	}
+	// Note: HealthScores contains the historical scores only, not check metadata
+	// Cannot determine accurate LastCheckTime from []float64 alone
 
 	return trend, rows.Err()
 }

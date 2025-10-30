@@ -4,6 +4,7 @@ package healthcheck
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -91,7 +92,11 @@ func (dd *DuplicateDetector) extractCodeBlocks(filePath string) ([]*CodeBlock, e
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("warning: failed to close file %s: %v", filePath, err)
+		}
+	}()
 
 	var blocks []*CodeBlock
 	var currentBlock []string
@@ -157,7 +162,7 @@ func (dd *DuplicateDetector) findDuplicates(blocks []*CodeBlock) []DuplicateBloc
 			}
 			checked[key] = true
 
-			if block1.Normalized == block2.Normalized && len(block1.Content) > 0 {
+			if block1.Normalized == block2.Normalized && block1.Content != "" {
 				dup := DuplicateBlock{
 					File1:      block1.File,
 					File2:      block2.File,

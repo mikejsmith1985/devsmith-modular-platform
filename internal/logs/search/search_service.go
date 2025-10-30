@@ -410,9 +410,18 @@ func matchFieldValue(item map[string]interface{}, field, value string) bool {
 
 // matchText searches free-text across message, service, and level.
 func matchText(q *Query, item map[string]interface{}) bool {
-	msg, _ := item["message"].(string)
-	svc, _ := item["service"].(string)
-	lvl, _ := item["level"].(string)
+	msg, msgOk := item["message"].(string)
+	if !msgOk {
+		msg = ""
+	}
+	svc, svcOk := item["service"].(string)
+	if !svcOk {
+		svc = ""
+	}
+	lvl, lvlOk := item["level"].(string)
+	if !lvlOk {
+		lvl = ""
+	}
 
 	matched := strings.Contains(msg, q.Text) || strings.Contains(svc, q.Text) || strings.Contains(lvl, q.Text)
 	if q.IsNegated {

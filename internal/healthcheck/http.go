@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -53,7 +54,7 @@ func (c *HTTPChecker) Check() CheckResult {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			// Log but don't fail - response already processed
+			log.Printf("warning: failed to close response body: %v", err)
 		}
 	}()
 
