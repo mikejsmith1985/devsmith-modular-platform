@@ -1,106 +1,124 @@
-// Package config provides configuration management for the platform services.
+// Package config provides configuration loading for DevSmith services.
 package config
 
 import (
 	"fmt"
-	"net/url"
+	neturl "net/url"
 	"os"
+	"strings"
 )
 
-// LoadLogsConfig loads and validates the logging service configuration.
-// It reads from the LOGS_SERVICE_URL environment variable and provides
-// sensible defaults based on the deployment environment (local, Docker, production).
-//
-// Environment Variables:
-//   - LOGS_SERVICE_URL: Full URL to logs service endpoint (e.g., http://logs:8082/api/logs)
-//   - ENVIRONMENT: Deployment environment (docker, local, production) - used for defaults
-//
-// Defaults:
-//   - Docker: http://logs:8082/api/logs (uses Docker internal DNS)
-//   - Local: http://localhost:8082/api/logs (localhost development)
-//   - Other: Must be explicitly configured
-//
-// Returns:
-//   - string: Validated logs service URL
-//   - error: If URL is invalid or required env var is missing in non-default scenario
-//
-// Example:
-//
-//	logsURL, err := LoadLogsConfig()
-//	if err != nil {
-//	    log.Fatalf("Failed to load logging config: %v", err)
-//	}
-func LoadLogsConfig() (string, error) {
-	// Try to read from environment
-	logsURL := os.Getenv("LOGS_SERVICE_URL")
+const (
+	// logsServiceURLDocker is the logs service URL in Docker environment
+	logsServiceURLDocker = "http://logs:8082/api/logs"
+	// logsServiceURLLocal is the logs service URL in local development
+	logsServiceURLLocal = "http://localhost:8082/api/logs"
+)
 
-	// If not set, use environment-specific default
-	if logsURL == "" {
-		env := os.Getenv("ENVIRONMENT")
-		switch env {
-		case "docker":
-			// Docker Compose: Use service name for internal DNS
-			logsURL = "http://logs:8082/api/logs"
-		case "local", "":
-			// Local development: Use localhost
-			logsURL = "http://localhost:8082/api/logs"
-		default:
-			// Production-like environments require explicit configuration
-			return "", fmt.Errorf(
-				"LOGS_SERVICE_URL must be set for environment '%s' (use http://..., https://...)",
-				env,
-			)
+// LoadLogsConfig reads LOGS_SERVICE_URL from the environment (or provides a sensible default)
+// and validates the URL. Returns the resolved URL or an error.
+func LoadLogsConfig() (string, error) {
+	u := strings.TrimSpace(os.Getenv("LOGS_SERVICE_URL"))
+	env := strings.TrimSpace(os.Getenv("ENVIRONMENT"))
+
+	if u == "" {
+		if strings.EqualFold(env, "docker") {
+			u = logsServiceURLDocker
+		} else {
+			u = logsServiceURLLocal
 		}
 	}
 
-	// Validate the URL
-	if err := validateLogsURL(logsURL); err != nil {
-		return "", err
+	if err := validateLogsURL(u); err != nil {
+		return "", fmt.Errorf("invalid LOGS_SERVICE_URL %q: %w", u, err)
 	}
 
-	return logsURL, nil
+	return u, nil
 }
 
-// validateLogsURL ensures the logs service URL is properly formatted and valid.
-// Checks:
-//   - URL parses correctly
-//   - Scheme is http or https
-//   - Path is /api/logs
-//   - Host is not empty
-func validateLogsURL(urlStr string) error {
-	if urlStr == "" {
+// validateLogsURL checks the scheme, host, and path of the logs URL.
+func validateLogsURL(raw string) error {
+	if strings.TrimSpace(raw) == "" {
 		return fmt.Errorf("logs service URL cannot be empty")
 	}
-
-	// Parse the URL
-	parsed, err := url.Parse(urlStr)
+	parsed, err := neturl.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("invalid logs URL format: %w", err)
+		return fmt.Errorf("parse error: %w", err)
 	}
-
-	// Validate scheme
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return fmt.Errorf(
-			"invalid URL scheme '%s': must be http or https (got: %s)",
-			parsed.Scheme, urlStr,
-		)
+		return fmt.Errorf("invalid scheme: %s", parsed.Scheme)
 	}
-
-	// Validate host
 	if parsed.Host == "" {
-		return fmt.Errorf(
-			"invalid URL: missing host (got: %s)",
-			urlStr,
-		)
+		return fmt.Errorf("invalid URL: missing host")
 	}
-
-	// Validate path
-	if parsed.Path != "/api/logs" {
-		return fmt.Errorf(
-			"invalid URL path '%s': must be /api/logs (got: %s)",
-			parsed.Path, urlStr,
-		)
+	// Accept /api/logs or /api/logs/ (allow trailing slash)
+	if !strings.HasPrefix(parsed.Path, "/api/logs") {
+		return fmt.Errorf("invalid path: %s (must start with /api/logs)", parsed.Path)
 	}
-
 	return nil
+}
+
+// LoadLogsConfigFor loads the logs service URL for a specific service.
+func LoadLogsConfigFor(service string) (string, bool, error) {
+	env := os.Getenv("ENVIRONMENT")
+
+	var u string
+	if strings.EqualFold(env, "docker") {
+		u = logsServiceURLDocker
+	} else {
+		u = logsServiceURLLocal
+	}
+
+	// Per-service override, e.g., REVIEW_LOGS_URL
+	svcKey := ""
+	if strings.TrimSpace(service) != "" {
+		svcKey = strings.ToUpper(service) + "_LOGS_URL"
+	}
+
+	if svcKey != "" {
+		override := strings.TrimSpace(os.Getenv(svcKey))
+		if override != "" {
+			u = override
+		}
+	}
+
+	if u == "" {
+		u = strings.TrimSpace(os.Getenv("LOGS_SERVICE_URL"))
+	}
+
+	if u == "" {
+		if strings.EqualFold(env, "docker") {
+			u = logsServiceURLDocker
+		} else {
+			u = logsServiceURLLocal
+		}
+	}
+
+	if err := validateLogsURL(u); err != nil {
+		return "", false, fmt.Errorf("invalid logs url %q: %w", u, err)
+	}
+	return u, true, nil
+}
+
+// LoadLogsConfigWithFallbackFor loads the logs service URL with fallback logic.
+func LoadLogsConfigWithFallbackFor(service string) (string, bool, error) {
+	env := os.Getenv("ENVIRONMENT")
+
+	// Check for per-service override first
+	override := os.Getenv(strings.ToUpper(service) + "_LOGS_URL")
+	if override != "" {
+		return override, true, nil
+	}
+
+	// Then check global LOGS_SERVICE_URL
+	global := os.Getenv("LOGS_SERVICE_URL")
+	if global != "" {
+		return global, true, nil
+	}
+
+	// Fall back to default
+	if strings.EqualFold(env, "docker") {
+		return logsServiceURLDocker, true, nil
+	}
+	return logsServiceURLLocal, true, nil
 }

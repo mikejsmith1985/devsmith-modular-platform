@@ -33,6 +33,12 @@ type Client struct {
 	IsPublic     bool
 	LastActivity time.Time
 	mu           sync.Mutex
+	// writeMu serializes concurrent writes to the websocket connection
+	writeMu sync.Mutex
+	// Registered channel is closed by the hub after the client
+	// has been added to the active clients map. Tests wait on this
+	// to ensure registration is complete before sending messages.
+	Registered chan struct{}
 }
 
 // NewWebSocketHub creates and returns a new WebSocketHub instance.
@@ -61,7 +67,18 @@ func (h *WebSocketHub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			// Initialize last activity to now to avoid immediate heartbeat-triggered disconnect
+			client.mu.Lock()
+			client.LastActivity = time.Now()
+			client.mu.Unlock()
 			h.mu.Unlock()
+			// Signal back to the client that registration is complete
+			if client.Registered != nil {
+				// close in a goroutine to avoid blocking hub loop if receiver is not waiting
+				go func(ch chan struct{}) {
+					close(ch)
+				}(client.Registered)
+			}
 			log.Printf("Client registered, total clients: %d", len(h.clients))
 
 		case client := <-h.unregister:
@@ -129,17 +146,24 @@ func (h *WebSocketHub) sendHeartbeats() {
 			// No pong response, close connection
 			h.mu.RUnlock()
 			go func(c *Client) {
-				if err := c.Conn.Close(); err != nil {
-					log.Printf("Error closing connection: %v", err)
-				}
+				// Close the connection to force Read/Write pumps to exit
+				c.writeMu.Lock()
+				_ = c.Conn.Close()
+				c.writeMu.Unlock()
 				h.closeClient(c)
 			}(client)
 			h.mu.RLock()
 		} else {
-			// Send heartbeat ping
+			// Send heartbeat ping + text marker. Ping triggers pong handling
+			// on clients; text message ensures tests using ReadMessage see a payload.
+			client.writeMu.Lock()
 			if err := client.Conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				log.Printf("Error writing ping message: %v", err)
 			}
+			if err := client.Conn.WriteMessage(websocket.TextMessage, []byte("heartbeat")); err != nil {
+				log.Printf("Error writing heartbeat message: %v", err)
+			}
+			client.writeMu.Unlock()
 		}
 	}
 	h.mu.RUnlock()
@@ -151,6 +175,12 @@ func (h *WebSocketHub) closeClient(client *Client) {
 	if _, ok := h.clients[client]; ok {
 		delete(h.clients, client)
 		close(client.Send)
+		// Best-effort close of the underlying connection to speed teardown
+		if client.Conn != nil {
+			client.writeMu.Lock()
+			_ = client.Conn.Close()
+			client.writeMu.Unlock()
+		}
 	}
 	h.mu.Unlock()
 }
@@ -215,9 +245,13 @@ func (c *Client) WritePump(hub *WebSocketHub) {
 	}()
 
 	for log := range c.Send {
+		// Serialize writes to avoid concurrent WriteMessage/WriteJSON calls
+		c.writeMu.Lock()
 		if err := c.Conn.WriteJSON(log); err != nil {
+			c.writeMu.Unlock()
 			break
 		}
+		c.writeMu.Unlock()
 		c.mu.Lock()
 		c.LastActivity = time.Now()
 		c.mu.Unlock()

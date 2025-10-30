@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -16,13 +17,19 @@ type ServiceInstrumentationLogger struct {
 	httpClient     *http.Client
 	serviceName    string
 	logsServiceURL string
+	disabled       bool
 }
 
 // NewServiceInstrumentationLogger creates a new service instrumentation logger.
 func NewServiceInstrumentationLogger(serviceName, logsServiceURL string) *ServiceInstrumentationLogger {
+	disabled := false
+	if strings.TrimSpace(logsServiceURL) == "" {
+		disabled = true
+	}
 	return &ServiceInstrumentationLogger{
 		serviceName:    serviceName,
 		logsServiceURL: logsServiceURL,
+		disabled:       disabled,
 		httpClient: &http.Client{
 			Timeout: 2 * time.Second, // Fast timeout to avoid blocking
 		},
@@ -31,6 +38,9 @@ func NewServiceInstrumentationLogger(serviceName, logsServiceURL string) *Servic
 
 // LogEvent logs a generic event asynchronously.
 func (l *ServiceInstrumentationLogger) LogEvent(ctx context.Context, eventType string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	logEntry := l.buildLogEntry("info", eventType, metadata, ctx)
 	l.sendAsync(logEntry)
 	return nil // Always return nil - never block on logging
@@ -38,6 +48,9 @@ func (l *ServiceInstrumentationLogger) LogEvent(ctx context.Context, eventType s
 
 // LogValidationFailure logs a validation failure.
 func (l *ServiceInstrumentationLogger) LogValidationFailure(ctx context.Context, errorType, message string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
@@ -50,6 +63,9 @@ func (l *ServiceInstrumentationLogger) LogValidationFailure(ctx context.Context,
 
 // LogSecurityViolation logs a security violation.
 func (l *ServiceInstrumentationLogger) LogSecurityViolation(ctx context.Context, errorType, message string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
@@ -62,6 +78,9 @@ func (l *ServiceInstrumentationLogger) LogSecurityViolation(ctx context.Context,
 
 // LogError logs an error event.
 func (l *ServiceInstrumentationLogger) LogError(ctx context.Context, errorType, message string, metadata map[string]interface{}) error {
+	if l == nil {
+		return nil
+	}
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
@@ -123,6 +142,10 @@ func (l *ServiceInstrumentationLogger) extractRequestID(ctx context.Context) str
 
 // sendAsync sends the log asynchronously without blocking.
 func (l *ServiceInstrumentationLogger) sendAsync(logEntry map[string]interface{}) {
+	if l == nil || l.disabled {
+		// Logging disabled for this service; do nothing
+		return
+	}
 	// Circular dependency prevention for logs service
 	if l.serviceName == "logs" && logEntry["event_type"] == "log_entry_ingested" {
 		// Don't re-log the logs service's own log ingestion events

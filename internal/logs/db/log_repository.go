@@ -120,13 +120,13 @@ func buildWhereClause(filters *QueryFilters) ([]string, []interface{}, int) {
 		return fragments, args, argNum
 	}
 
-	if filters.Service != "" {
+	if filters.Service != "" && filters.Service != "all" {
 		fragments = append(fragments, fmt.Sprintf("service = $%d", argNum))
 		args = append(args, filters.Service)
 		argNum++
 	}
 
-	if filters.Level != "" {
+	if filters.Level != "" && filters.Level != "all" {
 		fragments = append(fragments, fmt.Sprintf("level = $%d", argNum))
 		args = append(args, filters.Level)
 		argNum++

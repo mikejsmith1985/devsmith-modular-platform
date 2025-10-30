@@ -153,11 +153,33 @@ func LogsDashboardHandler(c *gin.Context) {
 		trends = []interface{}{}
 	}
 
+	// Normalize fetched data into expected types for the template
+	var statsMap map[string]interface{}
+	if s, ok := stats.(map[string]interface{}); ok {
+		statsMap = s
+	} else {
+		statsMap = map[string]interface{}{}
+	}
+
+	var topErrorsSlice []interface{}
+	if te, ok := topErrors.([]interface{}); ok {
+		topErrorsSlice = te
+	} else {
+		topErrorsSlice = []interface{}{}
+	}
+
+	var trendsSlice []interface{}
+	if tr, ok := trends.([]interface{}); ok {
+		trendsSlice = tr
+	} else {
+		trendsSlice = []interface{}{}
+	}
+
 	dashboardData := templates.LogsDashboardData{
 		User:      templates.DashboardUser{Username: userClaims.Username, Email: userClaims.Email, AvatarURL: userClaims.AvatarURL},
-		Stats:     stats,
-		TopErrors: topErrors,
-		Trends:    trends,
+		Stats:     statsMap,
+		TopErrors: topErrorsSlice,
+		Trends:    trendsSlice,
 	}
 
 	component := templates.LogsDashboard(dashboardData)
