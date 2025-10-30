@@ -2635,3 +2635,94 @@ All error returns now properly logged or handled with explanation.
 
 ---
 
+
+## 2025-10-30 18:38 - fix: resolve critical linting issues
+**Branch:** development
+**Files Changed:**  12 files changed, 108 insertions(+), 24 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/portal/templates/types.go`
+- `cmd/healthcheck/main.go`
+- `internal/healthcheck/database.go`
+- `internal/healthcheck/duplicate_detector.go`
+- `internal/healthcheck/gateway.go`
+- `internal/healthcheck/http.go`
+- `internal/healthcheck/metrics.go`
+- `internal/healthcheck/trivy.go`
+- `internal/logs/services/auto_repair_service.go`
+- `internal/logs/services/health_scheduler.go`
+- `internal/logs/services/health_storage_service.go`
+
+**Action:** fix: resolve critical linting issues
+
+**Commit:** `5f6755d`
+
+**Commit Message:**
+```
+fix: resolve critical linting issues
+```
+
+**Details:**
+```
+Fixed multiple linting errors to improve code quality:
+
+1. Variable Shadowing (govet):
+   - database.go: Renamed shadowed 'err' to 'closeErr' and 'pingErr'
+   - auto_repair_service.go: Renamed shadowed 'err' to 'logErr'
+
+2. Empty Branches (staticcheck SA9003):
+   - gateway.go: Added proper logging for close errors (2 instances)
+   - http.go: Added proper logging for body close errors
+   - metrics.go: Added proper logging for body close errors
+   - health_storage_service.go: Removed ineffective empty if block
+
+3. Empty String Tests (gocritic emptyStringTest):
+   - duplicate_detector.go: Changed 'len() > 0' to '!= ""'
+   - health_scheduler.go: Changed 'len() > 0' to '!= ""' (2 instances)
+
+4. Parameter Type Combinations (gocritic paramTypeCombine):
+   - trivy.go: Combined adjacent string parameters (2 instances)
+   - auto_repair_service.go: Combined adjacent string parameters
+
+5. Missing Package Comments (revive):
+   - portal_templates/types.go: Added package comment
+   - cmd/healthcheck/main.go: Added package comment
+
+All error returns now properly logged or handled with explanation.
+```
+
+---
+
+
+## 2025-10-30 18:43 - define MODIFIED_FILES early and use consistently
+**Branch:** development
+**Files Changed:**  1 file changed, 9 insertions(+), 5 deletions(-)
+- `scripts/hooks/pre-push`
+
+**Action:** define MODIFIED_FILES early and use consistently
+
+**Commit:** `a38be6c`
+
+**Commit Message:**
+```
+fix(pre-push): define MODIFIED_FILES early and use consistently
+```
+
+**Details:**
+```
+Fixed the selective validation logic that was broken. The linting check
+was referencing $MODIFIED_GO_FILES which didn't exist, causing it to run
+on the entire codebase instead of just modified files.
+
+Changes:
+- Define MODIFIED_FILES and MODIFIED_GO_FILES at the top of the script
+- Use these variables consistently throughout all checks
+- Remove duplicate MODIFIED_FILES definition
+- Filter linting output to only show errors from modified files
+- Skip selective checks if no Go files were modified
+
+Result: Pre-push hook now properly validates only modified files,
+allowing development on files with pre-existing issues.
+```
+
+---
+
