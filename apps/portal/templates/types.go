@@ -1,3 +1,4 @@
+// Package portal_templates contains type definitions for portal template rendering.
 package portal_templates
 
 // Small type definitions used by generated templ files. These are minimal

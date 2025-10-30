@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"context"
 	"database/sql"
+	"log"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -40,16 +41,16 @@ func (c *DatabaseChecker) Check() CheckResult {
 		return result
 	}
 	defer func() {
-		if err := db.Close(); err != nil {
-			// Log but don't fail - connection test already completed
+		if closeErr := db.Close(); closeErr != nil {
+			log.Printf("warning: failed to close database connection: %v", closeErr)
 		}
 	}()
 
 	// Test the connection
-	if err := db.PingContext(ctx); err != nil {
+	if pingErr := db.PingContext(ctx); pingErr != nil {
 		result.Status = StatusFail
 		result.Message = "Database ping failed"
-		result.Error = err.Error()
+		result.Error = pingErr.Error()
 		result.Duration = time.Since(start)
 		return result
 	}
