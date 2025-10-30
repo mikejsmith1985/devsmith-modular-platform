@@ -112,7 +112,7 @@ else
 fi
 
 # 5. VET CHECK - MODIFIED PACKAGES ONLY
-echo "5️⃣  Checking vet..."
+echo "5️⃣  Checking vet (go vet)..."
 if [ -n "$MODIFIED_GO_FILES" ]; then
     MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
     if ! go vet $MODIFIED_PACKAGES 2>&1; then
@@ -125,52 +125,11 @@ else
     echo "ℹ️  No Go files modified"
 fi
 
-# 6. TEST COMPILATION - MODIFIED PACKAGES ONLY
-echo "6️⃣  Checking test compilation..."
-if [ -n "$MODIFIED_GO_FILES" ]; then
-    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
-    
-    echo "   Testing packages with modified files:"
-    echo "$MODIFIED_PACKAGES" | sed 's/^/     /'
-    echo ""
-    
-    if ! go test $MODIFIED_PACKAGES -short 2>&1 >/dev/null; then
-        echo "❌ FAILED: Tests don't compile for modified packages"
-        FAILED=1
-    else
-        echo "✅ PASSED: Tests compile"
-    fi
-else
-    echo "ℹ️  No Go files modified"
-fi
-
-# 7. TEST EXECUTION - MODIFIED PACKAGES ONLY
-echo "7️⃣  Running tests (modified packages)..."
-if [ -n "$MODIFIED_GO_FILES" ]; then
-    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
-    if ! go test $MODIFIED_PACKAGES -short 2>&1 >/dev/null; then
-        echo "⚠️  INFO: Tests failed (pre-existing or environment issue)"
-        echo "   Running tests for quality feedback only - not blocking push"
-    else
-        echo "✅ PASSED: Tests passed"
-    fi
-else
-    echo "ℹ️  No Go files modified"
-fi
-
-# 8. RACE CHECK - MODIFIED PACKAGES ONLY (INFORMATIONAL ONLY)
-echo "8️⃣  Checking for race conditions..."
-if [ -n "$MODIFIED_GO_FILES" ]; then
-    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
-    if ! go test $MODIFIED_PACKAGES -race -short 2>&1 >/dev/null; then
-        echo "⚠️  INFO: Race detection found issues (informational only)"
-    else
-        echo "✅ PASSED: No race conditions"
-    fi
-else
-    echo "ℹ️  No Go files modified"
-fi
-
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo ""
+echo "⏭️  Note: Test execution and race detection run in CI/CD"
+echo "   Pre-push keeps local feedback FAST (5-10s typical)"
 echo ""
 echo "════════════════════════════════════════════════════════════"
 
