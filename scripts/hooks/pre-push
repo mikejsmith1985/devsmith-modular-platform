@@ -74,10 +74,13 @@ fi
 declare -a ISSUES=()
 declare -A CHECK_RESULTS=(
     [format]="pending"
+    [imports]="pending"
     [vet]="pending"
+    [test_compile]="pending"
     [lint]="pending"
     [build]="pending"
     [tests]="pending"
+    [race]="pending"
     [security]="pending"
     [coverage]="pending"
 )
@@ -299,6 +302,61 @@ validate_coverage() {
     return 0
 }
 
+validate_imports() {
+    print_heading "Import Resolution (goimports)"
+    
+    local unresolved=$(timeout $TIMEOUT_FORMAT goimports -l $(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || echo "./...") 2>/dev/null || true)
+    
+    if [[ -z "$unresolved" ]]; then
+        print_success "imports" "All imports resolved correctly"
+        return 0
+    else
+        print_error "imports" "Unresolved or unformatted imports detected"
+        return 1
+    fi
+}
+
+validate_test_compilation() {
+    print_heading "Test Compilation"
+    
+    if timeout $TIMEOUT_BUILD go test -c ./... &>/dev/null 2>&1; then
+        print_success "test_compile" "All test packages compile successfully"
+        return 0
+    else
+        local exit_code=$?
+        if [[ $exit_code -eq 124 ]]; then
+            print_warning "test_compile" "Test compilation timed out (${TIMEOUT_BUILD}s limit)"
+            return 0
+        else
+            print_error "test_compile" "Test compilation failed - check function signatures and dependencies"
+            return 1
+        fi
+    fi
+}
+
+validate_race_conditions() {
+    print_heading "Race Condition Detection"
+    
+    if [[ "$MODE" != "quick" ]]; then
+        if timeout $TIMEOUT_TESTS_SHORT go test -race -short ./... &>/dev/null 2>&1; then
+            print_success "race" "No race conditions detected"
+            return 0
+        else
+            local exit_code=$?
+            if [[ $exit_code -eq 124 ]]; then
+                print_warning "race" "Race detection timed out (${TIMEOUT_TESTS_SHORT}s limit)"
+                return 0
+            else
+                print_error "race" "Race conditions detected - review test output"
+                return 1
+            fi
+        fi
+    else
+        print_warning "race" "Race detection skipped in quick mode"
+        return 0
+    fi
+}
+
 # ============================================================================
 # OUTPUT FORMATTERS
 # ============================================================================
@@ -391,25 +449,32 @@ main() {
     # Quick mode: format + build only (fastest)
     if [[ "$MODE" == "quick" ]]; then
         validate_format || true
+        validate_imports || true
         validate_build || true
     
-    # Standard mode: format + vet + lint + build + tests + security
+    # Standard mode: format + imports + vet + test compile + lint + build + tests + race + security
     elif [[ "$MODE" == "standard" ]]; then
         validate_format || true
+        validate_imports || true
         validate_vet || true
+        validate_test_compilation || true
         validate_lint || true
         validate_build || true
         validate_tests || true
+        validate_race_conditions || true
         validate_security || true
         validate_coverage || true
     
     # Thorough mode: everything including long-running tests
     elif [[ "$MODE" == "thorough" ]]; then
         validate_format || true
+        validate_imports || true
         validate_vet || true
+        validate_test_compilation || true
         validate_lint || true
         validate_build || true
         validate_tests || true  # Full tests, not short
+        validate_race_conditions || true
         validate_security || true
         validate_coverage || true
     fi
