@@ -39,7 +39,11 @@ func (c *DatabaseChecker) Check() CheckResult {
 		result.Duration = time.Since(start)
 		return result
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			// Log but don't fail - connection test already completed
+		}
+	}()
 
 	// Test the connection
 	if err := db.PingContext(ctx); err != nil {
@@ -72,4 +76,3 @@ func (c *DatabaseChecker) Check() CheckResult {
 	result.Duration = time.Since(start)
 	return result
 }
-

@@ -55,4 +55,3 @@ type Checker interface {
 	Name() string
 	Check() CheckResult
 }
-

@@ -108,4 +108,3 @@ func TestGetStatusSymbol(t *testing.T) {
 		}
 	}
 }
-
