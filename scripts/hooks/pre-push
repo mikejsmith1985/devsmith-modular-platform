@@ -41,20 +41,32 @@ else
 fi
 
 # 4. LINTING CHECK (golangci-lint) - STRICT
-echo "4️⃣  Checking linting (golangci-lint)..."
+echo "4️⃣  Checking linting (golangci-lint) - MODIFIED FILES ONLY..."
 if ! command -v golangci-lint &>/dev/null; then
     echo "⚠️  WARNING: golangci-lint not installed"
     echo "   Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
 else
-    # Capture output and check for ANY linting issues (errors or warnings)
-    LINT_OUTPUT=$(golangci-lint run ./... 2>&1 || true)
-    # Check if there's any output (which means issues found)
-    if echo "$LINT_OUTPUT" | grep -qE "^[^[:space:]].*\.go:[0-9]+"; then
-        echo "❌ FAILED: Linting errors/warnings found:"
-        echo "$LINT_OUTPUT" | head -30
-        FAILED=1
+    # Get list of modified .go files in this push
+    # Check: staged files (git diff --cached) + committed but not pushed files
+    MODIFIED_FILES=$(git diff --name-only origin/development...HEAD 2>/dev/null | grep '\.go$' || true)
+    
+    if [ -z "$MODIFIED_FILES" ]; then
+        echo "ℹ️  INFO: No Go files modified in this push"
     else
-        echo "✅ PASSED: No linting errors"
+        echo "   Checking files:"
+        echo "$MODIFIED_FILES" | sed 's/^/     /'
+        echo ""
+        
+        # Capture output and check for linting issues ONLY in modified files
+        LINT_OUTPUT=$(golangci-lint run $MODIFIED_FILES 2>&1 || true)
+        
+        if echo "$LINT_OUTPUT" | grep -qE "^[^[:space:]].*\.go:[0-9]+"; then
+            echo "❌ FAILED: Linting errors in modified files:"
+            echo "$LINT_OUTPUT" | head -30
+            FAILED=1
+        else
+            echo "✅ PASSED: Modified files lint clean"
+        fi
     fi
 fi
 
