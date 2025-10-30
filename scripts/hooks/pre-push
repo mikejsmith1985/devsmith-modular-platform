@@ -13,6 +13,11 @@ echo ""
 
 FAILED=0
 
+# Get list of modified .go files in THIS commit (HEAD) only
+# This is defined early so all checks can use it
+MODIFIED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep '\.go$' || true)
+MODIFIED_GO_FILES="$MODIFIED_FILES"  # Alias for compatibility
+
 # 1. FORMAT CHECK (gofmt)
 echo "1️⃣  Checking formatting (gofmt)..."
 if gofmt -l . 2>/dev/null | grep -q "\.go"; then
@@ -45,7 +50,9 @@ echo "4️⃣  Checking linting (golangci-lint)..."
 if ! command -v golangci-lint &>/dev/null; then
     echo "⚠️  WARNING: golangci-lint not installed"
 else
-    if [ -n "$MODIFIED_GO_FILES" ]; then
+    if [ -z "$MODIFIED_GO_FILES" ]; then
+        echo "ℹ️  No Go files modified in this commit"
+    else
         # Extract unique PACKAGES from modified files (not individual files)
         # This gives golangci-lint proper context for type checking
         MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
@@ -74,8 +81,6 @@ else
         else
             echo "✅ PASSED: Modified files lint clean"
         fi
-    else
-        echo "ℹ️  No Go files modified"
     fi
 fi
 
@@ -90,8 +95,7 @@ fi
 
 # 6. TEST COMPILATION (BLOCKING)
 echo "6️⃣  Checking test compilation..."
-# Get list of modified .go files in THIS commit (HEAD) only
-MODIFIED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep '\.go$' || true)
+# MODIFIED_FILES already defined at the top of the script
 
 if [ -z "$MODIFIED_FILES" ]; then
     echo "ℹ️  INFO: No Go files modified in current commit, skipping test checks"
