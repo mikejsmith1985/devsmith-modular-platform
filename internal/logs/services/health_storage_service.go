@@ -78,8 +78,13 @@ func (s *HealthStorageService) StoreHealthCheck(ctx context.Context, report *hea
 
 	// Store individual check details
 	for _, check := range report.Checks {
-		detailsJSON, _ := json.Marshal(check.Details)
-		_, err := s.db.ExecContext(ctx,
+		detailsJSON, err := json.Marshal(check.Details)
+		if err != nil {
+			// Log but don't fail entire operation
+			fmt.Printf("failed to marshal check details: %v\n", err)
+			detailsJSON = []byte("{}")
+		}
+		_, err = s.db.ExecContext(ctx,
 			`INSERT INTO logs.health_check_details 
 			 (health_check_id, check_name, status, message, error, duration_ms, details_json)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -102,44 +107,31 @@ func (s *HealthStorageService) StoreHealthCheck(ctx context.Context, report *hea
 
 // GetRecentChecks returns the most recent health checks
 func (s *HealthStorageService) GetRecentChecks(ctx context.Context, limit int) ([]HealthCheckSummary, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, timestamp, overall_status, duration_ms, passed_count, failed_count, triggered_by
+	query := `SELECT id, timestamp, overall_status, duration_ms, passed_count, failed_count, triggered_by
 		 FROM logs.health_checks
 		 ORDER BY timestamp DESC
-		 LIMIT $1`,
-		limit,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query recent checks: %w", err)
-	}
-	defer rows.Close()
-
-	var checks []HealthCheckSummary
-	for rows.Next() {
-		var c HealthCheckSummary
-		err := rows.Scan(&c.ID, &c.Timestamp, &c.OverallStatus, &c.DurationMs, &c.PassedCount, &c.FailedCount, &c.TriggeredBy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan check: %w", err)
-		}
-		checks = append(checks, c)
-	}
-
-	return checks, rows.Err()
+		 LIMIT $1`
+	return s.queryHealthChecks(ctx, query, limit)
 }
 
 // GetCheckHistory returns checks from the specified number of hours
 func (s *HealthStorageService) GetCheckHistory(ctx context.Context, hours int) ([]HealthCheckSummary, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, timestamp, overall_status, duration_ms, passed_count, failed_count, triggered_by
+	query := `SELECT id, timestamp, overall_status, duration_ms, passed_count, failed_count, triggered_by
 		 FROM logs.health_checks
 		 WHERE timestamp >= NOW() - INTERVAL '1 hour' * $1
-		 ORDER BY timestamp DESC`,
-		hours,
-	)
+		 ORDER BY timestamp DESC`
+	return s.queryHealthChecks(ctx, query, hours)
+}
+
+// queryHealthChecks executes a health checks query and returns results
+func (s *HealthStorageService) queryHealthChecks(ctx context.Context, query string, arg interface{}) ([]HealthCheckSummary, error) {
+	rows, err := s.db.QueryContext(ctx, query, arg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query history: %w", err)
+		return nil, fmt.Errorf("failed to query health checks: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // explicitly ignore error as rows already processed
+	}()
 
 	var checks []HealthCheckSummary
 	for rows.Next() {
@@ -151,7 +143,10 @@ func (s *HealthStorageService) GetCheckHistory(ctx context.Context, hours int) (
 		checks = append(checks, c)
 	}
 
-	return checks, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate rows: %w", err)
+	}
+	return checks, nil
 }
 
 // GetTrendData returns trend analysis for a specific service

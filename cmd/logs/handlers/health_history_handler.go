@@ -8,16 +8,32 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
+// parseLimit extracts and validates limit from query parameters
+func parseLimit(c *gin.Context, defaultLimit, maxLimit int) int {
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= maxLimit {
+			return l
+		}
+	}
+	return defaultLimit
+}
+
+// sendJSONResponse writes a JSON response with standard format
+func sendJSONResponse(c *gin.Context, data interface{}, count int) {
+	if _, err := c.Writer.WriteString(""); err == nil {
+		// Successfully able to write to response
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    data,
+		"count":   count,
+	})
+}
+
 // GetHealthHistory returns recent health checks
 func GetHealthHistory(storage *services.HealthStorageService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		limit := 50
-		if limitStr := c.Query("limit"); limitStr != "" {
-			if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 1000 {
-				limit = l
-			}
-		}
-
+		limit := parseLimit(c, 50, 1000)
 		checks, err := storage.GetRecentChecks(c.Request.Context(), limit)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -25,12 +41,7 @@ func GetHealthHistory(storage *services.HealthStorageService) gin.HandlerFunc {
 			})
 			return
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    checks,
-			"count":   len(checks),
-		})
+		sendJSONResponse(c, checks, len(checks))
 	}
 }
 
@@ -124,11 +135,11 @@ func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 		}
 
 		var req struct {
-			MaxResponseTimeMs  int    `json:"max_response_time_ms"`
-			AutoRepairEnabled  bool   `json:"auto_repair_enabled"`
-			RepairStrategy     string `json:"repair_strategy"`
-			AlertOnWarn        bool   `json:"alert_on_warn"`
-			AlertOnFail        bool   `json:"alert_on_fail"`
+			MaxResponseTimeMs int    `json:"max_response_time_ms"`
+			AutoRepairEnabled bool   `json:"auto_repair_enabled"`
+			RepairStrategy    string `json:"repair_strategy"`
+			AlertOnWarn       bool   `json:"alert_on_warn"`
+			AlertOnFail       bool   `json:"alert_on_fail"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -165,13 +176,7 @@ func UpdateHealthPolicy(policy *services.HealthPolicyService) gin.HandlerFunc {
 // GetRepairHistory returns recent auto-repair actions
 func GetRepairHistory(repair *services.AutoRepairService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		limit := 50
-		if limitStr := c.Query("limit"); limitStr != "" {
-			if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 1000 {
-				limit = l
-			}
-		}
-
+		limit := parseLimit(c, 50, 1000)
 		repairs, err := repair.GetRepairHistory(c.Request.Context(), limit)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -179,12 +184,7 @@ func GetRepairHistory(repair *services.AutoRepairService) gin.HandlerFunc {
 			})
 			return
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    repairs,
-			"count":   len(repairs),
-		})
+		sendJSONResponse(c, repairs, len(repairs))
 	}
 }
 
@@ -218,16 +218,16 @@ func ManualRepair(repair *services.AutoRepairService, storage *services.HealthSt
 		err := repair.ManualRepair(c.Request.Context(), service, req.Strategy)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Repair failed",
+				"error":   "Repair failed",
 				"details": err.Error(),
 			})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Repair initiated successfully",
-			"service": service,
+			"success":  true,
+			"message":  "Repair initiated successfully",
+			"service":  service,
 			"strategy": req.Strategy,
 		})
 	}

@@ -7,17 +7,24 @@ import (
 	"time"
 )
 
+// Repair strategy constants
+const (
+	RepairStrategyRestart = "restart"
+	RepairStrategyRebuild = "rebuild"
+	RepairStrategyNone    = "none"
+)
+
 // HealthPolicy represents a health policy for a service
 type HealthPolicy struct {
-	ID                  int       `json:"id"`
-	ServiceName         string    `json:"service_name"`
-	MaxResponseTimeMs   int       `json:"max_response_time_ms"`
-	AutoRepairEnabled   bool      `json:"auto_repair_enabled"`
-	RepairStrategy      string    `json:"repair_strategy"` // restart, rebuild, none
-	AlertOnWarn         bool      `json:"alert_on_warn"`
-	AlertOnFail         bool      `json:"alert_on_fail"`
-	PolicyJSON          string    `json:"policy_json,omitempty"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                int       `json:"id"`
+	ServiceName       string    `json:"service_name"`
+	MaxResponseTimeMs int       `json:"max_response_time_ms"`
+	AutoRepairEnabled bool      `json:"auto_repair_enabled"`
+	RepairStrategy    string    `json:"repair_strategy"` // restart, rebuild, none
+	AlertOnWarn       bool      `json:"alert_on_warn"`
+	AlertOnFail       bool      `json:"alert_on_fail"`
+	PolicyJSON        string    `json:"policy_json,omitempty"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // HealthPolicyService manages health policies for services
@@ -36,7 +43,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		ServiceName:       "portal",
 		MaxResponseTimeMs: 500,
 		AutoRepairEnabled: true,
-		RepairStrategy:    "restart",
+		RepairStrategy:    RepairStrategyRestart,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
 	},
@@ -44,7 +51,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		ServiceName:       "review",
 		MaxResponseTimeMs: 1000,
 		AutoRepairEnabled: true,
-		RepairStrategy:    "restart",
+		RepairStrategy:    RepairStrategyRestart,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
 	},
@@ -52,7 +59,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		ServiceName:       "logs",
 		MaxResponseTimeMs: 500,
 		AutoRepairEnabled: false,
-		RepairStrategy:    "none",
+		RepairStrategy:    RepairStrategyNone,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
 	},
@@ -60,7 +67,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		ServiceName:       "analytics",
 		MaxResponseTimeMs: 2000,
 		AutoRepairEnabled: true,
-		RepairStrategy:    "restart",
+		RepairStrategy:    RepairStrategyRestart,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
 	},
@@ -101,7 +108,9 @@ func (s *HealthPolicyService) GetAllPolicies(ctx context.Context) ([]HealthPolic
 	if err != nil {
 		return nil, fmt.Errorf("failed to query policies: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // explicitly ignore error as rows already processed
+	}()
 
 	var policies []HealthPolicy
 	for rows.Next() {
@@ -199,23 +208,23 @@ func (s *HealthPolicyService) InitializeDefaultPolicies(ctx context.Context) err
 func (s *HealthPolicyService) GetRepairStrategy(ctx context.Context, serviceName string, issueType string) (string, error) {
 	policy, err := s.GetPolicy(ctx, serviceName)
 	if err != nil {
-		return "none", err
+		return RepairStrategyNone, err
 	}
 
 	if !policy.AutoRepairEnabled {
-		return "none", nil
+		return RepairStrategyNone, nil
 	}
 
 	// Override strategy for specific issue types
 	switch issueType {
 	case "timeout":
-		return "restart", nil
+		return RepairStrategyRestart, nil
 	case "crash":
-		return "rebuild", nil
+		return RepairStrategyRebuild, nil
 	case "security":
-		return "rebuild", nil
+		return RepairStrategyRebuild, nil
 	case "dependency":
-		return "none", nil // Can't repair dependency issues
+		return RepairStrategyNone, nil // Can't repair dependency issues
 	default:
 		return policy.RepairStrategy, nil
 	}
