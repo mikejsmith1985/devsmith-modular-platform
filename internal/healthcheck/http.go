@@ -31,7 +31,7 @@ func (c *HTTPChecker) Check() CheckResult {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", c.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", c.URL, http.NoBody)
 	if err != nil {
 		result.Status = StatusFail
 		result.Message = "Failed to create request"

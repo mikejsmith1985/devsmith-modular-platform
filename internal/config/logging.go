@@ -59,6 +59,7 @@ func validateLogsURL(raw string) error {
 }
 
 // LoadLogsConfigFor loads the logs service URL for a specific service.
+// Returns the URL, success boolean, and error (if any).
 func LoadLogsConfigFor(service string) (string, bool, error) {
 	env := os.Getenv("ENVIRONMENT")
 
@@ -101,6 +102,7 @@ func LoadLogsConfigFor(service string) (string, bool, error) {
 }
 
 // LoadLogsConfigWithFallbackFor loads the logs service URL with fallback logic.
+// Returns the URL, success boolean, and error (if any).
 func LoadLogsConfigWithFallbackFor(service string) (string, bool, error) {
 	env := os.Getenv("ENVIRONMENT")
 

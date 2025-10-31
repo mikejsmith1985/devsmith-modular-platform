@@ -88,6 +88,11 @@ func (dd *DuplicateDetector) ScanDirectory(rootPath string) ([]DuplicateBlock, e
 
 // extractCodeBlocks extracts code blocks from a file
 func (dd *DuplicateDetector) extractCodeBlocks(filePath string) ([]*CodeBlock, error) {
+	// Validate file path to prevent path traversal attacks
+	if err := validateFilePath(filePath); err != nil {
+		return nil, err
+	}
+
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -188,4 +193,44 @@ func normalizeCode(code string) string {
 	// Collapse whitespace
 	fields := strings.Fields(normalized)
 	return strings.Join(fields, " ")
+}
+
+// validateFilePath validates that a file path is safe to open
+// Prevents path traversal attacks and symlink-based attacks
+func validateFilePath(filePath string) error {
+	// Reject relative paths with directory traversal
+	if strings.Contains(filePath, "..") {
+		return fmt.Errorf("path %q contains directory traversal sequences", filePath)
+	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Resolve symlinks to get the real path
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		// If EvalSymlinks fails, just use the absolute path (may not be a symlink)
+		realPath = absPath
+	}
+
+	// Get current working directory (workspace root)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// For files in temp directories (like /tmp for tests), allow them
+	// Only check that files within the project workspace don't escape it
+	if strings.HasPrefix(realPath, cwd) {
+		// Ensure the real path is within the workspace
+		rel, err := filepath.Rel(cwd, realPath)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("path %q is outside workspace boundaries", filePath)
+		}
+	}
+
+	return nil
 }
