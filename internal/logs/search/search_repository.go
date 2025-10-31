@@ -455,21 +455,7 @@ func (r *SearchRepository) GetSharedSearches(ctx context.Context, userID int64) 
 // Returns error if access is denied or check fails.
 func (r *SearchRepository) ValidateSearchAccess(ctx context.Context, searchID, userID int64) error {
 	if r.db == nil {
-		// Owner has access
-		if s, ok := r.memSearches[searchID]; ok {
-			if s.UserID == userID {
-				return nil
-			}
-		}
-		// Check shared map
-		if ids, ok := r.memShared[userID]; ok {
-			for _, id := range ids {
-				if id == searchID {
-					return nil
-				}
-			}
-		}
-		return fmt.Errorf("user does not have access to the search")
+		return r.validateSearchAccessMem(searchID, userID)
 	}
 
 	query := `
@@ -487,6 +473,26 @@ func (r *SearchRepository) ValidateSearchAccess(ctx context.Context, searchID, u
 	}
 
 	return nil
+}
+
+
+// validateSearchAccessMem validates search access using in-memory storage.
+func (r *SearchRepository) validateSearchAccessMem(searchID, userID int64) error {
+	// Check if user owns the search
+	if s, ok := r.memSearches[searchID]; ok && s.UserID == userID {
+		return nil
+	}
+	
+	// Check if search is shared with user
+	if ids, ok := r.memShared[userID]; ok {
+		for _, id := range ids {
+			if id == searchID {
+				return nil
+			}
+		}
+	}
+	
+	return fmt.Errorf("user does not have access to the search")
 }
 
 // ExportAsJSON exports search results as JSON bytes.
@@ -593,31 +599,7 @@ func (r *SearchRepository) GetSearchMetadata(ctx context.Context, searchID int64
 // Returns empty slice if no searches found at that offset.
 func (r *SearchRepository) ListUserSearchesPaginated(ctx context.Context, userID int64, limit, offset int) ([]*SavedSearch, error) {
 	if r.db == nil {
-		// Build list from in-memory map
-		var all []*SavedSearch
-		for _, s := range r.memSearches {
-			if s.UserID == userID {
-				all = append(all, s)
-			}
-		}
-		// Sort by CreatedAt desc, then ID desc
-		sort.Slice(all, func(i, j int) bool {
-			if all[i].CreatedAt.Equal(all[j].CreatedAt) {
-				return all[i].ID > all[j].ID
-			}
-			return all[i].CreatedAt.After(all[j].CreatedAt)
-		})
-
-		// Apply offset and limit
-		start := offset
-		if start > len(all) {
-			return []*SavedSearch{}, nil
-		}
-		end := len(all)
-		if limit > 0 && start+limit < end {
-			end = start + limit
-		}
-		return all[start:end], nil
+		return r.listUserSearchesPaginatedMem(userID, limit, offset)
 	}
 
 	query := `
@@ -649,4 +631,34 @@ func (r *SearchRepository) ListUserSearchesPaginated(ctx context.Context, userID
 	}
 
 	return searches, nil
+}
+
+// listUserSearchesPaginatedMem is a helper for ListUserSearchesPaginated to use in-memory storage.
+func (r *SearchRepository) listUserSearchesPaginatedMem(userID int64, limit, offset int) ([]*SavedSearch, error) {
+	// Filter searches for the user
+	var all []*SavedSearch
+	for _, s := range r.memSearches {
+		if s.UserID == userID {
+			all = append(all, s)
+		}
+	}
+
+	// Sort by CreatedAt desc, then ID desc
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].CreatedAt.Equal(all[j].CreatedAt) {
+			return all[i].ID > all[j].ID
+		}
+		return all[i].CreatedAt.After(all[j].CreatedAt)
+	})
+
+	// Apply offset and limit
+	start := offset
+	if start > len(all) {
+		return []*SavedSearch{}, nil
+	}
+	end := len(all)
+	if limit > 0 && start+limit < end {
+		end = start + limit
+	}
+	return all[start:end], nil
 }
