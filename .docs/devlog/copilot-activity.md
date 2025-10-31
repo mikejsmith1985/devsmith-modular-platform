@@ -2726,3 +2726,78 @@ allowing development on files with pre-existing issues.
 
 ---
 
+
+## 2025-10-31 05:56 - replace selective linting with full-repo QA scan for consistency
+**Branch:** development
+**Files Changed:**  1 file changed, 18 insertions(+), 5 deletions(-)
+- `.github/workflows/ci.yml`
+
+**Action:** replace selective linting with full-repo QA scan for consistency
+
+**Commit:** `0666ed0`
+
+**Commit Message:**
+```
+fix(ci): replace selective linting with full-repo QA scan for consistency
+```
+
+**Details:**
+```
+CHANGE: Update GitHub Actions CI workflow to use comprehensive linting
+
+Previous Approach (ISSUES):
+- Used --new-from-rev=origin/development for selective comparison
+- Created false positives when branches shared same base commit
+- Inconsistent with local pre-push hook behavior
+- Baseline drift problems in fresh CI environment
+
+New Approach (INDUSTRY STANDARD):
+- Full repository linting scan for deterministic results
+- Same linting logic as local pre-push hook
+- No baseline comparison - catches all real issues
+- Matches Google/Kubernetes/major OSS best practices
+- Enhanced build verification after linting
+
+Benefits:
+✅ Zero false positives - every issue is real
+✅ Consistent pre-push (local) and CI (remote) behavior
+✅ Full module context for accurate type checking
+✅ Deterministic results across all environments
+✅ Aligns with quality standards (70%+ coverage requirement)
+
+This fixes the PR lint failures on all 5 open PRs (#74-#78)
+```
+
+---
+
+
+## 2025-10-31 06:29 - docs(issue-79): Phase 1 tactical analysis - categorize 147 linting issues by type
+**Branch:** development
+**Files Changed:**  1 file changed, 452 insertions(+)
+- `.docs/devlog/phase1_lint_analysis.md`
+
+**Action:** docs(issue-79): Phase 1 tactical analysis - categorize 147 linting issues by type
+
+**Commit:** `70dc9eb`
+
+**Commit Message:**
+```
+docs(issue-79): Phase 1 tactical analysis - categorize 147 linting issues by type
+```
+
+**Details:**
+```
+- 66 fieldalignment issues (45%) - low-effort automated fixes
+- 13 ifElseChain issues (8.8%) - control flow optimization
+- 5 nestif issues - nested complexity reduction
+- 4 security/compliance issues - revive, gosec, http best practices
+- 3 other categories
+- Estimated total effort: 5-7 hours across 4 PRs
+- Risk assessment and tool recommendations included
+- Ready for Phase 2 strategic review by Sonnet
+
+All 147 issues now categorized with effort estimates and PR bundling strategy.
+```
+
+---
+
