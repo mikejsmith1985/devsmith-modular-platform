@@ -596,23 +596,29 @@ When creating PRs, include one of these keywords in the PR body to automatically
 - `resolves #ISSUE_NUMBER` (closes issue when PR merges)
 - `related to #ISSUE_NUMBER` (links without closing)
 
+**IMPORTANT: GitHub Limitation**
+Auto-closing ONLY works when merging to the **default branch** (`main` or `master`).
+Since we merge to `development`, the `closes` keyword creates a link but does NOT auto-close.
+
+**For Development Branch Workflow:**
+Use `closes #ISSUE_NUMBER` to create the link anyway - maintainer will close issue manually after merge.
+
 **Example PR Body**:
 ```
 ## Summary
 This PR implements feature X
 
 ## Related
-- closes #79
-- related to #80
+- closes #80
+- related to #81
 
 ## Testing
 - [ ] All tests pass
 ```
 
-**Why**: GitHub automatically parses these keywords and:
-1. Shows PR linked to issue on issue page
-2. Closes issue when PR merges to default branch
-3. Improves traceability and project tracking
+**Why This Happens:**
+GitHub's auto-closing is a repository setting that only applies to the default branch.
+To change this, repository settings would need to allow `development` as auto-close branch.
 
 **For Haiku**: Always include the closing keyword when creating PRs via gh CLI:
 ```bash
@@ -628,6 +634,8 @@ closes #X
 - [ ] Tests pass
   "
 ```
+
+The link will be created, but manual closure may be needed on non-default branches.
 
 ---
 
