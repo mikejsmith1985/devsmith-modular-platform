@@ -3253,3 +3253,78 @@ Files:
 
 ---
 
+
+## 2025-10-31 12:27 - feat(phase2-router): implement intelligent AI router with TDD
+**Branch:** development
+**Files Changed:**  3 files changed, 600 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+- `internal/ai/router.go`
+- `internal/ai/router_test.go`
+
+**Action:** feat(phase2-router): implement intelligent AI router with TDD
+
+**Commit:** `af30063`
+
+**Commit Message:**
+```
+feat(phase2-router): implement intelligent AI router with TDD
+```
+
+**Details:**
+```
+Implements dynamic provider selection based on context and preferences.
+
+**RED → GREEN → REFACTOR Workflow:**
+- Tests written FIRST (18 comprehensive test cases)
+- Implementation minimal but complete
+- All tests pass: 18 router + 38 providers = 56/56 (100% in <10 seconds)
+
+**AI Router Features:**
+- Provider registration system (dynamic additions)
+- User preference storage (per-app selections)
+- Intelligent routing logic:
+  * Default: Select cheapest provider (Ollama if available)
+  * User override: Respect persistent user selections
+  * Session memory: Temporary preferences during session
+  * App isolation: Different preferences per application
+- Fallback handling: Graceful degradation if preferred unavailable
+- Concurrent-safe operations (RWMutex protection)
+
+**Routing Strategy:**
+1. Check user preference for (userID, app) combination
+2. If exists and provider available → return
+3. Otherwise → select cheapest provider (favors free Ollama)
+4. App-specific routing: users can have different preferences per app
+
+**Test Coverage:**
+- Constructor validation
+- Provider registration: acceptance, rejection (nil, empty)
+- Default routing: cheapest provider preference
+- User preferences: persistence, temporary, app-specific
+- Multiple providers: complex scenarios
+- Error handling: fallback on unknown provider
+- Concurrency: thread-safe operations
+- Model availability listing
+
+**Architecture Benefits:**
+- Platform-level defaults (Ollama)
+- Per-app overrides (Review: Sonnet, Logs: Haiku)
+- User session memory (remember last choice)
+- Cost-optimized fallbacks
+- Future DB integration (persist flag ready)
+
+**Usage Pattern:**
+
+**Integration Ready:**
+- All 3 providers (Ollama, Anthropic, OpenAI) compatible
+- Cost tracking framework in place
+- Preference persistence structure (TODO: database)
+- Usage logging structure (TODO: database)
+
+Files:
+- internal/ai/router.go (DefaultRouter implementation)
+- internal/ai/router_test.go (18 comprehensive test cases)
+```
+
+---
+
