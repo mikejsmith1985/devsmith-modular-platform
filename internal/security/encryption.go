@@ -1,3 +1,4 @@
+// Package security provides cryptographic and security utilities for the DevSmith platform.
 package security
 
 import (

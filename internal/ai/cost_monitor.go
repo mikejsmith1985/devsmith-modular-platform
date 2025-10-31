@@ -11,11 +11,11 @@ import (
 
 // UserCostRecord stores cost data for a single user
 type UserCostRecord struct {
+	LastUsedAt          time.Time
 	UserID              int64
 	TotalCost           float64
 	RequestCount        int64
 	TotalResponseTimeMs int64
-	LastUsedAt          time.Time
 }
 
 // AppStats stores aggregate statistics for an application

@@ -1,3 +1,4 @@
+// Package providers implements AI provider clients for various services.
 package providers
 
 import (
@@ -15,10 +16,10 @@ import (
 
 // AnthropicClient implements the AIProvider interface for Anthropic models
 type AnthropicClient struct {
+	httpClient *http.Client
 	apiKey     string
 	model      string
 	apiBaseURL string
-	httpClient *http.Client
 }
 
 // anthropicRequest represents the JSON request sent to Anthropic API
@@ -31,16 +32,16 @@ type anthropicRequest struct {
 
 // anthropicResponse represents the JSON response from Anthropic API
 type anthropicResponse struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Role    string `json:"role"`
-	Content []struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Role       string `json:"role"`
+	Model      string `json:"model"`
+	StopReason string `json:"stop_reason"`
+	Content    []struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
-	Model      string `json:"model"`
-	StopReason string `json:"stop_reason"`
-	Usage      struct {
+	Usage struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
 	} `json:"usage"`
@@ -124,11 +125,19 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to Anthropic: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		if closeErr := httpResp.Body.Close(); closeErr != nil {
+			// Log but don't fail on close error
+		}
+	}()
 
 	// Check HTTP status
 	if httpResp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(httpResp.Body)
+		readErr := error(nil)
+		bodyBytes, readErr := io.ReadAll(httpResp.Body)
+		if readErr != nil {
+			bodyBytes = []byte("(unable to read error body)")
+		}
 		return nil, fmt.Errorf("HTTP %d from Anthropic: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 

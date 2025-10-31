@@ -378,8 +378,8 @@ func TestDefaultRouter_Concurrency(t *testing.T) {
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func(userID int64) {
-			router.SetUserPreference(context.Background(), int64(userID), "review", "test", "test-model", true)
-			router.Route(context.Background(), "review", int64(userID))
+			router.SetUserPreference(context.Background(), userID, "review", "test", "test-model", true)
+			router.Route(context.Background(), "review", userID)
 			done <- true
 		}(int64(i))
 	}
