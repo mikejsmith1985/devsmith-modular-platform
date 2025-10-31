@@ -1,3 +1,4 @@
+// Package review_services provides business logic services for the Review Service
 package review_services
 
 import (
@@ -14,6 +15,7 @@ import (
 // ExportFormat defines supported export formats
 type ExportFormat string
 
+// Export format constants
 const (
 	FormatPDF      ExportFormat = "pdf"
 	FormatMarkdown ExportFormat = "md"
@@ -22,8 +24,8 @@ const (
 
 // ExportRequest contains parameters for exporting analysis results
 type ExportRequest struct {
-	SessionID    int64        `json:"session_id"`
 	Format       ExportFormat `json:"format"`
+	SessionID    int64        `json:"session_id"`
 	IncludeCode  bool         `json:"include_code"`
 	IncludeRawAI bool         `json:"include_raw_ai"`
 }
@@ -32,9 +34,9 @@ type ExportRequest struct {
 type ExportResult struct {
 	SessionID      int64
 	Format         ExportFormat
-	Content        []byte // PDF, MD, or JSON bytes
-	MimeType       string
 	Filename       string
+	MimeType       string
+	Content        []byte // PDF, MD, or JSON bytes
 	ExportedAt     time.Time
 	AnalysisResult *review_models.AnalysisResult
 }
@@ -74,7 +76,7 @@ func (s *ExportService) Export(ctx context.Context, analysis *review_models.Anal
 }
 
 // exportJSON exports analysis as JSON
-func (s *ExportService) exportJSON(ctx context.Context, analysis *review_models.AnalysisResult) (*ExportResult, error) {
+func (s *ExportService) exportJSON(_ context.Context, analysis *review_models.AnalysisResult) (*ExportResult, error) {
 	// Create JSON export structure
 	exportData := map[string]interface{}{
 		"export_date": time.Now().UTC(),
@@ -103,7 +105,7 @@ func (s *ExportService) exportJSON(ctx context.Context, analysis *review_models.
 }
 
 // exportMarkdown exports analysis as Markdown
-func (s *ExportService) exportMarkdown(ctx context.Context, analysis *review_models.AnalysisResult) (*ExportResult, error) {
+func (s *ExportService) exportMarkdown(_ context.Context, analysis *review_models.AnalysisResult) (*ExportResult, error) {
 	var buf bytes.Buffer
 
 	// Write markdown header
