@@ -7,14 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockProvider is a mock AIProvider for testing
+// mockProvider is a mock Provider for testing
+//
+//nolint:govet // field alignment not critical for mock struct
 type mockProvider struct {
 	name string
 	info *ModelInfo
 }
 
-func (m *mockProvider) Generate(ctx context.Context, req *AIRequest) (*AIResponse, error) {
-	return &AIResponse{
+func (m *mockProvider) Generate(ctx context.Context, req *Request) (*Response, error) {
+	return &Response{
 		Content:      "mock response from " + m.name,
 		InputTokens:  10,
 		OutputTokens: 20,
@@ -92,8 +94,8 @@ func TestDefaultRouter_Route_ReturnsOllamaByDefault(t *testing.T) {
 	ollama := &mockProvider{
 		name: "ollama",
 		info: &ModelInfo{
-			Provider: "ollama",
-			Model:    "local-model",
+			Provider:             "ollama",
+			Model:                "local-model",
 			CostPer1kInputTokens: 0.0,
 		},
 	}
@@ -245,10 +247,10 @@ func TestDefaultRouter_GetAvailableModels_ReturnsAllRegistered(t *testing.T) {
 func TestDefaultRouter_LogUsage_RecordsUsage(t *testing.T) {
 	router := NewDefaultRouter()
 
-	req := &AIRequest{
+	req := &Request{
 		Prompt: "test prompt",
 	}
-	resp := &AIResponse{
+	resp := &Response{
 		Content:      "test response",
 		InputTokens:  100,
 		OutputTokens: 50,
@@ -378,8 +380,8 @@ func TestDefaultRouter_Concurrency(t *testing.T) {
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func(userID int64) {
-			router.SetUserPreference(context.Background(), int64(userID), "review", "test", "test-model", true)
-			router.Route(context.Background(), "review", int64(userID))
+			router.SetUserPreference(context.Background(), userID, "review", "test", "test-model", true)
+			router.Route(context.Background(), "review", userID)
 			done <- true
 		}(int64(i))
 	}

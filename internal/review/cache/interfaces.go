@@ -8,8 +8,8 @@ import (
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
-// CacheInterface defines the contract for caching analysis results.
-type CacheInterface interface {
+// Interface defines the contract for caching analysis results.
+type Interface interface {
 	// Get retrieves a cached analysis result by review ID and mode
 	Get(ctx context.Context, reviewID int64, mode string) (*review_models.AnalysisResult, error)
 
@@ -23,11 +23,11 @@ type CacheInterface interface {
 	Clear(ctx context.Context) error
 
 	// Stats returns cache performance statistics
-	Stats(ctx context.Context) *CacheStats
+	Stats(ctx context.Context) *Stats
 }
 
-// CacheStats holds cache performance metrics
-type CacheStats struct {
+// Stats holds cache performance metrics
+type Stats struct {
 	Hits          int64
 	Misses        int64
 	Evictions     int64

@@ -1,3 +1,4 @@
+// Package ai provides AI provider abstraction, routing, and cost monitoring.
 package ai
 
 import (
@@ -10,21 +11,21 @@ import (
 
 // UserCostRecord stores cost data for a single user
 type UserCostRecord struct {
+	LastUsedAt          time.Time
 	UserID              int64
 	TotalCost           float64
 	RequestCount        int64
 	TotalResponseTimeMs int64
-	LastUsedAt          time.Time
 }
 
 // AppStats stores aggregate statistics for an application
 type AppStats struct {
-	AppName                string
-	TotalCost              float64
-	RequestCount           int64
-	AverageCostPerRequest  float64
-	AverageResponseTimeMs  int64
-	UniqueUsers            int
+	AppName               string
+	TotalCost             float64
+	RequestCount          int64
+	AverageCostPerRequest float64
+	AverageResponseTimeMs int64
+	UniqueUsers           int
 }
 
 // CostMonitor tracks AI usage and costs for users and applications
@@ -67,7 +68,7 @@ func NewCostMonitor() *CostMonitor {
 }
 
 // RecordUsage records an AI API usage for cost tracking
-func (m *CostMonitor) RecordUsage(ctx context.Context, userID int64, appName string, req *AIRequest, resp *AIResponse) error {
+func (m *CostMonitor) RecordUsage(ctx context.Context, userID int64, appName string, req *Request, resp *Response) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -135,9 +136,8 @@ func (m *CostMonitor) GetUserUsageStats(userID int64) *UserCostRecord {
 	defer m.mu.RUnlock()
 
 	if stats, exists := m.userStats[userID]; exists {
-		// Return a copy to prevent external modification
-		copy := *stats
-		return &copy
+		statsCopy := *stats
+		return &statsCopy
 	}
 	return nil
 }
@@ -161,7 +161,9 @@ func (m *CostMonitor) GetAppStats(appName string) *AppStats {
 		// Parse key format "userID:appName"
 		var u int64
 		var a string
-		fmt.Sscanf(key, "%d:%s", &u, &a)
+		if _, err := fmt.Sscanf(key, "%d:%s", &u, &a); err != nil {
+			continue // Skip malformed key
+		}
 		if a == appName {
 			uniqueUsers++
 		}
@@ -284,8 +286,8 @@ func (m *CostMonitor) GetUserCostTrend(userID int64) *UserCostRecord {
 	defer m.mu.RUnlock()
 
 	if stats, exists := m.userStats[userID]; exists {
-		copy := *stats
-		return &copy
+		statsCopy2 := *stats
+		return &statsCopy2
 	}
 	return nil
 }

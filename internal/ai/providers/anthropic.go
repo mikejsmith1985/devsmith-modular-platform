@@ -1,3 +1,4 @@
+// Package providers contains AI provider implementations for different services.
 package providers
 
 import (
@@ -13,34 +14,34 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// AnthropicClient implements the AIProvider interface for Anthropic models
+// AnthropicClient implements the Provider interface for Anthropic models
 type AnthropicClient struct {
+	httpClient *http.Client
 	apiKey     string
 	model      string
 	apiBaseURL string
-	httpClient *http.Client
 }
 
 // anthropicRequest represents the JSON request sent to Anthropic API
 type anthropicRequest struct {
-	Model       string  `json:"model"`
+	Model       string              `json:"model"`
 	Messages    []map[string]string `json:"messages"`
-	MaxTokens   int     `json:"max_tokens,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
+	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Temperature float64             `json:"temperature,omitempty"`
 }
 
 // anthropicResponse represents the JSON response from Anthropic API
 type anthropicResponse struct {
-	ID        string `json:"id"`
-	Type      string `json:"type"`
-	Role      string `json:"role"`
-	Content   []struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Role       string `json:"role"`
+	Model      string `json:"model"`
+	StopReason string `json:"stop_reason"`
+	Content    []struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
-	Model      string `json:"model"`
-	StopReason string `json:"stop_reason"`
-	Usage      struct {
+	Usage struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
 	} `json:"usage"`
@@ -54,16 +55,16 @@ type modelPricing struct {
 
 var claudeModels = map[string]modelPricing{
 	"claude-3-5-haiku-20241022": {
-		inputCostPer1k:  0.00080,  // $0.80 per 1M input tokens
-		outputCostPer1k: 0.00240,  // $2.40 per 1M output tokens
+		inputCostPer1k:  0.00080, // $0.80 per 1M input tokens
+		outputCostPer1k: 0.00240, // $2.40 per 1M output tokens
 	},
 	"claude-3-5-sonnet-20241022": {
-		inputCostPer1k:  0.003,    // $3.00 per 1M input tokens
-		outputCostPer1k: 0.015,    // $15.00 per 1M output tokens
+		inputCostPer1k:  0.003, // $3.00 per 1M input tokens
+		outputCostPer1k: 0.015, // $15.00 per 1M output tokens
 	},
 	"claude-3-opus-20250219": {
-		inputCostPer1k:  0.015,    // $15.00 per 1M input tokens
-		outputCostPer1k: 0.075,    // $75.00 per 1M output tokens
+		inputCostPer1k:  0.015, // $15.00 per 1M input tokens
+		outputCostPer1k: 0.075, // $75.00 per 1M output tokens
 	},
 }
 
@@ -80,7 +81,7 @@ func NewAnthropicClient(apiKey, model string) *AnthropicClient {
 }
 
 // Generate sends a prompt to Anthropic and returns the response
-func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIResponse, error) {
+func (c *AnthropicClient) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Prepare Anthropic request
 	anthropicReq := anthropicRequest{
 		Model: c.model,
@@ -124,23 +125,28 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to Anthropic: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
+	}()
 
 	// Check HTTP status
 	if httpResp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(httpResp.Body)
+		readErr := error(nil)
+		bodyBytes, readErr := io.ReadAll(httpResp.Body)
+		if readErr != nil {
+			bodyBytes = []byte("(unable to read error body)")
+		}
 		return nil, fmt.Errorf("HTTP %d from Anthropic: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
-	// Read response body
-	respBody, err := io.ReadAll(httpResp.Body)
+	bodyBytes, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// Parse JSON response
 	var anthropicResp anthropicResponse
-	if err := json.Unmarshal(respBody, &anthropicResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &anthropicResp); err != nil {
 		return nil, fmt.Errorf("failed to parse Anthropic response: %w", err)
 	}
 
@@ -155,7 +161,7 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 	// Calculate cost
 	cost := c.calculateCost(anthropicResp.Usage.InputTokens, anthropicResp.Usage.OutputTokens)
 
-	return &ai.AIResponse{
+	return &ai.Response{
 		Content:      textContent.String(),
 		InputTokens:  anthropicResp.Usage.InputTokens,
 		OutputTokens: anthropicResp.Usage.OutputTokens,
@@ -169,7 +175,7 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 // HealthCheck verifies that the API key is valid and can reach Anthropic
 func (c *AnthropicClient) HealthCheck(ctx context.Context) error {
 	// Create a minimal test request
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:    "test",
 		MaxTokens: 10,
 	}

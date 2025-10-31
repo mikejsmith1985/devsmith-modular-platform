@@ -1,9 +1,9 @@
 package templates
 
-import "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+import logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 
 // HealthPoliciesTab renders the health policies configuration tab
-templ HealthPoliciesTab(policies []services.HealthPolicy) {
+templ HealthPoliciesTab(policies []logs_services.HealthPolicy) {
 	<div class="tab-pane fade" id="health-policies" role="tabpanel">
 		<div class="container mx-auto p-6">
 			<!-- Header -->
@@ -48,7 +48,7 @@ templ HealthPoliciesTab(policies []services.HealthPolicy) {
 }
 
 // PolicyCard renders an editable policy card for a service
-templ PolicyCard(policy services.HealthPolicy) {
+templ PolicyCard(policy logs_services.HealthPolicy) {
 	<div class="card bg-base-100 shadow-xl">
 		<div class="card-body">
 			<h3 class="card-title text-lg">{ policy.ServiceName }</h3>
@@ -158,7 +158,7 @@ templ PolicyCard(policy services.HealthPolicy) {
 }
 
 // PolicySummary renders a compact policy summary
-templ PolicySummary(policy services.HealthPolicy) {
+templ PolicySummary(policy logs_services.HealthPolicy) {
 	<div class="flex justify-between items-center p-4 border-b">
 		<div>
 			<p class="font-semibold">{ policy.ServiceName }</p>

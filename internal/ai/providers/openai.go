@@ -1,3 +1,4 @@
+// Package providers contains AI provider implementations for different services.
 package providers
 
 import (
@@ -13,27 +14,26 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// OpenAIClient implements the AIProvider interface for OpenAI models
+// OpenAIClient implements the Provider interface for OpenAI models
 type OpenAIClient struct {
+	httpClient *http.Client
 	apiKey     string
 	model      string
 	apiBaseURL string
-	httpClient *http.Client
 }
 
 // openaiRequest represents the JSON request sent to OpenAI API
 type openaiRequest struct {
-	Model       string  `json:"model"`
+	Model       string              `json:"model"`
 	Messages    []map[string]string `json:"messages"`
-	MaxTokens   int     `json:"max_tokens,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
+	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Temperature float64             `json:"temperature,omitempty"`
 }
 
 // openaiResponse represents the JSON response from OpenAI API
 type openaiResponse struct {
 	ID      string `json:"id"`
 	Object  string `json:"object"`
-	Created int64  `json:"created"`
 	Model   string `json:"model"`
 	Choices []struct {
 		Message struct {
@@ -48,6 +48,7 @@ type openaiResponse struct {
 		CompletionTokens int `json:"completion_tokens"`
 		TotalTokens      int `json:"total_tokens"`
 	} `json:"usage"`
+	Created int64 `json:"created"`
 }
 
 // openaiModelPricing contains cost information for different GPT models
@@ -58,16 +59,16 @@ type openaiModelPricing struct {
 
 var gptModels = map[string]openaiModelPricing{
 	"gpt-4-turbo": {
-		inputCostPer1k:  0.01,   // $10.00 per 1M input tokens
-		outputCostPer1k: 0.03,   // $30.00 per 1M output tokens
+		inputCostPer1k:  0.01, // $10.00 per 1M input tokens
+		outputCostPer1k: 0.03, // $30.00 per 1M output tokens
 	},
 	"gpt-4o": {
-		inputCostPer1k:  0.005,  // $5.00 per 1M input tokens
-		outputCostPer1k: 0.015,  // $15.00 per 1M output tokens
+		inputCostPer1k:  0.005, // $5.00 per 1M input tokens
+		outputCostPer1k: 0.015, // $15.00 per 1M output tokens
 	},
 	"gpt-4-32k": {
-		inputCostPer1k:  0.06,   // $60.00 per 1M input tokens
-		outputCostPer1k: 0.12,   // $120.00 per 1M output tokens
+		inputCostPer1k:  0.06, // $60.00 per 1M input tokens
+		outputCostPer1k: 0.12, // $120.00 per 1M output tokens
 	},
 }
 
@@ -84,7 +85,7 @@ func NewOpenAIClient(apiKey, model string) *OpenAIClient {
 }
 
 // Generate sends a prompt to OpenAI and returns the response
-func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIResponse, error) {
+func (c *OpenAIClient) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Prepare OpenAI request
 	openaiReq := openaiRequest{
 		Model: c.model,
@@ -124,23 +125,27 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to OpenAI: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
+	}()
 
 	// Check HTTP status
 	if httpResp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(httpResp.Body)
+		bodyBytes, readErr := io.ReadAll(httpResp.Body)
+		if readErr != nil {
+			bodyBytes = []byte("(unable to read error body)")
+		}
 		return nil, fmt.Errorf("HTTP %d from OpenAI: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
-	// Read response body
-	respBody, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+	bodyBytes, readErr := io.ReadAll(httpResp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", readErr)
 	}
 
 	// Parse JSON response
 	var openaiResp openaiResponse
-	if err := json.Unmarshal(respBody, &openaiResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &openaiResp); err != nil {
 		return nil, fmt.Errorf("failed to parse OpenAI response: %w", err)
 	}
 
@@ -154,7 +159,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 	// Calculate cost
 	cost := c.calculateCost(openaiResp.Usage.PromptTokens, openaiResp.Usage.CompletionTokens)
 
-	return &ai.AIResponse{
+	return &ai.Response{
 		Content:      choice.Message.Content,
 		InputTokens:  openaiResp.Usage.PromptTokens,
 		OutputTokens: openaiResp.Usage.CompletionTokens,
@@ -168,7 +173,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 // HealthCheck verifies that the API key is valid and can reach OpenAI
 func (c *OpenAIClient) HealthCheck(ctx context.Context) error {
 	// Create a minimal test request
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:    "test",
 		MaxTokens: 5,
 	}
