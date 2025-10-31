@@ -507,3 +507,149 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, sessions, "should return empty slice for non-existent session")
 }
+
+// TestIntegration_ReviewRepository_ListByUserID tests paginated list of user sessions
+func TestIntegration_ReviewRepository_ListByUserID(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := context.Background()
+	db := setupIntegrationDB(ctx, t)
+	defer db.Close()
+
+	repo := NewReviewRepository(db)
+	userID := int64(100)
+
+	// GIVEN: Create 5 sessions for user
+	for i := 0; i < 5; i++ {
+		_, err := repo.Create(ctx, &Review{
+			UserID:     userID,
+			Title:      fmt.Sprintf("Session %d", i),
+			CodeSource: "paste",
+		})
+		require.NoError(t, err)
+	}
+
+	// WHEN: List with limit and offset
+	reviews, total, err := repo.ListByUserID(ctx, userID, 2, 1)
+
+	// THEN: Returns paginated results
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(reviews), "should return 2 sessions (limit=2)")
+	assert.Equal(t, 5, total, "total should be 5")
+	for _, review := range reviews {
+		assert.Equal(t, userID, review.UserID)
+	}
+}
+
+// TestIntegration_ReviewRepository_ListByUserID_EmptyUser tests empty list for user with no sessions
+func TestIntegration_ReviewRepository_ListByUserID_EmptyUser(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := context.Background()
+	db := setupIntegrationDB(ctx, t)
+	defer db.Close()
+
+	repo := NewReviewRepository(db)
+
+	// WHEN: Query for user with no sessions
+	reviews, total, err := repo.ListByUserID(ctx, 999999, 10, 0)
+
+	// THEN: Return empty results
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(reviews))
+	assert.Equal(t, 0, total)
+}
+
+// TestIntegration_ReviewRepository_DeleteByID tests session deletion
+func TestIntegration_ReviewRepository_DeleteByID(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := context.Background()
+	db := setupIntegrationDB(ctx, t)
+	defer db.Close()
+
+	repo := NewReviewRepository(db)
+
+	// GIVEN: Session exists
+	created, err := repo.Create(ctx, &Review{
+		UserID:     int64(200),
+		Title:      "To Delete",
+		CodeSource: "paste",
+	})
+	require.NoError(t, err)
+
+	// WHEN: Delete session
+	err = repo.DeleteByID(ctx, created.ID)
+
+	// THEN: Session is removed
+	require.NoError(t, err)
+	retrieved, err := repo.GetByID(ctx, created.ID)
+	require.NoError(t, err)
+	assert.Nil(t, retrieved, "session should be deleted")
+}
+
+// TestIntegration_ReviewRepository_UpdateLastAccessed tests timestamp update
+func TestIntegration_ReviewRepository_UpdateLastAccessed(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := context.Background()
+	db := setupIntegrationDB(ctx, t)
+	defer db.Close()
+
+	repo := NewReviewRepository(db)
+
+	// GIVEN: Session exists
+	created, err := repo.Create(ctx, &Review{
+		UserID:     int64(300),
+		Title:      "To Update",
+		CodeSource: "paste",
+	})
+	require.NoError(t, err)
+	originalTime := created.LastAccessed
+
+	// WHEN: Update last accessed
+	time.Sleep(100 * time.Millisecond)
+	err = repo.UpdateLastAccessed(ctx, created.ID)
+
+	// THEN: Timestamp updated
+	require.NoError(t, err)
+	updated, err := repo.GetByID(ctx, created.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, originalTime, updated.LastAccessed, "LastAccessed should be updated")
+}
+
+// TestIntegration_ReviewRepository_FindExpiredSessions tests expired session detection
+func TestIntegration_ReviewRepository_FindExpiredSessions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	ctx := context.Background()
+	db := setupIntegrationDB(ctx, t)
+	defer db.Close()
+
+	repo := NewReviewRepository(db)
+
+	// GIVEN: Create session (will be recent, not expired)
+	_, err := repo.Create(ctx, &Review{
+		UserID:     int64(400),
+		Title:      "Recent",
+		CodeSource: "paste",
+	})
+	require.NoError(t, err)
+
+	// WHEN: Find sessions expired > 30 days ago
+	expiredSessions, err := repo.FindExpiredSessions(ctx, 30)
+
+	// THEN: Recently created session not included
+	require.NoError(t, err)
+	assert.Empty(t, expiredSessions, "recent session should not be expired")
+}
