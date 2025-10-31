@@ -13,8 +13,8 @@ import (
 
 // Client sends logs to the logging service via HTTP.
 type Client struct {
-	endpoint   string
 	httpClient *http.Client
+	endpoint   string
 }
 
 // NewClient creates a new logging client that posts to the provided endpoint.
