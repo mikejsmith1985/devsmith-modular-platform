@@ -2941,3 +2941,68 @@ docs: log activity
 
 ---
 
+
+## 2025-10-31 11:45 - test(phase1b): add retroactive tests for navigation header component
+**Branch:** development
+**Files Changed:**  32 files changed, 1389 insertions(+), 295 deletions(-)
+- `apps/analytics/templates/components/anomaly_card_templ.go`
+- `apps/analytics/templates/components/issues_table_templ.go`
+- `apps/analytics/templates/dashboard_templ.go`
+- `apps/analytics/templates/layout_templ.go`
+- `apps/logs/templates/dashboard_templ.go`
+- `apps/logs/templates/health_policies_templ.go`
+- `apps/logs/templates/health_trends_templ.go`
+- `apps/logs/templates/healthcheck_templ.go`
+- `apps/logs/templates/layout_templ.go`
+- `apps/logs/templates/security_scans_templ.go`
+- `apps/portal/templates/dashboard_templ.go`
+- `apps/portal/templates/layout_templ.go`
+- `apps/review/templates/ReviewModes_red_test_templ.go`
+- `apps/review/templates/analysis_templ.go`
+- `apps/review/templates/critical_mode_templ.go`
+- `apps/review/templates/detailed_mode_templ.go`
+- `apps/review/templates/home_templ.go`
+- `apps/review/templates/layout_templ.go`
+- `apps/review/templates/preview_mode_templ.go`
+- `apps/review/templates/preview_templ.go`
+
+**Action:** test(phase1b): add retroactive tests for navigation header component
+
+**Commit:** `9c01b68`
+
+**Commit Message:**
+```
+test(phase1b): add retroactive tests for navigation header component
+```
+
+**Details:**
+```
+- Add 14 comprehensive test cases for Header navigation component
+- Tests verify: back button conditional rendering, logo presence, app switcher,
+  current app indicator, dark mode toggle, user menu, accessibility attributes
+- All tests pass (GREEN phase) with 14/14 passing
+- Follows TDD workflow: Tests written, code exists, verification complete
+- Navigation component now has 59.8% test coverage
+
+Tests cover:
+- Back button only on non-portal apps
+- Logo always present and links to home
+- App switcher contains all 5 apps (Portal, Review, Logs, Analytics, Health)
+- Current app indicator shows correct app
+- Dark mode toggle rendered with icons
+- User menu displays username and email
+- Logout button uses HTMX POST
+- Settings links present (Profile, Settings, AI Preferences)
+- Header structure (semantic HTML with 3-part layout)
+- Accessibility attributes (ARIA labels and roles)
+- Nil user handling (graceful degradation)
+- Dropdown menu accessibility (keyboard navigation)
+
+Test file: internal/ui/components/nav/header_test.go
+Related files:
+- internal/ui/components/nav/header.templ (updated for correct field names)
+- internal/ui/components/nav/theme.js (theme persistence logic)
+```
+
+---
+
