@@ -1,18 +1,40 @@
 package templates
 
+import (
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/nav"
+)
+
 templ Layout(title string) {
 	<!DOCTYPE html>
-	<html lang="en">
+	<html lang="en" class="scroll-smooth">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="description" content="DevSmith Review - AI-powered code analysis with 5 reading modes"/>
 			<title>{ title } - DevSmith Review</title>
+			<script src="https://cdn.tailwindcss.com"></script>
+			<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 			<link rel="stylesheet" href="/static/css/review.css"/>
 		</head>
-		<body>
-			<div class="app-container">
+		<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
+			<!-- Navigation (without user context for review app) -->
+			@nav.Navigation(nav.NavProps{
+				CurrentUser: nil,
+				CurrentPath: "review",
+			})
+
+			<!-- Main Content -->
+			<main class="flex-1">
 				{ children... }
-			</div>
+			</main>
+
+			<!-- Footer -->
+			<footer class="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8 mt-12">
+				<div class="max-w-7xl mx-auto text-center text-sm text-gray-500 dark:text-gray-400">
+					<p>© 2024 DevSmith Review. Advanced code analysis with AI.</p>
+				</div>
+			</footer>
+
 			<script src="/static/js/review.js"></script>
 			<script src="/static/js/analysis.js"></script>
 		</body>

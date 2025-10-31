@@ -1,0 +1,103 @@
+package modal
+
+type Action struct {
+	Label string
+	ID    string
+}
+
+type ModalProps struct {
+	Title             string
+	Content           string
+	Size              string // sm, md, lg, xl
+	Closeable         bool
+	CloseLabel        string
+	PrimaryAction     *Action
+	SecondaryAction   *Action
+	HasImage          bool
+	ImageURL          string
+	ImageAlt          string
+	Scrollable        bool
+	IsDanger          bool
+}
+
+templ Modal(props ModalProps) {
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/70" role="presentation">
+		<div class={ modalClass(props.Size) } role="dialog" aria-labelledby="modal-title" aria-modal="true">
+			<!-- Header -->
+			<div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+				<h2 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">{ props.Title }</h2>
+				if props.Closeable {
+					<button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none" aria-label={ props.CloseLabel }>
+						<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+						</svg>
+					</button>
+				}
+			</div>
+
+			<!-- Content -->
+			if props.HasImage && props.ImageURL != "" {
+				<div class="relative h-48 overflow-hidden bg-gray-100 dark:bg-gray-800">
+					<img src={ props.ImageURL } alt={ props.ImageAlt } class="h-full w-full object-cover"/>
+				</div>
+			}
+
+			<div class={ contentClass(props.Scrollable) }>
+				{ props.Content }
+			</div>
+
+			<!-- Footer -->
+			<div class="flex justify-end gap-3 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+				if props.SecondaryAction != nil {
+					<button 
+						type="button" 
+						id={ props.SecondaryAction.ID }
+						class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+					>
+						{ props.SecondaryAction.Label }
+					</button>
+				}
+				if props.PrimaryAction != nil {
+					<button 
+						type="button" 
+						id={ props.PrimaryAction.ID }
+						class={ primaryButtonClass(props.IsDanger) }
+					>
+						{ props.PrimaryAction.Label }
+					</button>
+				}
+			</div>
+		</div>
+	</div>
+}
+
+func modalClass(size string) string {
+	base := "bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full"
+
+	switch size {
+	case "sm":
+		return base + " max-w-sm"
+	case "lg":
+		return base + " max-w-2xl"
+	case "xl":
+		return base + " max-w-4xl"
+	default: // md
+		return base + " max-w-lg"
+	}
+}
+
+func contentClass(scrollable bool) string {
+	base := "px-6 py-4 text-gray-600 dark:text-gray-400"
+	if scrollable {
+		return base + " max-h-96 overflow-y-auto"
+	}
+	return base
+}
+
+func primaryButtonClass(isDanger bool) string {
+	base := "px-4 py-2 rounded-lg font-medium transition-colors"
+	if isDanger {
+		return base + " bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+	}
+	return base + " bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+}

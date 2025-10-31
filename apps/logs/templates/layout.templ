@@ -1,40 +1,39 @@
 package templates
 
+import (
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/nav"
+)
+
 templ Layout(title string) {
 	<!DOCTYPE html>
-	<html lang="en">
+	<html lang="en" class="scroll-smooth">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="description" content="DevSmith Logs - Real-time platform observability and log management"/>
 			<title>{ title } - DevSmith Logs</title>
-			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+			<script src="https://cdn.tailwindcss.com"></script>
+			<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 			<link rel="stylesheet" href="/static/css/logs.css"/>
 		</head>
-		<body>
-			<nav class="navbar navbar-dark bg-dark navbar-expand-lg">
-				<div class="container-fluid">
-					<a class="navbar-brand" href="/">
-						📝 DevSmith Logs
-					</a>
-					<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-						<span class="navbar-toggler-icon"></span>
-					</button>
-					<div class="collapse navbar-collapse" id="navbarNav">
-						<ul class="navbar-nav ms-auto">
-							<li class="nav-item">
-								<a class="nav-link active" href="/">Dashboard</a>
-							</li>
-							<li class="nav-item">
-								<a class="nav-link" href="/health">Health</a>
-							</li>
-						</ul>
-					</div>
+		<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
+			<!-- Navigation -->
+			@nav.Navigation(nav.NavProps{
+				CurrentUser: nil,
+				CurrentPath: "logs",
+			})
+
+			<!-- Main Content -->
+			<main class="flex-1">
+				{ children... }
+			</main>
+
+			<!-- Footer -->
+			<footer class="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8 mt-12">
+				<div class="max-w-7xl mx-auto text-center text-sm text-gray-500 dark:text-gray-400">
+					<p>© 2024 DevSmith Logs. Real-time platform observability.</p>
 				</div>
-			</nav>
-			{ children... }
-			<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-			<script src="/static/js/websocket.js"></script>
-			<script src="/static/js/logs.js"></script>
+			</footer>
 		</body>
 	</html>
 }
