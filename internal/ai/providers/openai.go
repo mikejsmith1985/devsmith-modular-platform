@@ -140,7 +140,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.Request) (*ai.Respo
 
 	bodyBytes, readErr := io.ReadAll(httpResp.Body)
 	if readErr != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", readErr)
 	}
 
 	// Parse JSON response
