@@ -475,14 +475,13 @@ func (r *SearchRepository) ValidateSearchAccess(ctx context.Context, searchID, u
 	return nil
 }
 
-
 // validateSearchAccessMem validates search access using in-memory storage.
 func (r *SearchRepository) validateSearchAccessMem(searchID, userID int64) error {
 	// Check if user owns the search
 	if s, ok := r.memSearches[searchID]; ok && s.UserID == userID {
 		return nil
 	}
-	
+
 	// Check if search is shared with user
 	if ids, ok := r.memShared[userID]; ok {
 		for _, id := range ids {
@@ -491,7 +490,7 @@ func (r *SearchRepository) validateSearchAccessMem(searchID, userID int64) error
 			}
 		}
 	}
-	
+
 	return fmt.Errorf("user does not have access to the search")
 }
 
@@ -599,7 +598,7 @@ func (r *SearchRepository) GetSearchMetadata(ctx context.Context, searchID int64
 // Returns empty slice if no searches found at that offset.
 func (r *SearchRepository) ListUserSearchesPaginated(ctx context.Context, userID int64, limit, offset int) ([]*SavedSearch, error) {
 	if r.db == nil {
-		return r.listUserSearchesPaginatedMem(userID, limit, offset)
+		return r.listUserSearchesPaginatedMem(userID, limit, offset), nil
 	}
 
 	query := `
@@ -634,7 +633,7 @@ func (r *SearchRepository) ListUserSearchesPaginated(ctx context.Context, userID
 }
 
 // listUserSearchesPaginatedMem is a helper for ListUserSearchesPaginated to use in-memory storage.
-func (r *SearchRepository) listUserSearchesPaginatedMem(userID int64, limit, offset int) ([]*SavedSearch, error) {
+func (r *SearchRepository) listUserSearchesPaginatedMem(userID int64, limit, offset int) []*SavedSearch {
 	// Filter searches for the user
 	var all []*SavedSearch
 	for _, s := range r.memSearches {
@@ -654,11 +653,11 @@ func (r *SearchRepository) listUserSearchesPaginatedMem(userID int64, limit, off
 	// Apply offset and limit
 	start := offset
 	if start > len(all) {
-		return []*SavedSearch{}, nil
+		return []*SavedSearch{}
 	}
 	end := len(all)
 	if limit > 0 && start+limit < end {
 		end = start + limit
 	}
-	return all[start:end], nil
+	return all[start:end]
 }
