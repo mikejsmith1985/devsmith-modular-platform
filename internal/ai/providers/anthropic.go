@@ -23,18 +23,18 @@ type AnthropicClient struct {
 
 // anthropicRequest represents the JSON request sent to Anthropic API
 type anthropicRequest struct {
-	Model       string  `json:"model"`
+	Model       string              `json:"model"`
 	Messages    []map[string]string `json:"messages"`
-	MaxTokens   int     `json:"max_tokens,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
+	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Temperature float64             `json:"temperature,omitempty"`
 }
 
 // anthropicResponse represents the JSON response from Anthropic API
 type anthropicResponse struct {
-	ID        string `json:"id"`
-	Type      string `json:"type"`
-	Role      string `json:"role"`
-	Content   []struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Role    string `json:"role"`
+	Content []struct {
 		Type string `json:"type"`
 		Text string `json:"text"`
 	} `json:"content"`
@@ -54,16 +54,16 @@ type modelPricing struct {
 
 var claudeModels = map[string]modelPricing{
 	"claude-3-5-haiku-20241022": {
-		inputCostPer1k:  0.00080,  // $0.80 per 1M input tokens
-		outputCostPer1k: 0.00240,  // $2.40 per 1M output tokens
+		inputCostPer1k:  0.00080, // $0.80 per 1M input tokens
+		outputCostPer1k: 0.00240, // $2.40 per 1M output tokens
 	},
 	"claude-3-5-sonnet-20241022": {
-		inputCostPer1k:  0.003,    // $3.00 per 1M input tokens
-		outputCostPer1k: 0.015,    // $15.00 per 1M output tokens
+		inputCostPer1k:  0.003, // $3.00 per 1M input tokens
+		outputCostPer1k: 0.015, // $15.00 per 1M output tokens
 	},
 	"claude-3-opus-20250219": {
-		inputCostPer1k:  0.015,    // $15.00 per 1M input tokens
-		outputCostPer1k: 0.075,    // $75.00 per 1M output tokens
+		inputCostPer1k:  0.015, // $15.00 per 1M input tokens
+		outputCostPer1k: 0.075, // $75.00 per 1M output tokens
 	},
 }
 

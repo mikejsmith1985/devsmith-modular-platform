@@ -30,14 +30,14 @@ type ollamaRequest struct {
 
 // ollamaResponse represents the JSON response from Ollama API
 type ollamaResponse struct {
-	Response          string `json:"response"`
-	Model             string `json:"model"`
-	Done              bool   `json:"done"`
-	PromptEvalCount   int    `json:"prompt_eval_count"`
-	EvalCount         int    `json:"eval_count"`
-	EvalDuration      int64  `json:"eval_duration"`
+	Response           string `json:"response"`
+	Model              string `json:"model"`
+	Done               bool   `json:"done"`
+	PromptEvalCount    int    `json:"prompt_eval_count"`
+	EvalCount          int    `json:"eval_count"`
+	EvalDuration       int64  `json:"eval_duration"`
 	PromptEvalDuration int64  `json:"prompt_eval_duration"`
-	StopReason        string `json:"stop_reason,omitempty"`
+	StopReason         string `json:"stop_reason,omitempty"`
 }
 
 // ollamaTagsResponse represents the response from /api/tags endpoint

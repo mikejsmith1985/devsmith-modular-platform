@@ -10,11 +10,11 @@ import (
 
 // mockFailingProvider fails on first call, succeeds on second
 type mockFailingProvider struct {
-	name          string
-	failCount     int
-	callCount     int
-	shouldFail    bool
-	info          *ModelInfo
+	name       string
+	failCount  int
+	callCount  int
+	shouldFail bool
+	info       *ModelInfo
 }
 
 func (m *mockFailingProvider) Generate(ctx context.Context, req *AIRequest) (*AIResponse, error) {

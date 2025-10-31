@@ -11,11 +11,11 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
 // HealthCheckDashboard renders the health check dashboard
-func HealthCheckDashboard(report healthcheck.HealthReport, policies []services.HealthPolicy) templ.Component {
+func HealthCheckDashboard(report healthcheck.HealthReport, policies []logs_services.HealthPolicy) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

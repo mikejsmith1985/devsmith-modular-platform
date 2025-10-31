@@ -23,10 +23,10 @@ type OpenAIClient struct {
 
 // openaiRequest represents the JSON request sent to OpenAI API
 type openaiRequest struct {
-	Model       string  `json:"model"`
+	Model       string              `json:"model"`
 	Messages    []map[string]string `json:"messages"`
-	MaxTokens   int     `json:"max_tokens,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
+	MaxTokens   int                 `json:"max_tokens,omitempty"`
+	Temperature float64             `json:"temperature,omitempty"`
 }
 
 // openaiResponse represents the JSON response from OpenAI API
@@ -58,16 +58,16 @@ type openaiModelPricing struct {
 
 var gptModels = map[string]openaiModelPricing{
 	"gpt-4-turbo": {
-		inputCostPer1k:  0.01,   // $10.00 per 1M input tokens
-		outputCostPer1k: 0.03,   // $30.00 per 1M output tokens
+		inputCostPer1k:  0.01, // $10.00 per 1M input tokens
+		outputCostPer1k: 0.03, // $30.00 per 1M output tokens
 	},
 	"gpt-4o": {
-		inputCostPer1k:  0.005,  // $5.00 per 1M input tokens
-		outputCostPer1k: 0.015,  // $15.00 per 1M output tokens
+		inputCostPer1k:  0.005, // $5.00 per 1M input tokens
+		outputCostPer1k: 0.015, // $15.00 per 1M output tokens
 	},
 	"gpt-4-32k": {
-		inputCostPer1k:  0.06,   // $60.00 per 1M input tokens
-		outputCostPer1k: 0.12,   // $120.00 per 1M output tokens
+		inputCostPer1k:  0.06, // $60.00 per 1M input tokens
+		outputCostPer1k: 0.12, // $120.00 per 1M output tokens
 	},
 }
 
