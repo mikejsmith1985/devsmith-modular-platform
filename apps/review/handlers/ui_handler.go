@@ -194,3 +194,25 @@ func (h *UIHandler) writeFinalSSEEvent(c *gin.Context, flusher http.Flusher) {
 	}
 	flusher.Flush()
 }
+
+// updateProgressPercent calculates the next progress percentage based on current value.
+func updateProgressPercent(current int) int {
+	switch {
+	case current < 30:
+		return current + 5
+	case current < 70:
+		return current + 8
+	default:
+		return current + 10
+	}
+}
+
+// generateAnalysisID creates a unique ID for analysis sessions (backwards compat).
+func generateAnalysisID() string {
+	return GenerateAnalysisID()
+}
+
+// GenerateAnalysisID creates a unique ID for analysis sessions.
+func GenerateAnalysisID() string {
+	return uuid.New().String()
+}
