@@ -95,22 +95,20 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.Request) (*ai.Respo
 		return nil, fmt.Errorf("failed to send request to Ollama: %w", err)
 	}
 	defer func() {
-		if err := httpResp.Body.Close(); err != nil {
-			c.httpClient.CloseIdleConnections()
-		}
+		_ = httpResp.Body.Close() // error safe to ignore
 	}()
 
 	// Check HTTP status
 	if httpResp.StatusCode != http.StatusOK {
-		bodyBytes, err := io.ReadAll(httpResp.Body)
-		if err != nil {
+		bodyBytes, readErr := io.ReadAll(httpResp.Body)
+		if readErr != nil {
 			bodyBytes = []byte("(unable to read error body)")
 		}
 		return nil, fmt.Errorf("HTTP %d from Ollama: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
-	bodyBytes, err := io.ReadAll(httpResp.Body)
-	if err != nil {
+	bodyBytes, readErr := io.ReadAll(httpResp.Body)
+	if readErr != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
@@ -151,9 +149,7 @@ func (c *OllamaClient) HealthCheck(ctx context.Context) error {
 		return fmt.Errorf("Ollama is unreachable: %w", err)
 	}
 	defer func() {
-		if err := httpResp.Body.Close(); err != nil {
-			c.httpClient.CloseIdleConnections()
-		}
+		_ = httpResp.Body.Close() // error safe to ignore
 	}()
 
 	// Check status

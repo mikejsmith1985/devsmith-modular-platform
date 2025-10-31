@@ -12,6 +12,8 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
+const openaiChatEndpoint = "/v1/chat/completions"
+
 // TestOpenAIClient_NewOpenAIClient_CreatesValidClient verifies constructor
 func TestOpenAIClient_NewOpenAIClient_CreatesValidClient(t *testing.T) {
 	client := NewOpenAIClient("sk-test-key-12345", "gpt-4-turbo")
@@ -48,7 +50,7 @@ func TestOpenAIClient_GetModelInfo_GPT4o(t *testing.T) {
 func TestOpenAIClient_HealthCheck_SucceedsWithValidKey(t *testing.T) {
 	// Mock OpenAI API
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" && r.Method == "POST" {
+		if r.URL.Path == openaiChatEndpoint && r.Method == "POST" {
 			// Verify auth header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader != "Bearer sk-test-key" {
@@ -104,7 +106,7 @@ func TestOpenAIClient_HealthCheck_FailsWithInvalidKey(t *testing.T) {
 // TestOpenAIClient_Generate_ReturnsValidResponse verifies generation
 func TestOpenAIClient_Generate_ReturnsValidResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -147,7 +149,7 @@ func TestOpenAIClient_Generate_ReturnsValidResponse(t *testing.T) {
 // TestOpenAIClient_Generate_HandlesEmptyPrompt verifies edge case
 func TestOpenAIClient_Generate_HandlesEmptyPrompt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -203,7 +205,7 @@ func TestOpenAIClient_Generate_ContextCancellation(t *testing.T) {
 // TestOpenAIClient_Generate_FinishReasonLength verifies length limit
 func TestOpenAIClient_Generate_FinishReasonLength(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -240,7 +242,7 @@ func TestOpenAIClient_Generate_FinishReasonLength(t *testing.T) {
 // TestOpenAIClient_Generate_TemperatureForwarded verifies temperature param
 func TestOpenAIClient_Generate_TemperatureForwarded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -298,7 +300,7 @@ func TestOpenAIClient_Generate_HTTPError(t *testing.T) {
 // TestOpenAIClient_Generate_InvalidJSON verifies JSON parsing
 func TestOpenAIClient_Generate_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{invalid json}`))
@@ -323,7 +325,7 @@ func TestOpenAIClient_Generate_InvalidJSON(t *testing.T) {
 // TestOpenAIClient_Generate_CostCalculation verifies cost tracking
 func TestOpenAIClient_Generate_CostCalculation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -358,7 +360,7 @@ func TestOpenAIClient_Generate_CostCalculation(t *testing.T) {
 // TestOpenAIClient_Generate_MultipleChoices verifies first choice extraction
 func TestOpenAIClient_Generate_MultipleChoices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/chat/completions" {
+		if r.URL.Path == openaiChatEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
