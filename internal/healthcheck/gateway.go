@@ -113,7 +113,7 @@ func (c *GatewayChecker) parseNginxConfig() ([]RouteMapping, error) {
 	var currentLocation string
 
 	// Regex patterns
-	locationPattern := regexp.MustCompile(`location\s+([\S]+)\s+\{`)
+	locationPattern := regexp.MustCompile(`location\s+(\S+)\s+\{`)
 	proxyPassPattern := regexp.MustCompile(`proxy_pass\s+http://([^/]+)`)
 
 	scanner := bufio.NewScanner(file)

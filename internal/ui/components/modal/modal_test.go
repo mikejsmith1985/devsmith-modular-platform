@@ -101,11 +101,11 @@ func TestModal_Render_Scrollable(t *testing.T) {
 
 func TestModal_Render_WithImage(t *testing.T) {
 	props := ModalProps{
-		Title:       "Visual Content",
-		Content:     "Image modal",
-		ImageURL:    "/images/preview.png",
-		ImageAlt:    "Preview image",
-		HasImage:    true,
+		Title:    "Visual Content",
+		Content:  "Image modal",
+		ImageURL: "/images/preview.png",
+		ImageAlt: "Preview image",
+		HasImage: true,
 	}
 
 	var buf bytes.Buffer
