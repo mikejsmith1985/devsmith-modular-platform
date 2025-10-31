@@ -3,23 +3,23 @@
 ## Cost Target: Under $50/month (including Copilot Pro)
 
 ### Model Selection Strategy
-- PRIMARY: Use Ollama local models (qwen2.5-coder:32b) for ALL code tasks
-- FALLBACK: Use Claude Haiku ONLY when Ollama unavailable
-- SONNET: Use maximum 1-2 times per week (PR reviews only)
+- PRIMARY: Use Claude Haiku for ALL code tasks (Cursor Pro+ enabled)
+- FALLBACK: None - Haiku is sufficient for all work
+- SONNET: Use only if explicitly blocked by Haiku limitations (request approval first)
 - NEVER: Use Opus for any reason
 
 ### Task Routing
-1. Code completion → Ollama qwen2.5-coder:32b (local, free)
-2. Chat/explanation → Ollama qwen2.5-coder:32b (local, free)
-3. Multi-file edits → Ollama qwen2.5-coder:32b (local, free)
-4. Test generation → Ollama qwen2.5-coder:32b (local, free)
-5. Architecture planning → Claude Haiku (when Ollama insufficient)
-6. Critical review → Claude Sonnet (max 1x/week)
+1. Code completion → Claude Haiku (Cursor Pro+)
+2. Chat/explanation → Claude Haiku (Cursor Pro+)
+3. Multi-file edits → Claude Haiku (Cursor Pro+)
+4. Test generation → Claude Haiku (Cursor Pro+)
+5. Architecture planning → Claude Haiku (request Sonnet only if truly stuck)
+6. Critical review → Claude Haiku (Sonnet only with explicit approval)
 
 ### Claude API Usage Limits
-- Daily budget: $1.50/day max
-- Weekly budget: $10/week max
-- Sonnet quota: 2 uses per week max
+- Daily budget: $2.00/day max (with Cursor Pro+)
+- Weekly budget: $14/week max
+- Sonnet quota: ZERO unless explicitly approved (Haiku should handle all)
 - Track usage in Cursor dashboard
 
 ### Cost Optimization Techniques
