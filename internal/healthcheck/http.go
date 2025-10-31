@@ -62,13 +62,14 @@ func (c *HTTPChecker) Check() CheckResult {
 	result.Details["status_code"] = resp.StatusCode
 	result.Details["response_time_ms"] = time.Since(start).Milliseconds()
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	switch {
+	case resp.StatusCode >= 200 && resp.StatusCode < 300:
 		result.Status = StatusPass
 		result.Message = fmt.Sprintf("HTTP %d OK", resp.StatusCode)
-	} else if resp.StatusCode >= 500 {
+	case resp.StatusCode >= 500:
 		result.Status = StatusFail
 		result.Message = fmt.Sprintf("HTTP %d Server Error", resp.StatusCode)
-	} else {
+	default:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("HTTP %d", resp.StatusCode)
 	}

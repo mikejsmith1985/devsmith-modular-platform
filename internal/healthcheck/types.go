@@ -4,13 +4,13 @@ import "time"
 
 // CheckResult represents the result of a single health check
 type CheckResult struct {
+	Timestamp time.Time              `json:"timestamp"`
+	Details   map[string]interface{} `json:"details,omitempty"`
 	Name      string                 `json:"name"`
 	Status    CheckStatus            `json:"status"`
 	Message   string                 `json:"message"`
 	Error     string                 `json:"error,omitempty"`
 	Duration  time.Duration          `json:"duration"`
-	Details   map[string]interface{} `json:"details,omitempty"`
-	Timestamp time.Time              `json:"timestamp"`
 }
 
 // CheckStatus represents the status of a health check
@@ -25,12 +25,12 @@ const (
 
 // HealthReport represents the overall system health report
 type HealthReport struct {
-	Status     CheckStatus   `json:"status"`
+	SystemInfo SystemInfo    `json:"system_info"`
 	Timestamp  time.Time     `json:"timestamp"`
-	Duration   time.Duration `json:"duration"`
+	Status     CheckStatus   `json:"status"`
 	Checks     []CheckResult `json:"checks"`
 	Summary    Summary       `json:"summary"`
-	SystemInfo SystemInfo    `json:"system_info"`
+	Duration   time.Duration `json:"duration"`
 }
 
 // Summary provides aggregate statistics
@@ -44,10 +44,10 @@ type Summary struct {
 
 // SystemInfo provides environment context
 type SystemInfo struct {
+	Timestamp   time.Time `json:"timestamp"`
 	Environment string    `json:"environment"`
 	Hostname    string    `json:"hostname"`
 	GoVersion   string    `json:"go_version"`
-	Timestamp   time.Time `json:"timestamp"`
 }
 
 // Checker is the interface for all health check implementations
