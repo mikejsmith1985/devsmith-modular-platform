@@ -8,6 +8,10 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import (
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/card"
+)
+
 func Dashboard(user DashboardUser) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -41,228 +45,84 @@ func Dashboard(user DashboardUser) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"dashboard-container\"><header class=\"dashboard-header\"><div class=\"user-info\"><img src=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!-- Hero Section --> <section class=\"bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-900 dark:to-indigo-900 text-white py-12 px-4 sm:px-6 lg:px-8\"><div class=\"max-w-7xl mx-auto\"><h2 class=\"text-3xl sm:text-4xl font-bold mb-2\">Welcome, ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(user.AvatarURL)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(user.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 8, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 16, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" alt=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "!</h2><p class=\"text-lg opacity-90\">AI-assisted code review and development analytics</p></div></section><!-- Main Content --> <div class=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12\"><div class=\"grid gap-6 md:grid-cols-2 lg:grid-cols-3\"><!-- Review Service Card -->")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(user.Username)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 8, Col: 49}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" class=\"avatar\"><div class=\"user-details\"><h2>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(user.Username)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 10, Col: 24}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h2><p class=\"user-email\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(user.Email)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 11, Col: 39}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p></div></div><button id=\"logout-btn\" class=\"btn-logout\">Logout</button></header><main class=\"dashboard-main\"><h1>DevSmith Platform</h1><p class=\"subtitle\">AI-assisted code review and development analytics</p><div class=\"services-grid\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = ServiceCard(ServiceInfo{
-				Name:        "Review",
-				Description: "Code review with 5 reading modes",
-				URL:         "http://localhost:8081",
+			templ_7745c5c3_Err = card.Card(card.CardProps{
+				Title:       "Code Review",
+				Description: "Analyze code with 5 reading modes: Preview, Skim, Scan, Detailed, Critical",
 				Icon:        "📖",
-				Status:      "ready",
+				BadgeText:   "Ready",
+				BadgeColor:  "green",
+				ActionText:  "Open Review",
+				ActionURL:   "http://localhost:8081",
+				StatLabel:   "Reading Modes",
+				StatValue:   "5",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ServiceCard(ServiceInfo{
-				Name:        "Logs",
-				Description: "Real-time development logs",
-				URL:         "http://localhost:8082",
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Logs Service Card -->")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = card.Card(card.CardProps{
+				Title:       "Development Logs",
+				Description: "Real-time platform logs, error tracking, and health monitoring",
 				Icon:        "📝",
-				Status:      "ready",
+				BadgeText:   "Ready",
+				BadgeColor:  "green",
+				ActionText:  "Open Logs",
+				ActionURL:   "http://localhost:8082",
+				StatLabel:   "Health Check",
+				StatValue:   "Active",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ServiceCard(ServiceInfo{
-				Name:        "Analytics",
-				Description: "Trends and insights",
-				URL:         "http://localhost:8083",
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<!-- Analytics Service Card -->")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = card.Card(card.CardProps{
+				Title:       "Analytics",
+				Description: "Usage trends, AI cost monitoring, and performance insights",
 				Icon:        "📊",
-				Status:      "ready",
+				BadgeText:   "Ready",
+				BadgeColor:  "green",
+				ActionText:  "Open Analytics",
+				ActionURL:   "http://localhost:8083",
+				StatLabel:   "Metrics",
+				StatValue:   "Live",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></main></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><!-- Stats Section --><section class=\"mt-16\"><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">Platform Overview</h3><div class=\"grid gap-4 md:grid-cols-4\"><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Status</p><p class=\"text-3xl font-bold text-green-600 dark:text-green-400 mt-2\">All Online</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">3/3 services operational</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">AI Model</p><p class=\"text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2\">Configured</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Multiple providers ready</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Uptime</p><p class=\"text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2\">99.9%</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Last 30 days</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Version</p><p class=\"text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2\">v1.0</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Latest production</p></div></div></section></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout("Dashboard").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func ServiceCard(service ServiceInfo) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var7 == nil {
-			templ_7745c5c3_Var7 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"service-card\"><div class=\"service-icon\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(service.Icon)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 53, Col: 41}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><h3>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(service.Name)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 54, Col: 19}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</h3><p class=\"service-description\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(service.Description)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 55, Col: 53}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var11 = []any{"service-status " + service.Status}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var11...)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var11).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(service.Status)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 56, Col: 66}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span> <a href=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var14 templ.SafeURL
-		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(service.URL))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 57, Col: 37}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" class=\"btn-primary\">Open ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var15 string
-		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(service.Name)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 57, Col: 77}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</a></div>")
+		templ_7745c5c3_Err = Layout("Dashboard", &DashboardUser{
+			Username:  user.Username,
+			Email:     user.Email,
+			AvatarURL: user.AvatarURL,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -287,12 +147,12 @@ func LogsDashboard(data LogsDashboardData) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var16 == nil {
-			templ_7745c5c3_Var16 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var17 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -304,52 +164,13 @@ func LogsDashboard(data LogsDashboardData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"logs-dashboard-container\"><header class=\"logs-dashboard-header\"><div class=\"header-left\"><h1>📊 Logs Dashboard</h1><p class=\"header-subtitle\">Platform observability and error monitoring</p></div><div class=\"header-right\"><div class=\"user-info-compact\"><img src=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var18 string
-			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.AvatarURL)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 72, Col: 35}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" alt=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var19 string
-			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.Username)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 72, Col: 60}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" class=\"avatar-small\"> <span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var20 string
-			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(data.User.Username)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/dashboard.templ`, Line: 73, Col: 31}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div></div></header><main class=\"logs-dashboard-main\"><!-- Dashboard Grid --><div class=\"dashboard-grid\"><!-- Stats Cards --><div class=\"stats-section\"><h2>Service Statistics</h2><div class=\"stats-grid\"><div class=\"stat-card\"><div class=\"stat-label\">Total Logs</div><div class=\"stat-value\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Error Rate</div><div class=\"stat-value\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Warning Count</div><div class=\"stat-value\">--</div></div><div class=\"stat-card\"><div class=\"stat-label\">Active Services</div><div class=\"stat-value\">--</div></div></div></div><!-- Top Errors Section --><div class=\"top-errors-section\"><h2>🚨 Top Errors</h2><div class=\"top-errors-list\"><div class=\"empty-state\">No errors found</div></div></div><!-- Trends Section --><div class=\"trends-section\"><h2>📈 Error Trends</h2><div class=\"trends-chart\"><div class=\"empty-state\">No trend data available</div></div></div><!-- Alert Management Section --><div class=\"alert-management-section\"><h2>⚠️ Alert Configuration</h2><div class=\"alert-config-container\"><div class=\"alert-controls\"><a href=\"/api/logs/dashboard/logs\" class=\"btn-primary\">View Full Dashboard</a></div><p>Alert management available at the Logs service dashboard.</p></div></div></div></main></div><style>\n\t\t\t.logs-dashboard-container {\n\t\t\t\tdisplay: flex;\n\t\t\t\tflex-direction: column;\n\t\t\t\tmin-height: 100vh;\n\t\t\t\tbackground: #f5f7fa;\n\t\t\t}\n\n\t\t\t.logs-dashboard-header {\n\t\t\t\tbackground: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n\t\t\t\tcolor: white;\n\t\t\t\tpadding: 30px;\n\t\t\t\tdisplay: flex;\n\t\t\t\tjustify-content: space-between;\n\t\t\t\talign-items: center;\n\t\t\t\tbox-shadow: 0 2px 8px rgba(0,0,0,0.1);\n\t\t\t}\n\n\t\t\t.logs-dashboard-header h1 {\n\t\t\t\tmargin: 0 0 8px 0;\n\t\t\t\tfont-size: 28px;\n\t\t\t}\n\n\t\t\t.header-subtitle {\n\t\t\t\tmargin: 0;\n\t\t\t\topacity: 0.9;\n\t\t\t\tfont-size: 14px;\n\t\t\t}\n\n\t\t\t.logs-dashboard-main {\n\t\t\t\tflex: 1;\n\t\t\t\tpadding: 30px;\n\t\t\t}\n\n\t\t\t.dashboard-grid {\n\t\t\t\tdisplay: grid;\n\t\t\t\tgap: 25px;\n\t\t\t}\n\n\t\t\t.stats-grid {\n\t\t\t\tdisplay: grid;\n\t\t\t\tgrid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n\t\t\t\tgap: 15px;\n\t\t\t}\n\n\t\t\t.stat-card {\n\t\t\t\tbackground: white;\n\t\t\t\tpadding: 20px;\n\t\t\t\tborder-radius: 8px;\n\t\t\t\tbox-shadow: 0 1px 3px rgba(0,0,0,0.08);\n\t\t\t}\n\n\t\t\t.stat-label {\n\t\t\t\tfont-size: 12px;\n\t\t\t\tcolor: #666;\n\t\t\t\ttext-transform: uppercase;\n\t\t\t\tmargin-bottom: 10px;\n\t\t\t}\n\n\t\t\t.stat-value {\n\t\t\t\tfont-size: 32px;\n\t\t\t\tfont-weight: bold;\n\t\t\t\tcolor: #333;\n\t\t\t\tmargin-bottom: 8px;\n\t\t\t}\n\n\t\t\t.top-errors-section, .trends-section, .alert-management-section {\n\t\t\t\tbackground: white;\n\t\t\t\tpadding: 25px;\n\t\t\t\tborder-radius: 8px;\n\t\t\t\tbox-shadow: 0 1px 3px rgba(0,0,0,0.08);\n\t\t\t}\n\n\t\t\t.top-errors-section h2, .trends-section h2, .alert-management-section h2 {\n\t\t\t\tmargin-top: 0;\n\t\t\t\tmargin-bottom: 20px;\n\t\t\t\tfont-size: 18px;\n\t\t\t\tcolor: #333;\n\t\t\t}\n\n\t\t\t.empty-state {\n\t\t\t\tpadding: 40px;\n\t\t\t\ttext-align: center;\n\t\t\t\tcolor: #999;\n\t\t\t}\n\n\t\t\t.btn-primary {\n\t\t\t\tdisplay: inline-block;\n\t\t\t\tpadding: 10px 20px;\n\t\t\t\tbackground: #667eea;\n\t\t\t\tcolor: white;\n\t\t\t\tborder-radius: 4px;\n\t\t\t\ttext-decoration: none;\n\t\t\t\tfont-weight: 600;\n\t\t\t}\n\n\t\t\t.alert-config-container {\n\t\t\t\ttext-align: center;\n\t\t\t}\n\n\t\t\t.alert-config-container p {\n\t\t\t\tcolor: #666;\n\t\t\t\tmargin-top: 15px;\n\t\t\t}\n\t\t</style>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<!-- Hero Section --> <section class=\"bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-900 dark:to-pink-900 text-white py-12 px-4 sm:px-6 lg:px-8\"><div class=\"max-w-7xl mx-auto\"><h2 class=\"text-3xl sm:text-4xl font-bold mb-2\">📊 Logs Dashboard</h2><p class=\"text-lg opacity-90\">Platform observability and error monitoring</p></div></section><!-- Main Content --> <div class=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12\"><!-- Stats Grid --><section class=\"mb-12\"><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">Service Statistics</h3><div class=\"grid gap-4 md:grid-cols-4\"><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Total Logs</p><p class=\"text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2\">--</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Error Rate</p><p class=\"text-3xl font-bold text-red-600 dark:text-red-400 mt-2\">--</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Warnings</p><p class=\"text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-2\">--</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Active Services</p><p class=\"text-3xl font-bold text-green-600 dark:text-green-400 mt-2\">--</p></div></div></section><!-- Top Errors Section --><section class=\"mb-12\"><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">🚨 Top Errors</h3><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 text-center text-gray-500 dark:text-gray-400\">No errors found</div></section><!-- Error Trends Section --><section class=\"mb-12\"><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">📈 Error Trends</h3><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 text-center text-gray-500 dark:text-gray-400\">No trend data available</div></section><!-- Alert Management Section --><section><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">⚠️ Alert Configuration</h3><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-gray-600 dark:text-gray-400 mb-4\">View the full Logs dashboard with real-time data at the Logs service.</p><a href=\"http://localhost:8082\" class=\"inline-block px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-colors\">View Full Dashboard</a></div></section></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout("Logs Dashboard").Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout("Logs Dashboard", &data.User).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
