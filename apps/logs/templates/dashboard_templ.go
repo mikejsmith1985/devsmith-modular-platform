@@ -3,14 +3,12 @@
 // templ: version: v0.3.960
 // Package templates provides Templ components for the Logs service UI.
 
-package logs_templates
+package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import (
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
-)
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
 
 // Dashboard renders the main logs dashboard page with real-time log streaming,
 // filtering, and virtual scrolling support.

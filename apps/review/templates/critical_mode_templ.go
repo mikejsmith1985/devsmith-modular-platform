@@ -3,16 +3,14 @@
 // templ: version: v0.3.960
 // GREEN PHASE: Minimal Templ for Critical mode issue list
 
-package review_templates
+package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import (
-	"strings"
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
 
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
-)
+import "strings"
 
 // CriticalModeIssue represents a critical issue for display
 type CriticalModeIssue struct {
