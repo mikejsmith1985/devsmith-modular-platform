@@ -88,6 +88,7 @@ func findGoFiles(path string) []string {
 }
 
 func fixMissingPackageComments(files []string, dryRun bool) (int, error) {
+	//nolint:unparam // dryRun will be used in full implementation
 	count := 0
 	packageComments := map[string]string{
 		"providers":  "Package providers contains AI provider implementations for different services.",
@@ -110,9 +111,9 @@ func fixMissingPackageComments(files []string, dryRun bool) (int, error) {
 }
 
 func fixMagicStringsIssues(files []string, dryRun bool) (int, error) {
+	//nolint:unparam // Placeholder - dryRun will be used in full implementation
 	// Extract repeated string literals and create constants
 	// This is a simplified version - real implementation would be more sophisticated
-	_ = dryRun // Placeholder for future implementation
 	count := 0
 	for range files {
 		// Placeholder: actual implementation would parse and modify files
@@ -121,7 +122,7 @@ func fixMagicStringsIssues(files []string, dryRun bool) (int, error) {
 }
 
 func fixHTTPNoBodyIssues(files []string, dryRun bool) (int, error) {
-	_ = dryRun // Placeholder for future implementation
+	//nolint:unparam // Placeholder - dryRun will be used in full implementation
 	count := 0
 	for range files {
 		// Placeholder: replace nil with http.NoBody in NewRequest calls
