@@ -12,6 +12,8 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
+const anthropicMessagesEndpoint = "/v1/messages"
+
 // TestAnthropicClient_NewAnthropicClient_CreatesValidClient verifies constructor
 func TestAnthropicClient_NewAnthropicClient_CreatesValidClient(t *testing.T) {
 	client := NewAnthropicClient("sk-test-key-12345", "claude-3-5-haiku-20241022")
@@ -49,7 +51,7 @@ func TestAnthropicClient_GetModelInfo_Claude35Sonnet(t *testing.T) {
 func TestAnthropicClient_HealthCheck_SucceedsWithValidKey(t *testing.T) {
 	// Mock Anthropic API
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" && r.Method == "POST" {
+		if r.URL.Path == anthropicMessagesEndpoint && r.Method == "POST" {
 			// Verify auth header
 			authHeader := r.Header.Get("x-api-key")
 			if authHeader != "sk-test-key" {
@@ -107,7 +109,7 @@ func TestAnthropicClient_HealthCheck_FailsWithInvalidKey(t *testing.T) {
 // TestAnthropicClient_Generate_ReturnsValidResponse verifies generation
 func TestAnthropicClient_Generate_ReturnsValidResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -130,7 +132,7 @@ func TestAnthropicClient_Generate_ReturnsValidResponse(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:      "Solve this problem",
 		Temperature: 0.5,
 		MaxTokens:   1000,
@@ -151,7 +153,7 @@ func TestAnthropicClient_Generate_ReturnsValidResponse(t *testing.T) {
 // TestAnthropicClient_Generate_HandlesEmptyPrompt verifies edge case
 func TestAnthropicClient_Generate_HandlesEmptyPrompt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -174,7 +176,7 @@ func TestAnthropicClient_Generate_HandlesEmptyPrompt(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: ""}
+	req := &ai.Request{Prompt: ""}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.NoError(t, err, "Should handle empty prompt")
@@ -198,7 +200,7 @@ func TestAnthropicClient_Generate_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(ctx, req)
 
 	assert.Error(t, err, "Should error on context cancellation")
@@ -208,7 +210,7 @@ func TestAnthropicClient_Generate_ContextCancellation(t *testing.T) {
 // TestAnthropicClient_Generate_MaxTokensForwarded verifies parameter handling
 func TestAnthropicClient_Generate_MaxTokensForwarded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -231,7 +233,7 @@ func TestAnthropicClient_Generate_MaxTokensForwarded(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:    "Test",
 		MaxTokens: 500,
 	}
@@ -246,7 +248,7 @@ func TestAnthropicClient_Generate_MaxTokensForwarded(t *testing.T) {
 // TestAnthropicClient_Generate_TemperatureForwarded verifies temperature param
 func TestAnthropicClient_Generate_TemperatureForwarded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -269,7 +271,7 @@ func TestAnthropicClient_Generate_TemperatureForwarded(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:      "Test",
 		Temperature: 0.8,
 	}
@@ -295,7 +297,7 @@ func TestAnthropicClient_Generate_HTTPError(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.Error(t, err)
@@ -305,7 +307,7 @@ func TestAnthropicClient_Generate_HTTPError(t *testing.T) {
 // TestAnthropicClient_Generate_InvalidJSON verifies JSON parsing
 func TestAnthropicClient_Generate_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{invalid json}`))
@@ -320,7 +322,7 @@ func TestAnthropicClient_Generate_InvalidJSON(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.Error(t, err)
@@ -330,7 +332,7 @@ func TestAnthropicClient_Generate_InvalidJSON(t *testing.T) {
 // TestAnthropicClient_Generate_CostCalculation verifies cost tracking
 func TestAnthropicClient_Generate_CostCalculation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Return large token counts to verify cost calculation
@@ -354,7 +356,7 @@ func TestAnthropicClient_Generate_CostCalculation(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.NoError(t, err)
@@ -367,7 +369,7 @@ func TestAnthropicClient_Generate_CostCalculation(t *testing.T) {
 // TestAnthropicClient_Generate_MultipleContentBlocks verifies content extraction
 func TestAnthropicClient_Generate_MultipleContentBlocks(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/messages" {
+		if r.URL.Path == anthropicMessagesEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Return multiple content blocks
@@ -394,7 +396,7 @@ func TestAnthropicClient_Generate_MultipleContentBlocks(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.NoError(t, err)

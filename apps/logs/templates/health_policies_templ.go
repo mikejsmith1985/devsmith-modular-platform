@@ -8,10 +8,10 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+import logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 
 // HealthPoliciesTab renders the health policies configuration tab
-func HealthPoliciesTab(policies []services.HealthPolicy) templ.Component {
+func HealthPoliciesTab(policies []logs_services.HealthPolicy) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -51,7 +51,7 @@ func HealthPoliciesTab(policies []services.HealthPolicy) templ.Component {
 }
 
 // PolicyCard renders an editable policy card for a service
-func PolicyCard(policy services.HealthPolicy) templ.Component {
+func PolicyCard(policy logs_services.HealthPolicy) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -239,7 +239,7 @@ func PolicyCard(policy services.HealthPolicy) templ.Component {
 }
 
 // PolicySummary renders a compact policy summary
-func PolicySummary(policy services.HealthPolicy) templ.Component {
+func PolicySummary(policy logs_services.HealthPolicy) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

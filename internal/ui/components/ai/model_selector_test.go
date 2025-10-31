@@ -5,8 +5,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	aicore "github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestModelSelector_Render_DisplaysAllModels verifies model list display
@@ -62,7 +62,7 @@ func TestModelSelector_Render_DisplaysCosts(t *testing.T) {
 
 	// Should display cost information
 	assert.Contains(t, html, "Free") // Ollama is free
-	assert.Contains(t, html, "$0") // or similar cost indication
+	assert.Contains(t, html, "$0")   // or similar cost indication
 }
 
 // TestModelSelector_Render_IncludesAppName verifies app context

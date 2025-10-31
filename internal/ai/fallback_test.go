@@ -9,21 +9,23 @@ import (
 )
 
 // mockFailingProvider fails on first call, succeeds on second
+//
+//nolint:govet // field alignment not critical for mock struct
 type mockFailingProvider struct {
-	name          string
-	failCount     int
-	callCount     int
-	shouldFail    bool
-	info          *ModelInfo
+	name       string
+	failCount  int
+	callCount  int
+	shouldFail bool
+	info       *ModelInfo
 }
 
-func (m *mockFailingProvider) Generate(ctx context.Context, req *AIRequest) (*AIResponse, error) {
+func (m *mockFailingProvider) Generate(ctx context.Context, req *Request) (*Response, error) {
 	m.callCount++
 	if m.shouldFail || m.failCount > 0 {
 		m.failCount--
 		return nil, fmt.Errorf("provider %s failed", m.name)
 	}
-	return &AIResponse{
+	return &Response{
 		Content: "response from " + m.name,
 		Model:   m.info.Model,
 	}, nil
@@ -79,7 +81,7 @@ func TestFallbackChain_Generate_UsesPrimaryProvider(t *testing.T) {
 	chain.AddProvider(primary)
 	chain.AddProvider(fallback)
 
-	resp, err := chain.Generate(context.Background(), &AIRequest{Prompt: "test"})
+	resp, err := chain.Generate(context.Background(), &Request{Prompt: "test"})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -105,7 +107,7 @@ func TestFallbackChain_Generate_FallsBackOnFailure(t *testing.T) {
 	chain.AddProvider(primary)
 	chain.AddProvider(fallback)
 
-	resp, err := chain.Generate(context.Background(), &AIRequest{Prompt: "test"})
+	resp, err := chain.Generate(context.Background(), &Request{Prompt: "test"})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -126,7 +128,7 @@ func TestFallbackChain_Generate_MultipleFallbacks(t *testing.T) {
 	chain.AddProvider(p2)
 	chain.AddProvider(p3)
 
-	resp, err := chain.Generate(context.Background(), &AIRequest{Prompt: "test"})
+	resp, err := chain.Generate(context.Background(), &Request{Prompt: "test"})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -146,7 +148,7 @@ func TestFallbackChain_Generate_AllFail(t *testing.T) {
 	chain.AddProvider(p1)
 	chain.AddProvider(p2)
 
-	resp, err := chain.Generate(context.Background(), &AIRequest{Prompt: "test"})
+	resp, err := chain.Generate(context.Background(), &Request{Prompt: "test"})
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
@@ -157,7 +159,7 @@ func TestFallbackChain_Generate_AllFail(t *testing.T) {
 func TestFallbackChain_Generate_NoProviders(t *testing.T) {
 	chain := NewFallbackChain()
 
-	resp, err := chain.Generate(context.Background(), &AIRequest{Prompt: "test"})
+	resp, err := chain.Generate(context.Background(), &Request{Prompt: "test"})
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
@@ -223,7 +225,7 @@ func TestFallbackChain_SetMaxRetries_RespectsSetting(t *testing.T) {
 
 	chain.AddProvider(p1)
 
-	resp, err := chain.Generate(context.Background(), &AIRequest{Prompt: "test"})
+	resp, err := chain.Generate(context.Background(), &Request{Prompt: "test"})
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)

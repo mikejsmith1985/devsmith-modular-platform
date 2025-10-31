@@ -1,13 +1,13 @@
 package templates
 
-type PreviewFileNode struct {
+type PreviewFileNodeData struct {
 	Name        string
 	Description string
-	Children    []PreviewFileNode
+	Children    []PreviewFileNodeData
 }
 
 templ PreviewMode(
-	fileTree []PreviewFileNode,
+	fileTree []PreviewFileNodeData,
 	boundedContexts []string,
 	techStack []string,
 	architecturePattern string,
@@ -54,7 +54,7 @@ templ PreviewMode(
 	</div>
 }
 
-templ PreviewFileNode(node PreviewFileNode) {
+templ PreviewFileNode(node PreviewFileNodeData) {
 	<div class="ml-4 border-l-2 pl-2 mb-2">
 		<span class="font-mono text-blue-600 dark:text-blue-400">{ node.Name }</span>
 		<span class="text-xs text-gray-500 ml-2">{ node.Description }</span>

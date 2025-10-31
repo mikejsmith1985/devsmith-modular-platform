@@ -100,7 +100,7 @@ func TestEncryptionService_Encrypt_HandlesEmptyString(t *testing.T) {
 	ciphertext, err := svc.Encrypt("")
 
 	assert.NoError(t, err, "Should encrypt empty string")
-	assert.NotEmpty(t, ciphertext, "Should produce non-empty ciphertext for empty plaintext")
+	assert.NotEqual(t, "", ciphertext, "Should produce non-empty ciphertext for empty plaintext")
 }
 
 // TestEncryptionService_Decrypt_RecoversOriginalText verifies decryption works
@@ -149,7 +149,7 @@ func TestEncryptionService_Decrypt_TamperedCiphertextReturnsError(t *testing.T) 
 	require.NoError(t, err)
 
 	// Tamper with the ciphertext (change first character)
-	if len(ciphertext) > 0 {
+	if ciphertext != "" {
 		ciphertextBytes := []byte(ciphertext)
 		if ciphertextBytes[0] == 'a' {
 			ciphertextBytes[0] = 'b'
@@ -175,7 +175,7 @@ func TestEncryptionService_Decrypt_ShortCiphertextReturnsError(t *testing.T) {
 
 	decrypted, err := svc.Decrypt(shortCiphertext)
 	assert.Error(t, err, "Should error on too-short ciphertext")
-	assert.Empty(t, decrypted, "Should return empty string on error")
+	assert.Equal(t, "", decrypted, "Should return empty string on error")
 	assert.Contains(t, err.Error(), "ciphertext too short", "Error should indicate length issue")
 }
 

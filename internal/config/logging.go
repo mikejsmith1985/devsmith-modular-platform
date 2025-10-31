@@ -59,7 +59,7 @@ func validateLogsURL(raw string) error {
 }
 
 // LoadLogsConfigFor loads the logs service URL for a specific service.
-func LoadLogsConfigFor(service string) (string, bool, error) {
+func LoadLogsConfigFor(service string) (url string, isOverride bool, err error) {
 	env := os.Getenv("ENVIRONMENT")
 
 	var u string
@@ -101,7 +101,7 @@ func LoadLogsConfigFor(service string) (string, bool, error) {
 }
 
 // LoadLogsConfigWithFallbackFor loads the logs service URL with fallback logic.
-func LoadLogsConfigWithFallbackFor(service string) (string, bool, error) {
+func LoadLogsConfigWithFallbackFor(service string) (url string, isOverride bool, err error) {
 	env := os.Getenv("ENVIRONMENT")
 
 	// Check for per-service override first

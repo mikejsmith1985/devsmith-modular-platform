@@ -1,5 +1,5 @@
-// Package portal_templates contains type definitions for portal template rendering.
-package portal_templates
+// Package templates contains type definitions for portal template rendering.
+package templates
 
 // Small type definitions used by generated templ files. These are minimal
 // shims so the generated template code compiles. If richer models are

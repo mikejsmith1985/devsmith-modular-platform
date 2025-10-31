@@ -1,3 +1,4 @@
+// Package providers contains AI provider implementations for different services.
 package providers
 
 import (
@@ -12,11 +13,11 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// OllamaClient implements the AIProvider interface for local Ollama models
+// OllamaClient implements the Provider interface for local Ollama models
 type OllamaClient struct {
+	httpClient *http.Client
 	endpoint   string
 	model      string
-	httpClient *http.Client
 }
 
 // ollamaRequest represents the JSON request sent to Ollama API
@@ -30,14 +31,14 @@ type ollamaRequest struct {
 
 // ollamaResponse represents the JSON response from Ollama API
 type ollamaResponse struct {
-	Response          string `json:"response"`
-	Model             string `json:"model"`
-	Done              bool   `json:"done"`
-	PromptEvalCount   int    `json:"prompt_eval_count"`
-	EvalCount         int    `json:"eval_count"`
-	EvalDuration      int64  `json:"eval_duration"`
+	Response           string `json:"response"`
+	Model              string `json:"model"`
+	StopReason         string `json:"stop_reason,omitempty"`
+	PromptEvalCount    int    `json:"prompt_eval_count"`
+	EvalCount          int    `json:"eval_count"`
+	EvalDuration       int64  `json:"eval_duration"`
 	PromptEvalDuration int64  `json:"prompt_eval_duration"`
-	StopReason        string `json:"stop_reason,omitempty"`
+	Done               bool   `json:"done"`
 }
 
 // ollamaTagsResponse represents the response from /api/tags endpoint
@@ -59,7 +60,7 @@ func NewOllamaClient(endpoint, model string) *OllamaClient {
 }
 
 // Generate sends a prompt to Ollama and returns the response
-func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIResponse, error) {
+func (c *OllamaClient) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Prepare Ollama request
 	ollamaReq := ollamaRequest{
 		Model:       req.Model,
@@ -93,39 +94,43 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to Ollama: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
+	}()
 
 	// Check HTTP status
 	if httpResp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(httpResp.Body)
+		bodyBytes, readErr := io.ReadAll(httpResp.Body)
+		if readErr != nil {
+			bodyBytes = []byte("(unable to read error body)")
+		}
 		return nil, fmt.Errorf("HTTP %d from Ollama: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
-	// Read response body
-	respBody, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+	bodyBytes, readErr := io.ReadAll(httpResp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", readErr)
 	}
 
 	// Parse JSON response
-	var ollamaResp ollamaResponse
-	if err := json.Unmarshal(respBody, &ollamaResp); err != nil {
+	var resp ollamaResponse
+	if err := json.Unmarshal(bodyBytes, &resp); err != nil {
 		return nil, fmt.Errorf("failed to parse Ollama response: %w", err)
 	}
 
-	// Convert to AIResponse
+	// Convert to Response
 	finishReason := "complete"
-	if ollamaResp.StopReason != "" {
-		finishReason = ollamaResp.StopReason
+	if resp.StopReason != "" {
+		finishReason = resp.StopReason
 	}
 
-	return &ai.AIResponse{
-		Content:      ollamaResp.Response,
-		InputTokens:  ollamaResp.PromptEvalCount,
-		OutputTokens: ollamaResp.EvalCount,
+	return &ai.Response{
+		Content:      resp.Response,
+		InputTokens:  resp.PromptEvalCount,
+		OutputTokens: resp.EvalCount,
 		ResponseTime: time.Since(startTime),
 		CostUSD:      0.0, // Ollama is local, no cost
-		Model:        ollamaResp.Model,
+		Model:        resp.Model,
 		FinishReason: finishReason,
 	}, nil
 }
@@ -133,7 +138,7 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 // HealthCheck verifies that Ollama is reachable and the model is available
 func (c *OllamaClient) HealthCheck(ctx context.Context) error {
 	// Create HTTP request to /api/tags to list available models
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/tags", c.endpoint), nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/tags", c.endpoint), http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create health check request: %w", err)
 	}
@@ -143,7 +148,9 @@ func (c *OllamaClient) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Ollama is unreachable: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
+	}()
 
 	// Check status
 	if httpResp.StatusCode != http.StatusOK {
