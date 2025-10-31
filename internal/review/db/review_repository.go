@@ -60,3 +60,114 @@ func (r *ReviewRepository) GetByID(ctx context.Context, id int64) (*Review, erro
 	}
 	return &review, nil
 }
+
+// ListByUserID retrieves all review sessions for a user with pagination support
+func (r *ReviewRepository) ListByUserID(ctx context.Context, userID int64, limit int, offset int) ([]*Review, int, error) {
+	// Get total count
+	var total int
+	countErr := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM reviews.sessions WHERE user_id = $1`, userID).Scan(&total)
+	if countErr != nil {
+		return nil, 0, fmt.Errorf("db: failed to count reviews: %w", countErr)
+	}
+
+	// Get paginated results
+	rows, err := r.DB.QueryContext(ctx,
+		`SELECT id, user_id, title, code_source, github_repo, github_branch, pasted_code, created_at, last_accessed 
+		 FROM reviews.sessions WHERE user_id = $1 
+		 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+		userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("db: failed to query reviews: %w", err)
+	}
+	defer rows.Close()
+
+	var reviews []*Review
+	for rows.Next() {
+		var review Review
+		err := rows.Scan(&review.ID, &review.UserID, &review.Title, &review.CodeSource,
+			&review.GithubRepo, &review.GithubBranch, &review.PastedCode,
+			&review.CreatedAt, &review.LastAccessed)
+		if err != nil {
+			return nil, 0, fmt.Errorf("db: failed to scan review: %w", err)
+		}
+		reviews = append(reviews, &review)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("db: iteration error: %w", err)
+	}
+
+	return reviews, total, nil
+}
+
+// DeleteByID removes a review session from the database
+func (r *ReviewRepository) DeleteByID(ctx context.Context, id int64) error {
+	result, err := r.DB.ExecContext(ctx, `DELETE FROM reviews.sessions WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("db: failed to delete review: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("db: failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("db: review not found")
+	}
+
+	return nil
+}
+
+// UpdateLastAccessed updates the last_accessed timestamp for a session
+func (r *ReviewRepository) UpdateLastAccessed(ctx context.Context, id int64) error {
+	result, err := r.DB.ExecContext(ctx,
+		`UPDATE reviews.sessions SET last_accessed = NOW() WHERE id = $1`,
+		id)
+	if err != nil {
+		return fmt.Errorf("db: failed to update last_accessed: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("db: failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("db: review not found")
+	}
+
+	return nil
+}
+
+// FindExpiredSessions returns sessions older than the specified number of days
+func (r *ReviewRepository) FindExpiredSessions(ctx context.Context, daysOld int) ([]*Review, error) {
+	rows, err := r.DB.QueryContext(ctx,
+		`SELECT id, user_id, title, code_source, github_repo, github_branch, pasted_code, created_at, last_accessed 
+		 FROM reviews.sessions 
+		 WHERE created_at < NOW() - INTERVAL '1 day' * $1
+		 ORDER BY created_at ASC`,
+		daysOld)
+	if err != nil {
+		return nil, fmt.Errorf("db: failed to query expired sessions: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []*Review
+	for rows.Next() {
+		var session Review
+		err := rows.Scan(&session.ID, &session.UserID, &session.Title, &session.CodeSource,
+			&session.GithubRepo, &session.GithubBranch, &session.PastedCode,
+			&session.CreatedAt, &session.LastAccessed)
+		if err != nil {
+			return nil, fmt.Errorf("db: failed to scan session: %w", err)
+		}
+		sessions = append(sessions, &session)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("db: iteration error: %w", err)
+	}
+
+	return sessions, nil
+}

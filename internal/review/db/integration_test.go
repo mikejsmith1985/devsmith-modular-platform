@@ -65,9 +65,13 @@ func setupIntegrationDB(ctx context.Context, t *testing.T) *sql.DB {
 		CREATE TABLE IF NOT EXISTS reviews.sessions (
 			id SERIAL PRIMARY KEY,
 			user_id BIGINT NOT NULL,
-			title VARCHAR(255) NOT NULL,
-			code_source VARCHAR(50) NOT NULL,
-			created_at TIMESTAMP DEFAULT NOW()
+			title VARCHAR(255),
+			code_source VARCHAR(50),
+			github_repo VARCHAR(255),
+			github_branch VARCHAR(100),
+			pasted_code TEXT,
+			created_at TIMESTAMP DEFAULT NOW(),
+			last_accessed TIMESTAMP DEFAULT NOW()
 		)
 	`)
 	require.NoError(t, err)
