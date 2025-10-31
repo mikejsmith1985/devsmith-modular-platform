@@ -9,10 +9,9 @@ import (
 
 // FallbackChain implements a sequential provider failover mechanism.
 type FallbackChain struct {
-	providers       []Provider
-	failureCounts   map[string]int64
-	failureCountsMu sync.RWMutex
-	mu              sync.RWMutex
+	failureCounts map[string]int64
+	providers     []Provider
+	mu            sync.RWMutex
 }
 
 // NewFallbackChain creates a new fallback chain with the given providers.
@@ -105,21 +104,21 @@ func (fc *FallbackChain) SetMaxRetries(retries int) {
 
 // RecordFailure records a failure for a provider
 func (fc *FallbackChain) RecordFailure(ctx context.Context, providerName string) {
-	fc.failureCountsMu.Lock()
-	defer fc.failureCountsMu.Unlock()
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 	fc.failureCounts[providerName]++
 }
 
 // GetFailureCount returns the failure count for a provider
 func (fc *FallbackChain) GetFailureCount(providerName string) int64 {
-	fc.failureCountsMu.RLock()
-	defer fc.failureCountsMu.RUnlock()
+	fc.mu.RLock()
+	defer fc.mu.RUnlock()
 	return fc.failureCounts[providerName]
 }
 
 // ResetFailures resets failure counts for a provider
 func (fc *FallbackChain) ResetFailures(providerName string) {
-	fc.failureCountsMu.Lock()
-	defer fc.failureCountsMu.Unlock()
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
 	fc.failureCounts[providerName] = 0
 }
