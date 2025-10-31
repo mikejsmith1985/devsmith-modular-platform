@@ -1,0 +1,106 @@
+package selectinput
+
+type Option struct {
+	Value string
+	Label string
+}
+
+type SelectProps struct {
+	Name          string
+	Label         string
+	Options       []Option
+	SelectedValue string
+	Placeholder   string
+	Required      bool
+	Disabled      bool
+	Error         string
+	HasError      bool
+	HelpText      string
+}
+
+templ Select(props SelectProps) {
+	<div class="form-group">
+		if props.Label != "" {
+			<label for={ props.Name } class="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+				{ props.Label }
+				if props.Required {
+					<span class="text-red-600 dark:text-red-400 ml-1">*</span>
+				}
+			</label>
+		}
+		<select
+			id={ props.Name }
+			name={ props.Name }
+			disabled?={ props.Disabled }
+			required?={ props.Required }
+			aria-label={ props.Label }
+			aria-invalid={ boolToString(props.HasError) }
+			aria-describedby={ selectDescribedByID(props.Name, props.HasError, props.HelpText != "") }
+			role="combobox"
+			class={ selectClass(props.HasError, props.Disabled) }
+		>
+			if props.Placeholder != "" {
+				<option value="">{ props.Placeholder }</option>
+			}
+			for _, opt := range props.Options {
+				<option value={ opt.Value } selected?={ opt.Value == props.SelectedValue }>
+					{ opt.Label }
+				</option>
+			}
+		</select>
+		if props.HasError && props.Error != "" {
+			<p id={ props.Name + "-error" } class="mt-1 text-sm text-red-600 dark:text-red-400">
+				{ props.Error }
+			</p>
+		}
+		if !props.HasError && props.HelpText != "" {
+			<p id={ props.Name + "-hint" } class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+				{ props.HelpText }
+			</p>
+		}
+	</div>
+}
+
+func selectClass(hasError bool, disabled bool) string {
+	base := "w-full px-3 py-2 border rounded-md text-sm transition-colors cursor-pointer"
+	
+	if disabled {
+		return base + " bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+	}
+	
+	if hasError {
+		return base + " bg-white dark:bg-gray-900 border-red-500 dark:border-red-400 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+	}
+	
+	return base + " bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+}
+
+func selectDescribedByID(name string, hasError bool, hasHelp bool) string {
+	var ids []string
+	if hasError {
+		ids = append(ids, name+"-error")
+	}
+	if hasHelp {
+		ids = append(ids, name+"-hint")
+	}
+	
+	if len(ids) == 0 {
+		return ""
+	}
+	
+	result := ""
+	for i, id := range ids {
+		if i > 0 {
+			result += " "
+		}
+		result += id
+	}
+	return result
+}
+
+func boolToString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
