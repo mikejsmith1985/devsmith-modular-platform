@@ -25,16 +25,27 @@ func NewSessionHandler(repo *review_db.ReviewRepository, logger logger.Interface
 
 // ListSessions returns paginated list of user's review sessions
 // GET /api/review/sessions?limit=10&offset=0
+//
+// Query Parameters:
+//   - limit: Number of sessions to return (default: 10)
+//   - offset: Number of sessions to skip (default: 0)
+//
+// Response: {
+//   "sessions": [...],
+//   "pagination": {"total": 50, "limit": 10, "offset": 0}
+// }
 func (h *SessionHandler) ListSessions(c *gin.Context) {
 	// Extract user ID from context (set by auth middleware)
 	userID, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user_id not found in context"})
+		h.logger.Warn("user_id not found in context")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: user_id not found"})
 		return
 	}
 	userIDInt, ok := userID.(int64)
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
+		h.logger.Warn("user_id type assertion failed", "type", userID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id type"})
 		return
 	}
 
@@ -61,6 +72,8 @@ func (h *SessionHandler) ListSessions(c *gin.Context) {
 		return
 	}
 
+	h.logger.Info("listed sessions", "user_id", userIDInt, "count", len(sessions), "total", total)
+
 	// Return paginated response
 	c.JSON(http.StatusOK, gin.H{
 		"sessions": sessions,
@@ -74,10 +87,23 @@ func (h *SessionHandler) ListSessions(c *gin.Context) {
 
 // GetSession returns a specific review session by ID
 // GET /api/review/sessions/:id
+//
+// Path Parameters:
+//   - id: Session ID (integer)
+//
+// Response: {
+//   "id": 1,
+//   "user_id": 100,
+//   "title": "...",
+//   "code_source": "paste",
+//   "created_at": "...",
+//   "last_accessed": "..."
+// }
 func (h *SessionHandler) GetSession(c *gin.Context) {
 	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid session id"})
+		h.logger.Warn("invalid session id", "id", c.Param("id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid session id format"})
 		return
 	}
 
@@ -85,11 +111,12 @@ func (h *SessionHandler) GetSession(c *gin.Context) {
 	session, err := h.repo.GetByID(c.Request.Context(), sessionID)
 	if err != nil {
 		h.logger.Error("failed to get session", "error", err, "session_id", sessionID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch session"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
 
 	if session == nil {
+		h.logger.Info("session not found", "session_id", sessionID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
 		return
 	}
@@ -99,10 +126,16 @@ func (h *SessionHandler) GetSession(c *gin.Context) {
 
 // DeleteSession removes a review session
 // DELETE /api/review/sessions/:id
+//
+// Path Parameters:
+//   - id: Session ID (integer)
+//
+// Response: {"message": "session deleted successfully"}
 func (h *SessionHandler) DeleteSession(c *gin.Context) {
 	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid session id"})
+		h.logger.Warn("invalid session id", "id", c.Param("id"))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid session id format"})
 		return
 	}
 
@@ -114,5 +147,6 @@ func (h *SessionHandler) DeleteSession(c *gin.Context) {
 		return
 	}
 
+	h.logger.Info("session deleted", "session_id", sessionID)
 	c.JSON(http.StatusOK, gin.H{"message": "session deleted successfully"})
 }
