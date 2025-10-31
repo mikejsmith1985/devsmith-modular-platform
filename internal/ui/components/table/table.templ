@@ -1,0 +1,134 @@
+package table
+
+type Column struct {
+	Key       string
+	Label     string
+	Sortable  bool
+	Width     string
+	Formatter func(interface{}) string
+}
+
+type TableProps struct {
+	Columns     []Column
+	Rows        []map[string]interface{}
+	Sortable    bool
+	SortBy      string
+	SortOrder   string // asc, desc
+	Striped     bool
+	Hoverable   bool
+	Compact     bool
+	Paginated   bool
+	PageSize    int
+	CurrentPage int
+	EmptyState  string
+}
+
+templ Table(props TableProps) {
+	<div class="overflow-x-auto">
+		<table class={ tableClass(props.Striped, props.Hoverable) } role="table">
+			<thead class="bg-gray-50 dark:bg-gray-800">
+				<tr role="row">
+					for _, col := range props.Columns {
+						<th scope="col" class={ thClass(props.Compact) }>
+							if col.Sortable && props.Sortable {
+								<button type="button" class="inline-flex items-center gap-1 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded">
+									{ col.Label }
+									if props.SortBy == col.Key {
+										if props.SortOrder == "asc" {
+											<span>↑</span>
+										} else {
+											<span>↓</span>
+										}
+									}
+								</button>
+							} else {
+								<span class="text-gray-900 dark:text-white font-semibold">{ col.Label }</span>
+							}
+						</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				if len(props.Rows) == 0 {
+					<tr role="row">
+						<td colspan={ len(props.Columns) } class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+							if props.EmptyState != "" {
+								{ props.EmptyState }
+							} else {
+								No data available
+							}
+						</td>
+					</tr>
+				} else {
+					for i, row := range props.Rows {
+						<tr role="row" class={ rowClass(i, props.Striped) }>
+							for _, col := range props.Columns {
+								<td class={ tdClass(props.Compact) }>
+									{ formatCellValue(row[col.Key], col.Formatter) }
+								</td>
+							}
+						</tr>
+					}
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+func tableClass(striped bool, hoverable bool) string {
+	base := "w-full text-sm text-gray-700 dark:text-gray-300 border-collapse"
+	classes := base
+	if striped {
+		classes += " bg-white dark:bg-gray-900"
+	}
+	if hoverable {
+		classes += " hover-rows"
+	}
+	return classes
+}
+
+func thClass(compact bool) string {
+	base := "text-left font-semibold text-gray-900 dark:text-white"
+	if compact {
+		return base + " px-3 py-2 text-xs"
+	}
+	return base + " px-6 py-3"
+}
+
+func tdClass(compact bool) string {
+	base := "text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700"
+	if compact {
+		return base + " px-3 py-2 text-xs"
+	}
+	return base + " px-6 py-4"
+}
+
+func rowClass(index int, striped bool) string {
+	base := "hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+	if striped && index%2 == 1 {
+		return base + " bg-gray-50 dark:bg-gray-800/50"
+	}
+	return base
+}
+
+func formatCellValue(val interface{}, formatter func(interface{}) string) string {
+	if formatter != nil {
+		return formatter(val)
+	}
+	
+	switch v := val.(type) {
+	case string:
+		return v
+	case int:
+		return string(rune(v + 48))
+	case float64:
+		return "number"
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	default:
+		return "—"
+	}
+}
