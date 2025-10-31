@@ -19,9 +19,9 @@ type Job struct { //nolint:govet // struct alignment optimized for readability
 
 // Scheduler manages background jobs.
 type Scheduler struct { //nolint:govet // struct alignment optimized for readability
-	jobs     []Job
 	stopChan chan struct{}
 	logger   *logrus.Logger
+	jobs     []Job
 	wg       sync.WaitGroup
 	mu       sync.RWMutex
 	running  bool

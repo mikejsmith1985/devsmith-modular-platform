@@ -7,9 +7,9 @@ import (
 
 // DependencyChecker validates service interdependencies
 type DependencyChecker struct {
-	CheckName    string
 	Dependencies map[string][]string // service -> list of dependencies
 	HealthChecks map[string]string   // service -> health check URL
+	CheckName    string
 }
 
 // ServiceDependency represents a service and its status
@@ -56,13 +56,14 @@ func (c *DependencyChecker) Check() CheckResult {
 		}
 
 		status := "healthy"
-		if !serviceHealth[service] {
+		switch {
+		case !serviceHealth[service]:
 			status = "unhealthy"
-		} else if healthyDeps < len(deps) {
+		case healthyDeps < len(deps):
 			status = "degraded"
 			unhealthyChains = append(unhealthyChains,
 				fmt.Sprintf("%s (missing: %d/%d deps)", service, len(deps)-healthyDeps, len(deps)))
-		} else {
+		default:
 			healthyServices++
 		}
 
@@ -81,14 +82,15 @@ func (c *DependencyChecker) Check() CheckResult {
 	result.Details["unhealthy_chains"] = unhealthyChains
 
 	// Determine overall status
-	if healthyServices == totalServices {
+	switch {
+	case healthyServices == totalServices:
 		result.Status = StatusPass
 		result.Message = fmt.Sprintf("All %d services and dependencies healthy", totalServices)
-	} else if len(unhealthyChains) > 0 {
+	case len(unhealthyChains) > 0:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("%d services have unhealthy dependencies", len(unhealthyChains))
 		result.Error = fmt.Sprintf("Affected: %v", unhealthyChains)
-	} else {
+	default:
 		result.Status = StatusFail
 		result.Message = fmt.Sprintf("%d/%d services unhealthy", totalServices-healthyServices, totalServices)
 	}

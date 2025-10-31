@@ -32,7 +32,7 @@ func TestFormatJSON(t *testing.T) {
 		},
 	}
 
-	output, err := FormatJSON(report)
+	output, err := FormatJSON(&report)
 	if err != nil {
 		t.Fatalf("FormatJSON failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestFormatHuman(t *testing.T) {
 		},
 	}
 
-	output := FormatHuman(report)
+	output := FormatHuman(&report)
 
 	expectedStrings := []string{
 		"DevSmith Platform Health Check",

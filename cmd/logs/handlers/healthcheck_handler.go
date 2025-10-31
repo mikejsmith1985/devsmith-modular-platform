@@ -85,7 +85,7 @@ func GetHealthCheck(c *gin.Context) {
 
 	// Return appropriate format
 	if format == "human" {
-		output := healthcheck.FormatHuman(report)
+		output := healthcheck.FormatHuman(&report)
 		c.String(http.StatusOK, output)
 		return
 	}
