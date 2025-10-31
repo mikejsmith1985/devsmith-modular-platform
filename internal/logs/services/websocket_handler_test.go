@@ -531,8 +531,7 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	// Fill the broadcast channel quickly
 	sentCount := 0
 
-
-	fillLoop:
+fillLoop:
 	for i := 0; i < 500; i++ {
 		select {
 		case hub.broadcast <- &logs_models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:

@@ -1,0 +1,345 @@
+package nav
+
+import (
+	portalmodels "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
+)
+
+// Header renders the shared navigation header across all apps
+templ Header(currentApp string, user *portalmodels.User) {
+	<header class="devsmith-header">
+		<div class="header-left">
+			<!-- Portal Logo/Home Link -->
+			<a href="/" class="logo">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+					<path d="M12 6V18M6 12H18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+				</svg>
+				<span class="logo-text">DevSmith</span>
+			</a>
+
+			<!-- Back to Portal Button (hidden on Portal) -->
+			if currentApp != "portal" {
+				<a href="/" class="nav-back">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+					</svg>
+					<span>Portal</span>
+				</a>
+			}
+		</div>
+
+		<!-- App Switcher Dropdown -->
+		<div class="header-center">
+			<div class="app-indicator">
+				<span class="current-app">{ currentApp }</span>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+				<div class="dropdown-menu" role="menu">
+					<a href="/" class="dropdown-item" role="menuitem">Portal</a>
+					<a href="/review" class="dropdown-item" role="menuitem">Review</a>
+					<a href="/logs" class="dropdown-item" role="menuitem">Logs</a>
+					<a href="/analytics" class="dropdown-item" role="menuitem">Analytics</a>
+					<a href="/healthcheck" class="dropdown-item" role="menuitem">Health Check</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Right Side: Dark Mode Toggle & User Menu -->
+		<div class="header-right">
+			<!-- Dark Mode Toggle -->
+			<button class="nav-button theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="sun-icon">
+					<circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+					<path d="M12 1V3M12 21V23M23 12H21M3 12H1M20.485 3.515L19.071 4.929M4.929 19.071L3.515 20.485M20.485 20.485L19.071 19.071M4.929 4.929L3.515 3.515" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+				</svg>
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="moon-icon" style="display: none;">
+					<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</button>
+
+			<!-- User Profile Menu -->
+			if user != nil {
+				<div class="user-menu">
+					<button class="user-button" id="user-button" aria-label={ "User menu for " + user.Username }>
+						<span class="user-avatar">{ string(user.Username[0]) }</span>
+					</button>
+					<div class="user-dropdown" role="menu">
+						<div class="user-info">
+							<div class="user-name">{ user.Username }</div>
+							<div class="user-email">{ user.Email }</div>
+						</div>
+						<hr class="user-separator"/>
+						<a href="/profile" class="user-menu-item" role="menuitem">Profile</a>
+						<a href="/settings" class="user-menu-item" role="menuitem">Settings</a>
+						<a href="/settings/ai" class="user-menu-item" role="menuitem">AI Preferences</a>
+						<hr class="user-separator"/>
+						<button hx-post="/api/auth/logout" class="user-menu-item logout-btn" role="menuitem">Logout</button>
+					</div>
+				</div>
+			}
+		</div>
+	</header>
+}
+
+// Navigation CSS (include this in main CSS file)
+// This is a reference for the CSS that should be added
+templ HeaderStyles() {
+	<style>
+		:root {
+			--color-primary: #007AFF;
+			--color-primary-hover: #0051D5;
+			--color-bg: #FFFFFF;
+			--color-bg-secondary: #F5F5F7;
+			--color-text: #1D1D1F;
+			--color-text-secondary: #86868B;
+			--color-border: #D2D2D7;
+			--space-2: 8px;
+			--space-3: 12px;
+			--space-4: 16px;
+		}
+
+		html[data-theme="dark"] {
+			--color-bg: #000000;
+			--color-bg-secondary: #1C1C1E;
+			--color-text: #F5F5F7;
+			--color-text-secondary: #98989D;
+			--color-border: #424245;
+		}
+
+		.devsmith-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: var(--space-3) var(--space-4);
+			background-color: var(--color-bg-secondary);
+			border-bottom: 1px solid var(--color-border);
+			height: 56px;
+		}
+
+		.header-left {
+			display: flex;
+			align-items: center;
+			gap: var(--space-4);
+			flex: 1;
+		}
+
+		.logo {
+			display: flex;
+			align-items: center;
+			gap: var(--space-2);
+			text-decoration: none;
+			color: var(--color-primary);
+			font-weight: 600;
+			font-size: 14px;
+		}
+
+		.logo:hover {
+			opacity: 0.8;
+		}
+
+		.nav-back {
+			display: flex;
+			align-items: center;
+			gap: var(--space-2);
+			padding: var(--space-2) var(--space-3);
+			background: var(--color-bg);
+			border: 1px solid var(--color-border);
+			border-radius: 6px;
+			color: var(--color-text);
+			text-decoration: none;
+			font-size: 13px;
+			cursor: pointer;
+		}
+
+		.nav-back:hover {
+			background: var(--color-bg-secondary);
+		}
+
+		.header-center {
+			display: flex;
+			align-items: center;
+			flex: 1;
+			justify-content: center;
+		}
+
+		.app-indicator {
+			position: relative;
+			display: flex;
+			align-items: center;
+			gap: var(--space-2);
+			padding: var(--space-2) var(--space-3);
+			background: var(--color-bg);
+			border: 1px solid var(--color-border);
+			border-radius: 6px;
+			cursor: pointer;
+			font-size: 13px;
+			font-weight: 500;
+		}
+
+		.app-indicator:hover {
+			background: var(--color-bg-secondary);
+		}
+
+		.current-app {
+			text-transform: capitalize;
+			color: var(--color-text);
+		}
+
+		.dropdown-menu {
+			display: none;
+			position: absolute;
+			top: 100%;
+			left: 0;
+			margin-top: var(--space-2);
+			background: var(--color-bg);
+			border: 1px solid var(--color-border);
+			border-radius: 6px;
+			min-width: 150px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			z-index: 1000;
+		}
+
+		.app-indicator:hover .dropdown-menu {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.dropdown-item {
+			padding: var(--space-3) var(--space-4);
+			color: var(--color-text);
+			text-decoration: none;
+			font-size: 13px;
+			cursor: pointer;
+			border: none;
+			background: none;
+			text-align: left;
+			transition: background-color 0.2s;
+		}
+
+		.dropdown-item:hover {
+			background: var(--color-bg-secondary);
+		}
+
+		.header-right {
+			display: flex;
+			align-items: center;
+			gap: var(--space-3);
+			flex: 1;
+			justify-content: flex-end;
+		}
+
+		.nav-button {
+			background: none;
+			border: none;
+			cursor: pointer;
+			padding: var(--space-2);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: var(--color-text);
+			border-radius: 6px;
+			transition: background-color 0.2s;
+		}
+
+		.nav-button:hover {
+			background: var(--color-bg);
+		}
+
+		.user-menu {
+			position: relative;
+		}
+
+		.user-button {
+			background: none;
+			border: 1px solid var(--color-border);
+			width: 32px;
+			height: 32px;
+			border-radius: 50%;
+			cursor: pointer;
+			padding: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 600;
+			color: var(--color-primary);
+		}
+
+		.user-button:hover {
+			background: var(--color-bg);
+		}
+
+		.user-avatar {
+			display: block;
+			text-align: center;
+			font-size: 14px;
+		}
+
+		.user-dropdown {
+			display: none;
+			position: absolute;
+			top: 100%;
+			right: 0;
+			margin-top: var(--space-2);
+			background: var(--color-bg);
+			border: 1px solid var(--color-border);
+			border-radius: 6px;
+			min-width: 200px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+			z-index: 1000;
+		}
+
+		.user-button:hover ~ .user-dropdown {
+			display: block;
+		}
+
+		.user-dropdown:hover {
+			display: block;
+		}
+
+		.user-info {
+			padding: var(--space-3) var(--space-4);
+			border-bottom: 1px solid var(--color-border);
+		}
+
+		.user-name {
+			font-weight: 600;
+			color: var(--color-text);
+			font-size: 13px;
+		}
+
+		.user-email {
+			color: var(--color-text-secondary);
+			font-size: 12px;
+			margin-top: 4px;
+		}
+
+		.user-separator {
+			border: none;
+			border-top: 1px solid var(--color-border);
+			margin: 0;
+		}
+
+		.user-menu-item {
+			display: block;
+			width: 100%;
+			padding: var(--space-3) var(--space-4);
+			color: var(--color-text);
+			text-decoration: none;
+			font-size: 13px;
+			cursor: pointer;
+			border: none;
+			background: none;
+			text-align: left;
+			transition: background-color 0.2s;
+		}
+
+		.user-menu-item:hover {
+			background: var(--color-bg-secondary);
+		}
+
+		.logout-btn {
+			color: var(--color-danger);
+		}
+	</style>
+}
