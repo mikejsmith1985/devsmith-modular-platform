@@ -12,19 +12,19 @@ import (
 type TrivyChecker struct {
 	CheckName string
 	ScanType  string   // "image", "config", "filesystem"
-	Targets   []string // images to scan
 	TrivyPath string   // path to trivy binary or script
+	Targets   []string // images to scan
 }
 
 // TrivyScanResult represents parsed Trivy scan output
 type TrivyScanResult struct {
 	ScanType        string       `json:"scan_type"`
 	Target          string       `json:"target"`
+	Vulnerabilities []VulnResult `json:"vulnerabilities,omitempty"`
 	Critical        int          `json:"critical"`
 	High            int          `json:"high"`
 	Medium          int          `json:"medium"`
 	Low             int          `json:"low"`
-	Vulnerabilities []VulnResult `json:"vulnerabilities,omitempty"`
 }
 
 // VulnResult represents a single vulnerability

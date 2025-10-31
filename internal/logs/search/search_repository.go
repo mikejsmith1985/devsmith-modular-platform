@@ -29,8 +29,8 @@ type SearchRepository struct {
 	// in-memory fallback used when db is nil (unit tests)
 	memSearches map[int64]*SavedSearch
 	memHistory  map[int64][]*SearchHistory
-	nextID      int64
 	memShared   map[int64][]int64 // map[userID] -> list of searchIDs shared with them
+	nextID      int64
 }
 
 // NewSearchRepository creates a new search repository instance.

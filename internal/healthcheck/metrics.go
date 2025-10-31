@@ -23,9 +23,9 @@ type MetricEndpoint struct {
 // PerformanceMetric represents timing data for an endpoint
 type PerformanceMetric struct {
 	Endpoint     string `json:"endpoint"`
+	Status       string `json:"status"`
 	ResponseTime int64  `json:"response_time_ms"`
 	StatusCode   int    `json:"status_code"`
-	Status       string `json:"status"`
 }
 
 // Name returns the checker name

@@ -18,15 +18,15 @@ const (
 
 // HealthPolicy represents a health policy for a service
 type HealthPolicy struct {
-	ID                int       `json:"id"`
+	UpdatedAt         time.Time `json:"updated_at"`
 	ServiceName       string    `json:"service_name"`
+	RepairStrategy    string    `json:"repair_strategy"` // restart, rebuild, none
+	PolicyJSON        string    `json:"policy_json,omitempty"`
+	ID                int       `json:"id"`
 	MaxResponseTimeMs int       `json:"max_response_time_ms"`
 	AutoRepairEnabled bool      `json:"auto_repair_enabled"`
-	RepairStrategy    string    `json:"repair_strategy"` // restart, rebuild, none
 	AlertOnWarn       bool      `json:"alert_on_warn"`
 	AlertOnFail       bool      `json:"alert_on_fail"`
-	PolicyJSON        string    `json:"policy_json,omitempty"`
-	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // HealthPolicyService manages health policies for services

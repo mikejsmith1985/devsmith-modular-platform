@@ -27,19 +27,19 @@ type WebSocketHub struct {
 // Each client has its own Send channel, filter settings, and authentication state.
 // nolint:govet // Field order optimized for readability
 type Client struct {
+	LastActivity time.Time
 	Conn         *websocket.Conn
 	Send         chan *logs_models.LogEntry
 	Filters      map[string]string
-	IsAuth       bool
-	IsPublic     bool
-	LastActivity time.Time
-	mu           sync.Mutex
-	// writeMu serializes concurrent writes to the websocket connection
-	writeMu sync.Mutex
 	// Registered channel is closed by the hub after the client
 	// has been added to the active clients map. Tests wait on this
 	// to ensure registration is complete before sending messages.
 	Registered chan struct{}
+	mu         sync.Mutex
+	// writeMu serializes concurrent writes to the websocket connection
+	writeMu  sync.Mutex
+	IsAuth   bool
+	IsPublic bool
 }
 
 // NewWebSocketHub creates and returns a new WebSocketHub instance.
