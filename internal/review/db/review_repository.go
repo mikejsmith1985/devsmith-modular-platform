@@ -62,7 +62,7 @@ func (r *ReviewRepository) GetByID(ctx context.Context, id int64) (*Review, erro
 }
 
 // ListByUserID retrieves all review sessions for a user with pagination support
-func (r *ReviewRepository) ListByUserID(ctx context.Context, userID int64, limit int, offset int) ([]*Review, int, error) {
+func (r *ReviewRepository) ListByUserID(ctx context.Context, userID int64, limit, offset int) ([]*Review, int, error) {
 	// Get total count
 	var total int
 	countErr := r.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM reviews.sessions WHERE user_id = $1`, userID).Scan(&total)
@@ -79,16 +79,18 @@ func (r *ReviewRepository) ListByUserID(ctx context.Context, userID int64, limit
 	if err != nil {
 		return nil, 0, fmt.Errorf("db: failed to query reviews: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck // explicitly ignore close error
+	}()
 
 	var reviews []*Review
 	for rows.Next() {
 		var review Review
-		err := rows.Scan(&review.ID, &review.UserID, &review.Title, &review.CodeSource,
+		scanErr := rows.Scan(&review.ID, &review.UserID, &review.Title, &review.CodeSource,
 			&review.GithubRepo, &review.GithubBranch, &review.PastedCode,
 			&review.CreatedAt, &review.LastAccessed)
-		if err != nil {
-			return nil, 0, fmt.Errorf("db: failed to scan review: %w", err)
+		if scanErr != nil {
+			return nil, 0, fmt.Errorf("db: failed to scan review: %w", scanErr)
 		}
 		reviews = append(reviews, &review)
 	}
@@ -151,16 +153,18 @@ func (r *ReviewRepository) FindExpiredSessions(ctx context.Context, daysOld int)
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to query expired sessions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck // explicitly ignore close error
+	}()
 
 	var sessions []*Review
 	for rows.Next() {
 		var session Review
-		err := rows.Scan(&session.ID, &session.UserID, &session.Title, &session.CodeSource,
+		scanErr := rows.Scan(&session.ID, &session.UserID, &session.Title, &session.CodeSource,
 			&session.GithubRepo, &session.GithubBranch, &session.PastedCode,
 			&session.CreatedAt, &session.LastAccessed)
-		if err != nil {
-			return nil, fmt.Errorf("db: failed to scan session: %w", err)
+		if scanErr != nil {
+			return nil, fmt.Errorf("db: failed to scan session: %w", scanErr)
 		}
 		sessions = append(sessions, &session)
 	}

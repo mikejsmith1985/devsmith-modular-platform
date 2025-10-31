@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -17,21 +18,21 @@ type MockClient struct {
 	getRateLimitFunc    func(ctx context.Context, token string) (int, time.Time, error)
 }
 
-func (m *MockClient) FetchCode(ctx context.Context, owner, repo, branch string, token string) (*CodeFetch, error) {
+func (m *MockClient) FetchCode(ctx context.Context, owner, repo, branch, token string) (*CodeFetch, error) {
 	if m.fetchCodeFunc != nil {
 		return m.fetchCodeFunc(ctx, owner, repo, branch, token)
 	}
 	return nil, nil
 }
 
-func (m *MockClient) GetRepoMetadata(ctx context.Context, owner, repo string, token string) (*RepoMetadata, error) {
+func (m *MockClient) GetRepoMetadata(ctx context.Context, owner, repo, token string) (*RepoMetadata, error) {
 	if m.getRepoMetadataFunc != nil {
 		return m.getRepoMetadataFunc(ctx, owner, repo, token)
 	}
 	return nil, nil
 }
 
-func (m *MockClient) ValidateURL(url string) (string, string, error) {
+func (m *MockClient) ValidateURL(url string) (owner, repo string, err error) {
 	if m.validateURLFunc != nil {
 		return m.validateURLFunc(url)
 	}
@@ -141,8 +142,8 @@ func TestFetchCode_AuthError(t *testing.T) {
 	// THEN: Should return auth error
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	authErr, ok := err.(*AuthError)
-	assert.True(t, ok)
+	var authErr *AuthError
+	assert.True(t, errors.As(err, &authErr))
 	assert.Equal(t, 401, authErr.StatusCode)
 }
 
@@ -163,8 +164,8 @@ func TestFetchCode_NotFound(t *testing.T) {
 	// THEN: Should return not found error
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	notFoundErr, ok := err.(*NotFoundError)
-	assert.True(t, ok)
+	var notFoundErr *NotFoundError
+	assert.True(t, errors.As(err, &notFoundErr))
 	assert.Equal(t, "invalid", notFoundErr.Owner)
 }
 
@@ -228,8 +229,8 @@ func TestGetRateLimit_Exceeded(t *testing.T) {
 	// THEN: Should return rate limit error
 	assert.Error(t, err)
 	assert.Equal(t, 0, remaining)
-	rateLimitErr, ok := err.(*RateLimitError)
-	assert.True(t, ok)
+	var rateLimitErr *RateLimitError
+	assert.True(t, errors.As(err, &rateLimitErr))
 	assert.Equal(t, resetTime, rateLimitErr.ResetTime)
 }
 
