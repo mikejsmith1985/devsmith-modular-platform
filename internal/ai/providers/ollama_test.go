@@ -12,6 +12,8 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
+const ollamaGenerateEndpoint = "/api/generate"
+
 // TestOllamaClient_NewOllamaClient_CreatesValidClient verifies constructor works
 func TestOllamaClient_NewOllamaClient_CreatesValidClient(t *testing.T) {
 	client := NewOllamaClient("http://localhost:11434", "deepseek-coder:6.7b")
@@ -68,7 +70,7 @@ func TestOllamaClient_HealthCheck_FailsWithInvalidEndpoint(t *testing.T) {
 func TestOllamaClient_Generate_ReturnsValidResponse(t *testing.T) {
 	// Mock Ollama server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/generate" {
+		if r.URL.Path == ollamaGenerateEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -107,7 +109,7 @@ func TestOllamaClient_Generate_ReturnsValidResponse(t *testing.T) {
 // TestOllamaClient_Generate_HandlesEmptyPrompt verifies edge case
 func TestOllamaClient_Generate_HandlesEmptyPrompt(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/generate" {
+		if r.URL.Path == ollamaGenerateEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -160,7 +162,7 @@ func TestOllamaClient_Generate_ContextCancellation(t *testing.T) {
 // TestOllamaClient_Generate_RespondsWithStopToken verifies stop condition
 func TestOllamaClient_Generate_RespondsWithStopToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/generate" {
+		if r.URL.Path == ollamaGenerateEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -192,11 +194,9 @@ func TestOllamaClient_Generate_RespondsWithStopToken(t *testing.T) {
 func TestOllamaClient_Generate_TemperatureForwarded(t *testing.T) {
 	capturedTemp := 0.0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/generate" {
-			// Parse request body to verify temperature is forwarded
-			if err := r.ParseForm(); err == nil {
-				// Just verify we can read the form
-			}
+		if r.URL.Path == ollamaGenerateEndpoint {
+			// Parse request body to verify form data exists (required by test framework)
+			_ = r.ParseForm()
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{
@@ -249,7 +249,7 @@ func TestOllamaClient_Generate_HTTPError(t *testing.T) {
 // TestOllamaClient_Generate_InvalidJSON verifies JSON parsing errors
 func TestOllamaClient_Generate_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/generate" {
+		if r.URL.Path == ollamaGenerateEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{invalid json}`))
@@ -277,7 +277,7 @@ func TestOllamaClient_Generate_LargeResponse(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/generate" {
+		if r.URL.Path == ollamaGenerateEndpoint {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Return large response

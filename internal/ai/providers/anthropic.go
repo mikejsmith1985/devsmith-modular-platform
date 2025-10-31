@@ -126,9 +126,7 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.Request) (*ai.Re
 		return nil, fmt.Errorf("failed to send request to Anthropic: %w", err)
 	}
 	defer func() {
-		if err := httpResp.Body.Close(); err != nil {
-			c.httpClient.CloseIdleConnections()
-		}
+		_ = httpResp.Body.Close() // error safe to ignore
 	}()
 
 	// Check HTTP status
