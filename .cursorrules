@@ -25,21 +25,21 @@
 ### Cost Optimization Techniques
 - Batch similar requests together
 - Use short, focused prompts
-- Leverage Cursor Pro+ unlimited usage
+- Leverage Ollama context window (4K tokens)
 - Cache common responses
-- Use Haiku for 100% of code tasks
+- Use Haiku for 90%+ of Claude API calls
 
 ### Workflow
-1. Use Claude Haiku for all tasks
-2. Only request Sonnet with explicit approval if Haiku truly insufficient
-3. Monitor usage in Cursor dashboard
-4. Report if hitting surprising limitations
+1. Try Ollama first for everything
+2. Only use Claude if Ollama fails or architecture needed
+3. Use Sonnet only for Friday afternoon PR reviews
+4. Monitor usage daily in Cursor dashboard
 
 ### Copilot Pro Integration
 - Keep Copilot Pro active ($10/month)
 - Use Copilot for inline suggestions
-- Use Claude Haiku (Cursor Pro+) for complex tasks
-- Use Haiku for architecture decisions
+- Use Ollama for complex tasks
+- Use Cursor Haiku for architecture
 
 ---
 
@@ -582,6 +582,52 @@ If ANY of these fail, you have TWO options:
 2. Revert your changes
 
 There is no option 3.
+
+---
+
+## GitHub PR Linking (For Future Reference)
+
+### Automatic Issue Linking
+When creating PRs, include one of these keywords in the PR body to automatically link to and close the issue:
+
+**Supported keywords:**
+- `closes #ISSUE_NUMBER` (closes issue when PR merges)
+- `fixes #ISSUE_NUMBER` (closes issue when PR merges)
+- `resolves #ISSUE_NUMBER` (closes issue when PR merges)
+- `related to #ISSUE_NUMBER` (links without closing)
+
+**Example PR Body**:
+```
+## Summary
+This PR implements feature X
+
+## Related
+- closes #79
+- related to #80
+
+## Testing
+- [ ] All tests pass
+```
+
+**Why**: GitHub automatically parses these keywords and:
+1. Shows PR linked to issue on issue page
+2. Closes issue when PR merges to default branch
+3. Improves traceability and project tracking
+
+**For Haiku**: Always include the closing keyword when creating PRs via gh CLI:
+```bash
+gh pr create \
+  --title "feat(issue-X): Description" \
+  --body "
+## Summary
+Description here
+
+closes #X
+
+## Testing
+- [ ] Tests pass
+  "
+```
 
 ---
 
