@@ -19,32 +19,32 @@ func TestDefaultPolicies_AllServicesConfigured(t *testing.T) {
 func TestDefaultPolicies_ValidConfiguration(t *testing.T) {
 	tests := []struct {
 		service         string
-		expectedMax     int
 		expectedRepair  string
+		expectedMax     int
 		expectedEnabled bool
 	}{
 		{
 			service:         "portal",
-			expectedMax:     500,
 			expectedRepair:  "restart",
+			expectedMax:     500,
 			expectedEnabled: true,
 		},
 		{
 			service:         "review",
-			expectedMax:     1000,
 			expectedRepair:  "restart",
+			expectedMax:     1000,
 			expectedEnabled: true,
 		},
 		{
 			service:         "logs",
-			expectedMax:     500,
 			expectedRepair:  "none",
+			expectedMax:     500,
 			expectedEnabled: false,
 		},
 		{
 			service:         "analytics",
-			expectedMax:     2000,
 			expectedRepair:  "restart",
+			expectedMax:     2000,
 			expectedEnabled: true,
 		},
 	}

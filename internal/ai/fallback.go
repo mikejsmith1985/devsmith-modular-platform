@@ -9,15 +9,21 @@ import (
 
 // FallbackChain implements a sequential provider failover mechanism.
 type FallbackChain struct {
-	providers []Provider
-	mu        sync.RWMutex
+	failureCounts map[string]int64
+	providers     []Provider
+	mu            sync.RWMutex
 }
 
 // NewFallbackChain creates a new fallback chain with the given providers.
 func NewFallbackChain(providers ...Provider) *FallbackChain {
-	return &FallbackChain{
-		providers: providers,
+	fc := &FallbackChain{
+		providers:     make([]Provider, 0),
+		failureCounts: make(map[string]int64),
 	}
+	if len(providers) > 0 {
+		fc.providers = providers
+	}
+	return fc
 }
 
 // AddProvider adds a provider to the fallback chain.
@@ -47,7 +53,7 @@ func (fc *FallbackChain) Generate(ctx context.Context, req *Request) (*Response,
 		fmt.Printf("Provider %d failed: %v, trying next...\n", i, err)
 	}
 
-	return nil, fmt.Errorf("all providers exhausted, last error: %w", lastErr)
+	return nil, fmt.Errorf("all providers failed: %w", lastErr)
 }
 
 // GetSuccessfulProvider returns the first provider that succeeds
@@ -98,16 +104,21 @@ func (fc *FallbackChain) SetMaxRetries(retries int) {
 
 // RecordFailure records a failure for a provider
 func (fc *FallbackChain) RecordFailure(ctx context.Context, providerName string) {
-	// This is a no-op stub. Failure tracking moved to providers.
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	fc.failureCounts[providerName]++
 }
 
 // GetFailureCount returns the failure count for a provider
 func (fc *FallbackChain) GetFailureCount(providerName string) int64 {
-	// This is a no-op stub. Failure tracking moved to providers.
-	return 0
+	fc.mu.RLock()
+	defer fc.mu.RUnlock()
+	return fc.failureCounts[providerName]
 }
 
-// ResetFailures resets all failure counters
-func (fc *FallbackChain) ResetFailures(ctx context.Context) {
-	// This is a no-op stub. Failure tracking moved to providers.
+// ResetFailures resets failure counts for a provider
+func (fc *FallbackChain) ResetFailures(providerName string) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	fc.failureCounts[providerName] = 0
 }

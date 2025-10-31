@@ -76,6 +76,7 @@ func TestTrivyCheckerStatusDetermination(t *testing.T) {
 	// vulnerability counts and verify the mapping used by
 	// TrivyChecker.Check(). This is a small, test-scoped change so the
 	// test remains deterministic in CI/local dev environments.
+	//nolint:govet // field alignment not critical for test data
 	tests := []struct {
 		name           string
 		critical       int
@@ -94,16 +95,17 @@ func TestTrivyCheckerStatusDetermination(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Determine status using the same rules as TrivyChecker.Check()
 			var derivedStatus CheckStatus
-			if tt.critical > 0 {
+			switch {
+			case tt.critical > 0:
 				derivedStatus = StatusFail
-			} else if tt.high > 0 {
+			case tt.high > 0:
 				derivedStatus = StatusWarn
-			} else if tt.medium > 0 {
+			case tt.medium > 0:
 				derivedStatus = StatusWarn
-			} else if (tt.critical + tt.high + tt.medium + tt.low) == 0 {
+			case (tt.critical + tt.high + tt.medium + tt.low) == 0:
 				// No vulnerabilities detected -> PASS
 				derivedStatus = StatusPass
-			} else {
+			default:
 				derivedStatus = StatusFail // fallback: no scans
 			}
 

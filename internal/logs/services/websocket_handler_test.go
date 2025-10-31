@@ -268,7 +268,7 @@ func TestWebSocketHandler_AuthenticatedUsersSeeAllLogs(t *testing.T) {
 }
 
 func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
-	handler := setupPublicWebSocketServer(t)
+	handler := setupPublicWebSocketServer()
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -1126,51 +1126,53 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//nolint:nestif // necessary nesting for routing handler logic
 		if r.URL.Path == wsLogsPath {
-			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-			conn, err := upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				return
-			}
-
-			// Create client
-			filters := make(map[string]string)
-			if level := r.URL.Query().Get("level"); level != "" {
-				filters["level"] = level
-			}
-			if service := r.URL.Query().Get("service"); service != "" {
-				filters["service"] = service
-			}
-			if tags := r.URL.Query().Get("tags"); tags != "" {
-				filters["tags"] = tags
-			}
-
-			client := &Client{
-				Conn:         conn,
-				Send:         make(chan *logs_models.LogEntry, 256),
-				Filters:      filters,
-				IsAuth:       false,
-				IsPublic:     true,
-				LastActivity: time.Now(),
-				Registered:   make(chan struct{}),
-			}
-
-			// Register and run pumps. Start ReadPump first (matches handler order)
-			hub.Register(client)
-			go client.ReadPump(hub)
-			go client.WritePump(hub)
-
-			// Wait briefly for hub to confirm registration to avoid
-			// races where tests broadcast immediately after dialing.
-			select {
-			case <-client.Registered:
-				// registered
-			case <-time.After(200 * time.Millisecond):
-				// timed out; continue anyway
-			}
+			handleWebSocketLogsConnection(w, r, hub)
 		}
 	})
+}
+
+// handleWebSocketLogsConnection upgrades HTTP connection to WebSocket and sets up client
+func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *WebSocketHub) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	filters := make(map[string]string)
+	if level := r.URL.Query().Get("level"); level != "" {
+		filters["level"] = level
+	}
+	if service := r.URL.Query().Get("service"); service != "" {
+		filters["service"] = service
+	}
+	if tags := r.URL.Query().Get("tags"); tags != "" {
+		filters["tags"] = tags
+	}
+
+	client := &Client{
+		Conn:         conn,
+		Send:         make(chan *logs_models.LogEntry, 256),
+		Filters:      filters,
+		IsAuth:       false,
+		IsPublic:     true,
+		LastActivity: time.Now(),
+		Registered:   make(chan struct{}),
+	}
+
+	hub.Register(client)
+	go client.ReadPump(hub)
+	go client.WritePump(hub)
+
+	// Wait briefly for hub to confirm registration to avoid
+	// races where tests broadcast immediately after dialing.
+	select {
+	case <-client.Registered:
+		// registered
+	case <-time.After(200 * time.Millisecond):
+		// timed out; continue anyway
+	}
 }
 
 func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
@@ -1190,70 +1192,21 @@ func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//nolint:nestif // necessary nesting for routing handler logic
+		// Reuse the same handler logic as setupWebSocketTestServer but with
+		// hub already created and wired to the pubsub above.
 		if r.URL.Path == wsLogsPath {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			token := strings.TrimPrefix(authHeader, "Bearer ")
-			if token != "valid_jwt_token_for_testing" {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-			conn, err := upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				return
-			}
-
-			// Build client similarly to the test server so hub broadcasts work
-			filters := make(map[string]string)
-			if level := r.URL.Query().Get("level"); level != "" {
-				filters["level"] = level
-			}
-			if service := r.URL.Query().Get("service"); service != "" {
-				filters["service"] = service
-			}
-			if tags := r.URL.Query().Get("tags"); tags != "" {
-				filters["tags"] = tags
-			}
-
-			client := &Client{
-				Conn:         conn,
-				Send:         make(chan *logs_models.LogEntry, 256),
-				Filters:      filters,
-				IsAuth:       true,
-				IsPublic:     false,
-				LastActivity: time.Now(),
-				Registered:   make(chan struct{}),
-			}
-
-			hub.Register(client)
-			go client.ReadPump(hub)
-			go client.WritePump(hub)
-
-			// Wait briefly for hub to confirm registration to avoid
-			// races where tests broadcast immediately after dialing.
-			select {
-			case <-client.Registered:
-				// registered
-			case <-time.After(200 * time.Millisecond):
-				// timed out; continue anyway
-			}
+			handleWebSocketLogsConnection(w, r, hub)
 		}
 	})
 }
 
-func setupPublicWebSocketServer(_ *testing.T) http.Handler {
+func setupPublicWebSocketServer() http.Handler {
 	hub := NewWebSocketHub()
 	go hub.Run()
 	currentTestHub = hub
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//nolint:nestif // necessary routing logic
 		if r.URL.Path == wsLogsPath {
 			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 			conn, err := upgrader.Upgrade(w, r, nil)
@@ -1398,42 +1351,7 @@ func setupWebSocketWithRedis(t *testing.T, redis interface{}) http.Handler {
 		// Reuse the same handler logic as setupWebSocketTestServer but with
 		// hub already created and wired to the pubsub above.
 		if r.URL.Path == wsLogsPath {
-			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-			conn, err := upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				return
-			}
-
-			// Create client
-			filters := make(map[string]string)
-			if level := r.URL.Query().Get("level"); level != "" {
-				filters["level"] = level
-			}
-			if service := r.URL.Query().Get("service"); service != "" {
-				filters["service"] = service
-			}
-			if tags := r.URL.Query().Get("tags"); tags != "" {
-				filters["tags"] = tags
-			}
-
-			client := &Client{
-				Conn:         conn,
-				Send:         make(chan *logs_models.LogEntry, 256),
-				Filters:      filters,
-				IsAuth:       false,
-				IsPublic:     true,
-				LastActivity: time.Now(),
-				Registered:   make(chan struct{}),
-			}
-
-			hub.Register(client)
-			go client.ReadPump(hub)
-			go client.WritePump(hub)
-
-			select {
-			case <-client.Registered:
-			case <-time.After(200 * time.Millisecond):
-			}
+			handleWebSocketLogsConnection(w, r, hub)
 		}
 	})
 }
@@ -1449,8 +1367,8 @@ func setupTestRedis(_ *testing.T) interface{} {
 // Redis pub/sub. It is intentionally simple: Subscribe returns a channel
 // and Publish broadcasts to all subscriber channels (best-effort, non-blocking).
 type inMemoryPubSub struct {
-	mu   sync.Mutex
 	subs []chan *logs_models.LogEntry
+	mu   sync.Mutex
 }
 
 func newInMemoryPubSub() *inMemoryPubSub {

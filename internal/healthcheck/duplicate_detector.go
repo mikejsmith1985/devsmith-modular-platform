@@ -88,6 +88,12 @@ func (dd *DuplicateDetector) ScanDirectory(rootPath string) ([]DuplicateBlock, e
 
 // extractCodeBlocks extracts code blocks from a file
 func (dd *DuplicateDetector) extractCodeBlocks(filePath string) ([]*CodeBlock, error) {
+	// Security: Validate filepath doesn't contain directory traversal
+	if strings.Contains(filePath, "..") {
+		return nil, fmt.Errorf("invalid file path: contains directory traversal")
+	}
+
+	// #nosec G304 - filepath is from internal filepath.Walk, not user input
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err

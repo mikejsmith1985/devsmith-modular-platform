@@ -212,23 +212,27 @@ func (s *HealthScheduler) classifyIssue(check *healthcheck.CheckResult) string {
 	}
 
 	// Classify based on error message/type
-	if check.Status == healthcheck.StatusFail {
-		if message == "" {
-			return "unknown"
-		}
-		if contains(message, "timeout", "deadline", "connection refused") {
-			return "timeout"
-		}
-		if contains(message, "crash", "exit", "killed") {
-			return "crash"
-		}
-		if contains(message, "dependency", "dependent") {
-			return "dependency"
-		}
+	if check.Status != healthcheck.StatusFail {
+		return "warning"
+	}
+
+	if message == "" {
 		return "unknown"
 	}
 
-	return "warning"
+	if contains(message, "timeout", "deadline", "connection refused") {
+		return "timeout"
+	}
+
+	if contains(message, "crash", "exit", "killed") {
+		return "crash"
+	}
+
+	if contains(message, "dependency", "dependent") {
+		return "dependency"
+	}
+
+	return "unknown"
 }
 
 // contains checks if string contains any of the given substrings
