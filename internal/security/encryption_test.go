@@ -100,7 +100,7 @@ func TestEncryptionService_Encrypt_HandlesEmptyString(t *testing.T) {
 	ciphertext, err := svc.Encrypt("")
 
 	assert.NoError(t, err, "Should encrypt empty string")
-	assert.NotEmpty(t, ciphertext, "Should produce non-empty ciphertext for empty plaintext")
+	assert.NotEqual(t, "", ciphertext, "Should produce non-empty ciphertext for empty plaintext")
 }
 
 // TestEncryptionService_Decrypt_RecoversOriginalText verifies decryption works
@@ -149,7 +149,7 @@ func TestEncryptionService_Decrypt_TamperedCiphertextReturnsError(t *testing.T) 
 	require.NoError(t, err)
 
 	// Tamper with the ciphertext (change first character)
-	if len(ciphertext) > 0 {
+	if ciphertext != "" {
 		ciphertextBytes := []byte(ciphertext)
 		if ciphertextBytes[0] == 'a' {
 			ciphertextBytes[0] = 'b'
@@ -193,12 +193,9 @@ func TestEncryptionService_RoundTrip_LargeData(t *testing.T) {
 	ciphertext, err := svc.Encrypt(largePlaintext)
 	require.NoError(t, err)
 
-	largeDecrypted, err := svc.Decrypt(ciphertext)
+	decrypted, err := svc.Decrypt(ciphertext)
 	assert.NoError(t, err, "Decryption of large data should succeed")
-	assert.Equal(t, largePlaintext, largeDecrypted, "Decrypted large data should match original")
-	if ciphertext != "" {
-		assert.True(t, len(ciphertext) > 0, "Ciphertext should not be empty")
-	}
+	assert.Equal(t, largePlaintext, decrypted, "Decrypted large data should match original")
 }
 
 // TestEncryptionService_EncryptDecrypt_DifferentKeysCannotDecrypt verifies key isolation

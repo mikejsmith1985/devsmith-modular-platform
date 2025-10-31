@@ -150,7 +150,11 @@ func (c *OllamaClient) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Ollama is unreachable: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		if err := httpResp.Body.Close(); err != nil {
+			c.httpClient.CloseIdleConnections()
+		}
+	}()
 
 	// Check status
 	if httpResp.StatusCode != http.StatusOK {
