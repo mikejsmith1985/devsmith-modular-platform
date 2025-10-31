@@ -59,6 +59,19 @@ templ Dashboard(user DashboardUser) {
 					StatLabel:   "Metrics",
 					StatValue:   "Live",
 				})
+
+				<!-- Healthcheck Service Card -->
+				@card.Card(card.CardProps{
+					Title:       "System Health",
+					Description: "Platform health status, diagnostics, and service monitoring",
+					Icon:        "🏥",
+					BadgeText:   "Monitor",
+					BadgeColor:  "blue",
+					ActionText:  "Check Status",
+					ActionURL:   "http://localhost:8082/api/logs/healthcheck",
+					StatLabel:   "Status",
+					StatValue:   "Check",
+				})
 			</div>
 
 			<!-- Stats Section -->
