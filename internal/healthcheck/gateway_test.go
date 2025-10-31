@@ -30,8 +30,8 @@ server {
     }
 }
 `
-	if _, err := tmpfile.WriteString(config); err != nil {
-		t.Fatal(err)
+	if _, writeErr := tmpfile.WriteString(config); writeErr != nil {
+		t.Fatal(writeErr)
 	}
 	tmpfile.Close()
 

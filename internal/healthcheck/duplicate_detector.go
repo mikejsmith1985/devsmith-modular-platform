@@ -93,7 +93,7 @@ func (dd *DuplicateDetector) extractCodeBlocks(filePath string) ([]*CodeBlock, e
 		return nil, err
 	}
 
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) // #nosec G304 - path is validated above
 	if err != nil {
 		return nil, err
 	}
