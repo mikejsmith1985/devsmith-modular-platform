@@ -1,0 +1,395 @@
+package ai
+
+import (
+	"fmt"
+	aicore "github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
+)
+
+// ModelSelector renders a dropdown to select AI models with cost display
+templ ModelSelector(models []*aicore.ModelInfo, currentSelection string, appName string) {
+	<div class="ai-model-selector">
+		<label for={ "model-selector-" + appName }>AI Model:</label>
+		<select id={ "model-selector-" + appName } name="ai_model" hx-post={ "/api/" + appName + "/preferences/model" } hx-target="#preferences-updated" class="model-select">
+			for _, model := range models {
+				<option value={ model.Provider + ":" + model.Model } selected?={ model.Provider + ":" + model.Model == currentSelection }>
+					{ model.DisplayName }
+					if model.CostPer1kInputTokens == 0.0 {
+						(Free)
+					} else {
+						({ fmt.Sprintf("$%.2f/1M tokens", model.CostPer1kInputTokens * 1000) })
+					}
+				</option>
+			}
+		</select>
+		<div class="model-info">
+			for _, model := range models {
+				if model.Provider + ":" + model.Model == currentSelection {
+					<div class="current-model-info">
+						<p class="model-capabilities">
+							Capabilities:
+							{ fmt.Sprintf("%v", model.Capabilities) }
+						</p>
+						<p class="model-context">
+							Context: { fmt.Sprintf("%d tokens", model.MaxTokens) }
+						</p>
+						if model.CostPer1kInputTokens > 0 {
+							<p class="model-cost-warning">
+								⚠️ This model incurs API costs. Current usage will be tracked.
+							</p>
+						}
+					</div>
+				}
+			}
+		</div>
+	</div>
+}
+
+// CostAlertBanner displays alert when cost threshold exceeded
+templ CostAlertBanner(showAlert bool, percentageUsed float64) {
+	if showAlert {
+		<div class="cost-alert-banner alert alert-warning">
+			<div class="alert-header">
+				<svg class="alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<path d="M12 2L2 20h20L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+					<path d="M12 9v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+					<path d="M12 17h0.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+				</svg>
+				<h4>Cost Threshold Alert</h4>
+			</div>
+			<p>You've used { fmt.Sprintf("%.1f%%", percentageUsed*100) } of your AI budget.</p>
+			<p class="alert-action">Consider switching to a cheaper model (e.g., Ollama) to reduce costs.</p>
+		</div>
+	}
+}
+
+// BudgetWarning displays critical warning when budget exceeded
+templ BudgetWarning(budgetExceeded bool, budgetLimit float64, currentCost float64) {
+	if budgetExceeded {
+		<div class="budget-warning-banner alert alert-danger">
+			<div class="alert-header">
+				<svg class="alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+					<path d="M12 7v5M12 15h0.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+				</svg>
+				<h4>Budget Exceeded</h4>
+			</div>
+			<p>Current cost: <strong>${ fmt.Sprintf("%.2f", currentCost) }</strong> / Budget: <strong>${ fmt.Sprintf("%.2f", budgetLimit) }</strong></p>
+			<p class="alert-action">You have exceeded your AI usage budget. Further AI requests will be blocked until the budget resets.</p>
+		</div>
+	}
+}
+
+// RememberPreference renders checkbox for saving model preference
+templ RememberPreference(isChecked bool) {
+	<div class="preference-checkbox">
+		<label>
+			<input type="checkbox" name="remember_preference" value="true" checked?={ isChecked } class="preference-toggle"/>
+			Remember this selection
+		</label>
+		<p class="preference-help">Save your model choice so it's automatically selected next time</p>
+	</div>
+}
+
+// AIPreferencesPanel renders complete AI preferences section
+templ AIPreferencesPanel(
+	models []*aicore.ModelInfo, 
+	currentSelection string, 
+	appName string,
+	budgetAlertActive bool,
+	budgetPercentage float64,
+	budgetExceeded bool,
+	budgetLimit float64,
+	currentCost float64,
+	rememberPreference bool,
+) {
+	<div class="ai-preferences-panel">
+		<div class="preferences-section">
+			<h3>AI Model Settings</h3>
+			@ModelSelector(models, currentSelection, appName)
+			@RememberPreference(rememberPreference)
+		</div>
+
+		<div class="alerts-section">
+			@CostAlertBanner(budgetAlertActive, budgetPercentage)
+			@BudgetWarning(budgetExceeded, budgetLimit, currentCost)
+		</div>
+
+		<div class="preferences-actions">
+			<button type="submit" class="btn btn-primary" hx-post={ "/api/" + appName + "/preferences" } hx-include="[name='ai_model'],[name='remember_preference']">
+				Save Preferences
+			</button>
+		</div>
+
+		<div id="preferences-updated" class="preferences-feedback" style="display:none;">
+			Preferences saved successfully!
+		</div>
+	</div>
+}
+
+// ModelCostComparison renders comparison table of all available models
+templ ModelCostComparison(models []*aicore.ModelInfo, currentCost float64) {
+	<div class="model-cost-comparison">
+		<h4>AI Model Pricing Comparison</h4>
+		<table class="comparison-table">
+			<thead>
+				<tr>
+					<th>Model</th>
+					<th>Provider</th>
+					<th>Input Cost/1M</th>
+					<th>Output Cost/1M</th>
+					<th>Status</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, model := range models {
+					<tr>
+						<td class="model-name">{ model.DisplayName }</td>
+						<td class="provider">{ model.Provider }</td>
+						<td class="cost-input">
+							if model.CostPer1kInputTokens == 0 {
+								Free
+							} else {
+								${ fmt.Sprintf("%.4f", model.CostPer1kInputTokens) }
+							}
+						</td>
+						<td class="cost-output">
+							if model.CostPer1kOutputTokens == 0 {
+								Free
+							} else {
+								${ fmt.Sprintf("%.4f", model.CostPer1kOutputTokens) }
+							}
+						</td>
+						<td class="status">
+							if model.CostPer1kInputTokens == 0 {
+								<span class="badge badge-success">Recommended</span>
+							} else {
+								<span class="badge badge-info">Paid</span>
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<p class="comparison-note">
+			Your current monthly usage: <strong>${ fmt.Sprintf("%.2f", currentCost) }</strong>
+		</p>
+	</div>
+}
+
+// CSS styles for AI components
+templ AIComponentsStyles() {
+	<style>
+		.ai-model-selector {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.ai-model-selector label {
+			font-weight: 600;
+			font-size: 14px;
+		}
+
+		.model-select {
+			padding: 10px 12px;
+			border: 1px solid #ccc;
+			border-radius: 6px;
+			font-size: 14px;
+			background: white;
+			cursor: pointer;
+		}
+
+		.model-info {
+			padding: 12px;
+			background: #f5f5f7;
+			border-radius: 6px;
+			font-size: 13px;
+		}
+
+		.current-model-info p {
+			margin: 8px 0;
+		}
+
+		.model-cost-warning {
+			color: #d97706;
+			font-weight: 500;
+		}
+
+		.cost-alert-banner, .budget-warning-banner {
+			padding: 16px;
+			border-radius: 8px;
+			margin-bottom: 16px;
+			animation: slideIn 0.3s ease-out;
+		}
+
+		@keyframes slideIn {
+			from {
+				opacity: 0;
+				transform: translateY(-10px);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		.alert-header {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 8px;
+		}
+
+		.alert-icon {
+			flex-shrink: 0;
+		}
+
+		.alert-header h4 {
+			margin: 0;
+			font-size: 15px;
+		}
+
+		.alert-warning {
+			background: #fef3c7;
+			border: 1px solid #fbbf24;
+			color: #92400e;
+		}
+
+		.alert-danger {
+			background: #fee2e2;
+			border: 1px solid #fca5a5;
+			color: #7c2d12;
+		}
+
+		.alert-action {
+			margin-top: 8px;
+			font-size: 13px;
+			font-style: italic;
+		}
+
+		.preference-checkbox {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.preference-checkbox label {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-weight: 500;
+			cursor: pointer;
+		}
+
+		.preference-toggle {
+			cursor: pointer;
+			width: 18px;
+			height: 18px;
+		}
+
+		.preference-help {
+			font-size: 12px;
+			color: #666;
+			margin: 0;
+		}
+
+		.ai-preferences-panel {
+			padding: 20px;
+			background: white;
+			border-radius: 8px;
+			border: 1px solid #e5e7eb;
+		}
+
+		.preferences-section, .alerts-section {
+			margin-bottom: 24px;
+		}
+
+		.preferences-section h3, .alerts-section h3 {
+			margin-top: 0;
+			margin-bottom: 16px;
+			font-size: 16px;
+			font-weight: 600;
+		}
+
+		.preferences-actions {
+			display: flex;
+			gap: 12px;
+			margin-top: 24px;
+		}
+
+		.btn {
+			padding: 10px 16px;
+			border: none;
+			border-radius: 6px;
+			font-size: 14px;
+			font-weight: 500;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+
+		.btn-primary {
+			background: #007AFF;
+			color: white;
+		}
+
+		.btn-primary:hover {
+			background: #0051D5;
+		}
+
+		.preferences-feedback {
+			padding: 12px;
+			background: #dcfce7;
+			border-radius: 6px;
+			color: #15803d;
+			font-size: 13px;
+		}
+
+		.comparison-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 16px;
+			font-size: 13px;
+		}
+
+		.comparison-table th {
+			background: #f3f4f6;
+			padding: 12px;
+			text-align: left;
+			font-weight: 600;
+			border-bottom: 2px solid #e5e7eb;
+		}
+
+		.comparison-table td {
+			padding: 12px;
+			border-bottom: 1px solid #e5e7eb;
+		}
+
+		.comparison-table tr:hover {
+			background: #f9fafb;
+		}
+
+		.badge {
+			display: inline-block;
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 12px;
+			font-weight: 500;
+		}
+
+		.badge-success {
+			background: #dcfce7;
+			color: #15803d;
+		}
+
+		.badge-info {
+			background: #dbeafe;
+			color: #0c4a6e;
+		}
+
+		.comparison-note {
+			margin-top: 16px;
+			font-size: 13px;
+			color: #666;
+		}
+	</style>
+}
