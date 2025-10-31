@@ -1,4 +1,4 @@
-// Package providers implements AI provider clients for various services.
+// Package providers contains AI provider implementations for different services.
 package providers
 
 import (
@@ -126,8 +126,8 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 		return nil, fmt.Errorf("failed to send request to Anthropic: %w", err)
 	}
 	defer func() {
-		if closeErr := httpResp.Body.Close(); closeErr != nil {
-			// Log but don't fail on close error
+		if err := httpResp.Body.Close(); err != nil {
+			c.httpClient.CloseIdleConnections()
 		}
 	}()
 
@@ -141,15 +141,14 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 		return nil, fmt.Errorf("HTTP %d from Anthropic: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
-	// Read response body
-	respBody, err := io.ReadAll(httpResp.Body)
+	bodyBytes, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// Parse JSON response
 	var anthropicResp anthropicResponse
-	if err := json.Unmarshal(respBody, &anthropicResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &anthropicResp); err != nil {
 		return nil, fmt.Errorf("failed to parse Anthropic response: %w", err)
 	}
 

@@ -175,7 +175,7 @@ func TestEncryptionService_Decrypt_ShortCiphertextReturnsError(t *testing.T) {
 
 	decrypted, err := svc.Decrypt(shortCiphertext)
 	assert.Error(t, err, "Should error on too-short ciphertext")
-	assert.Empty(t, decrypted, "Should return empty string on error")
+	assert.Equal(t, "", decrypted, "Should return empty string on error")
 	assert.Contains(t, err.Error(), "ciphertext too short", "Error should indicate length issue")
 }
 
