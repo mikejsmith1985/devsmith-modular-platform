@@ -1,0 +1,61 @@
+package badge
+
+type BadgeProps struct {
+	Text        string
+	Variant     string // success, error, warning, info, neutral
+	Icon        string
+	Pill        bool
+	Dismissible bool
+	Size        string // sm, md, lg
+}
+
+templ Badge(props BadgeProps) {
+	<span class={ badgeClass(props.Variant, props.Size, props.Pill) } role="status" aria-label={ props.Text }>
+		if props.Icon != "" {
+			<span>{ props.Icon }</span>
+		}
+		<span class="font-medium">{ props.Text }</span>
+		if props.Dismissible {
+			<button type="button" class="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/20" aria-label="dismiss">
+				×
+			</button>
+		}
+	</span>
+}
+
+func badgeClass(variant string, size string, pill bool) string {
+	base := "inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors"
+	
+	if pill {
+		base = "inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-sm font-medium transition-colors"
+	}
+	
+	sizeClass := ""
+	switch size {
+	case "sm":
+		sizeClass = "px-2 py-0.5 text-xs"
+	case "lg":
+		sizeClass = "px-4 py-2 text-base"
+	}
+	
+	if sizeClass != "" {
+		base = "inline-flex items-center gap-1.5 rounded-md font-medium transition-colors"
+		if pill {
+			base += " rounded-full"
+		}
+		base += " " + sizeClass
+	}
+	
+	switch variant {
+	case "success":
+		return base + " bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+	case "error":
+		return base + " bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+	case "warning":
+		return base + " bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+	case "info":
+		return base + " bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+	default:
+		return base + " bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+	}
+}
