@@ -193,9 +193,12 @@ func TestEncryptionService_RoundTrip_LargeData(t *testing.T) {
 	ciphertext, err := svc.Encrypt(largePlaintext)
 	require.NoError(t, err)
 
-	decrypted, err := svc.Decrypt(ciphertext)
+	largeDecrypted, err := svc.Decrypt(ciphertext)
 	assert.NoError(t, err, "Decryption of large data should succeed")
-	assert.Equal(t, largePlaintext, decrypted, "Decrypted large data should match original")
+	assert.Equal(t, largePlaintext, largeDecrypted, "Decrypted large data should match original")
+	if ciphertext != "" {
+		assert.True(t, len(ciphertext) > 0, "Ciphertext should not be empty")
+	}
 }
 
 // TestEncryptionService_EncryptDecrypt_DifferentKeysCannotDecrypt verifies key isolation

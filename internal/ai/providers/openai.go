@@ -15,10 +15,10 @@ import (
 
 // OpenAIClient implements the AIProvider interface for OpenAI models
 type OpenAIClient struct {
+	httpClient *http.Client
 	apiKey     string
 	model      string
 	apiBaseURL string
-	httpClient *http.Client
 }
 
 // openaiRequest represents the JSON request sent to OpenAI API
@@ -33,7 +33,6 @@ type openaiRequest struct {
 type openaiResponse struct {
 	ID      string `json:"id"`
 	Object  string `json:"object"`
-	Created int64  `json:"created"`
 	Model   string `json:"model"`
 	Choices []struct {
 		Message struct {
@@ -48,6 +47,7 @@ type openaiResponse struct {
 		CompletionTokens int `json:"completion_tokens"`
 		TotalTokens      int `json:"total_tokens"`
 	} `json:"usage"`
+	Created int64 `json:"created"`
 }
 
 // openaiModelPricing contains cost information for different GPT models
@@ -124,11 +124,18 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request to OpenAI: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		if err := httpResp.Body.Close(); err != nil {
+			// Log but don't fail on close error
+		}
+	}()
 
 	// Check HTTP status
 	if httpResp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(httpResp.Body)
+		bodyBytes, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			bodyBytes = []byte("(unable to read error body)")
+		}
 		return nil, fmt.Errorf("HTTP %d from OpenAI: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 

@@ -80,7 +80,7 @@ func (r *DefaultRouter) GetAvailableModels(ctx context.Context, appName string, 
 }
 
 // SetUserPreference updates user's model selection for an app
-func (r *DefaultRouter) SetUserPreference(ctx context.Context, userID int64, appName string, provider string, model string, persist bool) error {
+func (r *DefaultRouter) SetUserPreference(ctx context.Context, userID int64, appName, provider, model string, persist bool) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -114,7 +114,7 @@ func (r *DefaultRouter) LogUsage(ctx context.Context, userID int64, appName stri
 func (r *DefaultRouter) getDefaultProvider() (AIProvider, error) {
 	// Strategy: Prefer free providers (Ollama), then cheapest
 	var bestProvider AIProvider
-	var bestCost float64 = 1000000.0 // Start with high cost
+	bestCost := 1000000.0 // Start with high cost
 
 	for _, provider := range r.providers {
 		info := provider.GetModelInfo()
