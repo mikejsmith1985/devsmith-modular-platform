@@ -1,64 +1,120 @@
-# devsmith-lint-fixer
+# DevSmith Lint Fixer
 
-Automated linting tool for the DevSmith platform designed to prevent and fix common code quality issues.
+Automated linting fixes for the DevSmith platform to maintain consistent code quality across all services.
 
 ## Purpose
 
-This tool addresses recurring linting issues that appear across the DevSmith codebase, enabling:
-- **Automated Fixes**: Safe, common issues fixed automatically
-- **Issue Detection**: Identifies categories of issues for developer review
-- **Prevention**: Integrates with pre-push hooks to prevent regressions
+This tool applies safe, automated fixes to common linting violations identified by golangci-lint:
+- Missing package comments
+- Magic string constants
+- Improper HTTP request body handling
+- Field alignment optimization
+- And more
+
+## Installation
+
+```bash
+go install ./cmd/devsmith-lint-fixer
+```
 
 ## Usage
 
-### Report Mode (Analyze Only)
+### Dry Run (Default - Shows what would be changed)
+
 ```bash
-go run ./cmd/devsmith-lint-fixer -report -path ./internal/ai
+# Analyze and show proposed changes (no files modified)
+devsmith-lint-fixer --all --path ./internal/ai
+
+# Fix specific issues
+devsmith-lint-fixer --fix-comments --path ./internal/security
+devsmith-lint-fixer --fix-strings --path ./internal/ai
+devsmith-lint-fixer --fix-http --path ./internal
 ```
 
-### Fix Mode (Apply Safe Fixes)
+### Apply Fixes
+
 ```bash
-go run ./cmd/devsmith-lint-fixer -fix -path ./internal
+# Apply all fixes to files
+devsmith-lint-fixer --all --path ./internal/ai --dry-run=false
+
+# Apply specific fix types
+devsmith-lint-fixer --fix-comments --fix-http --path ./internal --dry-run=false
 ```
 
-## Supported Fixes
+## Fix Types
 
-### Automatic Fixes
-1. **Missing Package Comments** - Adds `// Package X` comments
-2. **Empty String Tests** - Converts `len(s) > 0` to `s != ""`
-3. **HTTP nil Body** - Suggests `http.NoBody` instead of `nil`
+### --fix-comments
+Adds missing package-level documentation comments for packages that lack them.
 
-### Detected But Manual
-1. **Field Alignment** - Recommend `betteralign -apply`
-2. **Variable Shadowing** - Requires manual rename
-3. **Repeated Strings** - Extract to constants
-4. **Naming Conventions** - Type prefixes (AIProvider → Provider)
+```go
+// Before
+package ai
 
-## Integration
-
-### Pre-Push Hook
-Add to `.git/hooks/pre-push`:
-```bash
-go run ./cmd/devsmith-lint-fixer -report -path ./internal
+// After
+// Package ai provides AI provider abstraction, routing, and cost monitoring.
+package ai
 ```
 
-### CI/CD Pipeline
+### --fix-strings
+Extracts magic string literals that appear multiple times into named constants.
+
+```go
+// Before
+if r.URL.Path == "/api/generate" { }
+if r.URL.Path == "/api/generate" { }
+
+// After
+const OllamaGenerateEndpoint = "/api/generate"
+
+if r.URL.Path == OllamaGenerateEndpoint { }
+if r.URL.Path == OllamaGenerateEndpoint { }
+```
+
+### --fix-http
+Replaces `nil` with `http.NoBody` for HTTP request bodies (Go 1.20+).
+
+```go
+// Before
+req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+
+// After
+req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+```
+
+## Integration with Pre-Push Hook
+
+The pre-push hook runs `golangci-lint` on modified files. This tool can be used to automatically fix issues before they're caught:
+
 ```bash
-devsmith-lint-fixer -report -path ./
-exit $?  # Fail if issues found
+# In your pre-commit/pre-push hook
+devsmith-lint-fixer --all --path . --dry-run=false
+go fmt ./...
+golangci-lint run ./...
 ```
 
 ## Future Enhancements
 
-1. **Config File Support** - `.devsmith-lint.yaml` for rules
-2. **Custom Rules Engine** - User-defined fix patterns
-3. **Integration Dashboard** - Track issues over time
-4. **Automated Fixes for Naming** - AIProvider → Provider refactoring
-5. **Shadow Variable Fixer** - Automatic variable renaming
+- Auto-fix field alignment using betteralign
+- Interactive mode for complex fixes
+- CI integration for reporting
+- Custom DevSmith-specific checks
+- Integration with health check dashboard for code quality metrics
 
-## Related Tools
+## Development
 
-- `betteralign` - Fixes struct field alignment
-- `gofmt` - Code formatting
-- `goimports` - Import management
-- `golangci-lint` - Comprehensive linting
+To test the tool:
+
+```bash
+# Build locally
+go build -o devsmith-lint-fixer ./cmd/devsmith-lint-fixer
+
+# Test on a directory
+./devsmith-lint-fixer --all --path ./internal/ai
+```
+
+## Philosophy
+
+- **Safe first**: Only apply fixes that are guaranteed to be correct
+- **Transparent**: Always show what will be changed (dry-run by default)
+- **Extensible**: Easy to add new fix types
+- **Automated**: Prevents manual, repetitive fixes
