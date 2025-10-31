@@ -114,9 +114,10 @@ func (r *DefaultRouter) LogUsage(ctx context.Context, userID int64, appName stri
 func (r *DefaultRouter) getDefaultProvider() (AIProvider, error) {
 	// Strategy: Prefer free providers (Ollama), then cheapest
 	var bestProvider AIProvider
-	bestCost := 1000000.0 // Start with high cost
+	// Start with highest possible cost
+	bestCost := 1000000.0
 
-	for _, provider := range r.providers {
+	for provider, cost := range costs {
 		info := provider.GetModelInfo()
 		cost := info.CostPer1kInputTokens
 

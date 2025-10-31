@@ -1,3 +1,4 @@
+// Package providers contains AI provider implementations for different services.
 package providers
 
 import (
@@ -95,7 +96,7 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 	}
 	defer func() {
 		if err := httpResp.Body.Close(); err != nil {
-			// Log but don't fail on close error
+			c.httpClient.CloseIdleConnections()
 		}
 	}()
 
@@ -108,15 +109,14 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 		return nil, fmt.Errorf("HTTP %d from Ollama: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
-	// Read response body
-	respBody, err := io.ReadAll(httpResp.Body)
+	bodyBytes, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// Parse JSON response
 	var resp ollamaResponse
-	if err := json.Unmarshal(respBody, &resp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &resp); err != nil {
 		return nil, fmt.Errorf("failed to parse Ollama response: %w", err)
 	}
 
