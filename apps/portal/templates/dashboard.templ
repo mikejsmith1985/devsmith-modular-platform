@@ -1,240 +1,158 @@
 package templates
 
+import (
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/card"
+)
+
 templ Dashboard(user DashboardUser) {
-	@Layout("Dashboard") {
-		<div class="dashboard-container">
-			<header class="dashboard-header">
-				<div class="user-info">
-					<img src={user.AvatarURL} alt={user.Username} class="avatar"/>
-					<div class="user-details">
-						<h2>{user.Username}</h2>
-						<p class="user-email">{user.Email}</p>
+	@Layout("Dashboard", &DashboardUser{
+		Username:  user.Username,
+		Email:     user.Email,
+		AvatarURL: user.AvatarURL,
+	}) {
+		<!-- Hero Section -->
+		<section class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-900 dark:to-indigo-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+			<div class="max-w-7xl mx-auto">
+				<h2 class="text-3xl sm:text-4xl font-bold mb-2">Welcome, { user.Username }!</h2>
+				<p class="text-lg opacity-90">AI-assisted code review and development analytics</p>
+			</div>
+		</section>
+
+		<!-- Main Content -->
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+				<!-- Review Service Card -->
+				@card.Card(card.CardProps{
+					Title:       "Code Review",
+					Description: "Analyze code with 5 reading modes: Preview, Skim, Scan, Detailed, Critical",
+					Icon:        "📖",
+					BadgeText:   "Ready",
+					BadgeColor:  "green",
+					ActionText:  "Open Review",
+					ActionURL:   "http://localhost:8081",
+					StatLabel:   "Reading Modes",
+					StatValue:   "5",
+				})
+
+				<!-- Logs Service Card -->
+				@card.Card(card.CardProps{
+					Title:       "Development Logs",
+					Description: "Real-time platform logs, error tracking, and health monitoring",
+					Icon:        "📝",
+					BadgeText:   "Ready",
+					BadgeColor:  "green",
+					ActionText:  "Open Logs",
+					ActionURL:   "http://localhost:8082",
+					StatLabel:   "Health Check",
+					StatValue:   "Active",
+				})
+
+				<!-- Analytics Service Card -->
+				@card.Card(card.CardProps{
+					Title:       "Analytics",
+					Description: "Usage trends, AI cost monitoring, and performance insights",
+					Icon:        "📊",
+					BadgeText:   "Ready",
+					BadgeColor:  "green",
+					ActionText:  "Open Analytics",
+					ActionURL:   "http://localhost:8083",
+					StatLabel:   "Metrics",
+					StatValue:   "Live",
+				})
+			</div>
+
+			<!-- Stats Section -->
+			<section class="mt-16">
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Platform Overview</h3>
+				<div class="grid gap-4 md:grid-cols-4">
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
+						<p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">All Online</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">3/3 services operational</p>
+					</div>
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">AI Model</p>
+						<p class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">Configured</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Multiple providers ready</p>
+					</div>
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Uptime</p>
+						<p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">99.9%</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Last 30 days</p>
+					</div>
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Version</p>
+						<p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">v1.0</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Latest production</p>
 					</div>
 				</div>
-				<button id="logout-btn" class="btn-logout">Logout</button>
-			</header>
-
-			<main class="dashboard-main">
-				<h1>DevSmith Platform</h1>
-				<p class="subtitle">AI-assisted code review and development analytics</p>
-
-				<div class="services-grid">
-					@ServiceCard(ServiceInfo{
-						Name: "Review",
-						Description: "Code review with 5 reading modes",
-						URL: "http://localhost:8081",
-						Icon: "📖",
-						Status: "ready",
-					})
-
-					@ServiceCard(ServiceInfo{
-						Name: "Logs",
-						Description: "Real-time development logs",
-						URL: "http://localhost:8082",
-						Icon: "📝",
-						Status: "ready",
-					})
-
-					@ServiceCard(ServiceInfo{
-						Name: "Analytics",
-						Description: "Trends and insights",
-						URL: "http://localhost:8083",
-						Icon: "📊",
-						Status: "ready",
-					})
-				</div>
-			</main>
+			</section>
 		</div>
 	}
 }
 
-templ ServiceCard(service ServiceInfo) {
-	<div class="service-card">
-		<div class="service-icon">{service.Icon}</div>
-		<h3>{service.Name}</h3>
-		<p class="service-description">{service.Description}</p>
-		<span class={"service-status " + service.Status}>{service.Status}</span>
-		<a href={templ.SafeURL(service.URL)} class="btn-primary">Open {service.Name}</a>
-	</div>
-}
-
 // LogsDashboard renders the logs dashboard page with pre-populated data
 templ LogsDashboard(data LogsDashboardData) {
-	@Layout("Logs Dashboard") {
-		<div class="logs-dashboard-container">
-			<header class="logs-dashboard-header">
-				<div class="header-left">
-					<h1>📊 Logs Dashboard</h1>
-					<p class="header-subtitle">Platform observability and error monitoring</p>
-				</div>
-				<div class="header-right">
-					<div class="user-info-compact">
-						<img src={data.User.AvatarURL} alt={data.User.Username} class="avatar-small"/>
-						<span>{data.User.Username}</span>
-					</div>
-				</div>
-			</header>
+	@Layout("Logs Dashboard", &data.User) {
+		<!-- Hero Section -->
+		<section class="bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-900 dark:to-pink-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+			<div class="max-w-7xl mx-auto">
+				<h2 class="text-3xl sm:text-4xl font-bold mb-2">📊 Logs Dashboard</h2>
+				<p class="text-lg opacity-90">Platform observability and error monitoring</p>
+			</div>
+		</section>
 
-			<main class="logs-dashboard-main">
-				<!-- Dashboard Grid -->
-				<div class="dashboard-grid">
-					<!-- Stats Cards -->
-					<div class="stats-section">
-						<h2>Service Statistics</h2>
-						<div class="stats-grid">
-							<div class="stat-card">
-								<div class="stat-label">Total Logs</div>
-								<div class="stat-value">--</div>
-							</div>
-							<div class="stat-card">
-								<div class="stat-label">Error Rate</div>
-								<div class="stat-value">--</div>
-							</div>
-							<div class="stat-card">
-								<div class="stat-label">Warning Count</div>
-								<div class="stat-value">--</div>
-							</div>
-							<div class="stat-card">
-								<div class="stat-label">Active Services</div>
-								<div class="stat-value">--</div>
-							</div>
-						</div>
+		<!-- Main Content -->
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+			<!-- Stats Grid -->
+			<section class="mb-12">
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Service Statistics</h3>
+				<div class="grid gap-4 md:grid-cols-4">
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Logs</p>
+						<p class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">--</p>
 					</div>
-
-					<!-- Top Errors Section -->
-					<div class="top-errors-section">
-						<h2>🚨 Top Errors</h2>
-						<div class="top-errors-list">
-							<div class="empty-state">No errors found</div>
-						</div>
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Error Rate</p>
+						<p class="text-3xl font-bold text-red-600 dark:text-red-400 mt-2">--</p>
 					</div>
-
-					<!-- Trends Section -->
-					<div class="trends-section">
-						<h2>📈 Error Trends</h2>
-						<div class="trends-chart">
-							<div class="empty-state">No trend data available</div>
-						</div>
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Warnings</p>
+						<p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">--</p>
 					</div>
-
-					<!-- Alert Management Section -->
-					<div class="alert-management-section">
-						<h2>⚠️ Alert Configuration</h2>
-						<div class="alert-config-container">
-							<div class="alert-controls">
-								<a href="/api/logs/dashboard/logs" class="btn-primary">View Full Dashboard</a>
-							</div>
-							<p>Alert management available at the Logs service dashboard.</p>
-						</div>
+					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Services</p>
+						<p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">--</p>
 					</div>
 				</div>
-			</main>
+			</section>
+
+			<!-- Top Errors Section -->
+			<section class="mb-12">
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">🚨 Top Errors</h3>
+				<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 text-center text-gray-500 dark:text-gray-400">
+					No errors found
+				</div>
+			</section>
+
+			<!-- Error Trends Section -->
+			<section class="mb-12">
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">📈 Error Trends</h3>
+				<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 text-center text-gray-500 dark:text-gray-400">
+					No trend data available
+				</div>
+			</section>
+
+			<!-- Alert Management Section -->
+			<section>
+				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">⚠️ Alert Configuration</h3>
+				<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+					<p class="text-gray-600 dark:text-gray-400 mb-4">View the full Logs dashboard with real-time data at the Logs service.</p>
+					<a href="http://localhost:8082" class="inline-block px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-colors">
+						View Full Dashboard
+					</a>
+				</div>
+			</section>
 		</div>
-
-		<style>
-			.logs-dashboard-container {
-				display: flex;
-				flex-direction: column;
-				min-height: 100vh;
-				background: #f5f7fa;
-			}
-
-			.logs-dashboard-header {
-				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-				color: white;
-				padding: 30px;
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-			}
-
-			.logs-dashboard-header h1 {
-				margin: 0 0 8px 0;
-				font-size: 28px;
-			}
-
-			.header-subtitle {
-				margin: 0;
-				opacity: 0.9;
-				font-size: 14px;
-			}
-
-			.logs-dashboard-main {
-				flex: 1;
-				padding: 30px;
-			}
-
-			.dashboard-grid {
-				display: grid;
-				gap: 25px;
-			}
-
-			.stats-grid {
-				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-				gap: 15px;
-			}
-
-			.stat-card {
-				background: white;
-				padding: 20px;
-				border-radius: 8px;
-				box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-			}
-
-			.stat-label {
-				font-size: 12px;
-				color: #666;
-				text-transform: uppercase;
-				margin-bottom: 10px;
-			}
-
-			.stat-value {
-				font-size: 32px;
-				font-weight: bold;
-				color: #333;
-				margin-bottom: 8px;
-			}
-
-			.top-errors-section, .trends-section, .alert-management-section {
-				background: white;
-				padding: 25px;
-				border-radius: 8px;
-				box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-			}
-
-			.top-errors-section h2, .trends-section h2, .alert-management-section h2 {
-				margin-top: 0;
-				margin-bottom: 20px;
-				font-size: 18px;
-				color: #333;
-			}
-
-			.empty-state {
-				padding: 40px;
-				text-align: center;
-				color: #999;
-			}
-
-			.btn-primary {
-				display: inline-block;
-				padding: 10px 20px;
-				background: #667eea;
-				color: white;
-				border-radius: 4px;
-				text-decoration: none;
-				font-weight: 600;
-			}
-
-			.alert-config-container {
-				text-align: center;
-			}
-
-			.alert-config-container p {
-				color: #666;
-				margin-top: 15px;
-			}
-		</style>
 	}
 }

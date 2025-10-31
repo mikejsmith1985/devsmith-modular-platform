@@ -1,0 +1,105 @@
+package nav
+
+type NavProps struct {
+	CurrentUser *NavUser
+	CurrentPath string // dashboard, review, logs, healthcheck
+}
+
+type NavUser struct {
+	Username  string
+	Email     string
+	AvatarURL string
+}
+
+type NavApp struct {
+	Name   string
+	Path   string
+	Icon   string
+	URL    string
+	Badge  string
+}
+
+templ Navigation(props NavProps) {
+	<nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div class="flex justify-between items-center h-16">
+				<!-- Logo/Brand -->
+				<div class="flex items-center gap-3">
+					<span class="text-2xl">🚀</span>
+					<h1 class="text-xl font-bold text-gray-900 dark:text-white">DevSmith</h1>
+				</div>
+
+				<!-- App Navigation -->
+				<div class="hidden md:flex items-center gap-1">
+					@navAppButton("Review", "📖", "review", props.CurrentPath)
+					@navAppButton("Logs", "📝", "logs", props.CurrentPath)
+					@navAppButton("Analytics", "📊", "analytics", props.CurrentPath)
+					@navAppButton("Health", "🏥", "healthcheck", props.CurrentPath)
+				</div>
+
+				<!-- Mobile App Menu -->
+				<div class="md:hidden flex items-center gap-2">
+					<button
+						type="button"
+						class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+						data-app-menu
+						aria-label="Toggle app menu"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/>
+						</svg>
+					</button>
+				</div>
+
+				<!-- User Menu -->
+				<div class="flex items-center gap-4">
+					if props.CurrentUser != nil {
+						<div class="hidden sm:flex items-center gap-3">
+							<img src={ props.CurrentUser.AvatarURL } alt={ props.CurrentUser.Username } class="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"/>
+							<div class="text-sm">
+								<p class="font-medium text-gray-900 dark:text-white">{ props.CurrentUser.Username }</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">{ props.CurrentUser.Email }</p>
+							</div>
+						</div>
+
+						<!-- User Dropdown -->
+						<button
+							type="button"
+							class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+							data-user-menu
+							aria-label="User menu"
+						>
+							<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+							</svg>
+						</button>
+					}
+				</div>
+			</div>
+		</div>
+	</nav>
+}
+
+templ navAppButton(name string, icon string, path string, currentPath string) {
+	<a
+		href={ templ.SafeURL("/apps/" + path) }
+		class={
+			"px-3 py-2 rounded-lg text-sm font-medium transition-colors " +
+			conditionalClass(path == currentPath,
+				"bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100",
+				"text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+			)
+		}
+		role="button"
+	>
+		<span class="mr-1">{ icon }</span>
+		{ name }
+	</a>
+}
+
+func conditionalClass(condition bool, trueClass string, falseClass string) string {
+	if condition {
+		return trueClass
+	}
+	return falseClass
+}

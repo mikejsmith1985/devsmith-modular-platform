@@ -1,15 +1,81 @@
 package templates
 
-templ Layout(title string) {
+import (
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/nav"
+)
+
+templ Layout(title string, user *DashboardUser) {
 	<!DOCTYPE html>
-	<html lang="en">
+	<html lang="en" class="scroll-smooth">
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
 		<title>{ title } - DevSmith</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<link rel="stylesheet" href="/static/dashboard.css"/>
+		<style>
+			/* Prevent layout shift when scrollbar appears */
+			html {
+				overflow-y: scroll;
+			}
+			
+			/* Smooth transitions for theme changes */
+			* {
+				@apply transition-colors duration-200;
+			}
+		</style>
 	</head>
-	<body>
+	<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
+		<!-- Navigation -->
+		@nav.Navigation(nav.NavProps{
+			CurrentUser: &nav.NavUser{
+				Username:  user.Username,
+				Email:     user.Email,
+				AvatarURL: user.AvatarURL,
+			},
+			CurrentPath: "dashboard",
+		})
+
+		<!-- Main Content -->
+		<main class="flex-1">
+			{ children... }
+		</main>
+
+		<!-- Footer -->
+		<footer class="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8">
+			<div class="max-w-7xl mx-auto">
+				<p class="text-center text-sm text-gray-500 dark:text-gray-400">
+					© 2024 DevSmith Platform. AI-powered code review and development intelligence.
+				</p>
+			</div>
+		</footer>
+	</body>
+	</html>
+}
+
+// LayoutWithoutNav renders layout without navigation (e.g., for login pages)
+templ LayoutWithoutNav(title string) {
+	<!DOCTYPE html>
+	<html lang="en" class="scroll-smooth">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
+		<title>{ title } - DevSmith</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<style>
+			html {
+				overflow-y: scroll;
+			}
+			
+			* {
+				@apply transition-colors duration-200;
+			}
+		</style>
+	</head>
+	<body class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
 		{ children... }
 	</body>
 	</html>
