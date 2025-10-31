@@ -98,14 +98,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Job 3: Quick lint pass (fast, catches bypassed pre-commit)
+  # Job 3: Comprehensive lint pass (full repo scan for QA consistency)
   lint:
-    name: Quick Lint
+    name: Code Quality Lint
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate context
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -113,12 +115,23 @@ jobs:
           go-version: '1.22'
           cache: true
 
-      - name: Run golangci-lint (only new issues in PR)
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run golangci-lint - Full Repository Scan
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
-          args: --timeout=3m --fast --new-from-rev=origin/development
-          only-new-issues: true
+          args: --timeout=5m --out-format=colored-line-number
+          skip-pkg-cache: false
+          skip-build-cache: false
+
+      - name: Verify Build After Linting
+        run: |
+          echo "Verifying all packages build clean..."
+          go build ./cmd/...
+          go build ./internal/...
+          go build ./apps/...
 
   # Summary job (optional, useful for branch protection rules)
   ci-summary:
