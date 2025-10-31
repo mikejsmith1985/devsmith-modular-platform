@@ -111,29 +111,29 @@ func TestRunnerWithWarning(t *testing.T) {
 
 func TestDetermineOverallStatus(t *testing.T) {
 	tests := []struct {
+		expected CheckStatus
 		name     string
 		checks   []CheckResult
-		expected CheckStatus
 	}{
 		{
+			expected: StatusPass,
 			name:     "all passing",
 			checks:   []CheckResult{{Status: StatusPass}, {Status: StatusPass}},
-			expected: StatusPass,
 		},
 		{
+			expected: StatusWarn,
 			name:     "one warning",
 			checks:   []CheckResult{{Status: StatusPass}, {Status: StatusWarn}},
-			expected: StatusWarn,
 		},
 		{
+			expected: StatusFail,
 			name:     "one failure",
 			checks:   []CheckResult{{Status: StatusPass}, {Status: StatusFail}},
-			expected: StatusFail,
 		},
 		{
+			expected: StatusFail,
 			name:     "warning and failure",
 			checks:   []CheckResult{{Status: StatusWarn}, {Status: StatusFail}},
-			expected: StatusFail,
 		},
 	}
 

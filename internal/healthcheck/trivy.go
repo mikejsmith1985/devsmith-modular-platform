@@ -35,6 +35,16 @@ type VulnResult struct {
 	Package  string `json:"package,omitempty"`
 }
 
+// ScanResults holds aggregated Trivy scan results
+type ScanResults struct {
+	Scans         []TrivyScanResult
+	FailedTargets []string
+	Critical      int
+	High          int
+	Medium        int
+	Low           int
+}
+
 // Name returns the checker name
 func (c *TrivyChecker) Name() string {
 	return c.CheckName
@@ -62,60 +72,75 @@ func (c *TrivyChecker) Check() CheckResult {
 		trivyPath = "scripts/trivy-scan.sh"
 	}
 
-	var totalCritical, totalHigh, totalMedium, totalLow int
-	var scans []TrivyScanResult
-	failedTargets := []string{}
+	scanResults := c.performScans(trivyPath)
 
-	// Scan each target
+	c.populateDetails(&result, scanResults)
+	c.determineStatus(&result, scanResults)
+
+	result.Duration = time.Since(start)
+	return result
+}
+
+// performScans executes Trivy scans on all targets and aggregates results
+func (c *TrivyChecker) performScans(trivyPath string) *ScanResults {
+	results := &ScanResults{
+		Scans:         make([]TrivyScanResult, 0),
+		FailedTargets: make([]string, 0),
+	}
+
 	for _, target := range c.Targets {
 		scanResult, err := c.runTrivy(target, trivyPath)
 		if err != nil {
-			failedTargets = append(failedTargets, fmt.Sprintf("%s (%v)", target, err))
+			results.FailedTargets = append(results.FailedTargets, fmt.Sprintf("%s (%v)", target, err))
 			continue
 		}
 
-		scans = append(scans, *scanResult)
-		totalCritical += scanResult.Critical
-		totalHigh += scanResult.High
-		totalMedium += scanResult.Medium
-		totalLow += scanResult.Low
+		results.Scans = append(results.Scans, *scanResult)
+		results.Critical += scanResult.Critical
+		results.High += scanResult.High
+		results.Medium += scanResult.Medium
+		results.Low += scanResult.Low
 	}
 
-	result.Details["targets_scanned"] = len(scans)
-	result.Details["targets_failed"] = len(failedTargets)
-	result.Details["critical"] = totalCritical
-	result.Details["high"] = totalHigh
-	result.Details["medium"] = totalMedium
-	result.Details["low"] = totalLow
-	result.Details["scans"] = scans
+	return results
+}
 
-	if len(failedTargets) > 0 {
-		result.Details["failed_targets"] = failedTargets
+// populateDetails fills in the check result details
+func (c *TrivyChecker) populateDetails(result *CheckResult, scanResults *ScanResults) {
+	result.Details["targets_scanned"] = len(scanResults.Scans)
+	result.Details["targets_failed"] = len(scanResults.FailedTargets)
+	result.Details["critical"] = scanResults.Critical
+	result.Details["high"] = scanResults.High
+	result.Details["medium"] = scanResults.Medium
+	result.Details["low"] = scanResults.Low
+	result.Details["scans"] = scanResults.Scans
+
+	if len(scanResults.FailedTargets) > 0 {
+		result.Details["failed_targets"] = scanResults.FailedTargets
 	}
+}
 
-	// Determine status based on vulnerability severity
+// determineStatus sets the status and message based on vulnerability severity
+func (c *TrivyChecker) determineStatus(result *CheckResult, scanResults *ScanResults) {
 	switch {
-	case totalCritical > 0:
+	case scanResults.Critical > 0:
 		result.Status = StatusFail
-		result.Message = fmt.Sprintf("CRITICAL vulnerabilities found: %d critical, %d high", totalCritical, totalHigh)
+		result.Message = fmt.Sprintf("CRITICAL vulnerabilities found: %d critical, %d high", scanResults.Critical, scanResults.High)
 		result.Error = "Critical security vulnerabilities detected - immediate action required"
-	case totalHigh > 0:
+	case scanResults.High > 0:
 		result.Status = StatusWarn
-		result.Message = fmt.Sprintf("HIGH vulnerabilities found: %d high, %d medium", totalHigh, totalMedium)
-	case totalMedium > 0:
+		result.Message = fmt.Sprintf("HIGH vulnerabilities found: %d high, %d medium", scanResults.High, scanResults.Medium)
+	case scanResults.Medium > 0:
 		result.Status = StatusWarn
-		result.Message = fmt.Sprintf("MEDIUM vulnerabilities found: %d medium, %d low", totalMedium, totalLow)
-	case len(scans) > 0:
+		result.Message = fmt.Sprintf("MEDIUM vulnerabilities found: %d medium, %d low", scanResults.Medium, scanResults.Low)
+	case len(scanResults.Scans) > 0:
 		result.Status = StatusPass
-		result.Message = fmt.Sprintf("No vulnerabilities found in %d target(s)", len(scans))
+		result.Message = fmt.Sprintf("No vulnerabilities found in %d target(s)", len(scanResults.Scans))
 	default:
 		result.Status = StatusFail
 		result.Message = "Failed to scan any targets"
 		result.Error = fmt.Sprintf("All %d target(s) failed to scan", len(c.Targets))
 	}
-
-	result.Duration = time.Since(start)
-	return result
 }
 
 // runTrivy executes Trivy scan on a target
@@ -186,7 +211,7 @@ func (c *TrivyChecker) parseTrivy(jsonOutput []byte, target string) (*TrivyScanR
 	err := json.Unmarshal(jsonOutput, &trivyReport)
 	if err != nil {
 		// If JSON parsing fails, try to extract counts from plain text
-		return c.parseTrivyPlaintext(string(jsonOutput), target)
+		return c.parseTrivyPlaintext(target)
 	}
 
 	// Count vulnerabilities by severity
@@ -219,7 +244,7 @@ func (c *TrivyChecker) parseTrivy(jsonOutput []byte, target string) (*TrivyScanR
 
 // parseTrivyPlaintext attempts to parse Trivy output as plain text
 // This is a fallback for when JSON parsing fails
-func (c *TrivyChecker) parseTrivyPlaintext(output, target string) (*TrivyScanResult, error) {
+func (c *TrivyChecker) parseTrivyPlaintext(target string) (*TrivyScanResult, error) {
 	result := &TrivyScanResult{
 		ScanType: c.ScanType,
 		Target:   target,
