@@ -132,11 +132,11 @@ func UpdateHealthPolicy(policy *logs_services.HealthPolicyService) gin.HandlerFu
 		}
 
 		var req struct {
+			RepairStrategy    string `json:"repair_strategy"`
+			MaxResponseTimeMs int    `json:"max_response_time_ms"`
 			AutoRepairEnabled bool   `json:"auto_repair_enabled"`
 			AlertOnWarn       bool   `json:"alert_on_warn"`
 			AlertOnFail       bool   `json:"alert_on_fail"`
-			MaxResponseTimeMs int    `json:"max_response_time_ms"`
-			RepairStrategy    string `json:"repair_strategy"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
