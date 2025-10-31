@@ -131,21 +131,21 @@ func (h *UIHandler) SessionProgressSSE(c *gin.Context) {
 		return
 	}
 
-	// Simple simulated progress sequence
+	// Send initial progress event and begin streaming
+	h.streamSessionProgress(c, flusher, sessionID)
+}
+
+// streamSessionProgress handles the main SSE streaming loop for session progress.
+// Extracted to reduce cognitive complexity of SessionProgressSSE.
+func (h *UIHandler) streamSessionProgress(c *gin.Context, flusher http.Flusher, sessionID string) {
 	percent := 0
 	ticker := time.NewTicker(400 * time.Millisecond)
 	defer ticker.Stop()
 
-	// send initial event
-	if _, err := c.Writer.WriteString("event: progress\n"); err != nil {
-		h.logger.Error("failed to write SSE header", "error", err)
+	// Send initial event
+	if !h.writeSSEEvent(c, flusher, 0, "Queued") {
 		return
 	}
-	if _, err := c.Writer.WriteString("data: {\"percent\": 0, \"message\": \"Queued\"}\n\n"); err != nil {
-		h.logger.Error("failed to write SSE data", "error", err)
-		return
-	}
-	flusher.Flush()
 
 	// Loop and send updates until complete or client disconnect
 	for percent < 100 {
@@ -159,28 +159,40 @@ func (h *UIHandler) SessionProgressSSE(c *gin.Context) {
 				percent = 100
 			}
 
-			msg := fmt.Sprintf("event: progress\n data: {\"percent\": %d, \"message\": \"Processing\"}\n\n", percent)
-			if _, err := c.Writer.WriteString(msg); err != nil {
-				h.logger.Error("failed to write SSE progress", "error", err)
+			if !h.writeSSEEvent(c, flusher, percent, "Processing") {
 				return
 			}
-			flusher.Flush()
 
 			if percent >= 100 {
-				// send a final complete event
-				if _, err := c.Writer.WriteString("event: progress\n"); err != nil {
-					h.logger.Error("failed to write SSE final header", "error", err)
-					return
-				}
-				if _, err := c.Writer.WriteString("data: {\"percent\": 100, \"message\": \"Complete\"}\n\n"); err != nil {
-					h.logger.Error("failed to write SSE final data", "error", err)
-					return
-				}
-				flusher.Flush()
+				h.writeFinalSSEEvent(c, flusher)
 				return
 			}
 		}
 	}
+}
+
+// writeSSEEvent writes a progress event to the SSE stream.
+func (h *UIHandler) writeSSEEvent(c *gin.Context, flusher http.Flusher, percent int, message string) bool {
+	msg := fmt.Sprintf("event: progress\n data: {\"percent\": %d, \"message\": %q}\n\n", percent, message)
+	if _, err := c.Writer.WriteString(msg); err != nil {
+		h.logger.Error("failed to write SSE event", "error", err)
+		return false
+	}
+	flusher.Flush()
+	return true
+}
+
+// writeFinalSSEEvent writes the completion event to the SSE stream.
+func (h *UIHandler) writeFinalSSEEvent(c *gin.Context, flusher http.Flusher) {
+	if _, err := c.Writer.WriteString("event: progress\n"); err != nil {
+		h.logger.Error("failed to write SSE final header", "error", err)
+		return
+	}
+	if _, err := c.Writer.WriteString("data: {\"percent\": 100, \"message\": \"Complete\"}\n\n"); err != nil {
+		h.logger.Error("failed to write SSE final data", "error", err)
+		return
+	}
+	flusher.Flush()
 }
 
 // updateProgressPercent calculates the next progress percentage based on current value.
@@ -195,12 +207,12 @@ func updateProgressPercent(current int) int {
 	}
 }
 
-// Generate unique analysis ID
+// generateAnalysisID creates a unique ID for analysis sessions (backwards compat).
 func generateAnalysisID() string {
-	return uuid.New().String()
+	return GenerateAnalysisID()
 }
 
-// GenerateAnalysisID is the exported version for testing
+// GenerateAnalysisID creates a unique ID for analysis sessions.
 func GenerateAnalysisID() string {
-	return generateAnalysisID()
+	return uuid.New().String()
 }
