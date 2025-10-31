@@ -130,7 +130,7 @@ func TestAnthropicClient_Generate_ReturnsValidResponse(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:      "Solve this problem",
 		Temperature: 0.5,
 		MaxTokens:   1000,
@@ -174,7 +174,7 @@ func TestAnthropicClient_Generate_HandlesEmptyPrompt(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: ""}
+	req := &ai.Request{Prompt: ""}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.NoError(t, err, "Should handle empty prompt")
@@ -198,7 +198,7 @@ func TestAnthropicClient_Generate_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(ctx, req)
 
 	assert.Error(t, err, "Should error on context cancellation")
@@ -231,7 +231,7 @@ func TestAnthropicClient_Generate_MaxTokensForwarded(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:    "Test",
 		MaxTokens: 500,
 	}
@@ -269,7 +269,7 @@ func TestAnthropicClient_Generate_TemperatureForwarded(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:      "Test",
 		Temperature: 0.8,
 	}
@@ -295,7 +295,7 @@ func TestAnthropicClient_Generate_HTTPError(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.Error(t, err)
@@ -320,7 +320,7 @@ func TestAnthropicClient_Generate_InvalidJSON(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.Error(t, err)
@@ -354,7 +354,7 @@ func TestAnthropicClient_Generate_CostCalculation(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.NoError(t, err)
@@ -394,7 +394,7 @@ func TestAnthropicClient_Generate_MultipleContentBlocks(t *testing.T) {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 
-	req := &ai.AIRequest{Prompt: "Test"}
+	req := &ai.Request{Prompt: "Test"}
 	resp, err := client.Generate(context.Background(), req)
 
 	assert.NoError(t, err)

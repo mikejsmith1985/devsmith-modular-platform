@@ -13,7 +13,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// OllamaClient implements the AIProvider interface for local Ollama models
+// OllamaClient implements the Provider interface for local Ollama models
 type OllamaClient struct {
 	httpClient *http.Client
 	endpoint   string
@@ -60,7 +60,7 @@ func NewOllamaClient(endpoint, model string) *OllamaClient {
 }
 
 // Generate sends a prompt to Ollama and returns the response
-func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIResponse, error) {
+func (c *OllamaClient) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Prepare Ollama request
 	ollamaReq := ollamaRequest{
 		Model:       req.Model,
@@ -120,13 +120,13 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 		return nil, fmt.Errorf("failed to parse Ollama response: %w", err)
 	}
 
-	// Convert to AIResponse
+	// Convert to Response
 	finishReason := "complete"
 	if resp.StopReason != "" {
 		finishReason = resp.StopReason
 	}
 
-	return &ai.AIResponse{
+	return &ai.Response{
 		Content:      resp.Response,
 		InputTokens:  resp.PromptEvalCount,
 		OutputTokens: resp.EvalCount,

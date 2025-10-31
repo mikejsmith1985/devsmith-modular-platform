@@ -18,10 +18,10 @@ type Entry struct {
 
 // InMemoryCache provides in-memory caching for analysis results
 type InMemoryCache struct {
-	mu      sync.RWMutex
 	store   map[string]*Entry
-	stats   CacheStats
+	mu      sync.RWMutex
 	statsMu sync.RWMutex
+	stats   Stats
 }
 
 // NewInMemoryCache creates a new in-memory cache for analysis results
@@ -116,7 +116,7 @@ func (c *InMemoryCache) Clear(ctx context.Context) error {
 }
 
 // Stats returns cache performance statistics
-func (c *InMemoryCache) Stats(ctx context.Context) *CacheStats {
+func (c *InMemoryCache) Stats(ctx context.Context) *Stats {
 	if ctx.Err() != nil {
 		return nil
 	}

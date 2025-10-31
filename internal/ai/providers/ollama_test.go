@@ -85,7 +85,7 @@ func TestOllamaClient_Generate_ReturnsValidResponse(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:      "Write a function",
 		Model:       "deepseek-coder:6.7b",
 		Temperature: 0.5,
@@ -122,7 +122,7 @@ func TestOllamaClient_Generate_HandlesEmptyPrompt(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt: "",
 		Model:  "deepseek-coder:6.7b",
 	}
@@ -146,7 +146,7 @@ func TestOllamaClient_Generate_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt: "Test prompt",
 		Model:  "deepseek-coder:6.7b",
 	}
@@ -176,7 +176,7 @@ func TestOllamaClient_Generate_RespondsWithStopToken(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt: "Test",
 		Model:  "deepseek-coder:6.7b",
 	}
@@ -211,7 +211,7 @@ func TestOllamaClient_Generate_TemperatureForwarded(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:      "Test",
 		Model:       "deepseek-coder:6.7b",
 		Temperature: 0.7,
@@ -234,7 +234,7 @@ func TestOllamaClient_Generate_HTTPError(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt: "Test",
 		Model:  "deepseek-coder:6.7b",
 	}
@@ -258,7 +258,7 @@ func TestOllamaClient_Generate_InvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt: "Test",
 		Model:  "deepseek-coder:6.7b",
 	}
@@ -294,7 +294,7 @@ func TestOllamaClient_Generate_LargeResponse(t *testing.T) {
 	defer server.Close()
 
 	client := NewOllamaClient(server.URL, "deepseek-coder:6.7b")
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt: "Test",
 		Model:  "deepseek-coder:6.7b",
 	}

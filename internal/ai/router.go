@@ -14,7 +14,7 @@ type userPreference struct {
 
 // DefaultRouter implements the Router interface for intelligent AI provider selection
 type DefaultRouter struct {
-	providers       map[string]AIProvider     // Key: "provider:model"
+	providers       map[string]Provider       // Key: "provider:model"
 	userPreferences map[string]userPreference // Key: "userID:app"
 	mu              sync.RWMutex              // Protect concurrent access
 }
@@ -22,13 +22,13 @@ type DefaultRouter struct {
 // NewDefaultRouter creates a new default router
 func NewDefaultRouter() *DefaultRouter {
 	return &DefaultRouter{
-		providers:       make(map[string]AIProvider),
+		providers:       make(map[string]Provider),
 		userPreferences: make(map[string]userPreference),
 	}
 }
 
 // RegisterProvider registers an AI provider with the router
-func (r *DefaultRouter) RegisterProvider(providerName, model string, provider AIProvider) error {
+func (r *DefaultRouter) RegisterProvider(providerName, model string, provider Provider) error {
 	if provider == nil {
 		return fmt.Errorf("provider cannot be nil")
 	}
@@ -47,7 +47,7 @@ func (r *DefaultRouter) RegisterProvider(providerName, model string, provider AI
 }
 
 // Route selects the best provider for a user in a given app context
-func (r *DefaultRouter) Route(ctx context.Context, appName string, userID int64) (AIProvider, error) {
+func (r *DefaultRouter) Route(ctx context.Context, appName string, userID int64) (Provider, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -104,16 +104,16 @@ func (r *DefaultRouter) SetUserPreference(ctx context.Context, userID int64, app
 }
 
 // LogUsage records API usage for cost tracking
-func (r *DefaultRouter) LogUsage(ctx context.Context, userID int64, appName string, req *AIRequest, resp *AIResponse) error {
+func (r *DefaultRouter) LogUsage(ctx context.Context, userID int64, appName string, req *Request, resp *Response) error {
 	// TODO: Implement usage logging to database
 	// This will be used by the cost monitoring service
 	return nil
 }
 
 // getDefaultProvider returns the default provider (usually the cheapest)
-func (r *DefaultRouter) getDefaultProvider() (AIProvider, error) {
+func (r *DefaultRouter) getDefaultProvider() (Provider, error) {
 	// Strategy: Prefer free providers (Ollama), then cheapest
-	var bestProvider AIProvider
+	var bestProvider Provider
 	bestCost := 1000000.0
 
 	for _, provider := range r.providers {
