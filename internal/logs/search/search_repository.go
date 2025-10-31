@@ -475,14 +475,13 @@ func (r *SearchRepository) ValidateSearchAccess(ctx context.Context, searchID, u
 	return nil
 }
 
-
 // validateSearchAccessMem validates search access using in-memory storage.
 func (r *SearchRepository) validateSearchAccessMem(searchID, userID int64) error {
 	// Check if user owns the search
 	if s, ok := r.memSearches[searchID]; ok && s.UserID == userID {
 		return nil
 	}
-	
+
 	// Check if search is shared with user
 	if ids, ok := r.memShared[userID]; ok {
 		for _, id := range ids {
@@ -491,7 +490,7 @@ func (r *SearchRepository) validateSearchAccessMem(searchID, userID int64) error
 			}
 		}
 	}
-	
+
 	return fmt.Errorf("user does not have access to the search")
 }
 

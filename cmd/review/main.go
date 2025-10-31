@@ -111,7 +111,7 @@ func main() {
 
 	// Handler setup (UIHandler takes logger and optional logging client)
 	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient)
-	
+
 	// Session handler setup (handles session management endpoints)
 	reviewRepo := review_db.NewReviewRepository(sqlDB)
 	sessionHandler := app_handlers.NewSessionHandler(reviewRepo, reviewLogger)
@@ -123,7 +123,7 @@ func main() {
 	router.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
 	// SSE endpoint for session progress (demo stream)
 	router.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
-	
+
 	// Session management endpoints (NEW for Issue #25)
 	router.GET("/api/review/sessions", sessionHandler.ListSessions)         // List user's sessions with pagination
 	router.GET("/api/review/sessions/:id", sessionHandler.GetSession)       // Get specific session
