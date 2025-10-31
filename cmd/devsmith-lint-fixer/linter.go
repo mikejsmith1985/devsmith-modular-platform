@@ -15,17 +15,17 @@ type LintFixer struct {
 
 // LintReport contains analysis results
 type LintReport struct {
-	TotalFiles      int
-	IssuesFound     int
 	IssuesByCategory map[string]int
+	TotalFiles       int
+	IssuesFound      int
 }
 
 // String returns formatted report
 func (r *LintReport) String() string {
-	s := fmt.Sprintf("Linting Report:\n")
+	s := "Linting Report:\n"
 	s += fmt.Sprintf("  Total Files: %d\n", r.TotalFiles)
 	s += fmt.Sprintf("  Total Issues: %d\n", r.IssuesFound)
-	s += fmt.Sprintf("  Issues by Category:\n")
+	s += "  Issues by Category:\n"
 	for cat, count := range r.IssuesByCategory {
 		s += fmt.Sprintf("    %s: %d\n", cat, count)
 	}
@@ -43,14 +43,19 @@ func (lf *LintFixer) AnalyzeDirectory() *LintReport {
 		IssuesByCategory: make(map[string]int),
 	}
 
+	//nolint:errcheck,gosec // Walk returns non-nil for individual file errors; paths are internal
 	filepath.Walk(lf.path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
 			report.TotalFiles++
-			content, _ := os.ReadFile(path)
-			issues := lf.checkFile(string(content), path)
+			//nolint:gosec // path is from filepath.Walk, not user input
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			issues := lf.checkFile(string(content))
 			report.IssuesFound += len(issues)
 			for _, issue := range issues {
 				report.IssuesByCategory[issue.Category]++
@@ -63,21 +68,29 @@ func (lf *LintFixer) AnalyzeDirectory() *LintReport {
 }
 
 // FixDirectory fixes all fixable issues in a directory
-func (lf *LintFixer) FixDirectory() (int, int) {
-	var totalIssues int
-	var totalFixes int
-
+// Returns (totalIssues, totalFixes)
+func (lf *LintFixer) FixDirectory() (totalIssues, totalFixes int) {
+	//nolint:errcheck,gosec // Walk returns non-nil for individual file errors; paths are internal
 	filepath.Walk(lf.path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if strings.HasSuffix(path, ".go") {
-			content, _ := os.ReadFile(path)
-			newContent := lf.fixFile(string(content), path)
-			if newContent != string(content) {
-				os.WriteFile(path, []byte(newContent), 0o644)
-				totalFixes++
-			}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		//nolint:gosec // path is from filepath.Walk, not user input
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		newContent := lf.fixFile(string(content))
+		if newContent == string(content) {
+			return nil
+		}
+		//nolint:gosec // intentional 0o644 for readable files
+		err = os.WriteFile(path, []byte(newContent), 0o644)
+		if err == nil {
+			totalFixes++
 		}
 		return nil
 	})
@@ -88,12 +101,12 @@ func (lf *LintFixer) FixDirectory() (int, int) {
 // Issue represents a linting issue
 type Issue struct {
 	Category string
-	Line     int
 	Message  string
+	Line     int
 }
 
 // checkFile checks a file for common issues
-func (lf *LintFixer) checkFile(content, filename string) []Issue {
+func (lf *LintFixer) checkFile(content string) []Issue {
 	issues := []Issue{}
 
 	// Check for missing package comments
@@ -129,7 +142,7 @@ func (lf *LintFixer) checkFile(content, filename string) []Issue {
 }
 
 // fixFile applies safe automatic fixes
-func (lf *LintFixer) fixFile(content, filename string) string {
+func (lf *LintFixer) fixFile(content string) string {
 	result := content
 
 	// Fix 1: Add package comment if missing
@@ -144,7 +157,10 @@ func (lf *LintFixer) fixFile(content, filename string) string {
 		}
 		if pkgIdx >= 0 {
 			comment := fmt.Sprintf("// Package %s provides implementation for the DevSmith platform.\n", extractPackageName(result))
-			newLines := append(lines[:pkgIdx], append([]string{comment}, lines[pkgIdx:]...)...)
+			newLines := make([]string, 0, len(lines)+1)
+			newLines = append(newLines, lines[:pkgIdx]...)
+			newLines = append(newLines, comment)
+			newLines = append(newLines, lines[pkgIdx:]...)
 			result = strings.Join(newLines, "\n")
 		}
 	}
