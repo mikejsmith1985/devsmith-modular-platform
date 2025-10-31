@@ -75,7 +75,7 @@ func main() {
 
 func findGoFiles(path string) []string {
 	var files []string
-	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -84,18 +84,23 @@ func findGoFiles(path string) []string {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Printf("Warning: error walking directory: %v", err)
+	}
 	return files
 }
 
+// fixMissingPackageComments adds package-level comments to files that lack them.
+//
+//nolint:unparam // dryRun parameter will be used in full implementation
 func fixMissingPackageComments(files []string, dryRun bool) (int, error) {
-	//nolint:unparam // dryRun will be used in full implementation
 	count := 0
 	packageComments := map[string]string{
-		"providers":  "Package providers contains AI provider implementations for different services.",
-		"security":   "Package security provides encryption and security utilities for the DevSmith platform.",
-		"ai":         "Package ai provides AI provider abstraction, routing, and cost monitoring.",
-		"tokens":     "Package tokens defines the design system tokens for the DevSmith platform.",
-		"button":     "Package button provides UI button components using design tokens.",
+		"providers": "Package providers contains AI provider implementations for different services.",
+		"security":  "Package security provides encryption and security utilities for the DevSmith platform.",
+		"ai":        "Package ai provides AI provider abstraction, routing, and cost monitoring.",
+		"tokens":    "Package tokens defines the design system tokens for the DevSmith platform.",
+		"button":    "Package button provides UI button components using design tokens.",
 	}
 
 	for _, file := range files {
@@ -110,8 +115,10 @@ func fixMissingPackageComments(files []string, dryRun bool) (int, error) {
 	return count, nil
 }
 
+// fixMagicStringsIssues extracts repeated string literals to constants (placeholder).
+//
+//nolint:unparam // Placeholder function - dryRun parameter will be used in full implementation
 func fixMagicStringsIssues(files []string, dryRun bool) (int, error) {
-	//nolint:unparam // Placeholder - dryRun will be used in full implementation
 	// Extract repeated string literals and create constants
 	// This is a simplified version - real implementation would be more sophisticated
 	count := 0
@@ -121,8 +128,10 @@ func fixMagicStringsIssues(files []string, dryRun bool) (int, error) {
 	return count, nil
 }
 
+// fixHTTPNoBodyIssues replaces nil with http.NoBody in HTTP requests (placeholder).
+//
+//nolint:unparam // Placeholder function - dryRun parameter will be used in full implementation
 func fixHTTPNoBodyIssues(files []string, dryRun bool) (int, error) {
-	//nolint:unparam // Placeholder - dryRun will be used in full implementation
 	count := 0
 	for range files {
 		// Placeholder: replace nil with http.NoBody in NewRequest calls
