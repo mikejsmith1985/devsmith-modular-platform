@@ -1,0 +1,69 @@
+package card
+
+type CardProps struct {
+	Title       string
+	Description string
+	Icon        string
+	BadgeText   string
+	BadgeColor  string
+	ActionText  string
+	ActionURL   string
+	StatLabel   string
+	StatValue   string
+}
+
+templ Card(props CardProps) {
+	<div
+		role="article"
+		class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6"
+		aria-label={ props.Title }
+	>
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex-1">
+				if props.Icon != "" {
+					<div class="text-2xl mb-2">{ props.Icon }</div>
+				}
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">{ props.Title }</h3>
+				if props.Description != "" {
+					<p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{ props.Description }</p>
+				}
+			</div>
+			if props.BadgeText != "" {
+				<span class={ badgeClass(props.BadgeColor) }>
+					{ props.BadgeText }
+				</span>
+			}
+		</div>
+
+		if props.StatLabel != "" || props.ActionText != "" {
+			<div class="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
+				if props.StatLabel != "" {
+					<div>
+						<span class="text-xs text-gray-500 dark:text-gray-400">{ props.StatLabel }</span>
+						<div class="text-sm font-medium text-gray-900 dark:text-white">{ props.StatValue }</div>
+					</div>
+				}
+				if props.ActionText != "" {
+					<a href={ templ.SafeURL(props.ActionURL) } class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+						{ props.ActionText }
+					</a>
+				}
+			</div>
+		}
+	</div>
+}
+
+func badgeClass(color string) string {
+	switch color {
+	case "green":
+		return "px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+	case "blue":
+		return "px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+	case "red":
+		return "px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+	case "yellow":
+		return "px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+	default:
+		return "px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+	}
+}
