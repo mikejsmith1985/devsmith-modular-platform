@@ -149,8 +149,11 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install Playwright browsers
-        run: npx -y playwright install
+        run: npx playwright install
 
       - name: Start services with docker-compose
         run: |
@@ -159,30 +162,39 @@ jobs:
 
       - name: Wait for services to be ready
         run: |
-          MAX_ATTEMPTS=60
+          MAX_ATTEMPTS=90
           ATTEMPT=0
           
-          echo "Checking services health through nginx on port 3000..."
+          echo "Waiting for services to be ready (up to 180 seconds)..."
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            # Check if nginx health endpoint responds
-            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "000")
-            
-            if [ "$HEALTH_STATUS" = "200" ]; then
-              echo "✅ Platform health check passed"
-              exit 0
+            # First check if port is even listening
+            if nc -z localhost 3000 2>/dev/null; then
+              # Port is listening, now check health
+              HEALTH_STATUS=$(curl -s -m 5 -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "000")
+              
+              if [ "$HEALTH_STATUS" = "200" ]; then
+                echo "✅ Services are healthy"
+                exit 0
+              else
+                echo "Port 3000 listening but health check returned: $HEALTH_STATUS"
+              fi
+            else
+              echo "Port 3000 not yet listening..."
             fi
             
             ATTEMPT=$((ATTEMPT + 1))
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Health check returned $HEALTH_STATUS, waiting..."
+            if [ $((ATTEMPT % 10)) -eq 0 ]; then
+              echo "Still waiting... Attempt $ATTEMPT/$MAX_ATTEMPTS"
+            fi
             sleep 2
           done
           
-          echo "❌ Services failed to become healthy after $((MAX_ATTEMPTS * 2)) seconds"
-          echo "Docker status:"
-          docker ps
+          echo "❌ Services failed to become healthy"
+          echo "Docker container status:"
+          docker ps -a
           echo ""
-          echo "Docker logs:"
-          docker-compose logs
+          echo "Docker logs (last 50 lines):"
+          docker-compose logs | tail -50
           exit 1
 
       - name: Run Playwright E2E tests
