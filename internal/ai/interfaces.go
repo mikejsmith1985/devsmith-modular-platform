@@ -28,27 +28,27 @@ type AIRequest struct {
 
 // AIResponse represents the response from any AI provider
 type AIResponse struct {
-	Content       string        // The generated text
-	InputTokens   int           // Number of input tokens used
-	OutputTokens  int           // Number of output tokens used
-	ResponseTime  time.Duration // Time taken to generate response
-	CostUSD       float64       // Estimated cost (0 for local providers like Ollama)
-	Model         string        // Model that fulfilled request
-	FinishReason  string        // 'complete', 'length', 'error'
+	Content      string        // The generated text
+	InputTokens  int           // Number of input tokens used
+	OutputTokens int           // Number of output tokens used
+	ResponseTime time.Duration // Time taken to generate response
+	CostUSD      float64       // Estimated cost (0 for local providers like Ollama)
+	Model        string        // Model that fulfilled request
+	FinishReason string        // 'complete', 'length', 'error'
 }
 
 // ModelInfo describes model capabilities
 type ModelInfo struct {
-	Provider                  string   // 'ollama', 'anthropic', 'openai'
-	Model                     string   // Model identifier
-	DisplayName               string   // Human-readable name
-	MaxTokens                 int      // Max context window
-	CostPer1kInputTokens      float64  // Cost per 1k input tokens ($)
-	CostPer1kOutputTokens     float64  // Cost per 1k output tokens ($)
-	Capabilities              []string // ['code_analysis', 'critical_review', etc.]
-	SupportsStreaming         bool     // Whether model supports streaming responses
-	DefaultTemperature        float64  // Recommended temperature for this model
-	RecommendedForCodeReview  bool     // Is this model good for code review tasks
+	Provider                 string   // 'ollama', 'anthropic', 'openai'
+	Model                    string   // Model identifier
+	DisplayName              string   // Human-readable name
+	MaxTokens                int      // Max context window
+	CostPer1kInputTokens     float64  // Cost per 1k input tokens ($)
+	CostPer1kOutputTokens    float64  // Cost per 1k output tokens ($)
+	Capabilities             []string // ['code_analysis', 'critical_review', etc.]
+	SupportsStreaming        bool     // Whether model supports streaming responses
+	DefaultTemperature       float64  // Recommended temperature for this model
+	RecommendedForCodeReview bool     // Is this model good for code review tasks
 }
 
 // Router determines which provider to use for a request

@@ -14,9 +14,9 @@ type userPreference struct {
 
 // DefaultRouter implements the Router interface for intelligent AI provider selection
 type DefaultRouter struct {
-	providers       map[string]AIProvider   // Key: "provider:model"
+	providers       map[string]AIProvider     // Key: "provider:model"
 	userPreferences map[string]userPreference // Key: "userID:app"
-	mu              sync.RWMutex            // Protect concurrent access
+	mu              sync.RWMutex              // Protect concurrent access
 }
 
 // NewDefaultRouter creates a new default router

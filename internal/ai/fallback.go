@@ -8,10 +8,10 @@ import (
 
 // FallbackChain manages a chain of AI providers with automatic failover
 type FallbackChain struct {
-	providers      []AIProvider
-	maxRetries     int
-	failures       map[string]int64 // Track failures per provider
-	mu             sync.RWMutex
+	providers  []AIProvider
+	maxRetries int
+	failures   map[string]int64 // Track failures per provider
+	mu         sync.RWMutex
 }
 
 // NewFallbackChain creates a new fallback chain

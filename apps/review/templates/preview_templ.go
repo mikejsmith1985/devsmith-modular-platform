@@ -8,14 +8,14 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-type PreviewFileNode struct {
+type PreviewFileNodeData struct {
 	Name        string
 	Description string
-	Children    []PreviewFileNode
+	Children    []PreviewFileNodeData
 }
 
 func PreviewMode(
-	fileTree []PreviewFileNode,
+	fileTree []PreviewFileNodeData,
 	boundedContexts []string,
 	techStack []string,
 	architecturePattern string,
@@ -153,7 +153,7 @@ func PreviewMode(
 	})
 }
 
-func PreviewFileNode(node PreviewFileNode) templ.Component {
+func PreviewFileNode(node PreviewFileNodeData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

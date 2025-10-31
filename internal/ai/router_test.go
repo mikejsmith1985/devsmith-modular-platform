@@ -92,8 +92,8 @@ func TestDefaultRouter_Route_ReturnsOllamaByDefault(t *testing.T) {
 	ollama := &mockProvider{
 		name: "ollama",
 		info: &ModelInfo{
-			Provider: "ollama",
-			Model:    "local-model",
+			Provider:             "ollama",
+			Model:                "local-model",
 			CostPer1kInputTokens: 0.0,
 		},
 	}
