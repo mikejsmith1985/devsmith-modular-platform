@@ -16,6 +16,7 @@ type CheckResult struct {
 // CheckStatus represents the status of a health check
 type CheckStatus string
 
+// Health check status constants
 const (
 	StatusPass    CheckStatus = "pass"
 	StatusWarn    CheckStatus = "warn"

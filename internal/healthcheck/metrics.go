@@ -102,7 +102,7 @@ func (c *MetricsChecker) measureEndpoint(endpoint MetricEndpoint) PerformanceMet
 		Endpoint: endpoint.Name,
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint.URL, http.NoBody)
 	if err != nil {
 		metric.ResponseTime = 0
 		metric.StatusCode = 0

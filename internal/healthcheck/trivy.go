@@ -218,7 +218,7 @@ func (c *TrivyChecker) parseTrivy(jsonOutput []byte, target string) (*TrivyScanR
 
 // parseTrivyPlaintext attempts to parse Trivy output as plain text
 // This is a fallback for when JSON parsing fails
-func (c *TrivyChecker) parseTrivyPlaintext(output, target string) (*TrivyScanResult, error) {
+func (c *TrivyChecker) parseTrivyPlaintext(_ string, target string) (*TrivyScanResult, error) {
 	result := &TrivyScanResult{
 		ScanType: c.ScanType,
 		Target:   target,
