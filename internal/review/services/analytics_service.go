@@ -10,33 +10,33 @@ import (
 
 // AnalyticsMetric represents a single analytics data point
 type AnalyticsMetric struct {
-	ReadingMode       string        `json:"reading_mode"`
-	Duration          time.Duration `json:"duration_ms"`
-	Success           bool          `json:"success"`
-	CostInCents       int           `json:"cost_cents"`
-	ModelUsed         string        `json:"model_used"`
 	TimestampRecorded time.Time     `json:"timestamp"`
+	ReadingMode       string        `json:"reading_mode"`
+	ModelUsed         string        `json:"model_used"`
+	Duration          time.Duration `json:"duration_ms"`
+	CostInCents       int           `json:"cost_cents"`
 	SessionID         int64         `json:"session_id"`
 	UserID            int64         `json:"user_id"`
+	Success           bool          `json:"success"`
 }
 
 // ModeUsageStats tracks usage statistics per reading mode
 type ModeUsageStats struct {
+	LastUpdated     time.Time
 	Mode            string
 	TotalCalls      int64
 	SuccessfulCalls int64
 	FailedCalls     int64
 	AvgDurationMs   float64
 	TotalCostCents  int64
-	LastUpdated     time.Time
 }
 
 // AnalyticsService tracks review service metrics for cost and performance
 type AnalyticsService struct {
-	mu             sync.RWMutex
-	metrics        []AnalyticsMetric
 	modeStats      map[string]*ModeUsageStats
+	metrics        []AnalyticsMetric
 	totalCostCents int64
+	mu             sync.RWMutex
 }
 
 // NewAnalyticsService creates a new analytics service
