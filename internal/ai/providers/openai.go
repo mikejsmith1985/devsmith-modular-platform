@@ -126,7 +126,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.Request) (*ai.Respo
 		return nil, fmt.Errorf("failed to send request to OpenAI: %w", err)
 	}
 	defer func() {
-		_ = httpResp.Body.Close() //nolint:errcheck
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
 	}()
 
 	// Check HTTP status
