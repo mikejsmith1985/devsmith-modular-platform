@@ -95,7 +95,7 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.Request) (*ai.Respo
 		return nil, fmt.Errorf("failed to send request to Ollama: %w", err)
 	}
 	defer func() {
-		_ = httpResp.Body.Close() //nolint:errcheck
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
 	}()
 
 	// Check HTTP status
@@ -149,7 +149,7 @@ func (c *OllamaClient) HealthCheck(ctx context.Context) error {
 		return fmt.Errorf("Ollama is unreachable: %w", err)
 	}
 	defer func() {
-		_ = httpResp.Body.Close() //nolint:errcheck
+		_ = httpResp.Body.Close() //nolint:errcheck // error after response processed
 	}()
 
 	// Check status
