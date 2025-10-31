@@ -112,6 +112,7 @@ func fixMissingPackageComments(files []string, dryRun bool) (int, error) {
 func fixMagicStringsIssues(files []string, dryRun bool) (int, error) {
 	// Extract repeated string literals and create constants
 	// This is a simplified version - real implementation would be more sophisticated
+	_ = dryRun // Placeholder for future implementation
 	count := 0
 	for range files {
 		// Placeholder: actual implementation would parse and modify files
@@ -120,6 +121,7 @@ func fixMagicStringsIssues(files []string, dryRun bool) (int, error) {
 }
 
 func fixHTTPNoBodyIssues(files []string, dryRun bool) (int, error) {
+	_ = dryRun // Placeholder for future implementation
 	count := 0
 	for range files {
 		// Placeholder: replace nil with http.NoBody in NewRequest calls
