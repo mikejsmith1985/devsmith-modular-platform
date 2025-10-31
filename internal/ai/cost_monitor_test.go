@@ -22,8 +22,8 @@ func TestCostMonitor_NewCostMonitor_CreatesValidMonitor(t *testing.T) {
 func TestCostMonitor_RecordUsage_TracksUserCost(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	req := &AIRequest{Prompt: "test"}
-	resp := &AIResponse{
+	req := &Request{Prompt: "test"}
+	resp := &Response{
 		InputTokens:  1000,
 		OutputTokens: 500,
 		CostUSD:      0.05,
@@ -44,8 +44,8 @@ func TestCostMonitor_RecordUsage_AccumulateCosts(t *testing.T) {
 
 	// Record multiple usages
 	for i := 0; i < 5; i++ {
-		resp := &AIResponse{CostUSD: 0.10}
-		monitor.RecordUsage(context.Background(), 222, "review", &AIRequest{}, resp)
+		resp := &Response{CostUSD: 0.10}
+		monitor.RecordUsage(context.Background(), 222, "review", &Request{}, resp)
 	}
 
 	userCost := monitor.GetUserTotalCost(222)
@@ -56,8 +56,8 @@ func TestCostMonitor_RecordUsage_AccumulateCosts(t *testing.T) {
 func TestCostMonitor_RecordUsage_AppIsolation(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	monitor.RecordUsage(context.Background(), 333, "review", &AIRequest{}, &AIResponse{CostUSD: 0.10})
-	monitor.RecordUsage(context.Background(), 333, "logs", &AIRequest{}, &AIResponse{CostUSD: 0.05})
+	monitor.RecordUsage(context.Background(), 333, "review", &Request{}, &Response{CostUSD: 0.10})
+	monitor.RecordUsage(context.Background(), 333, "logs", &Request{}, &Response{CostUSD: 0.05})
 
 	reviewCost := monitor.GetAppCostForUser(333, "review")
 	logsCost := monitor.GetAppCostForUser(333, "logs")
@@ -70,9 +70,9 @@ func TestCostMonitor_RecordUsage_AppIsolation(t *testing.T) {
 func TestCostMonitor_GetUserTotalCost_CorrectSum(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	monitor.RecordUsage(context.Background(), 444, "review", &AIRequest{}, &AIResponse{CostUSD: 0.15})
-	monitor.RecordUsage(context.Background(), 444, "review", &AIRequest{}, &AIResponse{CostUSD: 0.10})
-	monitor.RecordUsage(context.Background(), 444, "logs", &AIRequest{}, &AIResponse{CostUSD: 0.05})
+	monitor.RecordUsage(context.Background(), 444, "review", &Request{}, &Response{CostUSD: 0.15})
+	monitor.RecordUsage(context.Background(), 444, "review", &Request{}, &Response{CostUSD: 0.10})
+	monitor.RecordUsage(context.Background(), 444, "logs", &Request{}, &Response{CostUSD: 0.05})
 
 	totalCost := monitor.GetUserTotalCost(444)
 	assert.Equal(t, 0.30, totalCost)
@@ -94,7 +94,7 @@ func TestCostMonitor_IsWithinBudget_TrueWhenUnderLimit(t *testing.T) {
 	monitor := NewCostMonitor()
 
 	monitor.SetUserBudget(context.Background(), 666, 1.0)
-	monitor.RecordUsage(context.Background(), 666, "review", &AIRequest{}, &AIResponse{CostUSD: 0.50})
+	monitor.RecordUsage(context.Background(), 666, "review", &Request{}, &Response{CostUSD: 0.50})
 
 	withinBudget := monitor.IsWithinBudget(666)
 	assert.True(t, withinBudget)
@@ -105,7 +105,7 @@ func TestCostMonitor_IsWithinBudget_FalseWhenOverLimit(t *testing.T) {
 	monitor := NewCostMonitor()
 
 	monitor.SetUserBudget(context.Background(), 777, 0.50)
-	monitor.RecordUsage(context.Background(), 777, "review", &AIRequest{}, &AIResponse{CostUSD: 0.75})
+	monitor.RecordUsage(context.Background(), 777, "review", &Request{}, &Response{CostUSD: 0.75})
 
 	withinBudget := monitor.IsWithinBudget(777)
 	assert.False(t, withinBudget)
@@ -116,7 +116,7 @@ func TestCostMonitor_IsWithinBudget_TrueWhenNoBudget(t *testing.T) {
 	monitor := NewCostMonitor()
 
 	// Don't set a budget
-	monitor.RecordUsage(context.Background(), 888, "review", &AIRequest{}, &AIResponse{CostUSD: 100.0})
+	monitor.RecordUsage(context.Background(), 888, "review", &Request{}, &Response{CostUSD: 100.0})
 
 	withinBudget := monitor.IsWithinBudget(888)
 	assert.True(t, withinBudget, "Should be unlimited without budget")
@@ -127,7 +127,7 @@ func TestCostMonitor_GetRemainingBudget_CalculatesCorrectly(t *testing.T) {
 	monitor := NewCostMonitor()
 
 	monitor.SetUserBudget(context.Background(), 999, 5.0)
-	monitor.RecordUsage(context.Background(), 999, "review", &AIRequest{}, &AIResponse{CostUSD: 2.0})
+	monitor.RecordUsage(context.Background(), 999, "review", &Request{}, &Response{CostUSD: 2.0})
 
 	remaining := monitor.GetRemainingBudget(999)
 	assert.Equal(t, 3.0, remaining)
@@ -138,7 +138,7 @@ func TestCostMonitor_GetPercentageUsed_CalculatesCorrectly(t *testing.T) {
 	monitor := NewCostMonitor()
 
 	monitor.SetUserBudget(context.Background(), 1001, 10.0)
-	monitor.RecordUsage(context.Background(), 1001, "review", &AIRequest{}, &AIResponse{CostUSD: 5.0})
+	monitor.RecordUsage(context.Background(), 1001, "review", &Request{}, &Response{CostUSD: 5.0})
 
 	percentage := monitor.GetPercentageUsed(1001)
 	assert.Equal(t, 50.0, percentage)
@@ -148,12 +148,12 @@ func TestCostMonitor_GetPercentageUsed_CalculatesCorrectly(t *testing.T) {
 func TestCostMonitor_RecordUsage_TracksDuration(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	resp := &AIResponse{
+	resp := &Response{
 		CostUSD:      0.01,
 		ResponseTime: 5 * time.Second,
 	}
 
-	monitor.RecordUsage(context.Background(), 1002, "review", &AIRequest{}, resp)
+	monitor.RecordUsage(context.Background(), 1002, "review", &Request{}, resp)
 
 	usage := monitor.GetUserUsageStats(1002)
 	assert.NotNil(t, usage)
@@ -165,9 +165,9 @@ func TestCostMonitor_RecordUsage_TracksDuration(t *testing.T) {
 func TestCostMonitor_GetAppTotalCost_SumAcrossAllUsers(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	monitor.RecordUsage(context.Background(), 1003, "review", &AIRequest{}, &AIResponse{CostUSD: 0.10})
-	monitor.RecordUsage(context.Background(), 1004, "review", &AIRequest{}, &AIResponse{CostUSD: 0.15})
-	monitor.RecordUsage(context.Background(), 1005, "review", &AIRequest{}, &AIResponse{CostUSD: 0.05})
+	monitor.RecordUsage(context.Background(), 1003, "review", &Request{}, &Response{CostUSD: 0.10})
+	monitor.RecordUsage(context.Background(), 1004, "review", &Request{}, &Response{CostUSD: 0.15})
+	monitor.RecordUsage(context.Background(), 1005, "review", &Request{}, &Response{CostUSD: 0.05})
 
 	appCost := monitor.GetAppTotalCost("review")
 	assert.Equal(t, 0.30, appCost)
@@ -177,9 +177,9 @@ func TestCostMonitor_GetAppTotalCost_SumAcrossAllUsers(t *testing.T) {
 func TestCostMonitor_GetAverageCostPerRequest_Calculates(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	monitor.RecordUsage(context.Background(), 1006, "review", &AIRequest{}, &AIResponse{CostUSD: 0.10})
-	monitor.RecordUsage(context.Background(), 1006, "review", &AIRequest{}, &AIResponse{CostUSD: 0.20})
-	monitor.RecordUsage(context.Background(), 1006, "review", &AIRequest{}, &AIResponse{CostUSD: 0.30})
+	monitor.RecordUsage(context.Background(), 1006, "review", &Request{}, &Response{CostUSD: 0.10})
+	monitor.RecordUsage(context.Background(), 1006, "review", &Request{}, &Response{CostUSD: 0.20})
+	monitor.RecordUsage(context.Background(), 1006, "review", &Request{}, &Response{CostUSD: 0.30})
 
 	stats := monitor.GetAppStats("review")
 	assert.NotNil(t, stats)
@@ -190,9 +190,9 @@ func TestCostMonitor_GetAverageCostPerRequest_Calculates(t *testing.T) {
 func TestCostMonitor_GetMostExpensiveUser_IdentifiesHighestUser(t *testing.T) {
 	monitor := NewCostMonitor()
 
-	monitor.RecordUsage(context.Background(), 2001, "review", &AIRequest{}, &AIResponse{CostUSD: 0.50})
-	monitor.RecordUsage(context.Background(), 2002, "review", &AIRequest{}, &AIResponse{CostUSD: 1.50})
-	monitor.RecordUsage(context.Background(), 2003, "review", &AIRequest{}, &AIResponse{CostUSD: 0.75})
+	monitor.RecordUsage(context.Background(), 2001, "review", &Request{}, &Response{CostUSD: 0.50})
+	monitor.RecordUsage(context.Background(), 2002, "review", &Request{}, &Response{CostUSD: 1.50})
+	monitor.RecordUsage(context.Background(), 2003, "review", &Request{}, &Response{CostUSD: 0.75})
 
 	topUser := monitor.GetTopUsers(1)
 	assert.Equal(t, 1, len(topUser))
@@ -215,7 +215,7 @@ func TestCostMonitor_GetTopUsers_ReturnsMultiple(t *testing.T) {
 	}
 
 	for _, u := range users {
-		monitor.RecordUsage(context.Background(), u.id, "review", &AIRequest{}, &AIResponse{CostUSD: u.cost})
+		monitor.RecordUsage(context.Background(), u.id, "review", &Request{}, &Response{CostUSD: u.cost})
 	}
 
 	topThree := monitor.GetTopUsers(3)
@@ -231,7 +231,7 @@ func TestCostMonitor_GetCostTrend_TracksCostOverTime(t *testing.T) {
 
 	// Simulate usage over time (in real impl would track timestamps)
 	for i := 0; i < 5; i++ {
-		monitor.RecordUsage(context.Background(), 4001, "review", &AIRequest{}, &AIResponse{CostUSD: 0.10})
+		monitor.RecordUsage(context.Background(), 4001, "review", &Request{}, &Response{CostUSD: 0.10})
 	}
 
 	trend := monitor.GetUserCostTrend(4001)
@@ -247,12 +247,12 @@ func TestCostMonitor_AlertThreshold_TriggersWhenExceeded(t *testing.T) {
 	monitor.SetAlertThreshold(context.Background(), 5001, 0.50)
 
 	// First usage: under threshold
-	monitor.RecordUsage(context.Background(), 5001, "review", &AIRequest{}, &AIResponse{CostUSD: 0.30})
+	monitor.RecordUsage(context.Background(), 5001, "review", &Request{}, &Response{CostUSD: 0.30})
 	alert1 := monitor.HasPendingAlert(5001)
 	assert.False(t, alert1, "No alert when under threshold")
 
 	// Second usage: exceeds threshold
-	monitor.RecordUsage(context.Background(), 5001, "review", &AIRequest{}, &AIResponse{CostUSD: 0.30})
+	monitor.RecordUsage(context.Background(), 5001, "review", &Request{}, &Response{CostUSD: 0.30})
 	alert2 := monitor.HasPendingAlert(5001)
 	assert.True(t, alert2, "Alert when exceeds threshold")
 }
@@ -262,7 +262,7 @@ func TestCostMonitor_ClearAlert_RemovesAlert(t *testing.T) {
 	monitor := NewCostMonitor()
 
 	monitor.SetAlertThreshold(context.Background(), 6001, 0.50)
-	monitor.RecordUsage(context.Background(), 6001, "review", &AIRequest{}, &AIResponse{CostUSD: 0.60})
+	monitor.RecordUsage(context.Background(), 6001, "review", &Request{}, &Response{CostUSD: 0.60})
 
 	alert1 := monitor.HasPendingAlert(6001)
 	assert.True(t, alert1)
@@ -281,7 +281,7 @@ func TestCostMonitor_Concurrency_ThreadSafe(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		go func(userID int64) {
 			for j := 0; j < 50; j++ {
-				monitor.RecordUsage(context.Background(), userID, "review", &AIRequest{}, &AIResponse{CostUSD: 0.01})
+				monitor.RecordUsage(context.Background(), userID, "review", &Request{}, &Response{CostUSD: 0.01})
 			}
 			done <- true
 		}(int64(7000 + i))

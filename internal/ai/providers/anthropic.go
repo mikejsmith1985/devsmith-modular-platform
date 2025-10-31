@@ -14,7 +14,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// AnthropicClient implements the AIProvider interface for Anthropic models
+// AnthropicClient implements the Provider interface for Anthropic models
 type AnthropicClient struct {
 	httpClient *http.Client
 	apiKey     string
@@ -81,7 +81,7 @@ func NewAnthropicClient(apiKey, model string) *AnthropicClient {
 }
 
 // Generate sends a prompt to Anthropic and returns the response
-func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIResponse, error) {
+func (c *AnthropicClient) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Prepare Anthropic request
 	anthropicReq := anthropicRequest{
 		Model: c.model,
@@ -163,7 +163,7 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 	// Calculate cost
 	cost := c.calculateCost(anthropicResp.Usage.InputTokens, anthropicResp.Usage.OutputTokens)
 
-	return &ai.AIResponse{
+	return &ai.Response{
 		Content:      textContent.String(),
 		InputTokens:  anthropicResp.Usage.InputTokens,
 		OutputTokens: anthropicResp.Usage.OutputTokens,
@@ -177,7 +177,7 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.
 // HealthCheck verifies that the API key is valid and can reach Anthropic
 func (c *AnthropicClient) HealthCheck(ctx context.Context) error {
 	// Create a minimal test request
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:    "test",
 		MaxTokens: 10,
 	}

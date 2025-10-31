@@ -68,7 +68,7 @@ func NewCostMonitor() *CostMonitor {
 }
 
 // RecordUsage records an AI API usage for cost tracking
-func (m *CostMonitor) RecordUsage(ctx context.Context, userID int64, appName string, req *AIRequest, resp *AIResponse) error {
+func (m *CostMonitor) RecordUsage(ctx context.Context, userID int64, appName string, req *Request, resp *Response) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

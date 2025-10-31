@@ -14,7 +14,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// OpenAIClient implements the AIProvider interface for OpenAI models
+// OpenAIClient implements the Provider interface for OpenAI models
 type OpenAIClient struct {
 	httpClient *http.Client
 	apiKey     string
@@ -85,7 +85,7 @@ func NewOpenAIClient(apiKey, model string) *OpenAIClient {
 }
 
 // Generate sends a prompt to OpenAI and returns the response
-func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIResponse, error) {
+func (c *OpenAIClient) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Prepare OpenAI request
 	openaiReq := openaiRequest{
 		Model: c.model,
@@ -161,7 +161,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 	// Calculate cost
 	cost := c.calculateCost(openaiResp.Usage.PromptTokens, openaiResp.Usage.CompletionTokens)
 
-	return &ai.AIResponse{
+	return &ai.Response{
 		Content:      choice.Message.Content,
 		InputTokens:  openaiResp.Usage.PromptTokens,
 		OutputTokens: openaiResp.Usage.CompletionTokens,
@@ -175,7 +175,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req *ai.AIRequest) (*ai.AIR
 // HealthCheck verifies that the API key is valid and can reach OpenAI
 func (c *OpenAIClient) HealthCheck(ctx context.Context) error {
 	// Create a minimal test request
-	req := &ai.AIRequest{
+	req := &ai.Request{
 		Prompt:    "test",
 		MaxTokens: 5,
 	}

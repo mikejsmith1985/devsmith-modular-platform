@@ -7,14 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockProvider is a mock AIProvider for testing
+// mockProvider is a mock Provider for testing
+//
+//nolint:govet // field alignment not critical for mock struct
 type mockProvider struct {
 	name string
 	info *ModelInfo
 }
 
-func (m *mockProvider) Generate(ctx context.Context, req *AIRequest) (*AIResponse, error) {
-	return &AIResponse{
+func (m *mockProvider) Generate(ctx context.Context, req *Request) (*Response, error) {
+	return &Response{
 		Content:      "mock response from " + m.name,
 		InputTokens:  10,
 		OutputTokens: 20,
@@ -245,10 +247,10 @@ func TestDefaultRouter_GetAvailableModels_ReturnsAllRegistered(t *testing.T) {
 func TestDefaultRouter_LogUsage_RecordsUsage(t *testing.T) {
 	router := NewDefaultRouter()
 
-	req := &AIRequest{
+	req := &Request{
 		Prompt: "test prompt",
 	}
-	resp := &AIResponse{
+	resp := &Response{
 		Content:      "test response",
 		InputTokens:  100,
 		OutputTokens: 50,

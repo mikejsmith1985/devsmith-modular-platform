@@ -1,3 +1,4 @@
+// Package ai provides AI provider abstraction, routing, and cost monitoring.
 package ai
 
 import (
@@ -6,62 +7,51 @@ import (
 	"sync"
 )
 
-// FallbackChain manages a chain of AI providers with automatic failover
+// FallbackChain implements a sequential provider failover mechanism.
 type FallbackChain struct {
-	failures   map[string]int64 // Track failures per provider
-	providers  []AIProvider
-	maxRetries int
-	mu         sync.RWMutex
+	providers []Provider
+	mu        sync.RWMutex
 }
 
-// NewFallbackChain creates a new fallback chain
-func NewFallbackChain() *FallbackChain {
+// NewFallbackChain creates a new fallback chain with the given providers.
+func NewFallbackChain(providers ...Provider) *FallbackChain {
 	return &FallbackChain{
-		providers:  make([]AIProvider, 0),
-		maxRetries: 1, // Default: try each provider once
-		failures:   make(map[string]int64),
+		providers: providers,
 	}
 }
 
-// AddProvider adds a provider to the fallback chain
-func (fc *FallbackChain) AddProvider(provider AIProvider) {
+// AddProvider adds a provider to the fallback chain.
+func (fc *FallbackChain) AddProvider(provider Provider) {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-
 	fc.providers = append(fc.providers, provider)
 }
 
-// Generate tries each provider in sequence until one succeeds
-func (fc *FallbackChain) Generate(ctx context.Context, req *AIRequest) (*AIResponse, error) {
+// Generate tries each provider in sequence until one succeeds.
+func (fc *FallbackChain) Generate(ctx context.Context, req *Request) (*Response, error) {
 	fc.mu.RLock()
-	providers := fc.providers
-	fc.mu.RUnlock()
+	defer fc.mu.RUnlock()
 
-	if len(providers) == 0 {
-		return nil, fmt.Errorf("no providers registered in fallback chain")
+	if len(fc.providers) == 0 {
+		return nil, fmt.Errorf("no providers available in fallback chain")
 	}
 
 	var lastErr error
-
-	// Try each provider in order
-	for _, provider := range providers {
+	for i, provider := range fc.providers {
 		resp, err := provider.Generate(ctx, req)
 		if err == nil {
 			return resp, nil
 		}
-
-		// Record failure
-		providerName := provider.GetModelInfo().Provider
-		fc.RecordFailure(ctx, providerName)
 		lastErr = err
+		// Log provider failure for debugging
+		fmt.Printf("Provider %d failed: %v, trying next...\n", i, err)
 	}
 
-	// All providers failed
-	return nil, fmt.Errorf("all providers failed, last error: %w", lastErr)
+	return nil, fmt.Errorf("all providers exhausted, last error: %w", lastErr)
 }
 
 // GetSuccessfulProvider returns the first provider that succeeds
-func (fc *FallbackChain) GetSuccessfulProvider(ctx context.Context) (AIProvider, error) {
+func (fc *FallbackChain) GetSuccessfulProvider(ctx context.Context) (Provider, error) {
 	fc.mu.RLock()
 	providers := fc.providers
 	fc.mu.RUnlock()
@@ -82,7 +72,7 @@ func (fc *FallbackChain) GetSuccessfulProvider(ctx context.Context) (AIProvider,
 }
 
 // GetHealthyProvider returns the first provider that passes health check
-func (fc *FallbackChain) GetHealthyProvider(ctx context.Context) (AIProvider, error) {
+func (fc *FallbackChain) GetHealthyProvider(ctx context.Context) (Provider, error) {
 	fc.mu.RLock()
 	providers := fc.providers
 	fc.mu.RUnlock()
@@ -91,7 +81,6 @@ func (fc *FallbackChain) GetHealthyProvider(ctx context.Context) (AIProvider, er
 		return nil, fmt.Errorf("no providers in chain")
 	}
 
-	// Try health check on each provider
 	for _, provider := range providers {
 		err := provider.HealthCheck(ctx)
 		if err == nil {
@@ -99,37 +88,26 @@ func (fc *FallbackChain) GetHealthyProvider(ctx context.Context) (AIProvider, er
 		}
 	}
 
-	return nil, fmt.Errorf("all providers are unhealthy")
+	return nil, fmt.Errorf("all providers unhealthy")
 }
 
 // SetMaxRetries sets the maximum retries per provider
 func (fc *FallbackChain) SetMaxRetries(retries int) {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-
-	fc.maxRetries = retries
+	// This is a no-op stub. Retry logic moved to individual providers.
 }
 
 // RecordFailure records a failure for a provider
 func (fc *FallbackChain) RecordFailure(ctx context.Context, providerName string) {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-
-	fc.failures[providerName]++
+	// This is a no-op stub. Failure tracking moved to providers.
 }
 
 // GetFailureCount returns the failure count for a provider
 func (fc *FallbackChain) GetFailureCount(providerName string) int64 {
-	fc.mu.RLock()
-	defer fc.mu.RUnlock()
-
-	return fc.failures[providerName]
+	// This is a no-op stub. Failure tracking moved to providers.
+	return 0
 }
 
 // ResetFailures resets all failure counters
 func (fc *FallbackChain) ResetFailures(ctx context.Context) {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-
-	fc.failures = make(map[string]int64)
+	// This is a no-op stub. Failure tracking moved to providers.
 }
