@@ -77,13 +77,14 @@ func (c *MetricsChecker) Check() CheckResult {
 	result.Details["fast_endpoints"] = fastEndpoints
 
 	// Determine status based on performance
-	if len(slowEndpoints) > len(c.Endpoints)/2 {
+	switch {
+	case len(slowEndpoints) > len(c.Endpoints)/2:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("Performance degraded: %d/%d endpoints slow (>1s)", len(slowEndpoints), len(c.Endpoints))
-	} else if len(slowEndpoints) > 0 {
+	case len(slowEndpoints) > 0:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("Some slow endpoints detected: avg %dms", avgTime)
-	} else {
+	default:
 		result.Status = StatusPass
 		result.Message = fmt.Sprintf("Good performance: avg %dms across %d endpoints", avgTime, len(c.Endpoints))
 	}
@@ -132,11 +133,12 @@ func (c *MetricsChecker) measureEndpoint(endpoint MetricEndpoint) PerformanceMet
 	metric.ResponseTime = elapsed
 	metric.StatusCode = resp.StatusCode
 
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	switch {
+	case resp.StatusCode >= 200 && resp.StatusCode < 300:
 		metric.Status = "ok"
-	} else if resp.StatusCode >= 500 {
+	case resp.StatusCode >= 500:
 		metric.Status = "error"
-	} else {
+	default:
 		metric.Status = "warn"
 	}
 

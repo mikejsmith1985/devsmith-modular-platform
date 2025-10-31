@@ -94,20 +94,21 @@ func (c *TrivyChecker) Check() CheckResult {
 	}
 
 	// Determine status based on vulnerability severity
-	if totalCritical > 0 {
+	switch {
+	case totalCritical > 0:
 		result.Status = StatusFail
 		result.Message = fmt.Sprintf("CRITICAL vulnerabilities found: %d critical, %d high", totalCritical, totalHigh)
 		result.Error = "Critical security vulnerabilities detected - immediate action required"
-	} else if totalHigh > 0 {
+	case totalHigh > 0:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("HIGH vulnerabilities found: %d high, %d medium", totalHigh, totalMedium)
-	} else if totalMedium > 0 {
+	case totalMedium > 0:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("MEDIUM vulnerabilities found: %d medium, %d low", totalMedium, totalLow)
-	} else if len(scans) > 0 {
+	case len(scans) > 0:
 		result.Status = StatusPass
 		result.Message = fmt.Sprintf("No vulnerabilities found in %d target(s)", len(scans))
-	} else {
+	default:
 		result.Status = StatusFail
 		result.Message = "Failed to scan any targets"
 		result.Error = fmt.Sprintf("All %d target(s) failed to scan", len(c.Targets))

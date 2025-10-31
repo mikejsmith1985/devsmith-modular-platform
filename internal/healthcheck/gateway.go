@@ -80,14 +80,15 @@ func (c *GatewayChecker) Check() CheckResult {
 	result.Details["invalid_routes"] = len(invalidRoutes)
 	result.Details["route_details"] = routeDetails
 
-	if len(invalidRoutes) > 0 {
+	switch {
+	case len(invalidRoutes) > 0:
 		result.Status = StatusWarn
 		result.Message = fmt.Sprintf("%d/%d routes responding", validRoutes, len(routes))
 		result.Error = fmt.Sprintf("Failed routes: %s", strings.Join(invalidRoutes, ", "))
-	} else if len(routes) == 0 {
+	case len(routes) == 0:
 		result.Status = StatusWarn
 		result.Message = "No routes discovered in nginx config"
-	} else {
+	default:
 		result.Status = StatusPass
 		result.Message = fmt.Sprintf("All %d gateway routes responding", validRoutes)
 	}
