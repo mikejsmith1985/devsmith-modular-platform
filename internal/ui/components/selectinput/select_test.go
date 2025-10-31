@@ -36,10 +36,10 @@ func TestSelect_Render_Basic(t *testing.T) {
 func TestSelect_Render_WithSelected(t *testing.T) {
 	// GIVEN: A select with a pre-selected value
 	props := SelectProps{
-		Name:         "model",
-		Label:        "AI Model",
+		Name:          "model",
+		Label:         "AI Model",
 		SelectedValue: "gpt4",
-		Options:      []Option{{Value: "gpt4", Label: "GPT-4"}, {Value: "claude", Label: "Claude"}},
+		Options:       []Option{{Value: "gpt4", Label: "GPT-4"}, {Value: "claude", Label: "Claude"}},
 	}
 
 	// WHEN: We render the select

@@ -170,30 +170,41 @@ func (h *WebSocketHub) sendHeartbeats() {
 		if lastActivity.Before(deadlineTime) {
 			// No pong response, close connection
 			h.mu.RUnlock()
-			go func(c *Client) {
-				// Close the connection to force Read/Write pumps to exit
-				c.writeMu.Lock()
-				if err := c.Conn.Close(); err != nil {
-					log.Printf("error closing inactive client connection: %v", err)
-				}
-				c.writeMu.Unlock()
-				h.closeClient(c)
-			}(client)
+			h.closeInactiveClient(client)
 			h.mu.RLock()
 		} else {
-			// Send heartbeat ping + text marker. Ping triggers pong handling
-			// on clients; text message ensures tests using ReadMessage see a payload.
-			client.writeMu.Lock()
-			if err := client.Conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-				log.Printf("Error writing ping message: %v", err)
-			}
-			if err := client.Conn.WriteMessage(websocket.TextMessage, []byte("heartbeat")); err != nil {
-				log.Printf("Error writing heartbeat message: %v", err)
-			}
-			client.writeMu.Unlock()
+			// Send heartbeat
+			h.sendHeartbeat(client)
 		}
 	}
 	h.mu.RUnlock()
+}
+
+// closeInactiveClient closes an inactive client connection
+func (h *WebSocketHub) closeInactiveClient(client *Client) {
+	go func(c *Client) {
+		// Close the connection to force Read/Write pumps to exit
+		c.writeMu.Lock()
+		if err := c.Conn.Close(); err != nil {
+			log.Printf("error closing inactive client connection: %v", err)
+		}
+		c.writeMu.Unlock()
+		h.closeClient(c)
+	}(client)
+}
+
+// sendHeartbeat sends ping and text heartbeat messages to a client
+func (h *WebSocketHub) sendHeartbeat(client *Client) {
+	// Send heartbeat ping + text marker. Ping triggers pong handling
+	// on clients; text message ensures tests using ReadMessage see a payload.
+	client.writeMu.Lock()
+	if err := client.Conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+		log.Printf("Error writing ping message: %v", err)
+	}
+	if err := client.Conn.WriteMessage(websocket.TextMessage, []byte("heartbeat")); err != nil {
+		log.Printf("Error writing heartbeat message: %v", err)
+	}
+	client.writeMu.Unlock()
 }
 
 // closeClient removes a client from the hub and performs cleanup.
