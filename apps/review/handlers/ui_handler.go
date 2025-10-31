@@ -173,7 +173,7 @@ func (h *UIHandler) streamSessionProgress(c *gin.Context, flusher http.Flusher, 
 
 // writeSSEEvent writes a progress event to the SSE stream.
 func (h *UIHandler) writeSSEEvent(c *gin.Context, flusher http.Flusher, percent int, message string) bool {
-	msg := fmt.Sprintf("event: progress\n data: {\"percent\": %d, \"message\": \"%s\"}\n\n", percent, message)
+	msg := fmt.Sprintf("event: progress\n data: {\"percent\": %d, \"message\": %q}\n\n", percent, message)
 	if _, err := c.Writer.WriteString(msg); err != nil {
 		h.logger.Error("failed to write SSE event", "error", err)
 		return false
