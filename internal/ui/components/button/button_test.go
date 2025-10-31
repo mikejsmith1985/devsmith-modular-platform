@@ -218,16 +218,17 @@ func TestButton_Render_WithCustomClass(t *testing.T) {
 
 // TestButton_Render_AllStates verifies all button states
 func TestButton_Render_AllStates(t *testing.T) {
+	//nolint:govet // field alignment not critical for local test struct
 	states := []struct {
-		name      string
-		disabled  bool
-		loading   bool
-		expected  string
+		disabled bool
+		loading  bool
+		name     string
+		expected string
 	}{
-		{"Normal", false, false, "btn-normal"},
-		{"Disabled", true, false, "btn-disabled"},
-		{"Loading", false, true, "btn-loading"},
-		{"Loading overrides disabled", true, true, "btn-loading"},
+		{false, false, "Normal", "btn-normal"},
+		{true, false, "Disabled", "btn-disabled"},
+		{false, true, "Loading", "btn-loading"},
+		{true, true, "Loading overrides disabled", "btn-loading"},
 	}
 
 	for _, s := range states {

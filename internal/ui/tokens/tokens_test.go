@@ -24,27 +24,27 @@ func TestTokens_Colors_HasValidHexColors(t *testing.T) {
 	tokens := NewTokens()
 
 	colors := map[string]string{
-		"Primary":         tokens.Colors.Primary,
-		"PrimaryHover":    tokens.Colors.PrimaryHover,
-		"PrimaryActive":   tokens.Colors.PrimaryActive,
-		"Success":         tokens.Colors.Success,
-		"Warning":         tokens.Colors.Warning,
-		"Danger":          tokens.Colors.Danger,
-		"Info":            tokens.Colors.Info,
-		"Background":      tokens.Colors.Background,
-		"Surface":         tokens.Colors.Surface,
-		"SurfaceSecond":   tokens.Colors.SurfaceSecond,
-		"Border":          tokens.Colors.Border,
-		"Text":            tokens.Colors.Text,
-		"TextSecondary":   tokens.Colors.TextSecondary,
-		"TextTertiary":    tokens.Colors.TextTertiary,
-		"DarkBackground":  tokens.Colors.DarkBackground,
-		"DarkSurface":     tokens.Colors.DarkSurface,
-		"DarkSurface2":    tokens.Colors.DarkSurface2,
-		"DarkBorder":      tokens.Colors.DarkBorder,
-		"DarkText":        tokens.Colors.DarkText,
-		"DarkText2":       tokens.Colors.DarkText2,
-		"DarkText3":       tokens.Colors.DarkText3,
+		"Primary":        tokens.Colors.Primary,
+		"PrimaryHover":   tokens.Colors.PrimaryHover,
+		"PrimaryActive":  tokens.Colors.PrimaryActive,
+		"Success":        tokens.Colors.Success,
+		"Warning":        tokens.Colors.Warning,
+		"Danger":         tokens.Colors.Danger,
+		"Info":           tokens.Colors.Info,
+		"Background":     tokens.Colors.Background,
+		"Surface":        tokens.Colors.Surface,
+		"SurfaceSecond":  tokens.Colors.SurfaceSecond,
+		"Border":         tokens.Colors.Border,
+		"Text":           tokens.Colors.Text,
+		"TextSecondary":  tokens.Colors.TextSecondary,
+		"TextTertiary":   tokens.Colors.TextTertiary,
+		"DarkBackground": tokens.Colors.DarkBackground,
+		"DarkSurface":    tokens.Colors.DarkSurface,
+		"DarkSurface2":   tokens.Colors.DarkSurface2,
+		"DarkBorder":     tokens.Colors.DarkBorder,
+		"DarkText":       tokens.Colors.DarkText,
+		"DarkText2":      tokens.Colors.DarkText2,
+		"DarkText3":      tokens.Colors.DarkText3,
 	}
 
 	for name, color := range colors {
@@ -144,11 +144,11 @@ func TestTokens_Typography_HasAllFontWeights(t *testing.T) {
 	tokens := NewTokens()
 
 	weights := map[string]string{
-		"Regular":   tokens.Typography.Regular,
-		"Medium":    tokens.Typography.Medium,
-		"SemiBold":  tokens.Typography.SemiBold,
-		"Bold":      tokens.Typography.Bold,
-		"Heavy":     tokens.Typography.Heavy,
+		"Regular":  tokens.Typography.Regular,
+		"Medium":   tokens.Typography.Medium,
+		"SemiBold": tokens.Typography.SemiBold,
+		"Bold":     tokens.Typography.Bold,
+		"Heavy":    tokens.Typography.Heavy,
 	}
 
 	expectedWeights := map[string]bool{
