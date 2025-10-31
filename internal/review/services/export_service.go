@@ -33,12 +33,12 @@ type ExportRequest struct {
 // ExportResult contains exported analysis data
 type ExportResult struct {
 	SessionID      int64
-	Format         ExportFormat
-	Filename       string
-	MimeType       string
-	Content        []byte // PDF, MD, or JSON bytes
 	ExportedAt     time.Time
 	AnalysisResult *review_models.AnalysisResult
+	Content        []byte
+	Filename       string
+	MimeType       string
+	Format         ExportFormat
 }
 
 // ExportService handles exporting analysis results in various formats
