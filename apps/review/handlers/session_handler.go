@@ -27,13 +27,15 @@ func NewSessionHandler(repo *review_db.ReviewRepository, logger logger.Interface
 // GET /api/review/sessions?limit=10&offset=0
 //
 // Query Parameters:
+//
 //   - limit: Number of sessions to return (default: 10)
+//
 //   - offset: Number of sessions to skip (default: 0)
 //
-// Response: {
-//   "sessions": [...],
-//   "pagination": {"total": 50, "limit": 10, "offset": 0}
-// }
+//     Response: {
+//     "sessions": [...],
+//     "pagination": {"total": 50, "limit": 10, "offset": 0}
+//     }
 func (h *SessionHandler) ListSessions(c *gin.Context) {
 	// Extract user ID from context (set by auth middleware)
 	userID, ok := c.Get("user_id")
@@ -89,16 +91,17 @@ func (h *SessionHandler) ListSessions(c *gin.Context) {
 // GET /api/review/sessions/:id
 //
 // Path Parameters:
+//
 //   - id: Session ID (integer)
 //
-// Response: {
-//   "id": 1,
-//   "user_id": 100,
-//   "title": "...",
-//   "code_source": "paste",
-//   "created_at": "...",
-//   "last_accessed": "..."
-// }
+//     Response: {
+//     "id": 1,
+//     "user_id": 100,
+//     "title": "...",
+//     "code_source": "paste",
+//     "created_at": "...",
+//     "last_accessed": "..."
+//     }
 func (h *SessionHandler) GetSession(c *gin.Context) {
 	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
