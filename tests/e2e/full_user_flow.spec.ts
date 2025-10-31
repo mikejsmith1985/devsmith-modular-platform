@@ -259,8 +259,8 @@ test.describe('DevSmith Platform - Complete User Flow', () => {
      test('All services respond to health checks', async ({ page }) => {
        const healthChecks = [
          { name: 'Portal', url: 'http://localhost:3000/health' },
-         { name: 'Logs', url: 'http://localhost:3000/logs/health' },
-         { name: 'Analytics', url: 'http://localhost:3000/analytics/health' },
+         { name: 'Logs', url: 'http://localhost:3000/health' },
+         { name: 'Analytics', url: 'http://localhost:3000/health' },
        ];
 
        for (const check of healthChecks) {
