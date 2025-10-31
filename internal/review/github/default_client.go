@@ -21,7 +21,7 @@ func NewDefaultClient() *DefaultClient {
 }
 
 // ValidateURL parses and validates a GitHub repository URL
-func (c *DefaultClient) ValidateURL(urlStr string) (owner string, repo string, err error) {
+func (c *DefaultClient) ValidateURL(urlStr string) (owner, repo string, err error) {
 	if urlStr == "" {
 		return "", "", &URLParseError{URL: urlStr, Reason: "empty url"}
 	}
@@ -71,7 +71,7 @@ func (c *DefaultClient) ValidateURL(urlStr string) (owner string, repo string, e
 }
 
 // FetchCode retrieves code from a GitHub repository (stub implementation)
-func (c *DefaultClient) FetchCode(ctx context.Context, owner, repo, branch string, token string) (*CodeFetch, error) {
+func (c *DefaultClient) FetchCode(ctx context.Context, owner, repo, branch, token string) (*CodeFetch, error) {
 	if ctx.Err() != nil {
 		return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
 	}
@@ -99,7 +99,7 @@ func (c *DefaultClient) FetchCode(ctx context.Context, owner, repo, branch strin
 }
 
 // GetRepoMetadata retrieves repository metadata (stub implementation)
-func (c *DefaultClient) GetRepoMetadata(ctx context.Context, owner, repo string, token string) (*RepoMetadata, error) {
+func (c *DefaultClient) GetRepoMetadata(ctx context.Context, owner, repo, token string) (*RepoMetadata, error) {
 	if ctx.Err() != nil {
 		return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
 	}

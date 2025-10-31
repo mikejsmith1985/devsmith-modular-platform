@@ -11,18 +11,18 @@ type RepoMetadata struct {
 	Owner       string
 	Name        string
 	Description string
+	DefaultURL  string
 	StarsCount  int
 	IsPrivate   bool
-	DefaultURL  string
 }
 
 // CodeFetch contains fetched code and metadata
 type CodeFetch struct {
-	Code      string
+	FetchedAt time.Time
 	Metadata  *RepoMetadata
+	Code      string
 	CommitSHA string
 	Branch    string
-	FetchedAt time.Time
 }
 
 // ClientInterface defines GitHub API operations
@@ -52,8 +52,8 @@ func (e *URLParseError) Error() string {
 
 // AuthError indicates authentication failed
 type AuthError struct {
-	StatusCode int
 	Message    string
+	StatusCode int
 }
 
 func (e *AuthError) Error() string {
