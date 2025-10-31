@@ -102,9 +102,9 @@ func main() {
 
 	switch *format {
 	case "json":
-		output, err = healthcheck.FormatJSON(report)
+		output, err = healthcheck.FormatJSON(&report)
 	case "human":
-		output = healthcheck.FormatHuman(report)
+		output = healthcheck.FormatHuman(&report)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown format: %s\n", *format)
 		os.Exit(1)

@@ -7,7 +7,7 @@ import (
 )
 
 // FormatJSON formats a health report as JSON
-func FormatJSON(report HealthReport) (string, error) {
+func FormatJSON(report *HealthReport) (string, error) {
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return "", err
@@ -16,7 +16,7 @@ func FormatJSON(report HealthReport) (string, error) {
 }
 
 // FormatHuman formats a health report for human readability
-func FormatHuman(report HealthReport) string {
+func FormatHuman(report *HealthReport) string {
 	var sb strings.Builder
 
 	// Header
