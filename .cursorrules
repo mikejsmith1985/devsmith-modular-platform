@@ -3,43 +3,43 @@
 ## Cost Target: Under $50/month (including Copilot Pro)
 
 ### Model Selection Strategy
-- PRIMARY: Use Ollama local models (qwen2.5-coder:32b) for ALL code tasks
-- FALLBACK: Use Claude Haiku ONLY when Ollama unavailable
-- SONNET: Use maximum 1-2 times per week (PR reviews only)
+- PRIMARY: Use Claude Haiku for ALL code tasks (Cursor Pro+)
+- FALLBACK: None - Haiku is sufficient for all work
+- SONNET: Use only if explicitly blocked by Haiku limitations (request approval first)
 - NEVER: Use Opus for any reason
 
 ### Task Routing
-1. Code completion → Ollama qwen2.5-coder:32b (local, free)
-2. Chat/explanation → Ollama qwen2.5-coder:32b (local, free)
-3. Multi-file edits → Ollama qwen2.5-coder:32b (local, free)
-4. Test generation → Ollama qwen2.5-coder:32b (local, free)
-5. Architecture planning → Claude Haiku (when Ollama insufficient)
-6. Critical review → Claude Sonnet (max 1x/week)
+1. Code completion → Claude Haiku (Cursor Pro+)
+2. Chat/explanation → Claude Haiku (Cursor Pro+)
+3. Multi-file edits → Claude Haiku (Cursor Pro+)
+4. Test generation → Claude Haiku (Cursor Pro+)
+5. Architecture planning → Claude Haiku (request Sonnet only if truly stuck)
+6. Critical review → Claude Haiku (Sonnet only with explicit approval)
 
 ### Claude API Usage Limits
-- Daily budget: $1.50/day max
-- Weekly budget: $10/week max
-- Sonnet quota: 2 uses per week max
+- Daily budget: $2.00/day max (with Cursor Pro+)
+- Weekly budget: $14/week max
+- Sonnet quota: ZERO unless explicitly approved (Haiku should handle all)
 - Track usage in Cursor dashboard
 
 ### Cost Optimization Techniques
 - Batch similar requests together
 - Use short, focused prompts
-- Leverage Ollama context window (4K tokens)
+- Leverage Cursor Pro+ unlimited usage
 - Cache common responses
-- Use Haiku for 90%+ of Claude API calls
+- Use Haiku for 100% of code tasks
 
 ### Workflow
-1. Try Ollama first for everything
-2. Only use Claude if Ollama fails or architecture needed
-3. Use Sonnet only for Friday afternoon PR reviews
-4. Monitor usage daily in Cursor dashboard
+1. Use Claude Haiku for all tasks
+2. Only request Sonnet with explicit approval if Haiku truly insufficient
+3. Monitor usage in Cursor dashboard
+4. Report if hitting surprising limitations
 
 ### Copilot Pro Integration
 - Keep Copilot Pro active ($10/month)
 - Use Copilot for inline suggestions
-- Use Ollama for complex tasks
-- Use Cursor Haiku for architecture
+- Use Claude Haiku (Cursor Pro+) for complex tasks
+- Use Haiku for architecture decisions
 
 ---
 
