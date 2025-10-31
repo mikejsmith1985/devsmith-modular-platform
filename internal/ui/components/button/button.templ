@@ -1,0 +1,357 @@
+package button
+
+// ButtonVariant defines the style variant of the button
+type ButtonVariant string
+
+const (
+	// Primary is the main call-to-action button
+	VariantPrimary ButtonVariant = "primary"
+	// Secondary is for alternative actions
+	VariantSecondary ButtonVariant = "secondary"
+	// Danger is for destructive actions
+	VariantDanger ButtonVariant = "danger"
+	// Success is for confirmation actions
+	VariantSuccess ButtonVariant = "success"
+	// Outline is for tertiary actions
+	VariantOutline ButtonVariant = "outline"
+)
+
+// ButtonSize defines the size of the button
+type ButtonSize string
+
+const (
+	// Small button
+	SizeSmall ButtonSize = "small"
+	// Medium button (default)
+	SizeMedium ButtonSize = "medium"
+	// Large button
+	SizeLarge ButtonSize = "large"
+)
+
+// ButtonState defines the interactive state
+type ButtonState string
+
+const (
+	// Normal state
+	StateNormal ButtonState = "normal"
+	// Loading state (show spinner, disable interactions)
+	StateLoading ButtonState = "loading"
+	// Disabled state
+	StateDisabled ButtonState = "disabled"
+)
+
+// ButtonProps defines button configuration
+type ButtonProps struct {
+	Label      string         // Button text
+	Variant    ButtonVariant  // Color variant
+	Size       ButtonSize     // Button size
+	State      ButtonState    // Interactive state
+	Type       string         // HTML type (button, submit, reset)
+	ID         string         // HTML id attribute
+	Class      string         // Additional CSS classes
+	Disabled   bool           // Is button disabled
+	Loading    bool           // Show loading state
+	FullWidth  bool           // Stretch to full width
+	Icon       string         // Icon class/name
+	AriaLabel  string         // Accessibility label
+	OnClick    string         // HTMX click handler
+	HTMX       map[string]string // HTMX attributes
+}
+
+// Button renders a styled button component
+templ Button(props ButtonProps) {
+	@buttonWithState(props, determineState(props))
+}
+
+// buttonWithState handles the button rendering with state logic
+templ buttonWithState(props ButtonProps, state ButtonState) {
+	<button
+		type={ props.Type }
+		id={ props.ID }
+		class={ buttonClass(props, state) }
+		disabled?={ props.Disabled || state == StateLoading }
+		aria-label={ props.AriaLabel }
+	>
+		if state == StateLoading {
+			<span class="btn-spinner"></span>
+		}
+		if props.Icon != "" {
+			<span class={ "btn-icon", props.Icon }></span>
+		}
+		<span class="btn-label">{ props.Label }</span>
+	</button>
+}
+
+// determineState calculates the final button state
+func determineState(props ButtonProps) ButtonState {
+	// Loading takes precedence
+	if props.Loading {
+		return StateLoading
+	}
+	if props.Disabled {
+		return StateDisabled
+	}
+	// If state is not set, default to normal
+	if props.State == "" {
+		return StateNormal
+	}
+	return props.State
+}
+
+// buttonClass generates the class string for a button
+func buttonClass(props ButtonProps, state ButtonState) string {
+	classes := "devsmith-btn btn-" + string(props.Variant) + " btn-" + string(props.Size) + " btn-" + string(state)
+	if props.FullWidth {
+		classes += " btn-full-width"
+	}
+	if props.Class != "" {
+		classes += " " + props.Class
+	}
+	return classes
+}
+
+// ButtonStyles returns the CSS for button components
+templ ButtonStyles() {
+	<style>
+		:root {
+			/* Button sizing */
+			--btn-height-small: 28px;
+			--btn-height-medium: 36px;
+			--btn-height-large: 44px;
+			
+			/* Padding */
+			--btn-padding-small: 4px 12px;
+			--btn-padding-medium: 8px 16px;
+			--btn-padding-large: 12px 20px;
+			
+			/* Font sizes */
+			--btn-font-small: 0.8125rem;
+			--btn-font-medium: 0.875rem;
+			--btn-font-large: 1rem;
+			
+			/* Colors */
+			--btn-primary-bg: #007AFF;
+			--btn-primary-hover: #0051D5;
+			--btn-primary-active: #003DA3;
+			--btn-primary-text: #FFFFFF;
+			
+			--btn-secondary-bg: #F5F5F7;
+			--btn-secondary-hover: #ECECF1;
+			--btn-secondary-active: #D2D2D7;
+			--btn-secondary-text: #1D1D1F;
+			
+			--btn-danger-bg: #FF3B30;
+			--btn-danger-hover: #E92D23;
+			--btn-danger-active: #CC251B;
+			--btn-danger-text: #FFFFFF;
+			
+			--btn-success-bg: #34C759;
+			--btn-success-hover: #2AA745;
+			--btn-success-active: #238C3A;
+			--btn-success-text: #FFFFFF;
+			
+			--btn-outline-border: #D2D2D7;
+			--btn-outline-text: #1D1D1F;
+			
+			--btn-disabled-bg: #F5F5F7;
+			--btn-disabled-text: #A1A1A6;
+		}
+
+		html[data-theme="dark"] {
+			--btn-secondary-bg: #2C2C2E;
+			--btn-secondary-hover: #424245;
+			--btn-secondary-active: #555558;
+			--btn-secondary-text: #F5F5F7;
+			
+			--btn-outline-border: #424245;
+			--btn-outline-text: #F5F5F7;
+			
+			--btn-disabled-bg: #2C2C2E;
+			--btn-disabled-text: #8E8E93;
+		}
+
+		.devsmith-btn {
+			/* Layout */
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 6px;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+			font-weight: 500;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+			text-decoration: none;
+			white-space: nowrap;
+			user-select: none;
+			transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+			position: relative;
+			overflow: hidden;
+		}
+
+		/* Size variants */
+		.btn-small {
+			height: var(--btn-height-small);
+			padding: var(--btn-padding-small);
+			font-size: var(--btn-font-small);
+		}
+
+		.btn-medium {
+			height: var(--btn-height-medium);
+			padding: var(--btn-padding-medium);
+			font-size: var(--btn-font-medium);
+		}
+
+		.btn-large {
+			height: var(--btn-height-large);
+			padding: var(--btn-padding-large);
+			font-size: var(--btn-font-large);
+		}
+
+		/* Color variants */
+		.btn-primary {
+			background-color: var(--btn-primary-bg);
+			color: var(--btn-primary-text);
+			box-shadow: 0 1px 3px rgba(0, 122, 255, 0.3);
+		}
+
+		.btn-primary:hover:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-primary-hover);
+			box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+			transform: translateY(-1px);
+		}
+
+		.btn-primary:active:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-primary-active);
+			transform: translateY(0);
+		}
+
+		.btn-secondary {
+			background-color: var(--btn-secondary-bg);
+			color: var(--btn-secondary-text);
+			border: 1px solid transparent;
+		}
+
+		.btn-secondary:hover:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-secondary-hover);
+		}
+
+		.btn-secondary:active:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-secondary-active);
+		}
+
+		.btn-danger {
+			background-color: var(--btn-danger-bg);
+			color: var(--btn-danger-text);
+			box-shadow: 0 1px 3px rgba(255, 59, 48, 0.3);
+		}
+
+		.btn-danger:hover:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-danger-hover);
+			box-shadow: 0 2px 8px rgba(255, 59, 48, 0.4);
+			transform: translateY(-1px);
+		}
+
+		.btn-danger:active:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-danger-active);
+			transform: translateY(0);
+		}
+
+		.btn-success {
+			background-color: var(--btn-success-bg);
+			color: var(--btn-success-text);
+			box-shadow: 0 1px 3px rgba(52, 199, 89, 0.3);
+		}
+
+		.btn-success:hover:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-success-hover);
+			box-shadow: 0 2px 8px rgba(52, 199, 89, 0.4);
+			transform: translateY(-1px);
+		}
+
+		.btn-success:active:not(:disabled):not(.btn-loading) {
+			background-color: var(--btn-success-active);
+			transform: translateY(0);
+		}
+
+		.btn-outline {
+			background-color: transparent;
+			color: var(--btn-outline-text);
+			border: 1px solid var(--btn-outline-border);
+		}
+
+		.btn-outline:hover:not(:disabled):not(.btn-loading) {
+			background-color: rgba(0, 122, 255, 0.05);
+			border-color: var(--btn-primary-bg);
+		}
+
+		/* State variants */
+		.btn-normal {
+			/* Default state */
+		}
+
+		.btn-loading {
+			pointer-events: none;
+			opacity: 0.8;
+		}
+
+		.btn-disabled {
+			background-color: var(--btn-disabled-bg);
+			color: var(--btn-disabled-text);
+			cursor: not-allowed;
+			opacity: 0.6;
+		}
+
+		/* Full width */
+		.btn-full-width {
+			width: 100%;
+		}
+
+		/* Loading spinner */
+		.btn-spinner {
+			display: inline-block;
+			width: 14px;
+			height: 14px;
+			border: 2px solid rgba(255, 255, 255, 0.3);
+			border-top-color: rgba(255, 255, 255, 1);
+			border-radius: 50%;
+			animation: spin 600ms linear infinite;
+		}
+
+		.btn-secondary .btn-spinner,
+		.btn-outline .btn-spinner {
+			border-color: rgba(0, 0, 0, 0.2);
+			border-top-color: rgba(0, 0, 0, 1);
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg);
+			}
+		}
+
+		/* Icon spacing */
+		.btn-icon {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		/* Focus state for accessibility */
+		.devsmith-btn:focus-visible {
+			outline: 2px solid var(--btn-primary-bg);
+			outline-offset: 2px;
+		}
+
+		html[data-theme="dark"] .devsmith-btn:focus-visible {
+			outline-color: #00C7E7;
+		}
+
+		/* Hover state for touch devices */
+		@media (hover: none) {
+			.devsmith-btn:hover {
+				transform: none;
+			}
+		}
+	</style>
+}
