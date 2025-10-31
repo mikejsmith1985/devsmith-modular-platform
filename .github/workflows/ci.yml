@@ -159,25 +159,29 @@ jobs:
 
       - name: Wait for services to be ready
         run: |
-          MAX_ATTEMPTS=30
+          MAX_ATTEMPTS=60
           ATTEMPT=0
           
+          echo "Checking services health through nginx on port 3000..."
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            # Check if all services are responding
-            if curl -s http://localhost:8080/health > /dev/null && \
-               curl -s http://localhost:8081/health > /dev/null && \
-               curl -s http://localhost:8082/health > /dev/null && \
-               curl -s http://localhost:8083/health > /dev/null; then
-              echo "✅ All services are healthy"
+            # Check if nginx health endpoint responds
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "000")
+            
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              echo "✅ Platform health check passed"
               exit 0
             fi
             
             ATTEMPT=$((ATTEMPT + 1))
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Services not ready, waiting..."
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Health check returned $HEALTH_STATUS, waiting..."
             sleep 2
           done
           
-          echo "❌ Services failed to become healthy"
+          echo "❌ Services failed to become healthy after $((MAX_ATTEMPTS * 2)) seconds"
+          echo "Docker status:"
+          docker ps
+          echo ""
+          echo "Docker logs:"
           docker-compose logs
           exit 1
 
