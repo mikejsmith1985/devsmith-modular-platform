@@ -20,22 +20,22 @@ type HealthStorageService struct {
 
 // HealthCheckSummary is a summary of a health check
 type HealthCheckSummary struct {
-	ID            int       `json:"id"`
 	Timestamp     time.Time `json:"timestamp"`
 	OverallStatus string    `json:"overall_status"`
+	TriggeredBy   string    `json:"triggered_by"`
+	ID            int       `json:"id"`
 	DurationMs    int       `json:"duration_ms"`
 	PassedCount   int       `json:"passed_count"`
 	FailedCount   int       `json:"failed_count"`
-	TriggeredBy   string    `json:"triggered_by"`
 }
 
 // TrendData represents trend analysis for a service
 type TrendData struct {
 	ServiceName  string    `json:"service_name"`
 	TimeRange    string    `json:"time_range"`
+	HealthScores []float64 `json:"health_scores"`
 	AvgDuration  int       `json:"avg_duration"`
 	FailureRate  float64   `json:"failure_rate"`
-	HealthScores []float64 `json:"health_scores"`
 }
 
 // HealthTrendPoint represents a single data point in a trend

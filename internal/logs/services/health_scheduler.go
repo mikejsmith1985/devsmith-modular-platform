@@ -11,12 +11,12 @@ import (
 
 // HealthScheduler runs periodic health checks in the background
 type HealthScheduler struct {
-	interval          time.Duration
 	storageService    *HealthStorageService
 	autoRepairService *AutoRepairService
-	running           bool
-	mu                sync.Mutex
 	stopChan          chan struct{}
+	interval          time.Duration
+	mu                sync.Mutex
+	running           bool
 }
 
 // NewHealthScheduler creates a new health scheduler

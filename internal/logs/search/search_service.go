@@ -16,12 +16,12 @@ import (
 //
 //nolint:govet // minor field alignment optimization not worth restructuring
 type SearchService struct {
-	cacheMu      sync.RWMutex
-	cacheTimeout time.Duration
 	cache        map[string][]map[string]interface{}
 	cacheExpiry  map[string]time.Time
 	parser       *QueryParser
 	repo         *SearchRepository
+	cacheTimeout time.Duration
+	cacheMu      sync.RWMutex
 }
 
 // NewSearchService creates a new search service.

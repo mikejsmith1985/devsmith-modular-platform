@@ -8,24 +8,24 @@ import "time"
 //
 //nolint:govet // fieldalignment: organized by type for readability
 type LogEntry struct {
+	CreatedAt time.Time           `json:"created_at"`
+	Timestamp time.Time           `json:"timestamp"`
 	Context   *CorrelationContext `json:"context,omitempty"`
+	Service   string              `json:"service"`
+	Level     string              `json:"level"`
+	Message   string              `json:"message"`
 	Metadata  []byte              `json:"metadata"`
 	Tags      []string            `json:"tags"`
 	ID        int64               `json:"id"`
 	UserID    int64               `json:"user_id"`
-	CreatedAt time.Time           `json:"created_at"`
-	Timestamp time.Time           `json:"timestamp"`
-	Service   string              `json:"service"`
-	Level     string              `json:"level"`
-	Message   string              `json:"message"`
 }
 
 // LogStats represents aggregated statistics for logs in a time window.
 // Used for dashboard display of real-time counts.
 type LogStats struct { //nolint:govet // Struct alignment optimized for readability
 	Timestamp    time.Time        `json:"timestamp" db:"timestamp"`
-	Service      string           `json:"service" db:"service"`
 	CountByLevel map[string]int64 `json:"count_by_level"`
+	Service      string           `json:"service" db:"service"`
 	TotalCount   int64            `json:"total_count" db:"total_count"`
 	ErrorRate    float64          `json:"error_rate" db:"error_rate"`
 	ID           int64            `json:"id" db:"id"`

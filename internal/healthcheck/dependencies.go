@@ -7,9 +7,9 @@ import (
 
 // DependencyChecker validates service interdependencies
 type DependencyChecker struct {
-	CheckName    string
 	Dependencies map[string][]string // service -> list of dependencies
 	HealthChecks map[string]string   // service -> health check URL
+	CheckName    string
 }
 
 // ServiceDependency represents a service and its status

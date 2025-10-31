@@ -26,20 +26,20 @@ func NewAlertHandler(alertService logs_services.AlertServiceInterface, logger *l
 
 // CreateAlertConfigRequest is the request body for creating an alert config.
 type CreateAlertConfigRequest struct { //nolint:govet // struct alignment optimized for readability
-	ErrorThresholdPerMin   int    `json:"error_threshold_per_min" binding:"required,min=1"`
-	WarningThresholdPerMin int    `json:"warning_threshold_per_min" binding:"required,min=1"`
 	Service                string `json:"service" binding:"required"`
 	AlertEmail             string `json:"alert_email"`
 	AlertWebhookURL        string `json:"alert_webhook_url"`
+	ErrorThresholdPerMin   int    `json:"error_threshold_per_min" binding:"required,min=1"`
+	WarningThresholdPerMin int    `json:"warning_threshold_per_min" binding:"required,min=1"`
 	Enabled                bool   `json:"enabled"`
 }
 
 // UpdateAlertConfigRequest is the request body for updating an alert config.
 type UpdateAlertConfigRequest struct { //nolint:govet // struct alignment optimized for readability
-	ErrorThresholdPerMin   int    `json:"error_threshold_per_min"`
-	WarningThresholdPerMin int    `json:"warning_threshold_per_min"`
 	AlertEmail             string `json:"alert_email"`
 	AlertWebhookURL        string `json:"alert_webhook_url"`
+	ErrorThresholdPerMin   int    `json:"error_threshold_per_min"`
+	WarningThresholdPerMin int    `json:"warning_threshold_per_min"`
 	Enabled                bool   `json:"enabled"`
 }
 

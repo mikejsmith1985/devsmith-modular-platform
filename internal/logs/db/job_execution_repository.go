@@ -11,13 +11,13 @@ import (
 
 // JobExecution represents a background job execution record.
 type JobExecution struct { //nolint:govet // struct alignment optimized for readability
-	ID           int64
 	StartedAt    time.Time
 	CreatedAt    time.Time
-	JobType      string
-	Status       string // pending, running, success, failed
 	ErrorMessage *string
 	CompletedAt  *time.Time
+	JobType      string
+	Status       string // pending, running, success, failed
+	ID           int64
 }
 
 // JobExecutionRepository handles database operations for job execution history.

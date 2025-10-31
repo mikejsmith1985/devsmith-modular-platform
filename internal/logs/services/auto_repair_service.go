@@ -11,15 +11,15 @@ import (
 
 // RepairAction represents a repair action taken
 type RepairAction struct {
-	ID            int       `json:"id"`
-	HealthCheckID int       `json:"health_check_id,omitempty"`
+	Timestamp     time.Time `json:"timestamp"`
 	ServiceName   string    `json:"service_name"`
 	IssueType     string    `json:"issue_type"`
 	Action        string    `json:"action"`
 	Status        string    `json:"status"`
 	Error         string    `json:"error,omitempty"`
+	ID            int       `json:"id"`
+	HealthCheckID int       `json:"health_check_id,omitempty"`
 	DurationMs    int       `json:"duration_ms"`
-	Timestamp     time.Time `json:"timestamp"`
 }
 
 // AutoRepairService handles intelligent service repair

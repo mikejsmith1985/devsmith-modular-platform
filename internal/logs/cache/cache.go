@@ -36,10 +36,10 @@ func (cs *Stats) HitRate() float64 {
 
 // DashboardCache provides in-memory caching for dashboard stats.
 type DashboardCache struct { //nolint:govet // struct alignment optimized for readability
-	mu      sync.RWMutex
-	ttl     time.Duration
 	store   map[string]*Entry
 	stats   Stats
+	ttl     time.Duration
+	mu      sync.RWMutex
 	statsmu sync.RWMutex
 }
 

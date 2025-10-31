@@ -16,23 +16,23 @@ import (
 // LogEntry represents a log entry in the database.
 // nolint:govet // minor field alignment optimization not worth restructuring
 type LogEntry struct {
-	ID        int64
-	Message   string
 	CreatedAt time.Time
+	Metadata  map[string]interface{}
+	Message   string
 	Service   string
 	Level     string
-	Metadata  map[string]interface{}
+	ID        int64
 }
 
 // QueryFilters represents filtering options for log queries.
 // nolint:govet // minor field alignment optimization not worth restructuring
 type QueryFilters struct {
-	Service    string            // Filter logs by service name
-	Level      string            // Filter logs by level (e.g., "error", "info")
 	From       time.Time         // Filter logs created at or after this time
 	To         time.Time         // Filter logs created at or before this time
-	Search     string            // Full-text search on message field (ILIKE)
 	MetaEquals map[string]string // Filter logs where metadata keys equal given values
+	Service    string            // Filter logs by service name
+	Level      string            // Filter logs by level (e.g., "error", "info")
+	Search     string            // Full-text search on message field (ILIKE)
 }
 
 // PageOptions holds pagination parameters for query results.

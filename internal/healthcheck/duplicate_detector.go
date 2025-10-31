@@ -15,25 +15,25 @@ import (
 type DuplicateBlock struct {
 	File1      string
 	File2      string
+	Content    string
 	StartLine1 int
 	StartLine2 int
 	Lines      int
-	Content    string
 }
 
 // DuplicateDetector finds duplicate code blocks
 type DuplicateDetector struct {
-	minLines   int
 	codeBlocks map[string]*CodeBlock
+	minLines   int
 }
 
 // CodeBlock represents a code segment
 type CodeBlock struct {
 	File       string
-	StartLine  int
-	EndLine    int
 	Content    string
 	Normalized string
+	StartLine  int
+	EndLine    int
 }
 
 // NewDuplicateDetector creates a new duplicate detector

@@ -19,21 +19,21 @@ const (
 
 // RetentionConfig holds configuration for log retention and archival.
 type RetentionConfig struct { //nolint:govet // struct alignment optimized for readability
-	RetentionDays             int
-	ArchiveEnabled            bool
-	ArchiveCompressionEnabled bool
 	StorageType               string // "local" or "s3"
 	LocalArchivePath          string
 	S3Bucket                  string
 	S3Region                  string
+	RetentionDays             int
+	ArchiveEnabled            bool
+	ArchiveCompressionEnabled bool
 }
 
 // StorageMetrics represents storage usage statistics.
 type StorageMetrics struct { //nolint:govet // struct alignment optimized for readability
-	TotalArchives int64
-	TotalSize     int64
 	OldestArchive time.Time
 	NewestArchive time.Time
+	TotalArchives int64
+	TotalSize     int64
 }
 
 // LogRepository defines the interface for log data access.

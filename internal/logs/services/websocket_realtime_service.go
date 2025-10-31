@@ -13,8 +13,8 @@ import (
 // WebSocketRealtimeService implements real-time WebSocket updates.
 type WebSocketRealtimeService struct { //nolint:govet // Struct alignment optimized for memory efficiency
 	logger      *logrus.Logger
-	mu          sync.RWMutex
 	connections map[string]bool
+	mu          sync.RWMutex
 }
 
 // NewWebSocketRealtimeService creates a new WebSocketRealtimeService.

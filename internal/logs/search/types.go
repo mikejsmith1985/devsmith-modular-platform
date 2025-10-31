@@ -10,11 +10,11 @@ import (
 // Query represents a parsed search query with filters and operators.
 // nolint:govet // field alignment optimization not worth restructuring
 type Query struct {
-	Text         string
-	IsRegex      bool
-	RegexPattern string
 	Fields       map[string]string
 	BooleanOp    *BooleanOp
+	Text         string
+	RegexPattern string
+	IsRegex      bool
 	IsNegated    bool
 }
 
@@ -27,30 +27,30 @@ type BooleanOp struct {
 // SavedSearch represents a saved search query for a user.
 // nolint:govet // field alignment optimization not worth restructuring
 type SavedSearch struct {
-	ID          int64
-	UserID      int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 	Name        string
 	QueryString string
 	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int64
+	UserID      int64
 }
 
 // SearchHistory represents a search history entry.
 //
 //nolint:govet // field alignment optimization not worth restructuring
 type SearchHistory struct {
+	SearchedAt  time.Time
+	QueryString string
 	ID          int64
 	UserID      int64
-	QueryString string
-	SearchedAt  time.Time
 }
 
 // SearchMetadata contains metadata about a search.
 //
 //nolint:govet // field alignment optimization not worth restructuring
 type SearchMetadata struct {
-	ID          int64
-	QueryString string
 	CreatedAt   time.Time
+	QueryString string
+	ID          int64
 }
