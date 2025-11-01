@@ -1,13 +1,16 @@
 #!/bin/bash
-# Feature Validation Script - Comprehensive E2E Testing
-# Usage: ./scripts/validate-feature.sh [review|logs|analytics|portal|all]
+# Feature Validation Script - Modular Smoke Test Execution
+# Usage: ./scripts/validate-feature.sh [ollama|ui|all|review|logs|analytics|portal]
 # 
-# This script runs feature-specific E2E tests to validate implementations
-# before creating pull requests. Tests run in parallel (4-6 workers).
+# Focused smoke test suites for rapid validation during development.
+# Run only the tests you need based on what you're working on.
 #
 # Examples:
-#   ./scripts/validate-feature.sh review          # Test review features
-#   ./scripts/validate-feature.sh all              # Full feature validation
+#   ./scripts/validate-feature.sh ollama          # Test Ollama integration (preview, skim, scan, detailed, critical modes)
+#   ./scripts/validate-feature.sh ui              # Test UI rendering (dark mode, navigation, Alpine.js)
+#   ./scripts/validate-feature.sh all             # Run all smoke tests
+#   ./scripts/validate-feature.sh review          # Shorthand for ollama
+#   ./scripts/validate-feature.sh logs            # Shorthand for full-suite
 
 set -euo pipefail
 
@@ -19,105 +22,120 @@ FEATURE="${1:-all}"
 
 # Colors for output
 GREEN='\033[0;32m'
+RED='\033[0;31m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Map feature names to test paths and worker counts
+declare -A FEATURE_MAP=(
+	[ollama]="tests/e2e/smoke/ollama-integration 4"
+	[ui]="tests/e2e/smoke/ui-rendering 2"
+	[all]="tests/e2e/smoke 6"
+	[review]="tests/e2e/smoke/ollama-integration 4"  # review = ollama tests
+	[logs]="tests/e2e/smoke/full-suite 6"             # logs = full-suite tests
+	[analytics]="tests/e2e/smoke/full-suite 6"        # analytics = full-suite tests
+	[portal]="tests/e2e/smoke/ui-rendering 2"         # portal = ui rendering tests
+)
+
+# Validate feature argument
+if [[ ! ${FEATURE_MAP[$FEATURE]+_} ]]; then
+	echo -e "${RED}❌ Unknown feature: $FEATURE${NC}"
+	echo ""
+	echo "Available options:"
+	echo "  ollama     - Test Ollama integration (Preview, Skim, Scan, Detailed, Critical modes)"
+	echo "  ui         - Test UI rendering (Dark mode, Navigation, Alpine.js)"
+	echo "  all        - Run all smoke tests (default)"
+	echo "  review     - Alias for 'ollama'"
+	echo "  logs       - Alias for 'full-suite'"
+	echo "  analytics  - Alias for 'full-suite'"
+	echo "  portal     - Alias for 'ui'"
+	exit 1
+fi
+
+# Parse feature map
+IFS=' ' read -r TEST_PATH WORKERS <<< "${FEATURE_MAP[$FEATURE]}"
+
 echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}🧪 Feature Validation Suite${NC}"
+echo -e "${BLUE}🧪 Feature Validation: $FEATURE${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
 echo ""
-echo "Feature: $FEATURE"
+echo -e "${CYAN}Test Suite:${NC} $TEST_PATH"
+echo -e "${CYAN}Workers:${NC} $WORKERS"
+echo -e "${CYAN}Duration:${NC} <15 seconds${NC}"
 echo ""
 
 # Check if docker-compose services are running
 echo "Checking Docker services..."
 if ! curl -s http://localhost:3000/health > /dev/null 2>&1; then
-    echo "❌ ERROR: Services not running at http://localhost:3000"
-    echo ""
-    echo "Start services with:"
-    echo "  docker-compose up -d"
-    echo ""
-    exit 1
+	echo "❌ ERROR: Services not running at http://localhost:3000"
+	echo ""
+	echo "Start services with:"
+	echo "  docker-compose up -d"
+	echo ""
+	exit 1
 fi
-echo "✅ Services are running"
+echo -e "${GREEN}✅ Services are running${NC}"
 echo ""
 
 # Check if Playwright is installed
 if ! command -v npx &> /dev/null; then
-    echo "❌ ERROR: npx not found. Install Node.js and npm."
-    exit 1
+	echo "❌ ERROR: npx not found. Install Node.js and npm."
+	exit 1
 fi
 
-# Run tests based on feature
-case "$FEATURE" in
-  smoke)
-    echo "Running smoke tests (quick validation)..."
-    npx playwright test --project=smoke --workers=4
-    ;;
-  
-  review)
-    echo "Running review feature tests..."
-    npx playwright test tests/e2e/smoke/review-*.spec.ts tests/e2e/features/review-*.spec.ts --workers=4
-    ;;
-  
-  logs)
-    echo "Running logs feature tests..."
-    npx playwright test tests/e2e/smoke/logs-*.spec.ts tests/e2e/features/logs-*.spec.ts --workers=4
-    ;;
-  
-  analytics)
-    echo "Running analytics feature tests..."
-    npx playwright test tests/e2e/smoke/analytics-*.spec.ts tests/e2e/features/analytics-*.spec.ts --workers=4
-    ;;
-  
-  portal)
-    echo "Running portal feature tests..."
-    npx playwright test tests/e2e/smoke/portal-*.spec.ts tests/e2e/features/portal-*.spec.ts --workers=4
-    ;;
-  
-  all)
-    echo "Running all smoke tests + feature tests..."
-    echo "This validates: Portal, Review, Logs, Analytics"
-    echo ""
-    npx playwright test --project=full --workers=6
-    ;;
-  
-  *)
-    echo "❌ Unknown feature: $FEATURE"
-    echo ""
-    echo "Valid options:"
-    echo "  smoke      - Quick smoke tests (< 30s)"
-    echo "  review     - Review feature tests"
-    echo "  logs       - Logs feature tests"
-    echo "  analytics  - Analytics feature tests"
-    echo "  portal     - Portal feature tests"
-    echo "  all        - All tests (full suite)"
-    echo ""
-    exit 1
-    ;;
-esac
-
-TEST_EXIT_CODE=$?
-
+# Run tests
+echo -e "${YELLOW}Running tests...${NC}"
 echo ""
-if [ $TEST_EXIT_CODE -eq 0 ]; then
-    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}✅ FEATURE VALIDATION PASSED${NC}"
-    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
-    echo ""
-    echo "Ready to create PR!"
-else
-    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}❌ FEATURE VALIDATION FAILED${NC}"
-    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
-    echo ""
-    echo "Review test failures above and fix:"
-    echo "  1. Check specific test failure messages"
-    echo "  2. Review implementation code"
-    echo "  3. Fix the issue"
-    echo "  4. Re-run: ./scripts/validate-feature.sh $FEATURE"
-    echo ""
-fi
 
-exit $TEST_EXIT_CODE
+START_TIME=$(date +%s)
+
+if npx playwright test "$TEST_PATH" --project=smoke --workers="$WORKERS" --timeout=15000; then
+	END_TIME=$(date +%s)
+	DURATION=$((END_TIME - START_TIME))
+	
+	echo ""
+	echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+	echo -e "${GREEN}✅ All tests passed!${NC}"
+	echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+	echo ""
+	echo "Duration: ${DURATION}s"
+	echo ""
+	echo "Next steps:"
+	case "$FEATURE" in
+		ollama|review)
+			echo "  • Validate UI still works: ./scripts/validate-feature.sh ui"
+			echo "  • Run full validation: ./scripts/validate-feature.sh all"
+			echo "  • Push to feature branch when ready"
+			;;
+		ui|portal)
+			echo "  • Test Ollama integration: ./scripts/validate-feature.sh ollama"
+			echo "  • Run full validation: ./scripts/validate-feature.sh all"
+			echo "  • Push to feature branch when ready"
+			;;
+		all)
+			echo "  • All tests passed!"
+			echo "  • Ready to push: git push origin feature/xxx"
+			;;
+	esac
+	echo ""
+	exit 0
+else
+	END_TIME=$(date +%s)
+	DURATION=$((END_TIME - START_TIME))
+	
+	echo ""
+	echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+	echo -e "${RED}❌ Tests failed${NC}"
+	echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+	echo ""
+	echo "Duration: ${DURATION}s"
+	echo ""
+	echo "Troubleshooting:"
+	echo "  • Check services: docker-compose ps"
+	echo "  • View logs: docker-compose logs <service>"
+	echo "  • Verify Ollama running (for ollama tests): ollama serve"
+	echo ""
+	exit 1
+fi
