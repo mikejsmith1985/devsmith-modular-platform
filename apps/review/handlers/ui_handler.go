@@ -56,11 +56,48 @@ func (h *UIHandler) AnalysisResultHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "analysis.html", data)
 }
 
-// CreateSessionHandler handles session creation from the UI form
+// CreateSessionHandler handles POST /api/review/sessions (HTMX form submission)
 func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
+	var req struct {
+		PastedCode string `form:"pasted_code" json:"pasted_code"`
+		GitHubURL  string `form:"github_url" json:"github_url"`
+		File       string `form:"file" json:"file"`
+	}
+
+	// Parse form data
+	if err := c.ShouldBind(&req); err != nil {
+		h.logger.Error("Failed to parse form", "error", err)
+		c.String(http.StatusBadRequest, `<div class="alert alert-error"><p>Invalid form submission</p></div>`)
+		return
+	}
+
+	// Validate at least one input
+	if req.PastedCode == "" && req.GitHubURL == "" && req.File == "" {
+		c.String(http.StatusBadRequest, `<div class="alert alert-error"><p>Please provide code, GitHub URL, or upload a file</p></div>`)
+		return
+	}
+
+	// Generate session ID
 	sessionID := uuid.New().String()
-	h.logger.Info("Session created", "session_id", sessionID)
-	c.Redirect(http.StatusFound, fmt.Sprintf("/analysis?sessionID=%s", sessionID))
+	h.logger.Info("Session created", "session_id", sessionID, "source", "form")
+
+	// Return HTML with SSE progress indicator
+	progressHTML := fmt.Sprintf(`
+<div class="mt-8 space-y-4">
+	<div class="alert alert-info">
+		<p>Session %s created. Starting analysis...</p>
+	</div>
+	<div id="progress-stream" hx-sse="connect:/api/review/sessions/%s/progress" class="mt-4">
+		<div class="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
+			<span class="loading loading-spinner loading-sm text-blue-600 dark:text-blue-400"></span>
+			<span class="text-sm text-blue-900 dark:text-blue-100">Analyzing your code...</span>
+		</div>
+	</div>
+</div>
+`, sessionID, sessionID)
+
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, progressHTML)
 }
 
 // HandlePreviewMode handles POST /api/review/modes/preview (HTMX)
