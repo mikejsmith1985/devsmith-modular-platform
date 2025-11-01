@@ -4656,3 +4656,33 @@ Closes part of option B: dashboard route fixes
 
 ---
 
+
+## 2025-11-01 19:02 - register UI route and fix nginx proxy configuration
+**Branch:** development
+**Files Changed:**  4 files changed, 41 insertions(+), 12 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/analytics/handlers/ui_handler.go`
+- `docker/nginx/conf.d/default.conf`
+- `tests/e2e/smoke/full-suite/analytics-loads.spec.ts`
+
+**Action:** register UI route and fix nginx proxy configuration
+
+**Commit:** `9520643`
+
+**Commit Message:**
+```
+fix(analytics): register UI route and fix nginx proxy configuration
+```
+
+**Details:**
+```
+- Fixed nginx proxy_pass for /analytics route (removed trailing slash)
+- Added /analytics route to analytics service UIHandler
+- Fixed smoke tests to use correct selectors matching template
+- All 6 analytics dashboard smoke tests now passing
+
+Closes part of option B: dashboard route fixes
+```
+
+---
+
