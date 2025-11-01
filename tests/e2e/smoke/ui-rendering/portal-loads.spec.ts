@@ -2,15 +2,18 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Portal Loads', () => {
   test.beforeEach(async ({ page }) => {
-    // Authenticate using test endpoint
-    await page.goto('http://localhost:3000');
+    // Authenticate using test endpoint with proper credentials
+    const loginResponse = await page.request.post('http://localhost:3000/auth/test-login', {
+      data: {
+        username: 'testuser',
+        email: 'test@example.com',
+        avatar_url: 'http://example.com/avatar.png'
+      }
+    });
     
-    // Use test login if available
-    const response = await page.request.post('http://localhost:3000/auth/test-login');
-    if (response.ok()) {
-      // Wait for redirect to complete
-      await page.waitForURL('http://localhost:3000/', { timeout: 5000 }).catch(() => {});
-      await page.waitForLoadState('networkidle').catch(() => {});
+    if (loginResponse.ok()) {
+      // Token set in cookie, navigate to authenticated page
+      await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
     }
   });
 

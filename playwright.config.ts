@@ -37,7 +37,7 @@ export default defineConfig({
   testIgnore: '**/node_modules/**',
 
   // Output directory for test results
-  outputDir: 'test-results',
+  outputDir: '/tmp/playwright-results',
 
   // Test configuration
   fullyParallel: true,
@@ -50,8 +50,8 @@ export default defineConfig({
 
   // Reporter configuration
   reporter: [
-    ['html', { outputFolder: 'playwright-report' }],
-    ['json', { outputFile: 'test-results/results.json' }],
+    ['html', { outputFolder: '/tmp/playwright-report' }],
+    ['json', { outputFile: '/tmp/playwright-results.json' }],
     ['list'],
   ],
 
