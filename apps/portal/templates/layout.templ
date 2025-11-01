@@ -25,6 +25,9 @@ templ Layout(title string, user *DashboardUser) {
 			* {
 				@apply transition-colors duration-200;
 			}
+
+			/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
+			[x-cloak] { display: none !important; }
 		</style>
 	</head>
 	<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
@@ -51,9 +54,6 @@ templ Layout(title string, user *DashboardUser) {
 				</p>
 			</div>
 		</footer>
-
-		<!-- Dark Mode Toggle Script -->
-		<script src="/static/js/theme.js"></script>
 	</body>
 	</html>
 }
@@ -68,6 +68,7 @@ templ LayoutWithoutNav(title string) {
 		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
 		<title>{ title } - DevSmith</title>
 		<script src="https://cdn.tailwindcss.com"></script>
+		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<style>
 			html {
 				overflow-y: scroll;
@@ -76,13 +77,13 @@ templ LayoutWithoutNav(title string) {
 			* {
 				@apply transition-colors duration-200;
 			}
+
+			/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
+			[x-cloak] { display: none !important; }
 		</style>
 	</head>
 	<body class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
 		{ children... }
-
-		<!-- Dark Mode Toggle Script -->
-		<script src="/static/js/theme.js"></script>
 	</body>
 	</html>
 }
