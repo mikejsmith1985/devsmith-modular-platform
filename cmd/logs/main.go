@@ -175,6 +175,14 @@ func main() {
 	// Health check endpoint (system-wide diagnostics)
 	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
 
+	// Health endpoint for nginx and orchestration
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"service": "logs",
+		})
+	})
+
 	// Phase 3: Health Intelligence - Initialize services
 	storageService := logs_services.NewHealthStorageService(dbConn)
 	policyService := logs_services.NewHealthPolicyService(dbConn)
