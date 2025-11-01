@@ -105,35 +105,6 @@ func (h *UIHandler) IssuesHandler(c *gin.Context) {
 	c.String(http.StatusOK, html)
 }
 
-// ExportHandler returns data in requested format (HTMX)
-func (h *UIHandler) ExportHandler(c *gin.Context) {
-	format := c.DefaultQuery("format", "csv")
-	timeRange := c.DefaultQuery("time_range", "24h")
-	h.logger.WithFields(map[string]interface{}{
-		"format":     format,
-		"time_range": timeRange,
-	}).Debug("Exporting data")
-
-	switch format {
-	case "csv":
-		c.Header("Content-Type", "text/csv")
-		c.Header("Content-Disposition", "attachment; filename=analytics.csv")
-		c.String(http.StatusOK, "metric,value,timestamp\nlog_count,1000,2025-11-01T10:00:00Z\n")
-	case "json":
-		c.Header("Content-Type", "application/json")
-		c.Header("Content-Disposition", "attachment; filename=analytics.json")
-		c.JSON(http.StatusOK, gin.H{
-			"export_date": "2025-11-01",
-			"time_range":  timeRange,
-			"data": gin.H{
-				"metrics": []string{"log_count", "error_rate"},
-			},
-		})
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid format"})
-	}
-}
-
 // RegisterUIRoutes registers the UI routes for the analytics handler.
 func RegisterUIRoutes(router *gin.Engine, logger *logrus.Logger) {
 	uiHandler := NewUIHandler(logger)
@@ -148,5 +119,5 @@ func RegisterUIRoutes(router *gin.Engine, logger *logrus.Logger) {
 	// HTMX API endpoints (Phase 12.5)
 	router.GET("/api/analytics/content", uiHandler.ContentHandler) // Dashboard content with time range
 	router.GET("/api/analytics/issues", uiHandler.IssuesHandler)   // Filtered issues
-	router.GET("/api/analytics/export", uiHandler.ExportHandler)   // CSV/JSON export
+	// Note: /api/analytics/export is already registered in internal/analytics/handlers/analytics_handler.go
 }
