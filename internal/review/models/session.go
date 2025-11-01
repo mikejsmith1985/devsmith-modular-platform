@@ -3,6 +3,7 @@ package review_models
 
 import "time"
 
+//nolint:fieldalignment // Data models prioritize readability over memory optimization
 // CodeReviewSession represents a complete code review session.
 // It tracks the current state across all reading modes and maintains history.
 type CodeReviewSession struct {
@@ -24,8 +25,6 @@ type CodeReviewSession struct {
 	Language        string
 	Status          string
 	CurrentMode     string
-
-	_ struct{} `json:"id"` // Tags for json encoding
 }
 
 // ModeState tracks the state of a single reading mode within a session.
