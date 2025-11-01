@@ -159,6 +159,10 @@ func main() {
 	router.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode) // Detailed mode HTMX
 	router.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode) // Critical mode HTMX
 
+	// HTMX session endpoints (Phase 11.5)
+	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)     // List sessions for sidebar
+	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX) // Search sessions
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"

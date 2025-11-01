@@ -252,6 +252,77 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 	c.String(http.StatusOK, "<p>Critical mode analysis in progress...</p>")
 }
 
+// ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)
+func (h *UIHandler) ListSessionsHTMX(c *gin.Context) {
+	// For now, return placeholder HTML with mock sessions
+	// In production, this would fetch from SessionHandler via internal API
+	html := `
+	<div class="space-y-2">
+		<div class="p-3 rounded-lg border border-indigo-400 bg-indigo-50 dark:bg-indigo-900 dark:border-indigo-600 cursor-pointer">
+			<div class="flex items-start justify-between">
+				<div class="flex-1 min-w-0">
+					<h4 class="text-sm font-medium truncate text-indigo-900 dark:text-indigo-200">Latest Session</h4>
+					<p class="text-xs truncate text-indigo-700 dark:text-indigo-300">2025-11-01 10:30:00</p>
+				</div>
+				<span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">active</span>
+			</div>
+			<div class="mt-2 flex items-center justify-between">
+				<span class="text-xs text-gray-500 dark:text-gray-400">2 modes</span>
+				<button class="text-xs text-red-600 dark:text-red-400 hover:text-red-800">🗑️</button>
+			</div>
+		</div>
+		<div class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer">
+			<div class="flex items-start justify-between">
+				<div class="flex-1 min-w-0">
+					<h4 class="text-sm font-medium truncate text-gray-900 dark:text-white">Review Session 2</h4>
+					<p class="text-xs truncate text-gray-600 dark:text-gray-400">2025-10-31 15:45:00</p>
+				</div>
+				<span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">completed</span>
+			</div>
+			<div class="mt-2 flex items-center justify-between">
+				<span class="text-xs text-gray-500 dark:text-gray-400">5 modes</span>
+				<button class="text-xs text-red-600 dark:text-red-400 hover:text-red-800">🗑️</button>
+			</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// SearchSessionsHTMX handles GET /api/review/sessions/search (HTMX)
+func (h *UIHandler) SearchSessionsHTMX(c *gin.Context) {
+	query := c.Query("query")
+	h.logger.Info("Searching sessions", "query", query)
+
+	// Placeholder: return filtered results
+	if query == "" {
+		// Return all sessions
+		c.Redirect(http.StatusMovedPermanently, "/api/review/sessions/list")
+		return
+	}
+
+	html := `
+	<div class="space-y-2">
+		<div class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer">
+			<div class="flex items-start justify-between">
+				<div class="flex-1 min-w-0">
+					<h4 class="text-sm font-medium truncate text-gray-900 dark:text-white">Matching: ` + query + `</h4>
+					<p class="text-xs truncate text-gray-600 dark:text-gray-400">2025-10-30 12:00:00</p>
+				</div>
+				<span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">completed</span>
+			</div>
+			<div class="mt-2 flex items-center justify-between">
+				<span class="text-xs text-gray-500 dark:text-gray-400">3 modes</span>
+				<button class="text-xs text-red-600 dark:text-red-400 hover:text-red-800">🗑️</button>
+			</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
 // SessionProgressSSE streams progress updates for a given session via SSE.
 // This is a lightweight simulator for UI integration and demos. In production
 // this should be driven by the actual analysis pipeline (publish progress to
