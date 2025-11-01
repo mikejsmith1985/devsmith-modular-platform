@@ -15,17 +15,17 @@ type CardProps struct {
 templ Card(props CardProps) {
 	<div
 		role="article"
-		class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-6"
+		class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 p-6"
 		aria-label={ props.Title }
 	>
 		<div class="flex items-start justify-between gap-4">
 			<div class="flex-1">
 				if props.Icon != "" {
-					<div class="text-2xl mb-2">{ props.Icon }</div>
+					<div class="text-2xl mb-3 opacity-100 hover:opacity-110 transition-opacity">{ props.Icon }</div>
 				}
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">{ props.Title }</h3>
 				if props.Description != "" {
-					<p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{ props.Description }</p>
+					<p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{ props.Description }</p>
 				}
 			</div>
 			if props.BadgeText != "" {
@@ -36,16 +36,19 @@ templ Card(props CardProps) {
 		</div>
 
 		if props.StatLabel != "" || props.ActionText != "" {
-			<div class="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4">
+			<div class="mt-5 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-5">
 				if props.StatLabel != "" {
 					<div>
-						<span class="text-xs text-gray-500 dark:text-gray-400">{ props.StatLabel }</span>
-						<div class="text-sm font-medium text-gray-900 dark:text-white">{ props.StatValue }</div>
+						<span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{ props.StatLabel }</span>
+						<div class="text-lg font-bold text-gray-900 dark:text-white mt-1">{ props.StatValue }</div>
 					</div>
 				}
 				if props.ActionText != "" {
-					<a href={ templ.SafeURL(props.ActionURL) } class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+					<a href={ templ.SafeURL(props.ActionURL) } class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
 						{ props.ActionText }
+						<svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+						</svg>
 					</a>
 				}
 			</div>
