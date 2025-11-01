@@ -57,6 +57,12 @@ export default defineConfig({
   // Test projects: quick for fast feedback, full for comprehensive coverage
   projects: [
     {
+      name: 'smoke',
+      testMatch: '**/smoke/**/*.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+      timeout: 15000,
+    },
+    {
       name: 'quick',
       testMatch: '**/authentication.spec.ts',
       use: { ...devices['Desktop Chrome'] },
