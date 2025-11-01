@@ -3900,3 +3900,55 @@ refactor: add marshalAndFormat helper to eliminate remaining code duplication
 
 ---
 
+
+## 2025-11-01 14:33 - test(e2e): implement tiered E2E testing strategy with 26 smoke tests
+**Branch:** development
+**Files Changed:**  46 files changed, 2247 insertions(+), 103 deletions(-)
+- `.docs/E2E-TESTING-STRATEGY.md`
+- `.docs/SMOKE_TEST_FINDINGS.md`
+- `.docs/devlog/copilot-activity.md`
+- `docker/nginx/conf.d/default.conf`
+- `playwright-report/data/013f57bd82380a934d5fcff3a1d5b2982db6390f.webm`
+- `playwright-report/data/0c4f30d89417eb71770816ee9f26577aa01a8225.webm`
+- `playwright-report/data/16004080abf5dd93396bc69a0589eaf32cdbc06a.webm`
+- `playwright-report/data/27400ad09ef736501298a891e967684aa3d23df2.md`
+- `playwright-report/data/2e9c13d256683be178487607d78db573af6ff114.webm`
+- `playwright-report/data/3833d397fec916e484492f7f68f69eb5a4ff9fc6.webm`
+- `playwright-report/data/472843188c7d9070bf58a2347e5215d397725feb.webm`
+- `playwright-report/data/4acd2281147a09cef9776ffc3e3dbcae4b12176d.md`
+- `playwright-report/data/54554d906d7141061a6153cc55ab4f32cfe6f15d.webm`
+- `playwright-report/data/5d86672dff5cbb5e0a335112f941a6581db7f22f.webm`
+- `playwright-report/data/6234c39f413bc27d1b63f44f0e788d4ed5578244.webm`
+- `playwright-report/data/66177f7760a15778cfee69b699927a512e595fc6.webm`
+- `playwright-report/data/69989be8d4c4b9c59ca2f23a476a99f8b95cc110.webm`
+- `playwright-report/data/6f502a90835a8818b0df95d0c366f1089947c3bc.png`
+- `playwright-report/data/7561568ee409627e788f10f0ba723defbe1b26ef.png`
+- `playwright-report/data/7edbf6c60196ca9d4159989252d1c73bf06f60d9.webm`
+
+**Action:** test(e2e): implement tiered E2E testing strategy with 26 smoke tests
+
+**Commit:** `87e7015`
+
+**Commit Message:**
+```
+test(e2e): implement tiered E2E testing strategy with 26 smoke tests
+```
+
+**Details:**
+```
+- Phase 1: Create smoke test suite (6 files, 26 tests, <30s with 4 workers)
+- Validate critical user paths: portal loads, review loads, dark mode, readings modes, logs, analytics
+- Fixed nginx routing: reorganized location blocks (specific routes before catch-all /)
+- Added feature validation script: ./scripts/validate-feature.sh
+- Updated playwright.config.ts with smoke project
+- Updated tests/e2e/README.md with comprehensive 3-tier testing documentation
+- Created .docs/E2E-TESTING-STRATEGY.md and .docs/SMOKE_TEST_FINDINGS.md
+
+Tests run in parallel (4 workers) for fast feedback. Results: 5 pass, 21 fail.
+Failures reveal real infrastructure issues (DB migrations, UI rendering, API routing).
+
+This is TDD in action - tests expose actual problems before code reaches production.
+```
+
+---
+
