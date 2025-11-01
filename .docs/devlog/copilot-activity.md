@@ -4417,3 +4417,30 @@ Ollama Integration Status: ✅ FULLY FUNCTIONAL
 
 ---
 
+
+## 2025-11-01 17:24 - cleanup: Remove debug test files - consolidate into production smoke tests
+**Branch:** development
+**Files Changed:**  11 files changed, 38 insertions(+), 307 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `tests/e2e/debug-all-modes.spec.ts`
+- `tests/e2e/debug-auth.spec.ts`
+- `tests/e2e/debug-cookie.spec.ts`
+- `tests/e2e/debug-dark-mode-works.spec.ts`
+- `tests/e2e/debug-dashboard.spec.ts`
+- `tests/e2e/debug-html-check.spec.ts`
+- `tests/e2e/debug-nav-real.spec.ts`
+- `tests/e2e/debug-nav.spec.ts`
+- `tests/e2e/debug-ollama.spec.ts`
+- `tests/e2e/debug-simple.spec.ts`
+
+**Action:** cleanup: Remove debug test files - consolidate into production smoke tests
+
+**Commit:** `c771c91`
+
+**Commit Message:**
+```
+cleanup: Remove debug test files - consolidate into production smoke tests
+```
+
+---
+
