@@ -4159,3 +4159,47 @@ NEXT DEBUG STEPS:
 
 ---
 
+
+## 2025-11-01 17:06 - doc: E2E testing - Local execution works, Docker-specific issue identified
+**Branch:** development
+**Files Changed:**  1 file changed, 57 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** doc: E2E testing - Local execution works, Docker-specific issue identified
+
+**Commit:** `3ccb426`
+
+**Commit Message:**
+```
+doc: E2E testing - Local execution works, Docker-specific issue identified
+```
+
+**Details:**
+```
+KEY FINDING:
+- Tests execute and COMPLETE locally without hanging (60sec timeout not triggered)
+- Same tests hang indefinitely in Docker container
+- Issue is Docker-specific, not test logic
+
+LOCAL EXECUTION (working):
+  npx playwright test tests/e2e/smoke/ollama-integration/ --project=smoke
+  → Completes within 60 seconds
+
+DOCKER EXECUTION (hangs):
+  docker run ... playwright:v1.56.1-jammy bash -c 'npm ci && npx playwright test'
+  → Hangs indefinitely after npm ci
+
+ROOT CAUSE:
+Unknown but isolated to Docker environment. Possible causes:
+- npm cache in Docker
+- Browser download/caching in Docker
+- Signal handling / process tree in Docker
+- Timeout configuration in Playwright inside container
+
+RECOMMENDATION:
+Skip Docker E2E tests for now. Tests work locally and infrastructure is in place.
+When needed, debug Docker-specific issue or use GitHub Actions for CI.
+```
+
+---
+
