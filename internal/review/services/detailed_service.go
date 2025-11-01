@@ -56,42 +56,64 @@ type DetailedAnalysisOutput struct {
 	DataFlow []DataFlow     `json:"data_flow"`
 }
 
-// AnalyzeDetailed performs a line-by-line analysis of the specified file in Detailed Mode.
+// AnalyzeDetailed performs a line-by-line analysis of code in Detailed Mode.
 // It generates a detailed report and stores the result in the analysis repository.
-func (s *DetailedService) AnalyzeDetailed(ctx context.Context, sessionID int, filePath string) (*DetailedAnalysisOutput, error) {
+func (s *DetailedService) AnalyzeDetailed(ctx context.Context, reviewID int64, code string, filename string) (*DetailedAnalysisOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "session_id", sessionID, "file_path", filePath)
-	if filePath == "" {
-		s.logger.Error("DetailedService: file path empty", "correlation_id", correlationID, "session_id", sessionID)
-		return nil, errors.New("file path cannot be empty")
+	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "review_id", reviewID, "filename", filename, "code_length", len(code))
+	
+	if code == "" {
+		s.logger.Error("DetailedService: code empty", "correlation_id", correlationID, "review_id", reviewID)
+		return nil, errors.New("code cannot be empty")
 	}
-	prompt := "Analyze file in detailed mode: " + filePath
+	
+	// Build prompt using template
+	prompt := BuildDetailedPrompt(code, filename)
+	
 	start := time.Now()
 	resp, err := s.ollamaClient.Generate(ctx, prompt)
 	duration := time.Since(start)
 	if err != nil {
-		s.logger.Error("DetailedService: AI call failed", "correlation_id", correlationID, "session_id", sessionID, "error", err, "duration_ms", duration.Milliseconds())
-		return nil, err
+		s.logger.Error("DetailedService: AI call failed", "correlation_id", correlationID, "review_id", reviewID, "error", err, "duration_ms", duration.Milliseconds())
+		// Return fallback on error
+		return s.getFallbackDetailedOutput(), nil
 	}
-	s.logger.Info("DetailedService: AI call succeeded", "correlation_id", correlationID, "session_id", sessionID, "duration_ms", duration.Milliseconds())
+	s.logger.Info("DetailedService: AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds())
+	
 	var output DetailedAnalysisOutput
 	if err := json.Unmarshal([]byte(resp), &output); err != nil {
-		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "session_id", sessionID, "error", err)
-		return nil, fmt.Errorf("failed to unmarshal detailed analysis output: %w", err)
+		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
+		return s.getFallbackDetailedOutput(), nil
 	}
+	
+	metadataJSON, marshalErr := json.Marshal(output)
+	if marshalErr != nil {
+		s.logger.Error("DetailedService: failed to marshal output", "correlation_id", correlationID, "review_id", reviewID, "error", marshalErr)
+		return nil, fmt.Errorf("failed to marshal detailed analysis output: %w", marshalErr)
+	}
+	
 	result := &review_models.AnalysisResult{
-		ReviewID:  int64(sessionID),
-		Mode:      "detailed",
+		ReviewID:  reviewID,
+		Mode:      review_models.DetailedMode,
 		Prompt:    prompt,
 		RawOutput: resp,
 		Summary:   output.Summary,
-		Metadata:  "",
-		ModelUsed: "ollama",
+		Metadata:  string(metadataJSON),
+		ModelUsed: "mistral:7b-instruct",
 	}
 	if err := s.analysisRepo.Create(ctx, result); err != nil {
-		s.logger.Error("DetailedService: failed to save analysis result", "correlation_id", correlationID, "session_id", sessionID, "error", err)
+		s.logger.Error("DetailedService: failed to save analysis result", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to create analysis result: %w", err)
 	}
-	s.logger.Info("DetailedService: analysis completed and saved", "correlation_id", correlationID, "session_id", sessionID)
+	s.logger.Info("DetailedService: analysis completed and saved", "correlation_id", correlationID, "review_id", reviewID)
 	return &output, nil
+}
+
+// getFallbackDetailedOutput returns safe fallback data when Ollama fails
+func (s *DetailedService) getFallbackDetailedOutput() *DetailedAnalysisOutput {
+	return &DetailedAnalysisOutput{
+		Summary:  "Analysis unavailable - detailed line-by-line analysis not currently available",
+		Lines:    []DetailedLine{},
+		DataFlow: []DataFlow{},
+	}
 }

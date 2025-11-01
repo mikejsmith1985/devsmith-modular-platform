@@ -27,6 +27,12 @@ const SkimMode = "skim"
 // ScanMode is the string identifier for Scan Mode analysis.
 const ScanMode = "scan"
 
+// PreviewMode is the string identifier for Preview Mode analysis
+const PreviewMode = "preview"
+
+// DetailedMode is the string identifier for Detailed Mode analysis
+const DetailedMode = "detailed"
+
 // AnalysisResult represents a cached or captured analysis result.
 // It includes the analysis mode, prompt, summary, metadata, and other details.
 type AnalysisResult struct {
