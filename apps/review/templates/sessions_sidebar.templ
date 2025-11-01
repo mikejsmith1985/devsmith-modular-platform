@@ -338,3 +338,178 @@ templ SessionMetadata(createdAt string, updatedAt string, fileSize string, codeL
 		</div>
 	</div>
 }
+
+templ SessionActionModals(sessionID int64) {
+	<!-- Delete Confirmation Modal -->
+	<div
+		x-data="{ open: false }"
+		class="fixed inset-0 z-50 overflow-y-auto"
+		x-show="open"
+		x-transition>
+		<!-- Overlay -->
+		<div
+			class="fixed inset-0 bg-black/50 dark:bg-black/70"
+			@click="open = false"
+			x-transition></div>
+
+		<!-- Modal Content -->
+		<div class="flex items-center justify-center min-h-screen">
+			<div
+				class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4"
+				@click.stop>
+				<div class="p-6">
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Session?</h3>
+					<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+						This action cannot be undone. All session data will be permanently deleted.
+					</p>
+					<div class="mt-6 flex gap-3">
+						<button
+							@click="open = false"
+							class="flex-1 px-4 py-2 rounded-lg font-medium border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+							Cancel
+						</button>
+						<button
+							hx-delete={ fmt.Sprintf("/api/review/sessions/%d", sessionID) }
+							hx-target="#session-detail"
+							hx-swap="innerHTML"
+							@click="open = false"
+							class="flex-1 px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 dark:hover:bg-red-800 transition-colors">
+							Delete Session
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Archive Confirmation Modal -->
+	<div
+		x-data="{ open: false }"
+		class="fixed inset-0 z-50 overflow-y-auto"
+		x-show="open"
+		x-transition>
+		<div
+			class="fixed inset-0 bg-black/50 dark:bg-black/70"
+			@click="open = false"
+			x-transition></div>
+		<div class="flex items-center justify-center min-h-screen">
+			<div
+				class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4"
+				@click.stop>
+				<div class="p-6">
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Archive Session?</h3>
+					<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+						You can still access archived sessions from the history. They won't appear in recent sessions.
+					</p>
+					<div class="mt-6 flex gap-3">
+						<button
+							@click="open = false"
+							class="flex-1 px-4 py-2 rounded-lg font-medium border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+							Keep Active
+						</button>
+						<button
+							hx-post={ fmt.Sprintf("/api/review/sessions/%d/archive", sessionID) }
+							hx-target="#session-detail"
+							hx-swap="innerHTML"
+							@click="open = false"
+							class="flex-1 px-4 py-2 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 dark:hover:bg-purple-800 transition-colors">
+							Archive
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Export Options Modal -->
+	<div
+		x-data="{ open: false }"
+		class="fixed inset-0 z-50 overflow-y-auto"
+		x-show="open"
+		x-transition>
+		<div
+			class="fixed inset-0 bg-black/50 dark:bg-black/70"
+			@click="open = false"
+			x-transition></div>
+		<div class="flex items-center justify-center min-h-screen">
+			<div
+				class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4"
+				@click.stop>
+				<div class="p-6">
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Export Session</h3>
+					<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+						Choose your preferred export format for session data and analysis results.
+					</p>
+					<div class="mt-6 space-y-3">
+						<button
+							hx-get={ fmt.Sprintf("/api/review/sessions/%d/export?format=json", sessionID) }
+							@click="open = false"
+							class="w-full px-4 py-3 rounded-lg font-medium bg-indigo-600 text-white hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors text-left flex items-center gap-2">
+							📄 Export as JSON
+						</button>
+						<button
+							hx-get={ fmt.Sprintf("/api/review/sessions/%d/export?format=csv", sessionID) }
+							@click="open = false"
+							class="w-full px-4 py-3 rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 dark:hover:bg-green-800 transition-colors text-left flex items-center gap-2">
+							📊 Export as CSV
+						</button>
+						<button
+							@click="open = false"
+							class="w-full px-4 py-3 rounded-lg font-medium border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+							Cancel
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ SessionActionsBar(sessionID int64, sessionStatus string) {
+	<div
+		x-data="{ deleteOpen: false, archiveOpen: false, exportOpen: false }"
+		class="space-y-4">
+		<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Actions</h3>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+			<button
+				class="px-4 py-3 rounded-lg font-medium bg-indigo-600 text-white hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors text-sm flex items-center justify-center gap-2"
+				hx-post={ fmt.Sprintf("/api/review/sessions/%d/resume", sessionID) }
+				hx-target="#session-detail"
+				hx-swap="innerHTML"
+				aria-label="Resume this session">
+				▶️ Resume Session
+			</button>
+			<button
+				@click="exportOpen = true"
+				class="px-4 py-3 rounded-lg font-medium bg-gray-600 text-white hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors text-sm flex items-center justify-center gap-2"
+				aria-label="Export session">
+				⬇️ Export
+			</button>
+			<button
+				class="px-4 py-3 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 dark:hover:bg-purple-800 transition-colors text-sm flex items-center justify-center gap-2"
+				hx-post={ fmt.Sprintf("/api/review/sessions/%d/duplicate", sessionID) }
+				hx-target="#session-detail"
+				hx-swap="innerHTML"
+				aria-label="Duplicate session">
+				📋 Duplicate
+			</button>
+			if sessionStatus != "archived" {
+				<button
+					@click="archiveOpen = true"
+					class="px-4 py-3 rounded-lg font-medium border-2 border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 hover:border-purple-400 dark:hover:border-purple-500 transition-colors text-sm"
+					aria-label="Archive session">
+					📁 Archive
+				</button>
+			}
+			<button
+				@click="deleteOpen = true"
+				class="px-4 py-3 rounded-lg font-medium border-2 border-red-300 dark:border-red-600 text-red-700 dark:text-red-300 hover:border-red-400 dark:hover:border-red-500 transition-colors text-sm"
+				aria-label="Delete session">
+				🗑️ Delete
+			</button>
+		</div>
+
+		<!-- Modals -->
+		@SessionActionModals(sessionID)
+	</div>
+}
