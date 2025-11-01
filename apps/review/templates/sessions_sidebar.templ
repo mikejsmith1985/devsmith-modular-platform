@@ -106,17 +106,15 @@ templ SessionsSidebar(sessions []SessionInfo, currentSessionID int64) {
 				<div class="flex justify-between">
 					<span class="text-gray-600 dark:text-gray-400">Active</span>
 					<span class="font-medium text-green-600 dark:text-green-400">
-						{
-							templ.Raw(func() string {
-								count := 0
-								for _, s := range sessions {
-									if s.Status == "active" {
-										count++
-									}
+						{ fmt.Sprintf("%d", func() int {
+							count := 0
+							for _, s := range sessions {
+								if s.Status == "active" {
+									count++
 								}
-								return fmt.Sprintf("%d", count)
-							}())
-						}
+							}
+							return count
+						}()) }
 					</span>
 				</div>
 			</div>
