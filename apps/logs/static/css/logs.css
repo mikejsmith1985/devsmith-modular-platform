@@ -420,18 +420,26 @@ body {
    ============================================================================ */
 
 .logs-output {
-  background: var(--color-bg-dark);
-  color: var(--color-text);
-  font-family: 'Courier New', Courier, monospace;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.875rem;
   padding: 1rem;
   border-radius: 8px;
-  height: 600px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: 1px solid var(--border);
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  border: none;
   line-height: 1.5;
   position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+}
+
+.logs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
 }
 
 .virtual-spacer {
@@ -639,3 +647,45 @@ body {
     padding: 0.5rem;
   }
 }
+
+/* ============================================================================
+   LOG CARD GRID - NEW CARD-BASED LAYOUT
+   ============================================================================ */
+
+.log-card {
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.log-card:hover {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.log-card details > summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0;
+}
+
+.log-card details > summary:hover {
+  color: #1f2937 !important;
+}
+
+.log-card.log-error,
+.log-card.log-warn,
+.log-card.log-warning,
+.log-card.log-info,
+.log-card.log-debug {
+  /* Handled by inline styles for border-left */
+}
+
+/* Metadata and stack trace styling */
+.log-card pre {
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Old log-entry styles cleanup (hidden but kept for compat) */
