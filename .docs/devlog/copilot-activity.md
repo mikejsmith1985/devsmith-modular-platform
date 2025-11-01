@@ -3819,3 +3819,29 @@ Next: Test mode buttons in UI to verify Ollama analysis works end-to-end
 
 ---
 
+
+## 2025-11-01 11:49 - fix: properly handle json.MarshalIndent errors in mode handlers
+**Branch:** development
+**Files Changed:**  2 files changed, 104 insertions(+), 7 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/handlers/ui_handler.go`
+
+**Action:** fix: properly handle json.MarshalIndent errors in mode handlers
+
+**Commit:** `23f8847`
+
+**Commit Message:**
+```
+fix: properly handle json.MarshalIndent errors in mode handlers
+```
+
+**Details:**
+```
+- Check error returns from json.MarshalIndent in all mode handlers
+- Log errors and return 500 with user-friendly message
+- Ensures errors don't silently fail during JSON marshaling
+- Complies with linting requirements (errcheck)
+```
+
+---
+
