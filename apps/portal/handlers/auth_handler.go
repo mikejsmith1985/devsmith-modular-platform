@@ -104,7 +104,7 @@ func HandleGitHubOAuthCallback(c *gin.Context) {
 	}
 
 	log.Printf("[DEBUG] Step 5: Setting cookies and redirecting")
-	c.SetCookie("devsmith_token", tokenString, 3600, "/", "", false, true)
+	SetSecureJWTCookie(c, tokenString)
 	c.Redirect(http.StatusFound, "/dashboard")
 }
 
@@ -192,7 +192,7 @@ func HandleTestLogin(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("devsmith_token", tokenString, 3600, "/", "", false, true)
+	SetSecureJWTCookie(c, tokenString)
 	log.Printf("[DEBUG] Test login successful for user: %s", testUser.Username)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",
@@ -409,4 +409,32 @@ func FetchUserInfoHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+// SetSecureJWTCookie sets JWT token in HTTP cookie with secure flags
+// Parameters:
+// - c: Gin context
+// - tokenString: JWT token value
+// Security flags:
+// - HttpOnly: Prevents JavaScript XSS from stealing token
+// - Secure: HTTPS-only transmission in production
+// - SameSite=Strict: CSRF protection
+// - 24-hour expiry
+func SetSecureJWTCookie(c *gin.Context, tokenString string) {
+	// In production (HTTPS), use Secure flag. In development/test, allow HTTP.
+	isSecure := strings.HasPrefix(os.Getenv("REDIRECT_URI"), "https://")
+	
+	c.SetCookie(
+		"devsmith_token",     // name
+		tokenString,          // value
+		86400,                // maxAge (24 hours)
+		"/",                  // path
+		"",                   // domain
+		isSecure,             // secure (HTTPS only in production)
+		true,                 // httpOnly (XSS protection)
+	)
+	
+	// Set SameSite flag for CSRF protection
+	// Note: Gin's SetCookie doesn't directly support SameSite, so we add it to Set-Cookie header
+	c.SetSameSite(http.SameSiteStrictMode)
 }

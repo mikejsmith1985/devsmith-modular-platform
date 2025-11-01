@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	app_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
@@ -92,13 +94,34 @@ func main() {
 	// Repository and service setup
 	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
 
-	// TODO: Replace with real Ollama client implementation
-	ollamaClient := &review_services.OllamaClientStub{}
+	// Initialize Ollama client with configuration from environment
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://localhost:11434" // Default to local Ollama
+	}
+
+	ollamaModel := os.Getenv("OLLAMA_MODEL")
+	if ollamaModel == "" {
+		ollamaModel = "mistral:7b-instruct" // Default to mistral
+	}
+
+	reviewLogger.Info("Initializing Ollama client", "endpoint", ollamaEndpoint, "model", ollamaModel)
+	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaModel)
+
+	// Verify Ollama is reachable
+	if err := ollamaClient.HealthCheck(context.Background()); err != nil {
+		reviewLogger.Warn("Ollama health check failed (will retry on first request)", "error", err.Error())
+	} else {
+		reviewLogger.Info("Ollama health check passed", "model", ollamaModel)
+	}
+
+	// Wrap OllamaClient with adapter to match review services interface
+	ollamaAdapter := review_services.NewOllamaClientAdapter(ollamaClient)
 
 	// Wire up services (if needed for future handler expansion)
-	_ = review_services.NewSkimService(ollamaClient, analysisRepo, reviewLogger)
-	_ = review_services.NewScanService(ollamaClient, analysisRepo, reviewLogger)
-	_ = review_services.NewDetailedService(ollamaClient, analysisRepo, reviewLogger)
+	_ = review_services.NewSkimService(ollamaAdapter, analysisRepo, reviewLogger)
+	_ = review_services.NewScanService(ollamaAdapter, analysisRepo, reviewLogger)
+	_ = review_services.NewDetailedService(ollamaAdapter, analysisRepo, reviewLogger)
 	_ = review_services.NewPreviewService(reviewLogger)
 
 	// Prepare logging client to send lightweight events to Logs service (optional)

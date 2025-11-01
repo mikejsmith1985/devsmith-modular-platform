@@ -176,45 +176,92 @@ function renderLogEntry(log) {
   const logsOutput = document.getElementById('logs-output');
   if (!logsOutput) return;
 
-  const logDiv = document.createElement('div');
+  // Ensure logs-output has grid styling if not already applied
+  if (!logsOutput.style.display) {
+    logsOutput.style.display = 'grid';
+    logsOutput.style.gridTemplateColumns = 'repeat(auto-fill, minmax(350px, 1fr))';
+    logsOutput.style.gap = '1rem';
+    logsOutput.classList.add('logs-grid');
+  }
+
+  // Create card container with severity left border
+  const logCard = document.createElement('div');
   const levelLower = (log.level || 'info').toLowerCase();
-  logDiv.className = `log-entry log-${levelLower}`;
-  logDiv.setAttribute('role', 'listitem');
-  logDiv.innerHTML = `
-    <button class="expand-btn" aria-label="Toggle details" title="Expand details">▶</button>
-    <span class="log-timestamp">${formatTimestamp(log.created_at)}</span>
-    <span class="log-level ${levelLower}">${(log.level || 'info').toUpperCase()}</span>
-    <span class="log-service">[${escapeHtml(log.service)}]</span>
-    <span class="log-message">${escapeHtml(log.message)}</span>
-    <button class="copy-btn" data-copy aria-label="Copy log entry" title="Copy">📋</button>
-    <div class="expanded-details">
-      ${log.stackTrace ? `<div class="stack-trace">${escapeHtml(log.stackTrace)}</div>` : ''}
-      ${(log.metadata || log.context) ? `<div class="metadata">${renderMetadata(log.metadata || log.context)}</div>` : ''}
+  
+  // Border color based on severity
+  const borderColors = {
+    error: '#ef4444',
+    warn: '#eab308',
+    warning: '#eab308',
+    info: '#3b82f6',
+    debug: '#6b7280'
+  };
+  
+  const borderColor = borderColors[levelLower] || '#6b7280';
+  
+  logCard.className = `log-card log-${levelLower} bg-white dark:bg-gray-900 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden p-0`;
+  logCard.style.borderLeft = `4px solid ${borderColor}`;
+  logCard.setAttribute('role', 'article');
+  logCard.setAttribute('data-log-id', log.id || '');
+  
+  // Severity emoji badges
+  const badgeEmojis = {
+    error: '🔴',
+    warn: '🟡',
+    warning: '🟡',
+    info: '🔵',
+    debug: '⚫'
+  };
+  
+  const badge = badgeEmojis[levelLower] || '⚪';
+  
+  logCard.innerHTML = `
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div class="flex items-start gap-3">
+        <span class="text-lg">${badge}</span>
+        <div class="flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-${severityCss(levelLower)} text-white">
+              ${(log.level || 'info').toUpperCase()}
+            </span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              ${escapeHtml(log.service || 'unknown')}
+            </span>
+          </div>
+          <time class="text-xs text-gray-500 dark:text-gray-400 mt-1 block">
+            ${formatTimestamp(log.created_at)}
+          </time>
+        </div>
+      </div>
     </div>
+    <div class="px-4 py-3">
+      <p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed break-words">
+        ${escapeHtml(log.message)}
+      </p>
+    </div>
+    ${log.stackTrace ? `<div class="px-4 pb-3">
+      <details class="cursor-pointer">
+        <summary class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">
+          📋 Stack Trace
+        </summary>
+        <pre class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-auto max-h-40">${escapeHtml(log.stackTrace)}</pre>
+      </details>
+    </div>` : ''}
+    ${(log.metadata || log.context) ? `<div class="px-4 pb-4">
+      <details class="cursor-pointer">
+        <summary class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">
+          🏷️ Metadata
+        </summary>
+        <div class="mt-2 space-y-1 max-h-40 overflow-auto">
+          ${renderMetadata(log.metadata || log.context)}
+        </div>
+      </details>
+    </div>` : ''}
   `;
 
-  const expandBtn = logDiv.querySelector('.expand-btn');
-  expandBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    logDiv.classList.toggle('expanded');
-    expandBtn.textContent = logDiv.classList.contains('expanded') ? '▼' : '▶';
-  });
+  logsOutput.appendChild(logCard);
 
-  const copyBtn = logDiv.querySelector('[data-copy]');
-  copyBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const text = logDiv.textContent;
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast('Copied to clipboard', 'success');
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      showToast('Failed to copy', 'error');
-    }
-  });
-
-  logsOutput.appendChild(logDiv);
-
+  // Keep only last 1000 entries
   const entries = logsOutput.children;
   if (entries.length > 1000) {
     logsOutput.removeChild(entries[0]);
@@ -236,6 +283,20 @@ function renderMetadata(context) {
         <span class="metadata-value">${escapeHtml(JSON.stringify(value))}</span>
       </div>
     `).join('');
+}
+
+/**
+ * Get CSS class for severity level background color
+ */
+function severityCss(level) {
+  switch (level) {
+    case 'error': return 'red-500';
+    case 'warn':
+    case 'warning': return 'yellow-500';
+    case 'info': return 'blue-500';
+    case 'debug': return 'gray-500';
+    default: return 'gray-500';
+  }
 }
 
 // ============================================================================

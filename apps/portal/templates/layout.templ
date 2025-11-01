@@ -51,6 +51,9 @@ templ Layout(title string, user *DashboardUser) {
 				</p>
 			</div>
 		</footer>
+
+		<!-- Dark Mode Toggle Script -->
+		<script src="/static/js/theme.js"></script>
 	</body>
 	</html>
 }
@@ -77,6 +80,9 @@ templ LayoutWithoutNav(title string) {
 	</head>
 	<body class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
 		{ children... }
+
+		<!-- Dark Mode Toggle Script -->
+		<script src="/static/js/theme.js"></script>
 	</body>
 	</html>
 }
