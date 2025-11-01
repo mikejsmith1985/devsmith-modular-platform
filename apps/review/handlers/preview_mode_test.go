@@ -40,9 +40,9 @@ func TestPreviewModeButton_Integration_RedPhase(t *testing.T) {
 
 	// THEN: Should return 200 OK with preview analysis results
 	assert.Equal(t, http.StatusOK, w.Code, "Preview mode button should return 200 OK")
-	assert.Contains(t, w.Body.String(), "BoundedContexts", "Response should contain preview analysis")
-	assert.Contains(t, w.Body.String(), "TechStack", "Response should contain tech stack")
-	assert.Contains(t, w.Body.String(), "FileTree", "Response should contain file tree")
+	assert.Contains(t, w.Body.String(), "bounded_contexts", "Response should contain preview analysis")
+	assert.Contains(t, w.Body.String(), "tech_stack", "Response should contain tech stack")
+	assert.Contains(t, w.Body.String(), "file_tree", "Response should contain file tree")
 }
 
 // TestPreviewModeButton_UIRendering tests that the button renders in the home page
