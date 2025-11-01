@@ -37,22 +37,25 @@ func NewScanService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 // AnalyzeScan performs Scan Mode analysis for the given review session and query.
 // Returns a ScanModeOutput with matches and summary, or an error if analysis fails.
 // Logs all major steps and errors with correlation ID for traceability.
-func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string) (*review_models.ScanModeOutput, error) {
+func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, code string, query string) (*review_models.ScanModeOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeScan called", "correlation_id", correlationID, "review_id", reviewID, "query", query)
+	s.logger.Info("AnalyzeScan called", "correlation_id", correlationID, "review_id", reviewID, "query", query, "code_length", len(code))
 
 	if query == "" {
 		s.logger.Warn("AnalyzeScan: empty query", "correlation_id", correlationID, "review_id", reviewID)
 		return nil, errors.New("query cannot be empty")
 	}
-	prompt := buildScanPrompt(query)
+	
+	// Build prompt using template
+	prompt := BuildScanPrompt(code, query)
 
 	start := time.Now()
 	rawOutput, aiErr := s.ollamaClient.Generate(ctx, prompt)
 	durationMs := time.Since(start).Milliseconds()
 	if aiErr != nil {
 		s.logger.Error("AI call failed", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", durationMs, "error", aiErr)
-		return nil, fmt.Errorf("ollama generate failed: %w", aiErr)
+		// Return fallback on error
+		return s.getFallbackScanOutput(query), nil
 	}
 	s.logger.Info("AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", durationMs)
 
@@ -60,7 +63,7 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query str
 	unmarshalErr := json.Unmarshal([]byte(rawOutput), &output)
 	if unmarshalErr != nil {
 		s.logger.Error("Failed to unmarshal scan analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
-		return nil, fmt.Errorf("scan analysis unmarshal error: %w", unmarshalErr)
+		return s.getFallbackScanOutput(query), nil
 	}
 
 	metadataJSON, marshalErr := json.Marshal(output)
@@ -76,7 +79,7 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query str
 		RawOutput: rawOutput,
 		Summary:   output.Summary,
 		Metadata:  string(metadataJSON),
-		ModelUsed: "qwen2.5-coder:32b",
+		ModelUsed: "mistral:7b-instruct",
 	}
 	saveErr := s.analysisRepo.Create(ctx, result)
 	if saveErr != nil {
@@ -86,4 +89,12 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, reviewID int64, query str
 
 	s.logger.Info("AnalyzeScan completed", "correlation_id", correlationID, "review_id", reviewID, "summary", output.Summary)
 	return &output, nil
+}
+
+// getFallbackScanOutput returns safe fallback data when Ollama fails
+func (s *ScanService) getFallbackScanOutput(query string) *review_models.ScanModeOutput {
+	return &review_models.ScanModeOutput{
+		Matches: []review_models.CodeMatch{},
+		Summary: fmt.Sprintf("Analysis unavailable for query: %s", query),
+	}
 }
