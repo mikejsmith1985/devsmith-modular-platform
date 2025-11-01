@@ -136,6 +136,7 @@ func RegisterUIRoutes(router *gin.Engine, uiHandler *UIHandler) {
 	// Dashboard UI route
 	router.GET("/", uiHandler.DashboardHandler)
 	router.GET("/dashboard", uiHandler.DashboardHandler)
+	router.GET("/logs", uiHandler.DashboardHandler) // Route from nginx proxy /logs
 
 	// Health check dashboard UI
 	router.GET("/healthcheck", uiHandler.HealthCheckDashboardHandler)
