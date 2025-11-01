@@ -250,18 +250,17 @@ func SessionsSidebar(sessions []SessionInfo, currentSessionID int64) templ.Compo
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
-		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(
-			templ.Raw(func() string {
-				count := 0
-				for _, s := range sessions {
-					if s.Status == "active" {
-						count++
-					}
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", func() int {
+			count := 0
+			for _, s := range sessions {
+				if s.Status == "active" {
+					count++
 				}
-				return fmt.Sprintf("%d", count)
-			}()))
+			}
+			return count
+		}()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 118, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 117, Col: 10}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -321,7 +320,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 130, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 128, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -334,7 +333,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("Session: %s", session.Title))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 133, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 131, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -369,7 +368,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(session.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 139, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 137, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -404,7 +403,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(session.CreatedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 142, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 140, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -439,7 +438,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(session.Status)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 146, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 144, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -452,7 +451,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d modes", session.ModeCount))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 151, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 149, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -465,7 +464,7 @@ func SessionListItem(session SessionInfo, isActive bool) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 155, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 153, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -507,7 +506,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(session.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 171, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 169, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 		if templ_7745c5c3_Err != nil {
@@ -542,7 +541,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(session.Status)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 174, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 172, Col: 22}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -555,7 +554,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(session.CreatedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 177, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 175, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
@@ -568,7 +567,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var41 string
 		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 183, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 181, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 		if templ_7745c5c3_Err != nil {
@@ -581,7 +580,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", session.ModeCount))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 194, Col: 116}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 192, Col: 116}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 		if templ_7745c5c3_Err != nil {
@@ -594,7 +593,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(session.CreatedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 198, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 196, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 		if templ_7745c5c3_Err != nil {
@@ -607,7 +606,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(session.UpdatedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 202, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 200, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -620,7 +619,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/resume", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 212, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 210, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -633,7 +632,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/export", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 219, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 217, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 		if templ_7745c5c3_Err != nil {
@@ -646,7 +645,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/duplicate", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 225, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 223, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 		if templ_7745c5c3_Err != nil {
@@ -659,7 +658,7 @@ func SessionDetailView(session SessionInfo) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/archive", session.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 232, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 230, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 		if templ_7745c5c3_Err != nil {
@@ -730,7 +729,7 @@ func SessionStatistics(modeCount int, codeLineCount int, analysisTimeMs int) tem
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", modeCount))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 291, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 289, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 		if templ_7745c5c3_Err != nil {
@@ -743,7 +742,7 @@ func SessionStatistics(modeCount int, codeLineCount int, analysisTimeMs int) tem
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", codeLineCount))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 296, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 294, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -756,7 +755,7 @@ func SessionStatistics(modeCount int, codeLineCount int, analysisTimeMs int) tem
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%dms", analysisTimeMs))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 301, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 299, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -798,7 +797,7 @@ func ModeHistoryItem(icon string, modeName string, timestamp string, description
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(icon)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 312, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 310, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 		if templ_7745c5c3_Err != nil {
@@ -811,7 +810,7 @@ func ModeHistoryItem(icon string, modeName string, timestamp string, description
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(modeName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 312, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 310, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
@@ -824,7 +823,7 @@ func ModeHistoryItem(icon string, modeName string, timestamp string, description
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 314, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 312, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 		if templ_7745c5c3_Err != nil {
@@ -837,7 +836,7 @@ func ModeHistoryItem(icon string, modeName string, timestamp string, description
 		var templ_7745c5c3_Var58 string
 		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(timestamp)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 316, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 314, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 		if templ_7745c5c3_Err != nil {
@@ -879,7 +878,7 @@ func SessionMetadata(createdAt string, updatedAt string, fileSize string, codeLa
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(createdAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 325, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 323, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {
@@ -892,7 +891,7 @@ func SessionMetadata(createdAt string, updatedAt string, fileSize string, codeLa
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(updatedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 329, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 327, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 		if templ_7745c5c3_Err != nil {
@@ -905,7 +904,7 @@ func SessionMetadata(createdAt string, updatedAt string, fileSize string, codeLa
 		var templ_7745c5c3_Var62 string
 		templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(fileSize)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 333, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 331, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 		if templ_7745c5c3_Err != nil {
@@ -918,7 +917,7 @@ func SessionMetadata(createdAt string, updatedAt string, fileSize string, codeLa
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(codeLanguages)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 337, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 335, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 		if templ_7745c5c3_Err != nil {
@@ -960,7 +959,7 @@ func SessionActionModals(sessionID int64) templ.Component {
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d", sessionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 372, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 370, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 		if templ_7745c5c3_Err != nil {
@@ -973,7 +972,7 @@ func SessionActionModals(sessionID int64) templ.Component {
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/archive", sessionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 411, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 409, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -986,7 +985,7 @@ func SessionActionModals(sessionID int64) templ.Component {
 		var templ_7745c5c3_Var67 string
 		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/export?format=json", sessionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 445, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 443, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 		if templ_7745c5c3_Err != nil {
@@ -999,7 +998,7 @@ func SessionActionModals(sessionID int64) templ.Component {
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/export?format=csv", sessionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 451, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 449, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 		if templ_7745c5c3_Err != nil {
@@ -1041,7 +1040,7 @@ func SessionActionsBar(sessionID int64, sessionStatus string) templ.Component {
 		var templ_7745c5c3_Var70 string
 		templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/resume", sessionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 476, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 474, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 		if templ_7745c5c3_Err != nil {
@@ -1054,7 +1053,7 @@ func SessionActionsBar(sessionID int64, sessionStatus string) templ.Component {
 		var templ_7745c5c3_Var71 string
 		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/review/sessions/%d/duplicate", sessionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 490, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/sessions_sidebar.templ`, Line: 488, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 		if templ_7745c5c3_Err != nil {

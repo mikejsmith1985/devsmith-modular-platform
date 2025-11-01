@@ -4686,3 +4686,30 @@ Closes part of option B: dashboard route fixes
 
 ---
 
+
+## 2025-11-01 19:05 - update logs filter test selectors to match template
+**Branch:** development
+**Files Changed:**  2 files changed, 34 insertions(+), 4 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `tests/e2e/smoke/full-suite/logs-filters.spec.ts`
+
+**Action:** update logs filter test selectors to match template
+
+**Commit:** `8ac8f04`
+
+**Commit Message:**
+```
+fix(tests): update logs filter test selectors to match template
+```
+
+**Details:**
+```
+- Changed selectors from name/type attributes to ID selectors
+- Matches actual template: select#level-filter, select#service-filter, input#search-input
+- All 17 smoke tests now passing
+
+Closes option B: all smoke tests passing
+```
+
+---
+
