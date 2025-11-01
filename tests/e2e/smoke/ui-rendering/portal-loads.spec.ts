@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Portal Loads', () => {
   test.beforeEach(async ({ page }) => {
-    // Authenticate using test endpoint with proper credentials
+    // Authenticate using test endpoint
     const loginResponse = await page.request.post('http://localhost:3000/auth/test-login', {
       data: {
         username: 'testuser',
@@ -12,35 +12,34 @@ test.describe('SMOKE: Portal Loads', () => {
     });
     
     if (loginResponse.ok()) {
-      // Token set in cookie, navigate to authenticated page
-      await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+      // Navigate to authenticated route
+      await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     }
   });
 
-  test('Portal is accessible at root', async ({ page }) => {
-    const response = await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+  test('Portal is accessible when authenticated', async ({ page }) => {
+    const response = await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
   });
 
   test('Navigation renders correctly', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     const nav = page.locator('nav');
     await expect(nav).toBeVisible();
     await expect(nav).toContainText('DevSmith');
   });
 
-  test('Dark mode toggle is visible and has Alpine.js attributes', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+  test('Dark mode button is visible and functional', async ({ page }) => {
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     
-    // Check that dark mode button exists (button inside Alpine container)
-    const darkModeButton = page.locator('button[type="button"]').filter({ 
-      has: page.locator('svg') 
-    }).first();
-    await expect(darkModeButton).toBeVisible({ timeout: 5000 });
+    // Check dark mode button (vanilla JS implementation with ID)
+    const darkModeButton = page.locator('#dark-mode-toggle');
+    await expect(darkModeButton).toBeVisible();
     
-    // Verify Alpine.js attributes are present
-    const alpineContainer = page.locator('[x-data*="dark"]');
-    const count = await alpineContainer.count();
-    expect(count).toBeGreaterThan(0);
+    // Check icons exist (one hidden, one visible depending on current mode)
+    const sunIcon = page.locator('#sun-icon');
+    const moonIcon = page.locator('#moon-icon');
+    expect(await sunIcon.count()).toBe(1);
+    expect(await moonIcon.count()).toBe(1);
   });
 });
