@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as os from 'os';
 
 /**
  * Playwright Configuration for DevSmith E2E Tests
@@ -9,7 +10,25 @@ import { defineConfig, devices } from '@playwright/test';
  * - Limited workers to prevent resource contention
  * - Optimized timeouts and retry behavior
  * - Local and CI/CD support
+ * - Basic Auth support for nginx-protected endpoints
  */
+
+// Determine base URL based on platform (Linux vs Docker Desktop)
+const isDockerDesktop = ['darwin', 'win32'].includes(os.platform());
+const host = isDockerDesktop ? 'host.docker.internal' : 'localhost';
+const baseURL = `http://${host}:3000`;
+
+// Build Basic Auth header if credentials provided
+const getAuthHeader = () => {
+  const basicAuth = process.env.PLAYWRIGHT_BASIC_AUTH;
+  if (!basicAuth) return {};
+  
+  const encoded = Buffer.from(basicAuth).toString('base64');
+  return {
+    Authorization: `Basic ${encoded}`,
+  };
+};
+
 export default defineConfig({
   // Only run E2E tests (./tests/e2e)
   testDir: './tests/e2e',
@@ -38,11 +57,12 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: 10000,
+    extraHTTPHeaders: getAuthHeader(),
   },
 
   // Global timeout settings

@@ -3981,3 +3981,56 @@ causing logs service to crash on startup.
 
 ---
 
+
+## 2025-11-01 16:01 - feat(e2e): Add Docker-based smoke test infrastructure with network=host support
+**Branch:** development
+**Files Changed:**  61 files changed, 2166 insertions(+), 560 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/analytics/templates/dashboard_templ.go`
+- `apps/analytics/templates/layout.templ`
+- `apps/analytics/templates/layout_templ.go`
+- `apps/logs/templates/layout.templ`
+- `apps/logs/templates/layout_templ.go`
+- `apps/portal/templates/dashboard_templ.go`
+- `apps/portal/templates/layout.templ`
+- `apps/portal/templates/layout_templ.go`
+- `apps/review/templates/home_templ.go`
+- `apps/review/templates/layout.templ`
+- `apps/review/templates/layout_templ.go`
+- `apps/review/templates/session_form_templ.go`
+- `apps/review/templates/sessions_sidebar_templ.go`
+- `docker-compose.playwright.yml`
+- `docker-compose.yml`
+- `internal/ui/components/card/card_templ.go`
+- `internal/ui/components/card/log_card_templ.go`
+- `internal/ui/components/nav/nav.templ`
+- `internal/ui/components/nav/nav_templ.go`
+
+**Action:** feat(e2e): Add Docker-based smoke test infrastructure with network=host support
+
+**Commit:** `897fa74`
+
+**Commit Message:**
+```
+feat(e2e): Add Docker-based smoke test infrastructure with network=host support
+```
+
+**Details:**
+```
+- Created modular smoke test packages (ollama-integration, ui-rendering, full-suite)
+- Added docker-compose.playwright.yml for running tests in Docker with --network=host
+- Added scripts/run-smoke-tests.sh convenience script for OS detection (Linux vs macOS/Windows)
+- Updated scripts/validate-feature.sh with feature-specific test execution
+- Optimized Docker healthchecks: 60s → 23s startup time
+- Regenerated all Templ templates for Alpine.js dark mode implementation
+- Fixed nginx 502 error (restart resolved)
+
+Docker setup allows Playwright tests to access localhost:3000 directly:
+- Linux: --network=host
+- macOS/Windows: host.docker.internal
+
+Tests can now run in isolated containers without host dependencies.
+```
+
+---
+
