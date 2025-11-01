@@ -4290,3 +4290,52 @@ Playwright tests are now reliable and executing properly locally!
 
 ---
 
+
+## 2025-11-01 17:22 - Replace Alpine.js with vanilla JS to work around Templ attribute stripping
+**Branch:** development
+**Files Changed:**  6 files changed, 175 insertions(+), 40 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `internal/ui/components/card/log_card.templ`
+- `internal/ui/components/card/log_card_templ.go`
+- `internal/ui/components/nav/nav.templ`
+- `internal/ui/components/nav/nav_templ.go`
+- `tests/e2e/debug-dark-mode-works.spec.ts`
+
+**Action:** Replace Alpine.js with vanilla JS to work around Templ attribute stripping
+
+**Commit:** `3e04d15`
+
+**Commit Message:**
+```
+fix(dark-mode): Replace Alpine.js with vanilla JS to work around Templ attribute stripping
+```
+
+**Details:**
+```
+PROBLEM:
+- Templ strips Alpine.js directive attributes (x-data, x-init, @click)
+- Dark mode toggle button existed but had no interactivity
+
+SOLUTION:
+- Replaced Alpine.js implementation with vanilla JavaScript
+- Moved Alpine initialization to inline <script> tag
+- Uses getElementById and addEventListener for DOM manipulation
+- Persists preference in localStorage
+- Respects system dark mode preference
+
+TESTING:
+✅ Dark mode button visible and clickable
+✅ Clicking toggles 'dark' class on html element
+✅ Dark mode preference persists in localStorage
+✅ System preference respected on first load
+
+Fixed issues in log_card.templ that were blocking build.
+
+NOW READY:
+- E2E tests pass locally and work reliably
+- Dark mode functionality confirmed working
+- Ready to test other features
+```
+
+---
+

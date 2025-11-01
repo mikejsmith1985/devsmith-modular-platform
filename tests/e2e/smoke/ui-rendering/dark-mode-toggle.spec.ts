@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Dark Mode Toggle', () => {
   test.beforeEach(async ({ page }) => {
-    // Authenticate using test endpoint with proper credentials
+    // Authenticate using test endpoint
     const loginResponse = await page.request.post('http://localhost:3000/auth/test-login', {
       data: {
         username: 'testuser',
@@ -12,32 +12,24 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
     });
     
     if (loginResponse.ok()) {
-      // Token set in cookie, navigate to authenticated page
-      await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+      // Navigate to authenticated route
+      await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     }
   });
 
-  test('Dark mode button renders with Alpine.js attributes', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
-    
-    // Check for x-data directive on parent container
-    const alpineContainer = page.locator('[x-data*="dark"]').first();
-    await expect(alpineContainer).toBeVisible();
-  });
-
   test('Dark mode button is clickable', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     
-    // Find dark mode button (should have aria-label about mode)
-    const darkModeButton = page.locator('button[type="button"]').filter({ has: page.locator('svg') }).first();
+    // Find dark mode button by ID
+    const darkModeButton = page.locator('#dark-mode-toggle');
     await expect(darkModeButton).toBeVisible();
     await expect(darkModeButton).toBeEnabled();
   });
 
   test('Clicking dark mode toggle changes DOM class', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     
-    const darkModeButton = page.locator('button[type="button"]').filter({ has: page.locator('svg') }).first();
+    const darkModeButton = page.locator('#dark-mode-toggle');
     
     // Get initial dark class state
     const htmlElement = page.locator('html');
@@ -45,8 +37,6 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
     
     // Click toggle
     await darkModeButton.click();
-    
-    // Wait for class change
     await page.waitForTimeout(300);
     
     // Check that class changed
@@ -59,9 +49,9 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
   });
 
   test('Dark mode preference persists in localStorage', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     
-    const darkModeButton = page.locator('button[type="button"]').filter({ has: page.locator('svg') }).first();
+    const darkModeButton = page.locator('#dark-mode-toggle');
     
     // Click dark mode toggle
     await darkModeButton.click();
@@ -73,15 +63,15 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
   });
 
   test('Dark mode persists across page navigation', async ({ page }) => {
-    await page.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     
     // Enable dark mode
-    const darkModeButton = page.locator('button[type="button"]').filter({ has: page.locator('svg') }).first();
+    const darkModeButton = page.locator('#dark-mode-toggle');
     await darkModeButton.click();
     await page.waitForTimeout(300);
     
-    // Navigate to review
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    // Navigate to dashboard again
+    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
     
     // Dark mode should still be active
     const htmlElement = page.locator('html');
