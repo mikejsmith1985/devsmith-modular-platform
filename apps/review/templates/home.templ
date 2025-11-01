@@ -134,7 +134,7 @@ templ ModeCard(mode ModeInfo) {
 			</div>
 			<button 
 				class="w-full px-4 py-2 rounded-lg font-medium bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors"
-				hx-post={ "/api/review/sessions/modes/" + mode.ID }
+				hx-post={ "/api/review/modes/" + mode.ID }
 				hx-target="#reading-mode-demo"
 				hx-swap="innerHTML"
 				hx-include="[name='pasted_code'], [name='github_url'], [name='file']"
@@ -210,4 +210,64 @@ func cognitiveBadgeClass(cognitive string) string {
 	default:
 		return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
 	}
+}
+
+// Mode Result Components for HTMX responses
+type PreviewResult struct {
+	FileTree              []string
+	BoundedContexts       []string
+	TechStack             []string
+	ArchitecturePattern   string
+	EntryPoints           []string
+	ExternalDependencies  []string
+	Summary               string
+}
+
+templ PreviewModeHtmxResponse(result PreviewResult) {
+	<section class="card">
+		<h3 class="text-xl font-bold mb-4">👁️ Preview Mode Results</h3>
+		<div class="space-y-4">
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">File Tree</h4>
+				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+					for _, file := range result.FileTree {
+						<li>{ file }</li>
+					}
+					if len(result.FileTree) == 0 {
+						<li>N/A</li>
+					}
+				</ul>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Bounded Contexts</h4>
+				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+					for _, ctx := range result.BoundedContexts {
+						<li>{ ctx }</li>
+					}
+					if len(result.BoundedContexts) == 0 {
+						<li>N/A</li>
+					}
+				</ul>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Tech Stack</h4>
+				<div class="flex gap-2 flex-wrap">
+					for _, tech := range result.TechStack {
+						<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">{ tech }</span>
+					}
+					if len(result.TechStack) == 0 {
+						<span class="text-gray-500">N/A</span>
+					}
+				</div>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Architecture Pattern</h4>
+				<p class="text-sm text-gray-600 dark:text-gray-400">{ result.ArchitecturePattern }</p>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Summary</h4>
+				<p class="text-sm text-gray-600 dark:text-gray-400">{ result.Summary }</p>
+			</div>
+		</div>
+	</section>
 }

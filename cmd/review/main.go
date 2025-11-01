@@ -152,6 +152,13 @@ func main() {
 	router.GET("/api/review/sessions/:id", sessionHandler.GetSession)       // Get specific session
 	router.DELETE("/api/review/sessions/:id", sessionHandler.DeleteSession) // Delete session
 
+	// HTMX mode endpoints (Phase 12.3)
+	router.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)   // Preview mode HTMX
+	router.POST("/api/review/modes/skim", uiHandler.HandleSkimMode)         // Skim mode HTMX
+	router.POST("/api/review/modes/scan", uiHandler.HandleScanMode)         // Scan mode HTMX
+	router.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode) // Detailed mode HTMX
+	router.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode) // Critical mode HTMX
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"

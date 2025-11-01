@@ -1,9 +1,7 @@
 package review_handlers
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -60,53 +58,161 @@ func (h *UIHandler) AnalysisResultHandler(c *gin.Context) {
 
 // CreateSessionHandler handles session creation from the UI form
 func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
-	correlationID := c.Request.Context().Value("correlation_id")
-	h.logger.Info("CreateSessionHandler called", "correlation_id", correlationID)
-
-	// Parse form data
-	var req struct {
-		PastedCode string `form:"pasted_code" json:"pasted_code"`
-		GitHubURL  string `form:"github_url" json:"github_url"`
-		Title      string `form:"title" json:"title"`
-	}
-
-	if err := c.ShouldBind(&req); err != nil {
-		h.logger.Error("Failed to bind session creation request", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
-		return
-	}
-
-	// Validate that at least one input method is provided
-	if req.PastedCode == "" && req.GitHubURL == "" {
-		h.logger.Warn("Session creation request missing code or URL", "correlation_id", correlationID)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Either pasted_code or github_url is required"})
-		return
-	}
-
-	// Generate session ID
 	sessionID := uuid.New().String()
+	h.logger.Info("Session created", "session_id", sessionID)
+	c.Redirect(http.StatusFound, fmt.Sprintf("/analysis?sessionID=%s", sessionID))
+}
 
-	h.logger.Info("Session created successfully", "correlation_id", correlationID, "session_id", sessionID)
-
-	// Send a lightweight log event to the Logs service if a client is configured.
-	if h.logClient != nil {
-		// Best-effort: do not block the request path
-		go func(ctx context.Context, sid string) {
-			if err := h.logClient.Post(ctx, map[string]interface{}{
-				"service": "review",
-				"event":   "session_created",
-				"session": sid,
-				"time":    time.Now().UTC().Format(time.RFC3339),
-			}); err != nil {
-				log.Printf("warning: failed to post session_created event: %v", err)
-			}
-		}(c.Request.Context(), sessionID)
+// HandlePreviewMode handles POST /api/review/modes/preview (HTMX)
+func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
 	}
-	// Return session info (for now, just the ID)
-	c.JSON(http.StatusCreated, gin.H{
-		"session_id": sessionID,
-		"message":    "Session created successfully",
-	})
+
+	// Try JSON binding first, then form
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Return preview result component (for now, simple HTML)
+	html := `
+	<section class="card">
+		<h3 class="text-xl font-bold mb-4">👁️ Preview Mode Results</h3>
+		<div class="space-y-4">
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">File Tree</h4>
+				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+					<li>main.go</li>
+					<li>utils.go</li>
+					<li>handlers/</li>
+					<li>services/</li>
+				</ul>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Bounded Contexts</h4>
+				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+					<li>Core Logic</li>
+					<li>API Layer</li>
+					<li>Data Access</li>
+				</ul>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Tech Stack</h4>
+				<div class="flex gap-2 flex-wrap">
+					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">Go</span>
+					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">PostgreSQL</span>
+					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">Gin</span>
+				</div>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Architecture Pattern</h4>
+				<p class="text-sm text-gray-600 dark:text-gray-400">Layered Architecture</p>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Summary</h4>
+				<p class="text-sm text-gray-600 dark:text-gray-400">Backend service with clean layering</p>
+			</div>
+		</div>
+	</section>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// HandleSkimMode handles POST /api/review/modes/skim (HTMX)
+func (h *UIHandler) HandleSkimMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Skim mode analysis in progress...</p>")
+}
+
+// HandleScanMode handles POST /api/review/modes/scan (HTMX)
+func (h *UIHandler) HandleScanMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Scan mode analysis in progress...</p>")
+}
+
+// HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
+func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Detailed mode analysis in progress...</p>")
+}
+
+// HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
+func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Critical mode analysis in progress...</p>")
 }
 
 // SessionProgressSSE streams progress updates for a given session via SSE.
