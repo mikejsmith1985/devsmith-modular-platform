@@ -52,13 +52,13 @@ func RegisterDetailedModeButtonHandler(router *gin.Engine, detailedService *revi
 			"File": req.File,
 			"LineByLine": []map[string]interface{}{
 				{
-					"LineNumber": 1,
-					"Code":       "package main",
+					"LineNumber":  1,
+					"Code":        "package main",
 					"Explanation": "Package declaration - defines this as executable package",
 				},
 				{
-					"LineNumber": 2,
-					"Code":       "import \"fmt\"",
+					"LineNumber":  2,
+					"Code":        "import \"fmt\"",
 					"Explanation": "Imports fmt package for formatted I/O",
 				},
 			},
