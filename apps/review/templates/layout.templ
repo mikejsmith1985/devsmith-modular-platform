@@ -15,6 +15,10 @@ templ Layout(title string) {
 			<script src="https://cdn.tailwindcss.com"></script>
 			<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 			<link rel="stylesheet" href="/static/css/review.css"/>
+			<style>
+				/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
+				[x-cloak] { display: none !important; }
+			</style>
 		</head>
 		<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
 			<!-- Navigation (without user context for review app) -->
@@ -35,8 +39,6 @@ templ Layout(title string) {
 				</div>
 			</footer>
 
-			<!-- Dark Mode Toggle Script -->
-			<script src="/static/js/theme.js"></script>
 			<script src="/static/js/review.js"></script>
 			<script src="/static/js/analysis.js"></script>
 		</body>
