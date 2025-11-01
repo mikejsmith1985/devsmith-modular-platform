@@ -136,21 +136,16 @@ func main() {
 	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient)
 
 	// Session handler setup (handles session management endpoints)
-	reviewRepo := review_db.NewReviewRepository(sqlDB)
-	sessionHandler := app_handlers.NewSessionHandler(reviewRepo, reviewLogger)
+	sessionService := review_services.NewSessionService(reviewLogger)
+	sessionHandlers := app_handlers.NewSessionHandlers(sessionService, reviewLogger)
 
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)
 	router.GET("/review", uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 	router.GET("/analysis", uiHandler.AnalysisResultHandler)
-	router.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
-	// SSE endpoint for session progress (demo stream)
-	router.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
-
-	// Session management endpoints (NEW for Issue #25)
-	router.GET("/api/review/sessions", sessionHandler.ListSessions)         // List user's sessions with pagination
-	router.GET("/api/review/sessions/:id", sessionHandler.GetSession)       // Get specific session
-	router.DELETE("/api/review/sessions/:id", sessionHandler.DeleteSession) // Delete session
+	
+	// Register session routes (REST API)
+	sessionHandlers.RegisterRoutes(router)
 
 	port := os.Getenv("PORT")
 	if port == "" {
