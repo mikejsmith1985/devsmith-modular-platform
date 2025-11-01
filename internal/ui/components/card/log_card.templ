@@ -94,40 +94,56 @@ templ LogCard(props LogCardProps) {
 			</p>
 		</div>
 
-		<!-- Stack trace if present -->
+		<!-- Stack trace if present (Alpine.js collapsible) -->
 		if props.StackTrace != "" {
-			<div class="px-4 pb-3">
-				<details class="cursor-pointer">
-					<summary class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">
-						📋 Stack Trace
-					</summary>
-					<pre class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-auto max-h-40">{ props.StackTrace }</pre>
-				</details>
+			<div 
+				x-data="{ expanded: false }"
+				class="px-4 pb-3">
+				<button 
+					@click="expanded = !expanded"
+					class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center gap-1 w-full">
+					<svg :class="{ 'rotate-90': expanded }" class="w-4 h-4 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+					</svg>
+					<span>📋 Stack Trace</span>
+				</button>
+				<pre 
+					x-show="expanded"
+					x-collapse
+					class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-auto max-h-40">{ props.StackTrace }</pre>
 			</div>
 		}
 
-		<!-- Metadata if present -->
+		<!-- Metadata if present (Alpine.js collapsible) -->
 		if len(props.Metadata) > 0 {
-			<div class="px-4 pb-4">
-				<details class="cursor-pointer">
-					<summary class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">
-						🏷️ Metadata ({ len(props.Metadata) })
-					</summary>
-					<div class="mt-2 space-y-1">
-						for key, value := range props.Metadata {
-							<div class="text-xs text-gray-700 dark:text-gray-300">
-								<span class="font-medium">{ key }:</span>
-								<span class="text-gray-600 dark:text-gray-400">
-									if str, ok := value.(string); ok {
-										{ str }
-									} else {
-										{ templ.FormattedString(value) }
-									}
-								</span>
-							</div>
-						}
-					</div>
-				</details>
+			<div 
+				x-data="{ expanded: false }"
+				class="px-4 pb-4">
+				<button 
+					@click="expanded = !expanded"
+					class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center gap-1 w-full">
+					<svg :class="{ 'rotate-90': expanded }" class="w-4 h-4 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+					</svg>
+					<span>🏷️ Metadata ({ len(props.Metadata) })</span>
+				</button>
+				<div 
+					x-show="expanded"
+					x-collapse
+					class="mt-2 space-y-1">
+					for key, value := range props.Metadata {
+						<div class="text-xs text-gray-700 dark:text-gray-300">
+							<span class="font-medium">{ key }:</span>
+							<span class="text-gray-600 dark:text-gray-400">
+								if str, ok := value.(string); ok {
+									{ str }
+								} else {
+									{ templ.FormattedString(value) }
+								}
+							</span>
+						</div>
+					}
+				</div>
 			</div>
 		}
 	</div>
