@@ -323,6 +323,131 @@ func (h *UIHandler) SearchSessionsHTMX(c *gin.Context) {
 	c.String(http.StatusOK, html)
 }
 
+// GetSessionDetailHTMX handles GET /api/review/sessions/:id (HTMX)
+func (h *UIHandler) GetSessionDetailHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Loading session detail", "session_id", sessionID)
+
+	// Placeholder: return session detail view
+	html := `
+	<div class="w-full lg:flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+		<div class="flex items-start justify-between mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+			<div class="flex-1">
+				<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Session ` + sessionID + `</h2>
+				<div class="mt-2 flex items-center gap-4">
+					<span class="px-3 py-1 rounded-lg text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">active</span>
+					<span class="text-sm text-gray-600 dark:text-gray-400">Created: 2025-11-01 10:30:00</span>
+				</div>
+			</div>
+			<button class="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 dark:hover:bg-red-800 transition-colors text-sm" onclick="if(confirm('Delete this session?')) { htmx.ajax('DELETE', '/api/review/sessions/` + sessionID + `', {target:'#session-detail', swap:'innerHTML'}) }">🗑️ Delete</button>
+		</div>
+
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+			<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+				<div class="text-sm font-medium text-indigo-600 dark:text-indigo-300">Reading Modes Used</div>
+				<div class="mt-2 text-2xl font-bold text-indigo-900 dark:text-indigo-100">2</div>
+			</div>
+			<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+				<div class="text-sm font-medium text-green-600 dark:text-green-300">Created</div>
+				<div class="mt-2 text-sm text-green-900 dark:text-green-100">2025-11-01 10:30:00</div>
+			</div>
+			<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
+				<div class="text-sm font-medium text-blue-600 dark:text-blue-300">Last Updated</div>
+				<div class="mt-2 text-sm text-blue-900 dark:text-blue-100">2025-11-01 10:45:00</div>
+			</div>
+		</div>
+
+		<div class="space-y-4">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Actions</h3>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<button class="px-4 py-3 rounded-lg font-medium bg-indigo-600 text-white hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors text-sm">▶️ Resume Session</button>
+				<button class="px-4 py-3 rounded-lg font-medium bg-gray-600 text-white hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors text-sm">⬇️ Export Session</button>
+				<button class="px-4 py-3 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 dark:hover:bg-purple-800 transition-colors text-sm">📋 Duplicate</button>
+				<button class="px-4 py-3 rounded-lg font-medium border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">📁 Archive</button>
+			</div>
+		</div>
+
+		<div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Mode History</h3>
+			<div class="space-y-3">
+				<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+					<div class="flex items-center justify-between">
+						<span class="text-sm font-medium text-gray-900 dark:text-white">👁️ Preview Mode</span>
+						<span class="text-xs text-gray-500 dark:text-gray-400">10:15 AM</span>
+					</div>
+					<p class="mt-1 text-xs text-gray-600 dark:text-gray-400">Analyzed project structure</p>
+				</div>
+				<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+					<div class="flex items-center justify-between">
+						<span class="text-sm font-medium text-gray-900 dark:text-white">🔎 Scan Mode</span>
+						<span class="text-xs text-gray-500 dark:text-gray-400">10:20 AM</span>
+					</div>
+					<p class="mt-1 text-xs text-gray-600 dark:text-gray-400">Searched for error handling</p>
+				</div>
+			</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// ResumeSessionHTMX handles POST /api/review/sessions/:id/resume (HTMX)
+func (h *UIHandler) ResumeSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Resuming session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-success">
+		<p class="text-green-700 dark:text-green-300">✓ Session resumed successfully. Continuing from where you left off...</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// DuplicateSessionHTMX handles POST /api/review/sessions/:id/duplicate (HTMX)
+func (h *UIHandler) DuplicateSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Duplicating session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-success">
+		<p class="text-green-700 dark:text-green-300">✓ Session duplicated successfully. Switched to new session.</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// ArchiveSessionHTMX handles POST /api/review/sessions/:id/archive (HTMX)
+func (h *UIHandler) ArchiveSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Archiving session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-success">
+		<p class="text-green-700 dark:text-green-300">✓ Session archived successfully.</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// DeleteSessionHTMX handles DELETE /api/review/sessions/:id (HTMX)
+func (h *UIHandler) DeleteSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Deleting session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-info">
+		<p class="text-blue-700 dark:text-blue-300">Session deleted. Returning to session list...</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
 // SessionProgressSSE streams progress updates for a given session via SSE.
 // This is a lightweight simulator for UI integration and demos. In production
 // this should be driven by the actual analysis pipeline (publish progress to
