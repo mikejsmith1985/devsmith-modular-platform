@@ -3660,3 +3660,90 @@ Files:
 
 ---
 
+
+## 2025-11-01 11:38 - fix: resolve route registration conflicts in review and analytics services
+**Branch:** development
+**Files Changed:**  4 files changed, 8 insertions(+), 41 deletions(-)
+- `analytics`
+- `apps/analytics/handlers/ui_handler.go`
+- `cmd/review/main.go`
+- `review`
+
+**Action:** fix: resolve route registration conflicts in review and analytics services
+
+**Commit:** `473e610`
+
+**Commit Message:**
+```
+fix: resolve route registration conflicts in review and analytics services
+```
+
+**Details:**
+```
+Fixed two route conflicts causing container startup failures:
+
+Review Service:
+- Removed duplicate GET /api/review/sessions/:id route
+  * sessionHandler.GetSession (old API)
+  * uiHandler.GetSessionDetailHTMX (HTMX version)
+  * Kept: HTMX version (GetSessionDetailHTMX)
+- Removed duplicate DELETE /api/review/sessions/:id route
+  * sessionHandler.DeleteSession (old API)
+  * uiHandler.DeleteSessionHTMX (HTMX version)
+  * Kept: HTMX version (DeleteSessionHTMX)
+- Removed unused sessionHandler initialization
+- Updated comments to clarify HTMX-first architecture
+
+Analytics Service:
+- Removed duplicate GET /api/analytics/export route
+  * internal analytics_handler.ExportData (core API)
+  * ui_handler.ExportHandler (HTMX version)
+  * Kept: internal handler version (already registered)
+- Removed unused ExportHandler method from UI handler
+- Updated comments to reference existing route registration
+
+Result:
+✅ Review service: Starts healthy
+✅ Analytics service: Starts healthy
+✅ All 7 containers: Healthy and running
+✅ Routes clearly separated (API vs HTMX)
+✅ No handler conflicts
+
+Architecture:
+- Internal handlers: Core API endpoints
+- UI handlers (apps/**/handlers): HTMX/UI-specific endpoints
+- No route duplication
+- Clear separation of concerns
+```
+
+---
+
+
+## 2025-11-01 11:38 - fix: resolve linting and formatting issues in review service
+**Branch:** development
+**Files Changed:**  2 files changed, 10 insertions(+), 9 deletions(-)
+- `cmd/review/main.go`
+- `cmd/review/ollama_integration_test.go`
+
+**Action:** fix: resolve linting and formatting issues in review service
+
+**Commit:** `eec9cc7`
+
+**Commit Message:**
+```
+fix: resolve linting and formatting issues in review service
+```
+
+**Details:**
+```
+- Removed trailing whitespace in ollama_integration_test.go
+- Added gocyclo nolint comment to main() function
+  * Initialization is inherently complex with multiple setup steps
+  * Complexity exceeds threshold due to config, DB, handlers setup
+  * Documented as legitimate exception for clarity
+- All linting checks now pass
+- All formatting now passes
+```
+
+---
+
