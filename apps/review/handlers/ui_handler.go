@@ -48,23 +48,25 @@ func NewUIHandler(
 
 // bindCodeRequest binds code from JSON or form data
 func (h *UIHandler) bindCodeRequest(c *gin.Context) (string, bool) {
-	var req struct {
-		Code string `form:"pasted_code" json:"code"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if err := c.ShouldBind(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return "", false
+	// Try form data first (HTMX sends this)
+	code := c.PostForm("pasted_code")
+	if code == "" {
+		// Try JSON binding
+		var req struct {
+			Code string `json:"code"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil {
+			code = req.Code
 		}
 	}
 
-	if req.Code == "" {
+	if code == "" {
+		h.logger.Debug("No code provided in request")
 		c.String(http.StatusBadRequest, "Code required")
 		return "", false
 	}
 
-	return req.Code, true
+	return code, true
 }
 
 // marshalAndFormat converts analysis result to JSON and renders HTML response

@@ -4713,3 +4713,33 @@ Closes option B: all smoke tests passing
 
 ---
 
+
+## 2025-11-01 19:14 - fix templ syntax in sessions_sidebar component
+**Branch:** development
+**Files Changed:**  4 files changed, 79 insertions(+), 55 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/templates/sessions_sidebar.templ`
+- `apps/review/templates/sessions_sidebar_templ.go`
+- `review`
+
+**Action:** fix templ syntax in sessions_sidebar component
+
+**Commit:** `3fb20e5`
+
+**Commit Message:**
+```
+fix(review): fix templ syntax in sessions_sidebar component
+```
+
+**Details:**
+```
+- Removed invalid templ.Raw wrapper that caused build failure
+- Simplified to inline expression for active session count
+- Regenerated sessions_sidebar_templ.go
+- All 17 smoke tests passing with rebuilt containers
+
+Verified: All services built and healthy, all tests pass
+```
+
+---
+
