@@ -1,0 +1,295 @@
+package review_templates
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+)
+
+// SessionsList renders the sessions list view with filtering and pagination.
+templ SessionsList(sessions []*review_models.SessionSummary, limit, offset int, total int) {
+	<div class="sessions-container">
+		<header class="sessions-header">
+			<h1>📋 Code Review Sessions</h1>
+			<p class="subtitle">Manage your code review sessions</p>
+			<div class="session-controls">
+				<button id="new-session-btn" class="btn-primary" onclick="newSession()">
+					<span class="mr-2">➕</span> New Session
+				</button>
+			</div>
+		</header>
+
+		<main class="sessions-main">
+			<!-- Filter bar -->
+			<div class="filter-bar">
+				<div class="filter-group">
+					<label for="status-filter">Status:</label>
+					<select id="status-filter" class="filter-select" onchange="applyFilters()">
+						<option value="">All Statuses</option>
+						<option value="active">Active</option>
+						<option value="completed">Completed</option>
+						<option value="archived">Archived</option>
+					</select>
+				</div>
+				<div class="filter-group">
+					<label for="language-filter">Language:</label>
+					<select id="language-filter" class="filter-select" onchange="applyFilters()">
+						<option value="">All Languages</option>
+						<option value="go">Go</option>
+						<option value="python">Python</option>
+						<option value="javascript">JavaScript</option>
+						<option value="rust">Rust</option>
+						<option value="java">Java</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Sessions grid -->
+			if len(sessions) == 0 {
+				<div class="empty-state">
+					<p>📭 No sessions yet</p>
+					<p class="text-gray-600 dark:text-gray-400">Create a new session to get started</p>
+				</div>
+			} else {
+				<div class="sessions-grid">
+					for _, session := range sessions {
+						@SessionCard(session)
+					}
+				</div>
+
+				<!-- Pagination -->
+				<div class="pagination">
+					if offset > 0 {
+						<button class="btn-secondary" onclick={ templ.SafeURL(fmt.Sprintf("goToPage(%d)", offset-limit)) }>
+							← Previous
+						</button>
+					}
+					<span class="page-info">
+						Showing { fmt.Sprintf("%d", offset+1) }-{ fmt.Sprintf("%d", offset+len(sessions)) } of { fmt.Sprintf("%d", total) }
+					</span>
+					if offset+limit < total {
+						<button class="btn-secondary" onclick={ templ.SafeURL(fmt.Sprintf("goToPage(%d)", offset+limit)) }>
+							Next →
+						</button>
+					}
+				</div>
+			}
+		</main>
+	</div>
+}
+
+// SessionCard renders a single session summary card.
+templ SessionCard(session *review_models.SessionSummary) {
+	<div class="session-card" onclick={ templ.SafeURL(fmt.Sprintf("viewSession(%d)", session.ID)) }>
+		<div class="session-header">
+			<h3 class="session-title">{ session.Title }</h3>
+			<span class={ "status-badge", session.Status }>{ session.Status }</span>
+		</div>
+
+		<div class="session-details">
+			<div class="detail-row">
+				<span class="label">Language:</span>
+				<span class="value">{ session.Language }</span>
+			</div>
+			<div class="detail-row">
+				<span class="label">Source:</span>
+				<span class="value">{ session.CodeSource }</span>
+			</div>
+			<div class="detail-row">
+				<span class="label">Mode:</span>
+				<span class="value">{ session.CurrentMode }</span>
+			</div>
+		</div>
+
+		<!-- Mode progress bar -->
+		<div class="progress-section">
+			<div class="progress-label">
+				<span>Progress</span>
+				<span>{ fmt.Sprintf("%d", session.ModeProgress) }%</span>
+			</div>
+			<div class="progress-bar">
+				<div class="progress-fill" style={ templ.SafeCSS("width", fmt.Sprintf("%d%%", session.ModeProgress)) }></div>
+			</div>
+		</div>
+
+		<div class="session-footer">
+			<div class="time-info">
+				<span class="text-sm text-gray-600 dark:text-gray-400">
+					Created: { session.CreatedAt.Format("Jan 2, 2006") }
+				</span>
+			</div>
+			<div class="session-actions">
+				<button class="btn-icon" title="View details" onclick="event.stopPropagation(); viewSession({ fmt.Sprintf("%d", session.ID) })">
+					👁️
+				</button>
+				<button class="btn-icon" title="Delete session" onclick="event.stopPropagation(); deleteSession({ fmt.Sprintf("%d", session.ID) })">
+					🗑️
+				</button>
+			</div>
+		</div>
+	</div>
+}
+
+// SessionDetail renders the detailed session view with mode tabs.
+templ SessionDetail(session *review_models.CodeReviewSession) {
+	<div class="session-detail-container">
+		<header class="session-detail-header">
+			<button class="btn-back" onclick="backToList()">← Back</button>
+			<div class="header-content">
+				<h1>{ session.Title }</h1>
+				<p class="session-subtitle">{ session.Description }</p>
+			</div>
+		</header>
+
+		<main class="session-detail-main">
+			<!-- Session info bar -->
+			<div class="info-bar">
+				<div class="info-item">
+					<span class="label">Status:</span>
+					<span class="value">{ session.Status }</span>
+				</div>
+				<div class="info-item">
+					<span class="label">Language:</span>
+					<span class="value">{ session.Language }</span>
+				</div>
+				<div class="info-item">
+					<span class="label">Created:</span>
+					<span class="value">{ session.CreatedAt.Format("Jan 2 15:04") }</span>
+				</div>
+				<div class="info-item">
+					<span class="label">Last Accessed:</span>
+					<span class="value">{ session.LastAccessedAt.Format("Jan 2 15:04") }</span>
+				</div>
+			</div>
+
+			<!-- Mode tabs -->
+			<div class="mode-tabs">
+				<button class="tab-button active" data-mode="preview" onclick="switchMode('preview')">
+					🔍 Preview
+				</button>
+				<button class="tab-button" data-mode="skim" onclick="switchMode('skim')">
+					📄 Skim
+				</button>
+				<button class="tab-button" data-mode="scan" onclick="switchMode('scan')">
+					🔎 Scan
+				</button>
+				<button class="tab-button" data-mode="detailed" onclick="switchMode('detailed')">
+					📋 Detailed
+				</button>
+				<button class="tab-button" data-mode="critical" onclick="switchMode('critical')">
+					⚡ Critical
+				</button>
+			</div>
+
+			<!-- Mode content areas -->
+			for mode, modeState := range session.ModeStates {
+				<div class="mode-content" data-mode={ mode } style={ templ.SafeCSS("display", func() string { if mode == "preview" { return "block" } else { return "none" } }()) }>
+					@ModeStateView(mode, modeState)
+				</div>
+			}
+
+			<!-- Session history section -->
+			<div class="history-section">
+				<h2>Session History</h2>
+				<button id="view-history-btn" class="btn-secondary" onclick="viewHistory({ fmt.Sprintf("%d", session.ID) })">
+					📊 View Full History
+				</button>
+			</div>
+		</main>
+	</div>
+}
+
+// ModeStateView renders the state and results for a specific mode.
+templ ModeStateView(mode string, state review_models.ModeState) {
+	<div class="mode-state">
+		<div class="mode-status">
+			<div class="status-line">
+				<span class="label">Status:</span>
+				<span class={ "status-badge", state.Status }>{ state.Status }</span>
+			</div>
+			if state.IsCompleted {
+				<div class="status-line">
+					<span class="label">✓ Completed</span>
+				</div>
+			}
+			if state.QualityScore > 0 {
+				<div class="status-line">
+					<span class="label">Quality Score:</span>
+					<span class="quality-score">{ fmt.Sprintf("%d/100", state.QualityScore) }</span>
+				</div>
+			}
+			if state.IssuesFound > 0 {
+				<div class="status-line">
+					<span class="label">Issues Found:</span>
+					<span class="issue-count">{ fmt.Sprintf("%d", state.IssuesFound) }</span>
+				</div>
+			}
+		</div>
+
+		if state.UserNotes != "" {
+			<div class="mode-notes">
+				<h4>Notes</h4>
+				<p>{ state.UserNotes }</p>
+			</div>
+		}
+
+		if state.LastError != "" {
+			<div class="mode-error">
+				<h4>⚠️ Error</h4>
+				<p>{ state.LastError }</p>
+			</div>
+		}
+
+		<div class="mode-actions">
+			<button class="btn-secondary" onclick={ templ.SafeURL(fmt.Sprintf("runMode('%s', %d)", mode, state.ResultID)) }>
+				▶️ Run { strings.Title(mode) }
+			</button>
+			<button class="btn-secondary" onclick={ templ.SafeURL(fmt.Sprintf("addNote('%s', %d)", mode, state.ResultID)) }>
+				📝 Add Note
+			</button>
+		</div>
+	</div>
+}
+
+// SessionHistory renders the audit trail for a session.
+templ SessionHistory(history []*review_models.SessionHistory) {
+	<div class="history-container">
+		<header class="history-header">
+			<button class="btn-back" onclick="backToDetail()">← Back</button>
+			<h1>Session History</h1>
+		</header>
+
+		<main class="history-main">
+			if len(history) == 0 {
+				<div class="empty-state">
+					<p>No history available</p>
+				</div>
+			} else {
+				<div class="history-timeline">
+					for _, entry := range history {
+						@HistoryEntry(entry)
+					}
+				</div>
+			}
+		</main>
+	</div>
+}
+
+// HistoryEntry renders a single history entry.
+templ HistoryEntry(entry *review_models.SessionHistory) {
+	<div class="history-entry">
+		<div class="entry-time">
+			<span class="timestamp">{ entry.CreatedAt.Format("15:04:05") }</span>
+			<span class="date">{ entry.CreatedAt.Format("Jan 2") }</span>
+		</div>
+		<div class="entry-content">
+			<div class="action-badge">{ entry.Action }</div>
+			<p class="action-description">{ entry.ChangeSummary }</p>
+			if entry.ActedByID > 0 {
+				<p class="actor-info">by User #{ fmt.Sprintf("%d", entry.ActedByID) }</p>
+			}
+		</div>
+	</div>
+}

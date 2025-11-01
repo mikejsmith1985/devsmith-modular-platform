@@ -299,7 +299,7 @@ func TestUIHandler_DashboardHandler_ValidHTML(t *testing.T) {
 	assert.Contains(t, bodyLower, "</html>")
 	assert.Contains(t, bodyLower, "<head>")
 	assert.Contains(t, bodyLower, "</head>")
-	assert.Contains(t, bodyLower, "<body")  // Use <body without exact closing to match <body class="...">
+	assert.Contains(t, bodyLower, "<body") // Use <body without exact closing to match <body class="...">
 	assert.Contains(t, bodyLower, "</body>")
 
 	// Check tags are properly closed
