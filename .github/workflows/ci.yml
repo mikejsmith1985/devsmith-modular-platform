@@ -160,8 +160,14 @@ jobs:
 
       - name: Start services with docker-compose
         run: |
+          echo "Docker version:"
+          docker --version
+          echo "Docker-compose version:"
+          docker-compose --version 2>&1 || (echo "docker-compose not found, trying docker compose"; docker compose version)
+          
+          echo "Starting services..."
           docker-compose up -d
-          echo "Waiting for services to be healthy..."
+          sleep 5  # Give services a moment to start before health checking
 
       - name: Wait for services to be ready
         run: |

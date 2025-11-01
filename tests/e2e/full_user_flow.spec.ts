@@ -9,6 +9,9 @@ import { test, expect } from '@playwright/test';
  * - Services: Portal (8080), Review (8081), Logs (8082), Analytics (8083)
  */
 
+// Increase test timeout for CI environments where docker-compose startup is slow
+test.setTimeout(60000);
+
 test.describe('DevSmith Platform - Complete User Flow', () => {
     
      // Test Portal landing and health
