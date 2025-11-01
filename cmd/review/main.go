@@ -162,6 +162,11 @@ func main() {
 	// HTMX session endpoints (Phase 11.5)
 	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)     // List sessions for sidebar
 	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX) // Search sessions
+	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)  // Get session detail
+	router.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)     // Resume session
+	router.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX) // Duplicate session
+	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)   // Archive session
+	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)          // Delete session
 
 	port := os.Getenv("PORT")
 	if port == "" {
