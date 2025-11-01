@@ -16,10 +16,10 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U devsmith -d devsmith"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 10s
+      start_period: 8s
   nginx:
     build:
       context: ./docker/nginx
@@ -72,10 +72,10 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
   review:
     build:
       context: .
@@ -99,10 +99,10 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
   logs:
     build:
       context: .
@@ -122,10 +122,10 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
   analytics:
     build:
       context: .
@@ -146,10 +146,10 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
 
   maildev:
     image: maildev/maildev:latest
@@ -160,10 +160,10 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:1080/" ]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 3
-      start_period: 10s
+      start_period: 8s
 
 
 networks:

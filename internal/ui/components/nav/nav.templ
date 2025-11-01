@@ -54,21 +54,10 @@ templ Navigation(props NavProps) {
 				<!-- User Menu -->
 				<div class="flex items-center gap-4">
 					<!-- Dark Mode Toggle (Alpine.js) -->
-					<div 
-						x-data="{
-							dark: localStorage.getItem('darkMode') === 'true' || 
-								  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches)
-						}"
-						x-init="
-							$watch('dark', val => {
-								document.documentElement.classList.toggle('dark', val);
-								localStorage.setItem('darkMode', val);
-							});
-							document.documentElement.classList.toggle('dark', dark);
-						">
+					<div x-data="darkModeStore()" x-init="initDarkMode()">
 						<button
 							type="button"
-							@click="dark = !dark"
+							@click="toggleDark()"
 							class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 							:aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'"
 							:title="dark ? 'Switch to light mode' : 'Switch to dark mode'"

@@ -46,7 +46,7 @@ func Layout(title string, user *DashboardUser) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - DevSmith</title><script src=\"https://cdn.tailwindcss.com\"></script><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><link rel=\"stylesheet\" href=\"/static/dashboard.css\"><style>\n\t\t\t/* Prevent layout shift when scrollbar appears */\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\t\t\t\n\t\t\t/* Smooth transitions for theme changes */\n\t\t\t* {\n\t\t\t\t@apply transition-colors duration-200;\n\t\t\t}\n\t\t</style></head><body class=\"bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50\"><!-- Navigation -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - DevSmith</title><script src=\"https://cdn.tailwindcss.com\"></script><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><link rel=\"stylesheet\" href=\"/static/dashboard.css\"><style>\n\t\t\t/* Prevent layout shift when scrollbar appears */\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\t\t\t\n\t\t\t/* Smooth transitions for theme changes */\n\t\t\t* {\n\t\t\t\t@apply transition-colors duration-200;\n\t\t\t}\n\n\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t[x-cloak] { display: none !important; }\n\t\t</style><script>\n\t\t\t// Alpine.js Dark Mode Store\n\t\t\tfunction darkModeStore() {\n\t\t\t\treturn {\n\t\t\t\t\tdark: localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches),\n\t\t\t\t\ttoggleDark() {\n\t\t\t\t\t\tthis.dark = !this.dark;\n\t\t\t\t\t\tthis.updateDOM();\n\t\t\t\t\t},\n\t\t\t\t\tupdateDOM() {\n\t\t\t\t\t\tdocument.documentElement.classList.toggle('dark', this.dark);\n\t\t\t\t\t\tlocalStorage.setItem('darkMode', this.dark ? 'true' : 'false');\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\t\t\t\n\t\t\tfunction initDarkMode() {\n\t\t\t\t// Initialize on mount\n\t\t\t\tconst isDark = localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);\n\t\t\t\tdocument.documentElement.classList.toggle('dark', isDark);\n\t\t\t}\n\t\t</script></head><body class=\"bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50\"><!-- Navigation -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -106,13 +106,13 @@ func LayoutWithoutNav(title string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 66, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 93, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " - DevSmith</title><script src=\"https://cdn.tailwindcss.com\"></script><style>\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\t\t\t\n\t\t\t* {\n\t\t\t\t@apply transition-colors duration-200;\n\t\t\t}\n\t\t</style></head><body class=\"bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " - DevSmith</title><script src=\"https://cdn.tailwindcss.com\"></script><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\t\t\t\n\t\t\t* {\n\t\t\t\t@apply transition-colors duration-200;\n\t\t\t}\n\n\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t[x-cloak] { display: none !important; }\n\t\t</style></head><body class=\"bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

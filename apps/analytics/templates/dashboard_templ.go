@@ -53,7 +53,7 @@ func Dashboard() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></header><main class=\"analytics-main\"><div class=\"dashboard-grid\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></header><main class=\"analytics-main\"><div id=\"analytics-content\" class=\"dashboard-grid\" hx-get=\"/api/analytics/content\" hx-trigger=\"load\" hx-include=\"[name='time_range']\" hx-indicator=\"#analytics-loading\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -69,7 +69,7 @@ func Dashboard() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></main></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><!-- Loading indicator --><div id=\"analytics-loading\" class=\"htmx-indicator mt-4 flex items-center justify-center gap-2 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg\"><span class=\"loading loading-spinner loading-sm text-blue-600 dark:text-blue-400\"></span> <span class=\"text-sm text-blue-900 dark:text-blue-100\">Updating analytics...</span></div></main></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -104,7 +104,7 @@ func TimeRangeSelector() templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"time-range-selector\"><label for=\"time-range\">Time Range:</label> <select id=\"time-range\" name=\"time_range\"><option value=\"24h\" selected>Last 24 Hours</option> <option value=\"7d\">Last 7 Days</option> <option value=\"30d\">Last 30 Days</option></select></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"time-range-selector\"><label for=\"time-range\">Time Range:</label> <select id=\"time-range\" name=\"time_range\" hx-get=\"/api/analytics/dashboard\" hx-target=\"#analytics-content\" hx-swap=\"innerHTML\" hx-trigger=\"change\" hx-indicator=\"#analytics-loading\"><option value=\"24h\" selected>Last 24 Hours</option> <option value=\"7d\">Last 7 Days</option> <option value=\"30d\">Last 30 Days</option></select></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -133,7 +133,7 @@ func ExportButton() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"export-controls\"><button id=\"export-csv\" class=\"btn-export\">Export CSV</button> <button id=\"export-json\" class=\"btn-export\">Export JSON</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"export-controls\"><button id=\"export-csv\" class=\"btn-export\" hx-get=\"/api/analytics/export\" hx-vals='{\"format\":\"csv\"}' hx-target=\"body\" hx-swap=\"none\" onclick=\"handleExport(event)\">Export CSV</button> <button id=\"export-json\" class=\"btn-export\" hx-get=\"/api/analytics/export\" hx-vals='{\"format\":\"json\"}' hx-target=\"body\" hx-swap=\"none\" onclick=\"handleExport(event)\">Export JSON</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -220,7 +220,7 @@ func TopIssuesSection() templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<section class=\"issues-section card\"><h2>Top Issues</h2><div class=\"issues-filters\"><select id=\"issues-level\"><option value=\"all\">All Levels</option> <option value=\"error\">Errors Only</option> <option value=\"warn\">Warnings Only</option></select></div><div id=\"issues-container\"><div class=\"loading\">Loading top issues...</div></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<section class=\"issues-section card\"><h2>Top Issues</h2><div class=\"issues-filters\"><select id=\"issues-level\" name=\"level\" hx-get=\"/api/analytics/issues\" hx-target=\"#issues-container\" hx-swap=\"innerHTML\" hx-trigger=\"change\" hx-include=\"[name='time_range']\" hx-indicator=\"#analytics-loading\"><option value=\"all\">All Levels</option> <option value=\"error\">Errors Only</option> <option value=\"warn\">Warnings Only</option></select></div><div id=\"issues-container\"><div class=\"loading\">Loading top issues...</div></div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

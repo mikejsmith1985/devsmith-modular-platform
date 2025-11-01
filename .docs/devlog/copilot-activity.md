@@ -3952,3 +3952,32 @@ This is TDD in action - tests expose actual problems before code reaches product
 
 ---
 
+
+## 2025-11-01 14:35 - add database migration runner to logs service startup
+**Branch:** development
+**Files Changed:**  2 files changed, 161 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+- `cmd/logs/main.go`
+
+**Action:** add database migration runner to logs service startup
+
+**Commit:** `51a992d`
+
+**Commit Message:**
+```
+fix(logs): add database migration runner to logs service startup
+```
+
+**Details:**
+```
+- Add runMigrations function that executes health_policies table creation
+- Called during service initialization after database connection verified
+- Uses CREATE TABLE IF NOT EXISTS for idempotent migrations
+- Logs successful completion
+
+This fixes the 'relation logs.health_policies does not exist' error that was
+causing logs service to crash on startup.
+```
+
+---
+
