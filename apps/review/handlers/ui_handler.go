@@ -1,9 +1,7 @@
 package review_handlers
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -58,55 +56,480 @@ func (h *UIHandler) AnalysisResultHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "analysis.html", data)
 }
 
-// CreateSessionHandler handles session creation from the UI form
+// CreateSessionHandler handles POST /api/review/sessions (HTMX form submission)
 func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
-	correlationID := c.Request.Context().Value("correlation_id")
-	h.logger.Info("CreateSessionHandler called", "correlation_id", correlationID)
-
-	// Parse form data
 	var req struct {
 		PastedCode string `form:"pasted_code" json:"pasted_code"`
 		GitHubURL  string `form:"github_url" json:"github_url"`
-		Title      string `form:"title" json:"title"`
+		File       string `form:"file" json:"file"`
 	}
 
+	// Parse form data
 	if err := c.ShouldBind(&req); err != nil {
-		h.logger.Error("Failed to bind session creation request", "error", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		h.logger.Error("Failed to parse form", "error", err)
+		c.String(http.StatusBadRequest, `<div class="alert alert-error"><p>Invalid form submission</p></div>`)
 		return
 	}
 
-	// Validate that at least one input method is provided
-	if req.PastedCode == "" && req.GitHubURL == "" {
-		h.logger.Warn("Session creation request missing code or URL", "correlation_id", correlationID)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Either pasted_code or github_url is required"})
+	// Validate at least one input
+	if req.PastedCode == "" && req.GitHubURL == "" && req.File == "" {
+		c.String(http.StatusBadRequest, `<div class="alert alert-error"><p>Please provide code, GitHub URL, or upload a file</p></div>`)
 		return
 	}
 
 	// Generate session ID
 	sessionID := uuid.New().String()
+	h.logger.Info("Session created", "session_id", sessionID, "source", "form")
 
-	h.logger.Info("Session created successfully", "correlation_id", correlationID, "session_id", sessionID)
+	// Return HTML with SSE progress indicator
+	progressHTML := fmt.Sprintf(`
+<div class="mt-8 space-y-4">
+	<div class="alert alert-info">
+		<p>Session %s created. Starting analysis...</p>
+	</div>
+	<div id="progress-stream" hx-sse="connect:/api/review/sessions/%s/progress" class="mt-4">
+		<div class="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
+			<span class="loading loading-spinner loading-sm text-blue-600 dark:text-blue-400"></span>
+			<span class="text-sm text-blue-900 dark:text-blue-100">Analyzing your code...</span>
+		</div>
+	</div>
+</div>
+`, sessionID, sessionID)
 
-	// Send a lightweight log event to the Logs service if a client is configured.
-	if h.logClient != nil {
-		// Best-effort: do not block the request path
-		go func(ctx context.Context, sid string) {
-			if err := h.logClient.Post(ctx, map[string]interface{}{
-				"service": "review",
-				"event":   "session_created",
-				"session": sid,
-				"time":    time.Now().UTC().Format(time.RFC3339),
-			}); err != nil {
-				log.Printf("warning: failed to post session_created event: %v", err)
-			}
-		}(c.Request.Context(), sessionID)
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, progressHTML)
+}
+
+// HandlePreviewMode handles POST /api/review/modes/preview (HTMX)
+func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
 	}
-	// Return session info (for now, just the ID)
-	c.JSON(http.StatusCreated, gin.H{
-		"session_id": sessionID,
-		"message":    "Session created successfully",
-	})
+
+	// Try JSON binding first, then form
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Return preview result component (for now, simple HTML)
+	html := `
+	<section class="card">
+		<h3 class="text-xl font-bold mb-4">👁️ Preview Mode Results</h3>
+		<div class="space-y-4">
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">File Tree</h4>
+				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+					<li>main.go</li>
+					<li>utils.go</li>
+					<li>handlers/</li>
+					<li>services/</li>
+				</ul>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Bounded Contexts</h4>
+				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+					<li>Core Logic</li>
+					<li>API Layer</li>
+					<li>Data Access</li>
+				</ul>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Tech Stack</h4>
+				<div class="flex gap-2 flex-wrap">
+					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">Go</span>
+					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">PostgreSQL</span>
+					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">Gin</span>
+				</div>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Architecture Pattern</h4>
+				<p class="text-sm text-gray-600 dark:text-gray-400">Layered Architecture</p>
+			</div>
+			<div>
+				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Summary</h4>
+				<p class="text-sm text-gray-600 dark:text-gray-400">Backend service with clean layering</p>
+			</div>
+		</div>
+	</section>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// HandleSkimMode handles POST /api/review/modes/skim (HTMX)
+func (h *UIHandler) HandleSkimMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Skim mode analysis in progress...</p>")
+}
+
+// HandleScanMode handles POST /api/review/modes/scan (HTMX)
+func (h *UIHandler) HandleScanMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Scan mode analysis in progress...</p>")
+}
+
+// HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
+func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Detailed mode analysis in progress...</p>")
+}
+
+// HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
+func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return
+	}
+
+	// Placeholder response
+	c.String(http.StatusOK, "<p>Critical mode analysis in progress...</p>")
+}
+
+// ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)
+func (h *UIHandler) ListSessionsHTMX(c *gin.Context) {
+	// For now, return placeholder HTML with mock sessions
+	// In production, this would fetch from SessionHandler via internal API
+	html := `
+	<div class="space-y-2">
+		<div class="p-3 rounded-lg border border-indigo-400 bg-indigo-50 dark:bg-indigo-900 dark:border-indigo-600 cursor-pointer">
+			<div class="flex items-start justify-between">
+				<div class="flex-1 min-w-0">
+					<h4 class="text-sm font-medium truncate text-indigo-900 dark:text-indigo-200">Latest Session</h4>
+					<p class="text-xs truncate text-indigo-700 dark:text-indigo-300">2025-11-01 10:30:00</p>
+				</div>
+				<span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">active</span>
+			</div>
+			<div class="mt-2 flex items-center justify-between">
+				<span class="text-xs text-gray-500 dark:text-gray-400">2 modes</span>
+				<button class="text-xs text-red-600 dark:text-red-400 hover:text-red-800">🗑️</button>
+			</div>
+		</div>
+		<div class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer">
+			<div class="flex items-start justify-between">
+				<div class="flex-1 min-w-0">
+					<h4 class="text-sm font-medium truncate text-gray-900 dark:text-white">Review Session 2</h4>
+					<p class="text-xs truncate text-gray-600 dark:text-gray-400">2025-10-31 15:45:00</p>
+				</div>
+				<span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">completed</span>
+			</div>
+			<div class="mt-2 flex items-center justify-between">
+				<span class="text-xs text-gray-500 dark:text-gray-400">5 modes</span>
+				<button class="text-xs text-red-600 dark:text-red-400 hover:text-red-800">🗑️</button>
+			</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// SearchSessionsHTMX handles GET /api/review/sessions/search (HTMX)
+func (h *UIHandler) SearchSessionsHTMX(c *gin.Context) {
+	query := c.Query("query")
+	h.logger.Info("Searching sessions", "query", query)
+
+	// Placeholder: return filtered results
+	if query == "" {
+		// Return all sessions
+		c.Redirect(http.StatusMovedPermanently, "/api/review/sessions/list")
+		return
+	}
+
+	html := `
+	<div class="space-y-2">
+		<div class="p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer">
+			<div class="flex items-start justify-between">
+				<div class="flex-1 min-w-0">
+					<h4 class="text-sm font-medium truncate text-gray-900 dark:text-white">Matching: ` + query + `</h4>
+					<p class="text-xs truncate text-gray-600 dark:text-gray-400">2025-10-30 12:00:00</p>
+				</div>
+				<span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">completed</span>
+			</div>
+			<div class="mt-2 flex items-center justify-between">
+				<span class="text-xs text-gray-500 dark:text-gray-400">3 modes</span>
+				<button class="text-xs text-red-600 dark:text-red-400 hover:text-red-800">🗑️</button>
+			</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// GetSessionDetailHTMX handles GET /api/review/sessions/:id (HTMX)
+func (h *UIHandler) GetSessionDetailHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Loading session detail", "session_id", sessionID)
+
+	// Placeholder: return session detail view
+	html := `
+	<div class="w-full lg:flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+		<div class="flex items-start justify-between mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+			<div class="flex-1">
+				<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Session ` + sessionID + `</h2>
+				<div class="mt-2 flex items-center gap-4">
+					<span class="px-3 py-1 rounded-lg text-sm font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">active</span>
+					<span class="text-sm text-gray-600 dark:text-gray-400">Created: 2025-11-01 10:30:00</span>
+				</div>
+			</div>
+			<button class="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 dark:hover:bg-red-800 transition-colors text-sm" onclick="if(confirm('Delete this session?')) { htmx.ajax('DELETE', '/api/review/sessions/` + sessionID + `', {target:'#session-detail', swap:'innerHTML'}) }">🗑️ Delete</button>
+		</div>
+
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+			<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+				<div class="text-sm font-medium text-indigo-600 dark:text-indigo-300">Reading Modes Used</div>
+				<div class="mt-2 text-2xl font-bold text-indigo-900 dark:text-indigo-100">2</div>
+			</div>
+			<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+				<div class="text-sm font-medium text-green-600 dark:text-green-300">Created</div>
+				<div class="mt-2 text-sm text-green-900 dark:text-green-100">2025-11-01 10:30:00</div>
+			</div>
+			<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
+				<div class="text-sm font-medium text-blue-600 dark:text-blue-300">Last Updated</div>
+				<div class="mt-2 text-sm text-blue-900 dark:text-blue-100">2025-11-01 10:45:00</div>
+			</div>
+		</div>
+
+		<div class="space-y-4">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Actions</h3>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<button class="px-4 py-3 rounded-lg font-medium bg-indigo-600 text-white hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors text-sm">▶️ Resume Session</button>
+				<button class="px-4 py-3 rounded-lg font-medium bg-gray-600 text-white hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors text-sm">⬇️ Export Session</button>
+				<button class="px-4 py-3 rounded-lg font-medium bg-purple-600 text-white hover:bg-purple-700 dark:hover:bg-purple-800 transition-colors text-sm">📋 Duplicate</button>
+				<button class="px-4 py-3 rounded-lg font-medium border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">📁 Archive</button>
+			</div>
+		</div>
+
+		<div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Mode History</h3>
+			<div class="space-y-3">
+				<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+					<div class="flex items-center justify-between">
+						<span class="text-sm font-medium text-gray-900 dark:text-white">👁️ Preview Mode</span>
+						<span class="text-xs text-gray-500 dark:text-gray-400">10:15 AM</span>
+					</div>
+					<p class="mt-1 text-xs text-gray-600 dark:text-gray-400">Analyzed project structure</p>
+				</div>
+				<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+					<div class="flex items-center justify-between">
+						<span class="text-sm font-medium text-gray-900 dark:text-white">🔎 Scan Mode</span>
+						<span class="text-xs text-gray-500 dark:text-gray-400">10:20 AM</span>
+					</div>
+					<p class="mt-1 text-xs text-gray-600 dark:text-gray-400">Searched for error handling</p>
+				</div>
+			</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// ResumeSessionHTMX handles POST /api/review/sessions/:id/resume (HTMX)
+func (h *UIHandler) ResumeSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Resuming session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-success">
+		<p class="text-green-700 dark:text-green-300">✓ Session resumed successfully. Continuing from where you left off...</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// DuplicateSessionHTMX handles POST /api/review/sessions/:id/duplicate (HTMX)
+func (h *UIHandler) DuplicateSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Duplicating session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-success">
+		<p class="text-green-700 dark:text-green-300">✓ Session duplicated successfully. Switched to new session.</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// ArchiveSessionHTMX handles POST /api/review/sessions/:id/archive (HTMX)
+func (h *UIHandler) ArchiveSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Archiving session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-success">
+		<p class="text-green-700 dark:text-green-300">✓ Session archived successfully.</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// DeleteSessionHTMX handles DELETE /api/review/sessions/:id (HTMX)
+func (h *UIHandler) DeleteSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Deleting session", "session_id", sessionID)
+
+	html := `
+	<div class="alert alert-info">
+		<p class="text-blue-700 dark:text-blue-300">Session deleted. Returning to session list...</p>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// GetSessionStatsHTMX handles GET /api/review/sessions/:id/stats (HTMX)
+func (h *UIHandler) GetSessionStatsHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Loading session statistics", "session_id", sessionID)
+
+	// Return statistics grid HTML
+	html := `
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+		<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+			<div class="text-sm font-medium text-indigo-600 dark:text-indigo-300">Reading Modes</div>
+			<div class="mt-2 text-3xl font-bold text-indigo-900 dark:text-indigo-100">5</div>
+			<p class="mt-1 text-xs text-indigo-700 dark:text-indigo-400">modes used in analysis</p>
+		</div>
+		<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+			<div class="text-sm font-medium text-green-600 dark:text-green-300">Code Analyzed</div>
+			<div class="mt-2 text-3xl font-bold text-green-900 dark:text-green-100">2,847</div>
+			<p class="mt-1 text-xs text-green-700 dark:text-green-400">lines of code</p>
+		</div>
+		<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
+			<div class="text-sm font-medium text-blue-600 dark:text-blue-300">Analysis Time</div>
+			<div class="mt-2 text-3xl font-bold text-blue-900 dark:text-blue-100">3,245ms</div>
+			<p class="mt-1 text-xs text-blue-700 dark:text-blue-400">total time spent</p>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// GetSessionMetadataHTMX handles GET /api/review/sessions/:id/metadata (HTMX)
+func (h *UIHandler) GetSessionMetadataHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Loading session metadata", "session_id", sessionID)
+
+	// Return metadata grid HTML
+	html := `
+	<div class="grid grid-cols-2 gap-4">
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Created</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">2025-11-01 10:30:00</div>
+		</div>
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Last Updated</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">2025-11-01 10:45:00</div>
+		</div>
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">File Size</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">85.3 KB</div>
+		</div>
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Languages</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">Go, SQL, YAML</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// ExportSessionHTMX handles GET /api/review/sessions/:id/export (HTMX)
+func (h *UIHandler) ExportSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	format := c.DefaultQuery("format", "json")
+	h.logger.Info("Exporting session", "session_id", sessionID, "format", format)
+
+	if format == "json" {
+		c.Header("Content-Type", "application/json")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=session-%s.json", sessionID))
+		c.JSON(http.StatusOK, gin.H{
+			"session_id": sessionID,
+			"exported":   "2025-11-01T10:50:00Z",
+			"data": gin.H{
+				"modes_used": 5,
+				"code_lines": 2847,
+				"analysis_time_ms": 3245,
+			},
+		})
+	} else {
+		c.Header("Content-Type", "text/csv")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=session-%s.csv", sessionID))
+		c.String(http.StatusOK, "session_id,modes_used,code_lines,analysis_time_ms\n"+sessionID+",5,2847,3245\n")
+	}
 }
 
 // SessionProgressSSE streams progress updates for a given session via SSE.
