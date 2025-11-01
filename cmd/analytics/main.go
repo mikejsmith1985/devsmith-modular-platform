@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -74,14 +73,6 @@ func main() {
 
 	// Serve static files (CSS, JS)
 	router.Static("/static", "./apps/analytics/static")
-
-	// Health endpoint for nginx and orchestration
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "healthy",
-			"service": "analytics",
-		})
-	})
 
 	// Register API routes
 	apiHandler.RegisterRoutes(router)

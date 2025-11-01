@@ -53,6 +53,17 @@ templ Navigation(props NavProps) {
 
 				<!-- User Menu -->
 				<div class="flex items-center gap-4">
+					<!-- Dark Mode Toggle -->
+					<button
+						type="button"
+						id="dark-mode-toggle"
+						class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+						aria-label="Toggle dark mode"
+						title="Toggle dark mode"
+					>
+						<span class="dark:hidden">🌙</span>
+						<span class="hidden dark:block">☀️</span>
+					</button>
 					if props.CurrentUser != nil {
 						<div class="hidden sm:flex items-center gap-3">
 							<img src={ props.CurrentUser.AvatarURL } alt={ props.CurrentUser.Username } class="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"/>
