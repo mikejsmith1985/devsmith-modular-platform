@@ -46,6 +46,27 @@ func NewUIHandler(
 	}
 }
 
+// bindCodeRequest binds code from JSON or form data
+func (h *UIHandler) bindCodeRequest(c *gin.Context) (string, bool) {
+	var req struct {
+		Code string `form:"pasted_code" json:"code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBind(&req); err != nil {
+			c.String(http.StatusBadRequest, "Code required")
+			return "", false
+		}
+	}
+
+	if req.Code == "" {
+		c.String(http.StatusBadRequest, "Code required")
+		return "", false
+	}
+
+	return req.Code, true
+}
+
 // HomeHandler serves the main Review UI (mode selector + repo input)
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
@@ -125,30 +146,18 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 
 // HandlePreviewMode handles POST /api/review/modes/preview (HTMX)
 func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
-	var req struct {
-		Code string `form:"pasted_code" json:"code"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if err := c.ShouldBind(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return
-		}
-	}
-
-	if req.Code == "" {
-		c.String(http.StatusBadRequest, "Code required")
+	code, ok := h.bindCodeRequest(c)
+	if !ok {
 		return
 	}
 
-	// Call Preview service for analysis
 	if h.previewService == nil {
 		h.logger.Warn("Preview service not initialized")
 		c.String(http.StatusServiceUnavailable, "Preview service unavailable")
 		return
 	}
 
-	result, err := h.previewService.AnalyzePreview(c.Request.Context(), req.Code)
+	result, err := h.previewService.AnalyzePreview(c.Request.Context(), code)
 	if err != nil {
 		h.logger.Error("Preview analysis failed", "error", err.Error())
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
@@ -157,10 +166,11 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 
 	resultJSON, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		h.logger.Error("Failed to marshal preview result", "error", err.Error())
+		h.logger.Error("Failed to marshal result", "error", err.Error())
 		c.String(http.StatusInternalServerError, "Failed to format analysis result")
 		return
 	}
+
 	html := fmt.Sprintf(`
 	<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
 		<h4 class="font-semibold text-indigo-900 dark:text-indigo-100">👁️ Preview Mode Analysis</h4>
@@ -173,19 +183,8 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 
 // HandleSkimMode handles POST /api/review/modes/skim (HTMX)
 func (h *UIHandler) HandleSkimMode(c *gin.Context) {
-	var req struct {
-		Code string `form:"pasted_code" json:"code"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if err := c.ShouldBind(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return
-		}
-	}
-
-	if req.Code == "" {
-		c.String(http.StatusBadRequest, "Code required")
+	code, ok := h.bindCodeRequest(c)
+	if !ok {
 		return
 	}
 
@@ -196,7 +195,7 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 	}
 
 	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.skimService.AnalyzeSkim(c.Request.Context(), 1, req.Code)
+	result, err := h.skimService.AnalyzeSkim(c.Request.Context(), 1, code)
 	if err != nil {
 		h.logger.Error("Skim analysis failed", "error", err.Error())
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
@@ -221,22 +220,12 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
 func (h *UIHandler) HandleScanMode(c *gin.Context) {
-	var req struct {
-		Code  string `form:"pasted_code" json:"code"`
-		Query string `form:"query" json:"query"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if err := c.ShouldBind(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return
-		}
-	}
-
-	if req.Code == "" {
-		c.String(http.StatusBadRequest, "Code required")
+	code, ok := h.bindCodeRequest(c)
+	if !ok {
 		return
 	}
+
+	query := c.DefaultQuery("query", "find issues and improvements")
 
 	if h.scanService == nil {
 		h.logger.Warn("Scan service not initialized")
@@ -244,13 +233,8 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	// Use dummy reviewID and default query if not provided
-	if req.Query == "" {
-		req.Query = "find issues and improvements"
-	}
-
 	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.scanService.AnalyzeScan(c.Request.Context(), 1, req.Code, req.Query)
+	result, err := h.scanService.AnalyzeScan(c.Request.Context(), 1, code, query)
 	if err != nil {
 		h.logger.Error("Scan analysis failed", "error", err.Error())
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
@@ -275,22 +259,12 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 
 // HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
 func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
-	var req struct {
-		Code     string `form:"pasted_code" json:"code"`
-		Filename string `form:"filename" json:"filename"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if err := c.ShouldBind(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return
-		}
-	}
-
-	if req.Code == "" {
-		c.String(http.StatusBadRequest, "Code required")
+	code, ok := h.bindCodeRequest(c)
+	if !ok {
 		return
 	}
+
+	filename := c.DefaultQuery("filename", "main.go")
 
 	if h.detailedService == nil {
 		h.logger.Warn("Detailed service not initialized")
@@ -298,13 +272,8 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	// Use default filename if not provided
-	if req.Filename == "" {
-		req.Filename = "main.go"
-	}
-
 	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.detailedService.AnalyzeDetailed(c.Request.Context(), 1, req.Code, req.Filename)
+	result, err := h.detailedService.AnalyzeDetailed(c.Request.Context(), 1, code, filename)
 	if err != nil {
 		h.logger.Error("Detailed analysis failed", "error", err.Error())
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
@@ -329,19 +298,8 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 
 // HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
 func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
-	var req struct {
-		Code string `form:"pasted_code" json:"code"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if err := c.ShouldBind(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return
-		}
-	}
-
-	if req.Code == "" {
-		c.String(http.StatusBadRequest, "Code required")
+	code, ok := h.bindCodeRequest(c)
+	if !ok {
 		return
 	}
 
@@ -352,7 +310,7 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 	}
 
 	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.criticalService.AnalyzeCritical(c.Request.Context(), 1, req.Code)
+	result, err := h.criticalService.AnalyzeCritical(c.Request.Context(), 1, code)
 	if err != nil {
 		h.logger.Error("Critical analysis failed", "error", err.Error())
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
