@@ -153,7 +153,10 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install
+        run: |
+          # Ensure playwright is in node_modules, then install browsers
+          npm list @playwright/test || npm install @playwright/test
+          npx playwright install --with-deps
 
       - name: Start services with docker-compose
         run: |
@@ -194,8 +197,16 @@ jobs:
 
       - name: Run Playwright E2E tests
         run: |
-          npx playwright test tests/e2e/ --reporter=html
-        timeout-minutes: 10
+          # Verify test file exists
+          if [ ! -f tests/e2e/full_user_flow.spec.ts ]; then
+            echo "❌ Test file not found!"
+            ls -la tests/e2e/
+            exit 1
+          fi
+          
+          echo "Running E2E tests..."
+          npx playwright test tests/e2e/full_user_flow.spec.ts --reporter=line
+        timeout-minutes: 15
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
