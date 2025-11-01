@@ -42,7 +42,7 @@ func TestOllamaClientAdapter_Generate_ValidPrompt(t *testing.T) {
 		// Note: With nil client, this will fail at client.Generate
 		// but it verifies the input validation passes
 		validPrompt := "Analyze this code"
-		
+
 		// The adapter should at least accept a valid prompt structure
 		assert.NotEmpty(t, validPrompt)
 	})
