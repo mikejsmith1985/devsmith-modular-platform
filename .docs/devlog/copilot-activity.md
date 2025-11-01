@@ -4069,3 +4069,36 @@ Default test credentials: testuser:devsmith
 
 ---
 
+
+## 2025-11-01 17:03 - fix(e2e): Use relative URLs in smoke tests to respect playwright baseURL config
+**Branch:** development
+**Files Changed:**  9 files changed, 41 insertions(+), 6 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `docker-compose.playwright.yml`
+- `playwright-report/data/24ac92823f71179292a904e45cce4bfe7e500005.webm`
+- `playwright-report/data/4ed744db64c808a60de13b69e25731af92f707c3.webm`
+- `playwright-report/data/5dd27bd6e73bdb1fba86231061616f02cacecedc.webm`
+- `playwright-report/data/7290c8ddc3eb43b6b3a406534e49fb33a113a5ca.webm`
+- `playwright-report/data/7a33d5db6370b6de345e990751aa1f1da65ad675.png`
+- `playwright-report/index.html`
+- `tests/e2e/smoke/ollama-integration/review-loads.spec.ts`
+
+**Action:** fix(e2e): Use relative URLs in smoke tests to respect playwright baseURL config
+
+**Commit:** `883ff4c`
+
+**Commit Message:**
+```
+fix(e2e): Use relative URLs in smoke tests to respect playwright baseURL config
+```
+
+**Details:**
+```
+- Changed page.goto() calls from hardcoded 'http://localhost:3000/review' to '/review'
+- This allows playwright.config.ts baseURL (with proper host detection) to be used
+- Enables tests to work in Docker with --network=host
+- Updated playwright.config.ts version to match project (v1.56.1-jammy image)
+```
+
+---
+
