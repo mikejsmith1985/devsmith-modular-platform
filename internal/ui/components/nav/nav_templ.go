@@ -68,7 +68,7 @@ func Navigation(props NavProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><!-- Mobile App Menu --><div class=\"md:hidden flex items-center gap-2\"><button type=\"button\" class=\"p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700\" data-app-menu aria-label=\"Toggle app menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16m-7 6h7\"></path></svg></button></div><!-- User Menu --><div class=\"flex items-center gap-4\"><!-- Dark Mode Toggle (Alpine.js) --><div x-data=\"darkModeStore()\" x-init=\"initDarkMode()\"><button type=\"button\" @click=\"toggleDark()\" class=\"p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors\" :aria-label=\"dark ? 'Switch to light mode' : 'Switch to dark mode'\" :title=\"dark ? 'Switch to light mode' : 'Switch to dark mode'\"><!-- Sun icon (show when dark mode active) --><svg x-show=\"dark\" x-cloak class=\"w-6 h-6\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z\"></path></svg><!-- Moon icon (show when light mode active) --><svg x-show=\"!dark\" x-cloak class=\"w-6 h-6\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z\"></path></svg></button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><!-- Mobile App Menu --><div class=\"md:hidden flex items-center gap-2\"><button type=\"button\" class=\"p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700\" data-app-menu aria-label=\"Toggle app menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16m-7 6h7\"></path></svg></button></div><!-- User Menu --><div class=\"flex items-center gap-4\"><!-- Dark Mode Toggle (Vanilla JS - Templ strips Alpine directives) --><button id=\"dark-mode-toggle\" type=\"button\" class=\"p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors\" aria-label=\"Toggle dark mode\" title=\"Toggle dark mode\"><!-- Sun icon (show when dark mode active) --><svg id=\"sun-icon\" style=\"display: none;\" class=\"w-6 h-6\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z\"></path></svg><!-- Moon icon (show when light mode active) --><svg id=\"moon-icon\" style=\"display: inline;\" class=\"w-6 h-6\" fill=\"currentColor\" viewBox=\"0 0 20 20\"><path d=\"M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z\"></path></svg></button><script>\n\t\t\t\t\t\t(function initDarkMode() {\n\t\t\t\t\t\t\tconst toggle = document.getElementById('dark-mode-toggle');\n\t\t\t\t\t\t\tconst sunIcon = document.getElementById('sun-icon');\n\t\t\t\t\t\t\tconst moonIcon = document.getElementById('moon-icon');\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\tfunction updateIcons() {\n\t\t\t\t\t\t\t\tconst isDark = document.documentElement.classList.contains('dark');\n\t\t\t\t\t\t\t\tsunIcon.style.display = isDark ? 'inline' : 'none';\n\t\t\t\t\t\t\t\tmoonIcon.style.display = isDark ? 'none' : 'inline';\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\tfunction toggleDark() {\n\t\t\t\t\t\t\t\tconst isDark = document.documentElement.classList.contains('dark');\n\t\t\t\t\t\t\t\tdocument.documentElement.classList.toggle('dark', !isDark);\n\t\t\t\t\t\t\t\tlocalStorage.setItem('darkMode', !isDark ? 'true' : 'false');\n\t\t\t\t\t\t\t\tupdateIcons();\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t// Set initial state from localStorage or system preference\n\t\t\t\t\t\t\tconst savedDark = localStorage.getItem('darkMode');\n\t\t\t\t\t\t\tconst prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;\n\t\t\t\t\t\t\tconst isDark = savedDark === 'true' || (savedDark === null && prefersDark);\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\tif (isDark) {\n\t\t\t\t\t\t\t\tdocument.documentElement.classList.add('dark');\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tdocument.documentElement.classList.remove('dark');\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\n\t\t\t\t\t\t\tupdateIcons();\n\t\t\t\t\t\t\ttoggle.addEventListener('click', toggleDark);\n\t\t\t\t\t\t})();\n\t\t\t\t\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -80,7 +80,7 @@ func Navigation(props NavProps) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(props.CurrentUser.AvatarURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 77, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 109, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -93,7 +93,7 @@ func Navigation(props NavProps) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.CurrentUser.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 77, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 109, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -106,7 +106,7 @@ func Navigation(props NavProps) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(props.CurrentUser.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 79, Col: 89}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 111, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -119,7 +119,7 @@ func Navigation(props NavProps) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(props.CurrentUser.Email)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 80, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 112, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -175,7 +175,7 @@ func navAppButton(name string, icon string, path string, currentPath string) tem
 		var templ_7745c5c3_Var8 templ.SafeURL
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/apps/" + path))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 104, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 136, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -201,7 +201,7 @@ func navAppButton(name string, icon string, path string, currentPath string) tem
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(icon)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 114, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 146, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -214,7 +214,7 @@ func navAppButton(name string, icon string, path string, currentPath string) tem
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 115, Col: 8}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/components/nav/nav.templ`, Line: 147, Col: 8}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {

@@ -4236,3 +4236,57 @@ Docker infrastructure remains in place for CI/CD integration when ready.
 
 ---
 
+
+## 2025-11-01 17:17 - debug(e2e): Identified root cause - Templ strips Alpine.js directive attributes
+**Branch:** development
+**Files Changed:**  11 files changed, 273 insertions(+), 19 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `playwright.config.ts`
+- `tests/e2e/debug-auth.spec.ts`
+- `tests/e2e/debug-cookie.spec.ts`
+- `tests/e2e/debug-dashboard.spec.ts`
+- `tests/e2e/debug-html-check.spec.ts`
+- `tests/e2e/debug-nav-real.spec.ts`
+- `tests/e2e/debug-nav.spec.ts`
+- `tests/e2e/debug-simple.spec.ts`
+- `tests/e2e/smoke/ui-rendering/dark-mode-toggle.spec.ts`
+- `tests/e2e/smoke/ui-rendering/portal-loads.spec.ts`
+
+**Action:** debug(e2e): Identified root cause - Templ strips Alpine.js directive attributes
+
+**Commit:** `4eec33a`
+
+**Commit Message:**
+```
+debug(e2e): Identified root cause - Templ strips Alpine.js directive attributes
+```
+
+**Details:**
+```
+FINDING:
+- Auth endpoint works correctly
+- Navigation renders on /dashboard when authenticated
+- BUT: Templ is stripping Alpine.js directives (x-data, x-init, @click)
+- Result: Dark mode toggle button exists but no interactivity
+
+TESTS NOW WORKING:
+- Basic page load: ✅ (244ms)
+- Auth flow: ✅ (250ms)
+- Navigation rendering: ✅
+- Alpine.js attributes: ❌ (stripped by Templ)
+
+ROOT CAUSE:
+Templ treats Alpine.js special attributes as unsafe and filters them.
+Attributes like x-data, x-init, @click are not in rendered HTML.
+
+SOLUTION:
+Need to either:
+1. Use templ.SafeString() for the attributes
+2. Use raw HTML generation for the Alpine.js components
+3. Use data-* attributes and JavaScript to simulate behavior
+
+Playwright tests are now reliable and executing properly locally!
+```
+
+---
+
