@@ -133,7 +133,7 @@ templ Navigation(props NavProps) {
 
 templ navAppButton(name string, icon string, path string, currentPath string) {
 	<a
-		href={ templ.SafeURL("/apps/" + path) }
+		href={ templ.SafeURL("/" + path) }
 		class={
 			"px-3 py-2 rounded-lg text-sm font-medium transition-colors " +
 			conditionalClass(path == currentPath,
