@@ -3747,3 +3747,75 @@ fix: resolve linting and formatting issues in review service
 
 ---
 
+
+## 2025-11-01 11:47 - wire Ollama services to UI handlers and fix docker networking
+**Branch:** development
+**Files Changed:**  5 files changed, 251 insertions(+), 63 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/handlers/ui_handler.go`
+- `cmd/review/main.go`
+- `docker-compose.yml`
+- `review`
+
+**Action:** wire Ollama services to UI handlers and fix docker networking
+
+**Commit:** `f708b6f`
+
+**Commit Message:**
+```
+fix(ollama-integration): wire Ollama services to UI handlers and fix docker networking
+```
+
+**Details:**
+```
+PROBLEM IDENTIFIED & FIXED:
+✅ Tests were catching the errors (compilation failures)
+✅ Mode handlers were returning placeholder HTML, not calling Ollama
+✅ Ollama endpoint was unreachable from containers (localhost vs host.docker.internal)
+✅ UIHandler didn't have access to services
+
+SOLUTIONS IMPLEMENTED:
+
+1. Docker Networking Fix (docker-compose.yml)
+   - Added OLLAMA_ENDPOINT=http://host.docker.internal:11434
+   - Added OLLAMA_MODEL=mistral:7b-instruct
+   - Containers now reach Ollama on host machine
+
+2. Service Wiring (cmd/review/main.go)
+   - Store service instances instead of discarding them
+   - Pass all 5 services to UIHandler constructor
+   - Wire PreviewService, SkimService, ScanService, DetailedService, CriticalService
+
+3. UIHandler Updates (apps/review/handlers/ui_handler.go)
+   - Added services as fields to UIHandler struct
+   - Updated NewUIHandler constructor with service parameters
+   - Implemented actual Ollama calls in mode handlers (not placeholders)
+   - Convert struct results to JSON for HTML display
+   - Added proper error handling and logging
+
+4. Service Calls Now Wire to Ollama:
+   - ✅ Preview Mode: Calls PreviewService.AnalyzePreview()
+   - ✅ Skim Mode: Calls SkimService.AnalyzeSkim()
+   - ✅ Scan Mode: Calls ScanService.AnalyzeScan()
+   - ✅ Detailed Mode: Calls DetailedService.AnalyzeDetailed()
+   - ✅ Critical Mode: Calls CriticalService.AnalyzeCritical()
+
+VERIFICATION:
+✅ All tests pass (23/23 in handlers package)
+✅ Build succeeds
+✅ Container starts healthy
+✅ Ollama health check: PASSED (was failing before)
+✅ All 5 mode handlers registered
+✅ Services initialized and wired
+
+Why Tests Caught This:
+- Go test suite executed during build
+- Type checking caught fmt.Sprintf format mismatches
+- Compilation errors prevented untested code from deploying
+- This is why TDD with proper testing is critical!
+
+Next: Test mode buttons in UI to verify Ollama analysis works end-to-end
+```
+
+---
+
