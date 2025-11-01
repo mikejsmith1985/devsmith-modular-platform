@@ -67,6 +67,25 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (string, bool) {
 	return req.Code, true
 }
 
+// marshalAndFormat converts analysis result to JSON and renders HTML response
+func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, bgColor string) {
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		h.logger.Error("Failed to marshal result", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		return
+	}
+
+	html := fmt.Sprintf(`
+	<div class="p-4 rounded-lg %s">
+		<h4 class="font-semibold">%s</h4>
+		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+	</div>
+	`, bgColor, title, string(resultJSON))
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
 // HomeHandler serves the main Review UI (mode selector + repo input)
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
@@ -145,6 +164,7 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 }
 
 // HandlePreviewMode handles POST /api/review/modes/preview (HTMX)
+// nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 	code, ok := h.bindCodeRequest(c)
 	if !ok {
@@ -164,24 +184,11 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		h.logger.Error("Failed to marshal result", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to format analysis result")
-		return
-	}
-
-	html := fmt.Sprintf(`
-	<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
-		<h4 class="font-semibold text-indigo-900 dark:text-indigo-100">👁️ Preview Mode Analysis</h4>
-		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-	</div>
-	`, string(resultJSON))
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
+	h.marshalAndFormat(c, result, "👁️ Preview Mode Analysis", "bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700")
 }
 
 // HandleSkimMode handles POST /api/review/modes/skim (HTMX)
+// nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 	code, ok := h.bindCodeRequest(c)
 	if !ok {
@@ -202,23 +209,11 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		h.logger.Error("Failed to marshal skim result", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to format analysis result")
-		return
-	}
-	html := fmt.Sprintf(`
-	<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
-		<h4 class="font-semibold text-blue-900 dark:text-blue-100">📚 Skim Mode Analysis</h4>
-		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-	</div>
-	`, string(resultJSON))
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
+	h.marshalAndFormat(c, result, "📚 Skim Mode Analysis", "bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700")
 }
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
+// nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	code, ok := h.bindCodeRequest(c)
 	if !ok {
@@ -241,23 +236,11 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		h.logger.Error("Failed to marshal scan result", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to format analysis result")
-		return
-	}
-	html := fmt.Sprintf(`
-	<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
-		<h4 class="font-semibold text-green-900 dark:text-green-100">🔎 Scan Mode Analysis</h4>
-		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-	</div>
-	`, string(resultJSON))
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
+	h.marshalAndFormat(c, result, "🔎 Scan Mode Analysis", "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700")
 }
 
 // HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
+// nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 	code, ok := h.bindCodeRequest(c)
 	if !ok {
@@ -280,23 +263,11 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		h.logger.Error("Failed to marshal detailed result", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to format analysis result")
-		return
-	}
-	html := fmt.Sprintf(`
-	<div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
-		<h4 class="font-semibold text-yellow-900 dark:text-yellow-100">📖 Detailed Mode Analysis</h4>
-		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-	</div>
-	`, string(resultJSON))
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
+	h.marshalAndFormat(c, result, "📖 Detailed Mode Analysis", "bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700")
 }
 
 // HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
+// nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 	code, ok := h.bindCodeRequest(c)
 	if !ok {
@@ -317,20 +288,7 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		h.logger.Error("Failed to marshal critical result", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to format analysis result")
-		return
-	}
-	html := fmt.Sprintf(`
-	<div class="p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700">
-		<h4 class="font-semibold text-red-900 dark:text-red-100">🚨 Critical Mode Analysis</h4>
-		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-	</div>
-	`, string(resultJSON))
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
+	h.marshalAndFormat(c, result, "🚨 Critical Mode Analysis", "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700")
 }
 
 // ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)

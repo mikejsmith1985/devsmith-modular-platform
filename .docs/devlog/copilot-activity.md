@@ -3845,3 +3845,30 @@ fix: properly handle json.MarshalIndent errors in mode handlers
 
 ---
 
+
+## 2025-11-01 11:52 - refactor: eliminate duplicate code in mode handlers with bindCodeRequest helper
+**Branch:** development
+**Files Changed:**  2 files changed, 68 insertions(+), 84 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/handlers/ui_handler.go`
+
+**Action:** refactor: eliminate duplicate code in mode handlers with bindCodeRequest helper
+
+**Commit:** `d223d0e`
+
+**Commit Message:**
+```
+refactor: eliminate duplicate code in mode handlers with bindCodeRequest helper
+```
+
+**Details:**
+```
+- Created bindCodeRequest helper to handle code binding from JSON/form
+- Replaced 50+ lines of duplicate request binding in all 5 mode handlers
+- Cleaner, DRY code that's easier to maintain
+- Fixes linting duplication warnings
+- No functional changes, 100% tests passing
+```
+
+---
+
