@@ -4493,3 +4493,43 @@ Documentation created: .docs/E2E-TESTING-FIXED.md
 
 ---
 
+
+## 2025-11-01 17:50 - Add logs and analytics filter tests - reveal what needs work
+**Branch:** development
+**Files Changed:**  3 files changed, 118 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+- `tests/e2e/smoke/full-suite/analytics-filters.spec.ts`
+- `tests/e2e/smoke/full-suite/logs-filters.spec.ts`
+
+**Action:** Add logs and analytics filter tests - reveal what needs work
+
+**Commit:** `38665ab`
+
+**Commit Message:**
+```
+test(smoke): Add logs and analytics filter tests - reveal what needs work
+```
+
+**Details:**
+```
+SMOKE TEST RESULTS:
+✅ 4/17 tests passing (logs and analytics basic loads)
+❌ 13/17 tests failing (filters not yet implemented)
+
+FINDINGS:
+- Logs dashboard: No filter controls (select elements missing)
+- Analytics dashboard: No filter controls (select elements missing)
+- Dark mode works on all services
+- Tests execute without hanging (good infrastructure)
+
+NEXT STEPS:
+- Implement filter controls in logs service
+- Implement filter controls in analytics service
+- Add HTMX attributes to filters
+- Wire filter endpoints
+
+STATUS: Ready for feature implementation - tests identify what needs building!
+```
+
+---
+
