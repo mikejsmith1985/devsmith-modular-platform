@@ -120,10 +120,11 @@ func main() {
 	ollamaAdapter := review_services.NewOllamaClientAdapter(ollamaClient)
 
 	// Wire up services (if needed for future handler expansion)
-	_ = review_services.NewSkimService(ollamaAdapter, analysisRepo, reviewLogger)
-	_ = review_services.NewScanService(ollamaAdapter, analysisRepo, reviewLogger)
-	_ = review_services.NewDetailedService(ollamaAdapter, analysisRepo, reviewLogger)
-	_ = review_services.NewPreviewService(reviewLogger)
+	previewService := review_services.NewPreviewService(reviewLogger)
+	skimService := review_services.NewSkimService(ollamaAdapter, analysisRepo, reviewLogger)
+	scanService := review_services.NewScanService(ollamaAdapter, analysisRepo, reviewLogger)
+	detailedService := review_services.NewDetailedService(ollamaAdapter, analysisRepo, reviewLogger)
+	criticalService := review_services.NewCriticalService(ollamaAdapter, analysisRepo, reviewLogger)
 
 	// Prepare logging client to send lightweight events to Logs service (optional)
 	var logClient *logging.Client
@@ -133,8 +134,8 @@ func main() {
 		logClient = nil
 	}
 
-	// Handler setup (UIHandler takes logger and optional logging client)
-	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient)
+	// Handler setup with services (UIHandler takes logger, logging client, and AI services)
+	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService)
 
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)

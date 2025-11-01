@@ -87,6 +87,8 @@ services:
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
+      - OLLAMA_ENDPOINT=http://host.docker.internal:11434
+      - OLLAMA_MODEL=mistral:7b-instruct
       - ENVIRONMENT=docker
     depends_on:
       postgres:

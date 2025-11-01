@@ -1,6 +1,7 @@
 package review_handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,18 +10,40 @@ import (
 	"github.com/google/uuid"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
 // UIHandler provides HTTP handlers for the Review UI with logging.
 type UIHandler struct {
-	logger    logger.Interface
-	logClient *logging.Client
+	logger          logger.Interface
+	logClient       *logging.Client
+	previewService  *review_services.PreviewService
+	skimService     *review_services.SkimService
+	scanService     *review_services.ScanService
+	detailedService *review_services.DetailedService
+	criticalService *review_services.CriticalService
 }
 
-// NewUIHandler creates a new UIHandler with the given logger and optional logging client.
-func NewUIHandler(logger logger.Interface, client *logging.Client) *UIHandler {
-	return &UIHandler{logger: logger, logClient: client}
+// NewUIHandler creates a new UIHandler with the given logger, logging client, and optional AI services.
+func NewUIHandler(
+	logger logger.Interface,
+	client *logging.Client,
+	previewService *review_services.PreviewService,
+	skimService *review_services.SkimService,
+	scanService *review_services.ScanService,
+	detailedService *review_services.DetailedService,
+	criticalService *review_services.CriticalService,
+) *UIHandler {
+	return &UIHandler{
+		logger:          logger,
+		logClient:       client,
+		previewService:  previewService,
+		skimService:     skimService,
+		scanService:     scanService,
+		detailedService: detailedService,
+		criticalService: criticalService,
+	}
 }
 
 // HomeHandler serves the main Review UI (mode selector + repo input)
@@ -106,7 +129,6 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		Code string `form:"pasted_code" json:"code"`
 	}
 
-	// Try JSON binding first, then form
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if err := c.ShouldBind(&req); err != nil {
 			c.String(http.StatusBadRequest, "Code required")
@@ -119,47 +141,27 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	// Return preview result component (for now, simple HTML)
-	html := `
-	<section class="card">
-		<h3 class="text-xl font-bold mb-4">👁️ Preview Mode Results</h3>
-		<div class="space-y-4">
-			<div>
-				<h4 class="font-semibold text-gray-700 dark:text-gray-300">File Tree</h4>
-				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-					<li>main.go</li>
-					<li>utils.go</li>
-					<li>handlers/</li>
-					<li>services/</li>
-				</ul>
-			</div>
-			<div>
-				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Bounded Contexts</h4>
-				<ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-					<li>Core Logic</li>
-					<li>API Layer</li>
-					<li>Data Access</li>
-				</ul>
-			</div>
-			<div>
-				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Tech Stack</h4>
-				<div class="flex gap-2 flex-wrap">
-					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">Go</span>
-					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">PostgreSQL</span>
-					<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">Gin</span>
-				</div>
-			</div>
-			<div>
-				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Architecture Pattern</h4>
-				<p class="text-sm text-gray-600 dark:text-gray-400">Layered Architecture</p>
-			</div>
-			<div>
-				<h4 class="font-semibold text-gray-700 dark:text-gray-300">Summary</h4>
-				<p class="text-sm text-gray-600 dark:text-gray-400">Backend service with clean layering</p>
-			</div>
-		</div>
-	</section>
-	`
+	// Call Preview service for analysis
+	if h.previewService == nil {
+		h.logger.Warn("Preview service not initialized")
+		c.String(http.StatusServiceUnavailable, "Preview service unavailable")
+		return
+	}
+
+	result, err := h.previewService.AnalyzePreview(c.Request.Context(), req.Code)
+	if err != nil {
+		h.logger.Error("Preview analysis failed", "error", err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	html := fmt.Sprintf(`
+	<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+		<h4 class="font-semibold text-indigo-900 dark:text-indigo-100">👁️ Preview Mode Analysis</h4>
+		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+	</div>
+	`, string(resultJSON))
 	c.Header("Content-Type", "text/html")
 	c.String(http.StatusOK, html)
 }
@@ -182,14 +184,36 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	// Placeholder response
-	c.String(http.StatusOK, "<p>Skim mode analysis in progress...</p>")
+	if h.skimService == nil {
+		h.logger.Warn("Skim service not initialized")
+		c.String(http.StatusServiceUnavailable, "Skim service unavailable")
+		return
+	}
+
+	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
+	result, err := h.skimService.AnalyzeSkim(c.Request.Context(), 1, req.Code)
+	if err != nil {
+		h.logger.Error("Skim analysis failed", "error", err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	html := fmt.Sprintf(`
+	<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
+		<h4 class="font-semibold text-blue-900 dark:text-blue-100">📚 Skim Mode Analysis</h4>
+		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+	</div>
+	`, string(resultJSON))
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
 }
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
 func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	var req struct {
-		Code string `form:"pasted_code" json:"code"`
+		Code  string `form:"pasted_code" json:"code"`
+		Query string `form:"query" json:"query"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -204,14 +228,41 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	// Placeholder response
-	c.String(http.StatusOK, "<p>Scan mode analysis in progress...</p>")
+	if h.scanService == nil {
+		h.logger.Warn("Scan service not initialized")
+		c.String(http.StatusServiceUnavailable, "Scan service unavailable")
+		return
+	}
+
+	// Use dummy reviewID and default query if not provided
+	if req.Query == "" {
+		req.Query = "find issues and improvements"
+	}
+
+	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
+	result, err := h.scanService.AnalyzeScan(c.Request.Context(), 1, req.Code, req.Query)
+	if err != nil {
+		h.logger.Error("Scan analysis failed", "error", err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	html := fmt.Sprintf(`
+	<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+		<h4 class="font-semibold text-green-900 dark:text-green-100">🔎 Scan Mode Analysis</h4>
+		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+	</div>
+	`, string(resultJSON))
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
 }
 
 // HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
 func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 	var req struct {
-		Code string `form:"pasted_code" json:"code"`
+		Code     string `form:"pasted_code" json:"code"`
+		Filename string `form:"filename" json:"filename"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -226,8 +277,34 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	// Placeholder response
-	c.String(http.StatusOK, "<p>Detailed mode analysis in progress...</p>")
+	if h.detailedService == nil {
+		h.logger.Warn("Detailed service not initialized")
+		c.String(http.StatusServiceUnavailable, "Detailed service unavailable")
+		return
+	}
+
+	// Use default filename if not provided
+	if req.Filename == "" {
+		req.Filename = "main.go"
+	}
+
+	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
+	result, err := h.detailedService.AnalyzeDetailed(c.Request.Context(), 1, req.Code, req.Filename)
+	if err != nil {
+		h.logger.Error("Detailed analysis failed", "error", err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	html := fmt.Sprintf(`
+	<div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+		<h4 class="font-semibold text-yellow-900 dark:text-yellow-100">📖 Detailed Mode Analysis</h4>
+		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+	</div>
+	`, string(resultJSON))
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
 }
 
 // HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
@@ -248,8 +325,29 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
-	// Placeholder response
-	c.String(http.StatusOK, "<p>Critical mode analysis in progress...</p>")
+	if h.criticalService == nil {
+		h.logger.Warn("Critical service not initialized")
+		c.String(http.StatusServiceUnavailable, "Critical service unavailable")
+		return
+	}
+
+	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
+	result, err := h.criticalService.AnalyzeCritical(c.Request.Context(), 1, req.Code)
+	if err != nil {
+		h.logger.Error("Critical analysis failed", "error", err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	html := fmt.Sprintf(`
+	<div class="p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700">
+		<h4 class="font-semibold text-red-900 dark:text-red-100">🚨 Critical Mode Analysis</h4>
+		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+	</div>
+	`, string(resultJSON))
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
 }
 
 // ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)
