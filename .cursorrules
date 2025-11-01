@@ -1,45 +1,59 @@
-# DevSmith Platform - Ultra Budget Mode ($50/month) + Quality Standards
+# DevSmith Platform - Cursor Pro+ Quality Standards
 
-## Cost Target: Under $50/month (including Copilot Pro)
+## Platform Constraint: Cursor Pro+
+
+Cursor Pro+ provides unlimited Claude Haiku and Sonnet 4.5 access - use the right model for the job.
 
 ### Model Selection Strategy
-- PRIMARY: Use Claude Haiku for ALL code tasks (Cursor Pro+)
-- FALLBACK: None - Haiku is sufficient for all work
-- SONNET: Use only if explicitly blocked by Haiku limitations (request approval first)
-- NEVER: Use Opus for any reason
 
-### Task Routing
-1. Code completion → Claude Haiku (Cursor Pro+)
-2. Chat/explanation → Claude Haiku (Cursor Pro+)
-3. Multi-file edits → Claude Haiku (Cursor Pro+)
-4. Test generation → Claude Haiku (Cursor Pro+)
-5. Architecture planning → Claude Haiku (request Sonnet only if truly stuck)
-6. Critical review → Claude Haiku (Sonnet only with explicit approval)
+- SIMPLE TASKS (1-3 files, <200 lines): Claude Haiku
+- COMPLEX FEATURES (3+ files, architecture): Claude Sonnet 4.5
+- CRITICAL PATH (auth, reading modes, security): Claude Sonnet 4.5
+- REFACTORING: Claude Haiku
 
-### Claude API Usage Limits
-- Daily budget: $2.00/day max (with Cursor Pro+)
-- Weekly budget: $14/week max
-- Sonnet quota: ZERO unless explicitly approved (Haiku should handle all)
-- Track usage in Cursor dashboard
+### Feature Branch Workflow - MANDATORY
 
-### Cost Optimization Techniques
-- Batch similar requests together
-- Use short, focused prompts
-- Leverage Ollama context window (4K tokens)
-- Cache common responses
-- Use Haiku for 90%+ of Claude API calls
+EVERY feature MUST be developed on a feature branch following this exact pattern:
 
-### Workflow
-1. Try Ollama first for everything
-2. Only use Claude if Ollama fails or architecture needed
-3. Use Sonnet only for Friday afternoon PR reviews
-4. Monitor usage daily in Cursor dashboard
+1. Create feature branch from development:
+   ```bash
+   git checkout development
+   git pull origin development
+   git checkout -b feature/issue-NNN-short-description
+   ```
 
-### Copilot Pro Integration
-- Keep Copilot Pro active ($10/month)
-- Use Copilot for inline suggestions
-- Use Ollama for complex tasks
-- Use Cursor Haiku for architecture
+2. Work on feature following TDD (Red-Green-Refactor)
+
+3. Commit using conventional commits:
+   ```bash
+   git commit -m "test(review): add Preview mode handler test (RED)"
+   git commit -m "feat(review): implement Preview mode handler (GREEN)"
+   git commit -m "refactor(review): extract common mode logic (REFACTOR)"
+   ```
+
+4. Push feature branch:
+   ```bash
+   git push origin feature/issue-NNN-short-description
+   ```
+
+5. Create PR to development branch:
+   ```bash
+   gh pr create --base development --head feature/issue-NNN-short-description \
+     --title "feat(review): Implement Preview mode" \
+     --body "Closes #NNN
+
+   ## Changes
+   - Implemented Preview mode button handler
+   - Added comprehensive tests for Preview mode
+   - Wired handler to existing PreviewService
+
+   ## Testing
+   - All tests pass: go test ./...
+   - Pre-push hook passes
+   - No linting errors"
+   ```
+
+6. NEVER push directly to development or main. Feature branches only.
 
 ---
 
@@ -68,26 +82,30 @@ Before writing ANY test, verify structure:
 - [ ] Package declaration matches directory name
 
 #### Phase 2: RED - Write Failing Test
-- Write test FIRST before implementation code
-- Test should fail with "undefined: NewFeature" or similar
+- Create feature branch FIRST (never work on main/development)
+- Write test FIRST before ANY implementation code
+- Test should fail with "undefined: NewFeature" or similar (not assertion failure)
 - Tests define expected behavior, not assumptions
 - Use table-driven tests for multiple cases
-- Commit: `test(scope): add failing test (RED phase)`
+- Commit: `test(scope): add failing test for X (RED)`
+- VERIFY: Run `go test ./path/to/test` - MUST FAIL with "undefined" error
 
 #### Phase 3: GREEN - Minimal Implementation
 - Write ONLY code needed to pass tests
 - No fancy solutions, no premature optimization
 - All builds must pass: `go build ./...`
-- Commit: `feat(scope): implement feature (GREEN phase)`
+- Commit: `feat(scope): implement X (GREEN)`
+- VERIFY: Run `go test ./path/to/test` - MUST PASS
 
 #### Phase 4: REFACTOR - Improve Quality
 - Improve code while keeping tests green
 - Extract constants, improve naming, add documentation
 - Run tests after EACH change
-- Commit: `refactor(scope): improve error handling`
+- Commit: `refactor(scope): improve X implementation`
+- VERIFY: Run `go test ./...` - ALL tests must pass
 
 **VIOLATION DETECTION:**
-If you write implementation code WITHOUT tests first, the code is wrong by definition. STOP and write tests first.
+If you write implementation code WITHOUT tests first, the code is wrong by definition. STOP IMMEDIATELY and write tests first.
 
 ### Go TDD Best Practices
 
@@ -363,9 +381,9 @@ func HandleWebSocket(c *gin.Context) {
 - ✅ .env.example documents all required variables
 - ✅ Startup validation fails if required vars missing
 
-### Pre-commit Validation (AUTOMATED)
+### Pre-push Validation (AUTOMATED)
 
-**Before ANY commit, run:**
+**Before ANY push, the pre-push hook runs:**
 ```bash
 # Format code
 gofmt -w ./...
@@ -380,6 +398,9 @@ golangci-lint run ./...
 
 # Check for race conditions
 go test -race ./...
+
+# Security checks
+./scripts/security-check.sh
 ```
 
 **Pre-push Hook enforces:**
@@ -388,7 +409,143 @@ go test -race ./...
 - ✅ Import resolution works (goimports)
 - ✅ No race conditions (go test -race)
 - ✅ Code formatted (gofmt)
+- ✅ Security checks pass (no hardcoded secrets, SQL injection, etc.)
 - ❌ Pushing without passing = BLOCKED
+
+---
+
+## Pre-Push Bypass Audit (MANDATORY)
+
+**BEFORE EVERY PUSH, verify ZERO bypasses of quality gates. This checklist is NOT optional.**
+
+### Direct Bypasses Check
+
+Run this verification before push:
+
+```bash
+# Fail if any new nolint comments added
+git diff HEAD -- '*.go' | grep -E '^\+.*//\s*nolint' && echo "ERROR: nolint bypass found" && exit 1
+
+# Fail if any new skip/ignore comments added  
+git diff HEAD -- '*.go' | grep -E '^\+.*(//skip:|//ignore:)' && echo "ERROR: skip/ignore bypass found" && exit 1
+
+# Fail if any ErrorCheckExclusion added
+git diff HEAD -- '*.go' | grep -E '^\+.*_ = ' | grep -v 'defer\|range\|for' && echo "WARNING: Check for intentional error ignoring" || true
+
+# Verify no test files use -skip flag in diff
+git diff HEAD -- '*_test.go' | grep -E '^\+.*-skip' && echo "ERROR: test skip flag found" && exit 1
+```
+
+### Indirect Bypasses Check
+
+Review the diff for these patterns:
+
+- ❌ Test marked as `t.Skip()` - **must remove**
+- ❌ Comments saying "pre-existing" or "legacy" - **must fix**
+- ❌ Comments saying "will fix later" - **must fix now**
+- ❌ Comments saying "beyond scope" - **must fix anyway**
+- ❌ Flaky test markers - **must fix or document**
+- ❌ `t.FailNow()` followed by continue - **must fix**
+
+### Quality Gates Verification
+
+Before push, VERIFY:
+
+```bash
+# 1. Build passes
+go build ./...
+# MUST NOT fail
+
+# 2. All tests pass (no skips, no failures)
+go test ./... -v
+# Check output contains: PASS
+# Check output contains ZERO: SKIP or FAIL
+
+# 3. Race detection passes
+go test ./... -race
+# MUST NOT fail with race conditions
+
+# 4. Linting passes
+golangci-lint run ./...
+# MUST NOT fail
+
+# 5. Vet passes
+go vet ./...
+# MUST NOT fail
+
+# 6. Count test assertions vs skips
+TOTAL_TESTS=$(go test -v ./... 2>&1 | grep -c "^=== RUN")
+SKIPPED_TESTS=$(go test -v ./... 2>&1 | grep -c "^--- SKIP")
+FAILED_TESTS=$(go test -v ./... 2>&1 | grep -c "^--- FAIL")
+if [ "$FAILED_TESTS" -gt 0 ]; then
+  echo "ERROR: $FAILED_TESTS tests failed"
+  exit 1
+fi
+echo "✓ $TOTAL_TESTS tests ran, $SKIPPED_TESTS skipped, $FAILED_TESTS failed"
+```
+
+### Rationalization Detection
+
+STOP if you're thinking ANY of these (these are red flags):
+
+- "This test is pre-existing" - If it's broken, **FIX IT**
+- "This is infrastructure" - **FIX IT ANYWAY**
+- "Complex to fix" - **MAKE IT SIMPLER**
+- "No time" - **MAKE TIME** - push without fixing = FAIL
+- "Not my code" - **YOU OWN IT NOW**
+- "Next sprint" - **THIS SPRINT**
+- "Acceptable debt" - **NOT ACCEPTABLE**
+
+### Bypass Audit Checklist (Copy Before Every Push)
+
+Before `git push`, verify ALL these:
+
+```
+Direct Bypasses:
+☐ No /nolint comments added
+☐ No //skip or //ignore comments added  
+☐ No git --no-verify used
+☐ No linter configs disabled
+
+Indirect Bypasses:
+☐ No tests skipped (t.Skip() calls)
+☐ No "pre-existing" rationalizations
+☐ No "will fix later" comments
+☐ No "beyond scope" rationalizations
+☐ No "flaky test" acceptances
+☐ All test failures resolved
+
+Rationalization Bypasses:
+☐ Not thinking "too complex"
+☐ Not thinking "no time"
+☐ Not thinking "not my code"
+☐ Not thinking "infrastructure"
+☐ Not thinking "next sprint"
+
+Quality Gates:
+☐ go build ./... PASS
+☐ go test ./... PASS (zero SKIP, zero FAIL)
+☐ go test -race ./... PASS
+☐ golangci-lint run ./... PASS
+☐ go vet ./... PASS
+
+Test Coverage:
+☐ No lower coverage than before
+☐ Critical paths 90%+ coverage
+☐ Non-critical paths 70%+ coverage
+```
+
+### What Happens on Violation
+
+If ANY bypass detected:
+
+1. **Push is blocked** - `git push --no-verify` is FORBIDDEN
+2. **Fix locally** - Address the root cause
+3. **Reverify** - Run all quality gates
+4. **Document** - If legitimate exception, explain in PR
+5. **ONLY THEN** - Push succeeds
+
+**This is NOT negotiable. Every commit must meet standards.**
 
 ---
 
@@ -440,9 +597,9 @@ See DevsmithTDD.md § Test 2.1-2.5 for Critical Mode testing patterns.
 - ❌ WRONG: Interface defined in service_test.go
 - ✅ CORRECT: Interface in interfaces.go, imported by service
 
-### Pitfall 8: Skipping Pre-commit Validation
-- ❌ WRONG: `git commit --no-verify` (FORBIDDEN)
-- ✅ CORRECT: Fix issues locally until pre-commit passes
+### Pitfall 8: Skipping Pre-push Validation
+- ❌ WRONG: `git push --no-verify` (FORBIDDEN)
+- ✅ CORRECT: Fix issues locally until pre-push passes
 
 ### Pitfall 9: No Context Passing
 - ❌ WRONG: Function doesn't accept context.Context
@@ -583,6 +740,49 @@ If ANY of these fail, you have TWO options:
 
 There is no option 3.
 
+### Pitfall 12: CRITICAL - Task Scope Management for Haiku
+
+**Problem:** Haiku loses context on tasks involving >5 files or >500 lines of changes, resulting in:
+- Half-implemented features (buttons render but don't work)
+- Missing wiring (components exist but not connected)
+- Incomplete feature sets (dark mode classes but no toggle)
+
+**Detection:**
+If you notice:
+- Feature works partially but missing key functionality
+- Components exist but not wired to handlers
+- UI elements present but not interactive
+- Tests don't match implementation
+
+**Solution:**
+Break large tasks into atomic sub-tasks (1-3 files each):
+
+**WRONG:**
+- "Implement all 5 reading modes" (15+ files)
+- "Add security across platform" (20+ files)
+- "Refactor auth system" (10+ files)
+
+**RIGHT:**
+- "Implement Preview mode button handler" (3 files: handler, test, JS)
+- "Implement Skim mode button handler" (3 files: handler, test, JS)
+- "Add XSS sanitization to Review input" (2 files: sanitizer, tests)
+- "Add JWT security flags" (2 files: handler, tests)
+- (repeat for each mode/feature)
+
+Each sub-task MUST:
+- Complete ONE feature end-to-end
+- Pass all tests: `go test ./...`
+- Work independently (don't depend on later tasks)
+- Be committable as working code on feature branch
+
+**Implementation Pattern:**
+1. Create feature branch: `git checkout -b feature/issue-NNN-specific-task`
+2. Follow TDD: RED (test fails) → GREEN (test passes) → REFACTOR (improve)
+3. Commit each phase: `test(scope): ...`, `feat(scope): ...`, `refactor(scope): ...`
+4. Run quality gates: `go build ./...`, `go test ./...`, `golangci-lint run ./...`
+5. Push feature branch and create PR
+6. After merge, start next sub-task on new feature branch
+
 ---
 
 ## GitHub PR Linking (For Future Reference)
@@ -625,7 +825,9 @@ Description here
 closes #X
 
 ## Testing
-- [ ] Tests pass
+- [x] Tests pass
+- [x] Pre-push hook passes
+- [x] No linting errors
   "
 ```
 
