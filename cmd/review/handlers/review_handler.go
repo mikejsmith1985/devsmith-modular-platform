@@ -10,7 +10,6 @@ import (
 	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/templates"
 )
 
 // ReviewHandler handles HTTP requests for the review service.
@@ -195,41 +194,3 @@ func (h *ReviewHandler) ListReviewSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"sessions": sessions})
 }
 
-// HandlePreviewMode handles POST /api/review/sessions/modes/preview (HTMX)
-func (h *ReviewHandler) HandlePreviewMode(c *gin.Context) {
-	var req struct {
-		Code string `form:"pasted_code" json:"code"`
-	}
-
-	// Try form binding first (HTMX), then JSON
-	if err := c.ShouldBindForm(&req); err != nil {
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.String(http.StatusBadRequest, "Code required")
-			return
-		}
-	}
-
-	if req.Code == "" {
-		c.String(http.StatusBadRequest, "Code required")
-		return
-	}
-
-	// Call preview service
-	result, err := h.previewService.AnalyzePreview(c.Request.Context(), req.Code)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Preview analysis failed")
-		return
-	}
-
-	// Render Templ component as HTML response
-	component := templates.PreviewModeHtmxResponse(templates.PreviewResult{
-		FileTree:            result.FileTree,
-		BoundedContexts:     result.BoundedContexts,
-		TechStack:           result.TechStack,
-		ArchitecturePattern: result.ArchitecturePattern,
-		EntryPoints:         result.EntryPoints,
-		ExternalDependencies: result.ExternalDependencies,
-		Summary:             result.Summary,
-	})
-	component.Render(c.Request.Context(), c.Writer)
-}
