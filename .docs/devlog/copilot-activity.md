@@ -4102,3 +4102,60 @@ fix(e2e): Use relative URLs in smoke tests to respect playwright baseURL config
 
 ---
 
+
+## 2025-11-01 17:05 - docs(e2e): E2E testing infrastructure - known issue: tests hang during execution
+**Branch:** development
+**Files Changed:**  13 files changed, 278 insertions(+), 1 deletion(-)
+- `.docs/devlog/copilot-activity.md`
+- `playwright-report/data/24ac92823f71179292a904e45cce4bfe7e500005.webm`
+- `playwright-report/data/276cf2bdcf08f6d677aa575e52c2f7e6d13f6ba9.png`
+- `playwright-report/data/4acd2281147a09cef9776ffc3e3dbcae4b12176d.md`
+- `playwright-report/data/4ed744db64c808a60de13b69e25731af92f707c3.webm`
+- `playwright-report/data/5dd27bd6e73bdb1fba86231061616f02cacecedc.webm`
+- `playwright-report/data/7290c8ddc3eb43b6b3a406534e49fb33a113a5ca.webm`
+- `playwright-report/data/7a33d5db6370b6de345e990751aa1f1da65ad675.png`
+- `playwright-report/data/c219bc59e107c547e68b57ada7c566fc18b91b94.png`
+- `playwright-report/data/d9627ffae4cfd7be9bfe561ff4729237757e472e.webm`
+- `playwright-report/data/e539e5868fff7656ba00e599be34ae0b80bbc43e.md`
+- `playwright-report/data/e58d375a49d54a665ce54bdd06bbdcdac0f05459.webm`
+- `playwright-report/index.html`
+
+**Action:** docs(e2e): E2E testing infrastructure - known issue: tests hang during execution
+
+**Commit:** `6ecab90`
+
+**Commit Message:**
+```
+docs(e2e): E2E testing infrastructure - known issue: tests hang during execution
+```
+
+**Details:**
+```
+COMPLETED:
+- Modular smoke test packages (ollama-integration, ui-rendering, full-suite)
+- Docker compose setup with --network=host support
+- Basic Auth injection via PLAYWRIGHT_BASIC_AUTH env var
+- playwright.config.ts with platform detection
+- Relative URLs in tests to use baseURL config
+
+WORKING:
+- Services start and healthchecks pass
+- Docker image versioning (v1.56.1-jammy matches project)
+- Tests compile and start executing
+- Network connectivity verified
+
+KNOWN ISSUE:
+- Tests hang indefinitely during execution (npm ci completes, playwright test starts, then hangs)
+- Does NOT appear to be auth-related (basic auth header is injected)
+- Does NOT appear to be connectivity (services respond to curl)
+- May be: npm cache, playwright browser download, or timeout configuration
+
+NEXT DEBUG STEPS:
+1. Run tests outside Docker to verify they work locally
+2. Check if issue is specific to v1.56.1 image
+3. Use your provided working example as reference: playwright-nginx-demo repo
+4. Add --trace on to capture what playwright is doing while hung
+```
+
+---
+
