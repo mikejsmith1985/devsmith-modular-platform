@@ -4,6 +4,7 @@ package review_db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -69,7 +70,7 @@ func (r *SessionRepository) GetByID(ctx context.Context, sessionID int64) (*revi
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get session: %w", err)
@@ -193,18 +194,22 @@ func (r *SessionRepository) List(ctx context.Context, filter *review_models.Sess
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sessions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close rows: %v\n", closeErr)
+		}
+	}()
 
 	var summaries []*review_models.SessionSummary
 	for rows.Next() {
 		summary := &review_models.SessionSummary{}
-		err := rows.Scan(
+		scanErr := rows.Scan(
 			&summary.ID, &summary.Title, &summary.CodeSource, &summary.Language,
 			&summary.Status, &summary.CurrentMode, &summary.ModeProgress,
 			&summary.CreatedAt, &summary.LastAccessedAt, &summary.DurationSeconds,
 		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan session summary: %w", err)
+		if scanErr != nil {
+			return nil, fmt.Errorf("failed to scan session summary: %w", scanErr)
 		}
 		summaries = append(summaries, summary)
 	}
@@ -250,19 +255,23 @@ func (r *SessionRepository) getModeStates(ctx context.Context, sessionID int64) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query mode states: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			fmt.Printf("warning: failed to close rows: %v\n", closeErr)
+		}
+	}()
 
 	modeStates := make(map[string]review_models.ModeState)
 	for rows.Next() {
 		var ms review_models.ModeState
-		err := rows.Scan(
+		scanErr := rows.Scan(
 			&ms.Mode, &ms.Status, &ms.IsCompleted,
 			&ms.AnalysisStartedAt, &ms.AnalysisCompletedAt, &ms.AnalysisDuration,
 			&ms.ResultID, &ms.UserNotes, &ms.IssuesFound, &ms.QualityScore,
 			&ms.LastError,
 		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan mode state: %w", err)
+		if scanErr != nil {
+			return nil, fmt.Errorf("failed to scan mode state: %w", scanErr)
 		}
 		modeStates[ms.Mode] = ms
 	}
