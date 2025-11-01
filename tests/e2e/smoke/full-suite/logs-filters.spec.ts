@@ -5,10 +5,10 @@ test.describe('SMOKE: Logs Dashboard - HTMX Filters', () => {
     const response = await page.goto('http://localhost:8082', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
     
-    // Check for filter controls
-    const levelFilter = page.locator('select[name="level"]');
-    const serviceFilter = page.locator('select[name="service"]');
-    const searchInput = page.locator('input[type="search"]');
+    // Check for filter controls - use ID selectors from actual template
+    const levelFilter = page.locator('select#level-filter');
+    const serviceFilter = page.locator('select#service-filter');
+    const searchInput = page.locator('input#search-input');
     
     expect(await levelFilter.count()).toBeGreaterThan(0);
     expect(await serviceFilter.count()).toBeGreaterThan(0);
