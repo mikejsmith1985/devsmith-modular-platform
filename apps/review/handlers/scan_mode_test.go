@@ -52,10 +52,10 @@ func RegisterScanModeButtonHandler(router *gin.Engine, scanService *review_servi
 			"Query": req.Query,
 			"Matches": []map[string]interface{}{
 				{
-					"File":        "auth/handler.go",
-					"Line":        42,
-					"Content":     "func HandleLogin(c *gin.Context)",
-					"Relevance":   0.95,
+					"File":      "auth/handler.go",
+					"Line":      42,
+					"Content":   "func HandleLogin(c *gin.Context)",
+					"Relevance": 0.95,
 				},
 			},
 			"Summary": "Found 1 match for query: " + req.Query,

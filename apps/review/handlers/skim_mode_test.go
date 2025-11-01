@@ -60,10 +60,10 @@ func RegisterSkimModeButtonHandler(router *gin.Engine, skimService *review_servi
 		// For now, return mock response (actual analysis would require repo context)
 		// In full implementation, would call: skimService.AnalyzeSkim(c.Request.Context(), reviewID, req.RepoOwner, req.RepoName)
 		mockResponse := gin.H{
-			"Functions": []string{"GetUser", "CreateUser", "DeleteUser"},
-			"Imports":   []string{"fmt", "net/http"},
+			"Functions":  []string{"GetUser", "CreateUser", "DeleteUser"},
+			"Imports":    []string{"fmt", "net/http"},
 			"Interfaces": []string{"Reader", "Writer"},
-			"Summary":   "High-level architecture and key components",
+			"Summary":    "High-level architecture and key components",
 		}
 
 		c.JSON(http.StatusOK, mockResponse)
