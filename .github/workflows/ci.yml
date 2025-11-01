@@ -140,6 +140,22 @@ jobs:
     needs: [build, docker]
     if: always() && (needs.build.result == 'success' && needs.docker.result == 'success')
 
+    # Use GitHub Actions services for better reliability
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: devsmith
+          POSTGRES_PASSWORD: devsmith
+          POSTGRES_DB: devsmith
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -158,47 +174,34 @@ jobs:
           npm list @playwright/test || npm install @playwright/test
           npx playwright install --with-deps
 
-      - name: Start services with docker-compose
+      - name: Start application services
         run: |
-          echo "Docker version:"
-          docker --version
-          echo "Docker-compose version:"
-          docker-compose --version 2>&1 || (echo "docker-compose not found, trying docker compose"; docker compose version)
-          
-          echo "Starting services..."
           docker-compose up -d
-          sleep 5  # Give services a moment to start before health checking
+          sleep 10
 
       - name: Wait for services to be ready
         run: |
-          MAX_ATTEMPTS=120
+          MAX_ATTEMPTS=150
           ATTEMPT=0
           
-          echo "Waiting for services to be ready (up to 240 seconds)..."
+          echo "Waiting for application services to be healthy..."
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            # Use curl to check health endpoint - simplest and most reliable
-            # -f: fail on HTTP errors
-            # -s: silent mode
-            # -m 5: 5 second timeout
-            # -o /dev/null: discard response body
+            # Check if health endpoint responds
             if curl -f -s -m 5 http://localhost:3000/health > /dev/null 2>&1; then
               echo "✅ Services are healthy"
               exit 0
             fi
             
             ATTEMPT=$((ATTEMPT + 1))
-            if [ $((ATTEMPT % 20)) -eq 0 ]; then
-              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Still waiting for services..."
+            if [ $((ATTEMPT % 30)) -eq 0 ]; then
+              echo "Waiting... Attempt $ATTEMPT/$MAX_ATTEMPTS"
             fi
-            sleep 2
+            sleep 1
           done
           
-          echo "❌ Services failed to become healthy after 240 seconds"
-          echo "Debug: Docker containers"
+          echo "❌ Services failed to become healthy"
           docker ps -a
-          echo ""
-          echo "Debug: Docker-compose logs (last 100 lines)"
-          docker-compose logs 2>&1 | tail -100
+          docker-compose logs | tail -50
           exit 1
 
       - name: Run Playwright E2E tests
