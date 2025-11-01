@@ -148,7 +148,7 @@ func (s *SessionService) GetSessionHistory(ctx context.Context, sessionID int64,
 }
 
 // AddSessionNote adds user notes to a session or specific mode.
-func (s *SessionService) AddSessionNote(ctx context.Context, sessionID int64, mode string, note string) error {
+func (s *SessionService) AddSessionNote(ctx context.Context, sessionID int64, mode, note string) error {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
 	s.logger.Info("AddSessionNote called", "correlation_id", correlationID, "session_id", sessionID, "mode", mode)
 
@@ -208,7 +208,7 @@ type ModeUpdateRequest struct {
 	Status              string // pending, in_progress, completed, error
 	AnalysisStartedAt   *time.Time
 	AnalysisCompletedAt *time.Time
-	AnalysisDuration    int64  // milliseconds
+	AnalysisDuration    int64 // milliseconds
 	ResultID            int64
 	UserNotes           string
 	IssuesFound         int
