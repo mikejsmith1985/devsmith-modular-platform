@@ -28,22 +28,59 @@ docker-compose logs -f
 
 ### Run Tests
 
+The new Playwright configuration provides two test projects for flexible testing:
+
+#### Quick Tests (Fast Feedback)
+For rapid validation during development:
+```bash
+# Run only authentication tests (~15 tests, ~30 seconds)
+npx playwright test --project=quick
+
+# Watch mode for quick iteration
+npx playwright test --project=quick --watch
+```
+
+#### Full Tests (Comprehensive Coverage)
+For complete validation before pushing:
+```bash
+# Run all E2E tests (~92 tests, ~2-3 minutes)
+npx playwright test --project=full
+
+# Or simply:
+npx playwright test
+```
+
+#### All Tests
 ```bash
 # Install dependencies (one time)
 npm ci
 
-# Run all E2E tests
-npx playwright test tests/e2e/
+# Run all tests with all projects
+npx playwright test
 
 # Run specific test file
-npx playwright test tests/e2e/full_user_flow.spec.ts
+npx playwright test tests/e2e/authentication.spec.ts
 
 # Run with UI mode (interactive)
-npx playwright test tests/e2e/ --ui
+npx playwright test --ui
 
 # View test report
 npx playwright show-report
 ```
+
+### Configuration Details
+
+**Quick Project** (`--project=quick`):
+- Runs: `authentication.spec.ts` only
+- Timeout: 15 seconds per test
+- Workers: 2 (local) / 1 (CI)
+- Best for: Development feedback loop
+
+**Full Project** (`--project=full`):
+- Runs: All `*.spec.ts` files
+- Timeout: 30 seconds per test
+- Workers: 2 (local) / 1 (CI)
+- Best for: Pre-push validation
 
 ## Why E2E Tests Are Not in CI
 
