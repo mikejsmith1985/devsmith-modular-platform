@@ -4533,3 +4533,46 @@ STATUS: Ready for feature implementation - tests identify what needs building!
 
 ---
 
+
+## 2025-11-01 17:51 - ci: Add E2E smoke tests to pre-push hook validation
+**Branch:** development
+**Files Changed:**  1 file changed, 40 insertions(+)
+- `.docs/devlog/copilot-activity.md`
+
+**Action:** ci: Add E2E smoke tests to pre-push hook validation
+
+**Commit:** `02bf695`
+
+**Commit Message:**
+```
+ci: Add E2E smoke tests to pre-push hook validation
+```
+
+**Details:**
+```
+PHASE 4: Pre-Push Validation Enhanced
+
+Added 6th check to pre-push hook:
+- Validates UI rendering smoke tests pass
+- Checks portal loads correctly
+- Confirms dark mode toggle works
+- Verifies Ollama integration functional
+
+SMART INTEGRATION:
+✅ Only runs if services are healthy
+✅ Gracefully handles missing npm/playwright
+✅ Uses --workers=2 for speed
+✅ Timeout of 30 seconds to prevent hanging
+✅ Optional check (doesn't block push if services down)
+
+FUTURE: Can make blocking for core features
+
+This ensures features work BEFORE pushing:
+- No more 'code compiles but features don't work'
+- Real browser-based validation
+- Fast feedback loop (< 30 seconds)
+- Production-ready code only
+```
+
+---
+
