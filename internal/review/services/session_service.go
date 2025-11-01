@@ -189,29 +189,27 @@ func (s *SessionService) DeleteSession(ctx context.Context, sessionID int64) err
 	return nil
 }
 
-// CreateSessionRequest represents the input for creating a new session.
+// CreateSessionRequest represents a request to create a new session.
 type CreateSessionRequest struct {
-	UserID       int64
-	Title        string
-	Description  string
-	CodeSource   string // paste, github, upload
-	CodeContent  string
-	GithubRepo   string
-	GithubBranch string
-	GithubPath   string
-	Language     string
+	UserID      int64  `json:"user_id"`
+	Title       string `json:"title" binding:"required"`
+	Description string `json:"description"`
+	CodeSource  string `json:"code_source" binding:"required"` // paste, github, file
+	CodeContent string `json:"code_content"`
+	GithubRepo  string `json:"github_repo"`
+	GithubBranch string `json:"github_branch"`
+	GithubPath  string `json:"github_path"`
+	Language    string `json:"language"`
 }
 
-// ModeUpdateRequest represents updates to a specific mode within a session.
+// ModeUpdateRequest represents a request to update a mode state.
 type ModeUpdateRequest struct {
-	Mode                string
-	Status              string // pending, in_progress, completed, error
-	AnalysisStartedAt   *time.Time
-	AnalysisCompletedAt *time.Time
-	AnalysisDuration    int64 // milliseconds
-	ResultID            int64
-	UserNotes           string
-	IssuesFound         int
-	QualityScore        int
-	LastError           string
+	Mode              string `json:"mode"`
+	Status            string `json:"status"`
+	IsCompleted       bool   `json:"is_completed"`
+	ResultID          int64  `json:"result_id"`
+	IssuesFound       int32  `json:"issues_found"`
+	QualityScore      int32  `json:"quality_score"`
+	AnalysisDuration  int64  `json:"analysis_duration_ms"`
+	UserNotes         string `json:"user_notes"`
 }
