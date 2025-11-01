@@ -1,5 +1,7 @@
 package card
 
+import "fmt"
+
 // LogCardProps represents properties for displaying a log entry as a card
 type LogCardProps struct {
 	ID        string
@@ -138,7 +140,7 @@ templ LogCard(props LogCardProps) {
 								if str, ok := value.(string); ok {
 									{ str }
 								} else {
-									{ templ.FormattedString(value) }
+									{ fmt.Sprintf("%v", value) }
 								}
 							</span>
 						</div>
