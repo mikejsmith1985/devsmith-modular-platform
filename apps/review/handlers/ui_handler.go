@@ -155,7 +155,12 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		h.logger.Error("Failed to marshal preview result", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		return
+	}
 	html := fmt.Sprintf(`
 	<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
 		<h4 class="font-semibold text-indigo-900 dark:text-indigo-100">👁️ Preview Mode Analysis</h4>
@@ -198,7 +203,12 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		h.logger.Error("Failed to marshal skim result", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		return
+	}
 	html := fmt.Sprintf(`
 	<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
 		<h4 class="font-semibold text-blue-900 dark:text-blue-100">📚 Skim Mode Analysis</h4>
@@ -247,7 +257,12 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		h.logger.Error("Failed to marshal scan result", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		return
+	}
 	html := fmt.Sprintf(`
 	<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
 		<h4 class="font-semibold text-green-900 dark:text-green-100">🔎 Scan Mode Analysis</h4>
@@ -296,7 +311,12 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		h.logger.Error("Failed to marshal detailed result", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		return
+	}
 	html := fmt.Sprintf(`
 	<div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
 		<h4 class="font-semibold text-yellow-900 dark:text-yellow-100">📖 Detailed Mode Analysis</h4>
@@ -339,7 +359,12 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
-	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		h.logger.Error("Failed to marshal critical result", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		return
+	}
 	html := fmt.Sprintf(`
 	<div class="p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700">
 		<h4 class="font-semibold text-red-900 dark:text-red-100">🚨 Critical Mode Analysis</h4>
@@ -618,8 +643,8 @@ func (h *UIHandler) ExportSessionHTMX(c *gin.Context) {
 			"session_id": sessionID,
 			"exported":   "2025-11-01T10:50:00Z",
 			"data": gin.H{
-				"modes_used": 5,
-				"code_lines": 2847,
+				"modes_used":       5,
+				"code_lines":       2847,
 				"analysis_time_ms": 3245,
 			},
 		})
