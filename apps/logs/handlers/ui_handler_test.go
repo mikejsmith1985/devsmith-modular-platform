@@ -86,9 +86,10 @@ func TestUIHandler_DashboardHandler_ContainsScripts(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	assert.Contains(t, body, "websocket.js")
-	assert.Contains(t, body, "logs.js")
-	assert.Contains(t, body, "bootstrap.bundle.min.js")
+	// Updated for Tailwind CSS architecture
+	assert.Contains(t, body, "tailwindcss", "Should include Tailwind CSS")
+	assert.Contains(t, body, "alpinejs", "Should include Alpine.js for interactivity")
+	assert.Contains(t, body, "logs-output", "Should include logs output container")
 }
 
 func TestUIHandler_DashboardHandler_ContainsStylesheet(t *testing.T) {
@@ -290,20 +291,20 @@ func TestUIHandler_DashboardHandler_ValidHTML(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	body := w.Body.String()
+	bodyLower := strings.ToLower(body)
 
 	// Basic HTML structure
-	bodyLower := strings.ToLower(body)
 	assert.Contains(t, bodyLower, "<!doctype html")
-	assert.Contains(t, body, "<html")
-	assert.Contains(t, body, "</html>")
-	assert.Contains(t, body, "<head>")
-	assert.Contains(t, body, "</head>")
-	assert.Contains(t, body, "<body>")
-	assert.Contains(t, body, "</body>")
+	assert.Contains(t, bodyLower, "<html")
+	assert.Contains(t, bodyLower, "</html>")
+	assert.Contains(t, bodyLower, "<head>")
+	assert.Contains(t, bodyLower, "</head>")
+	assert.Contains(t, bodyLower, "<body")  // Use <body without exact closing to match <body class="...">
+	assert.Contains(t, bodyLower, "</body>")
 
 	// Check tags are properly closed
-	htmlOpenCount := strings.Count(body, "<html")
-	htmlCloseCount := strings.Count(body, "</html>")
+	htmlOpenCount := strings.Count(bodyLower, "<html")
+	htmlCloseCount := strings.Count(bodyLower, "</html>")
 	assert.Greater(t, htmlOpenCount, 0)
 	assert.Equal(t, htmlOpenCount, htmlCloseCount)
 }
@@ -322,8 +323,9 @@ func TestUIHandler_DashboardHandler_NavbarPresent(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	body := w.Body.String()
-	assert.Contains(t, body, "navbar")
-	assert.Contains(t, body, "navbar-brand")
+	// Updated for Tailwind nav structure
+	assert.Contains(t, body, "<nav", "Should contain nav element")
+	assert.Contains(t, body, "DevSmith", "Should contain DevSmith branding")
 }
 
 func TestUIHandler_DashboardHandler_MetaTags(t *testing.T) {
