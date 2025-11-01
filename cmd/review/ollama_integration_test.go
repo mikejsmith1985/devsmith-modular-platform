@@ -82,7 +82,7 @@ func TestOllamaHealthCheck_Configuration(t *testing.T) {
 	t.Run("HealthCheckEndpoint", func(t *testing.T) {
 		endpoint := "http://localhost:11434"
 		healthCheckURL := endpoint + "/api/tags"
-		
+
 		assert.NotEmpty(t, healthCheckURL)
 		assert.Contains(t, healthCheckURL, "localhost:11434")
 		assert.Contains(t, healthCheckURL, "/api/tags")

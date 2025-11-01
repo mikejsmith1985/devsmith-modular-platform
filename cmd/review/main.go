@@ -19,6 +19,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
+// nolint:gocyclo // Main initialization is inherently complex with multiple setup steps
 func main() {
 	router := gin.Default()
 
@@ -156,16 +157,16 @@ func main() {
 	router.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode) // Critical mode HTMX
 
 	// HTMX session endpoints (Phase 11.5) - HTMX-first design
-	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)     // List sessions for sidebar
-	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX) // Search sessions
-	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)  // Get session detail (HTMX, replaces sessionHandler.GetSession)
-	router.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)     // Resume session
+	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)               // List sessions for sidebar
+	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX)           // Search sessions
+	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)            // Get session detail (HTMX, replaces sessionHandler.GetSession)
+	router.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)       // Resume session
 	router.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX) // Duplicate session
-	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)   // Archive session
-	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)          // Delete session (HTMX, replaces sessionHandler.DeleteSession)
-	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)    // Session statistics
+	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)     // Archive session
+	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)            // Delete session (HTMX, replaces sessionHandler.DeleteSession)
+	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)       // Session statistics
 	router.GET("/api/review/sessions/:id/metadata", uiHandler.GetSessionMetadataHTMX) // Session metadata
-	router.GET("/api/review/sessions/:id/export", uiHandler.ExportSessionHTMX)     // Export session
+	router.GET("/api/review/sessions/:id/export", uiHandler.ExportSessionHTMX)        // Export session
 
 	port := os.Getenv("PORT")
 	if port == "" {
