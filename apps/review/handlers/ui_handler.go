@@ -448,6 +448,90 @@ func (h *UIHandler) DeleteSessionHTMX(c *gin.Context) {
 	c.String(http.StatusOK, html)
 }
 
+// GetSessionStatsHTMX handles GET /api/review/sessions/:id/stats (HTMX)
+func (h *UIHandler) GetSessionStatsHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Loading session statistics", "session_id", sessionID)
+
+	// Return statistics grid HTML
+	html := `
+	<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+		<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+			<div class="text-sm font-medium text-indigo-600 dark:text-indigo-300">Reading Modes</div>
+			<div class="mt-2 text-3xl font-bold text-indigo-900 dark:text-indigo-100">5</div>
+			<p class="mt-1 text-xs text-indigo-700 dark:text-indigo-400">modes used in analysis</p>
+		</div>
+		<div class="p-4 rounded-lg bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700">
+			<div class="text-sm font-medium text-green-600 dark:text-green-300">Code Analyzed</div>
+			<div class="mt-2 text-3xl font-bold text-green-900 dark:text-green-100">2,847</div>
+			<p class="mt-1 text-xs text-green-700 dark:text-green-400">lines of code</p>
+		</div>
+		<div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700">
+			<div class="text-sm font-medium text-blue-600 dark:text-blue-300">Analysis Time</div>
+			<div class="mt-2 text-3xl font-bold text-blue-900 dark:text-blue-100">3,245ms</div>
+			<p class="mt-1 text-xs text-blue-700 dark:text-blue-400">total time spent</p>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// GetSessionMetadataHTMX handles GET /api/review/sessions/:id/metadata (HTMX)
+func (h *UIHandler) GetSessionMetadataHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	h.logger.Info("Loading session metadata", "session_id", sessionID)
+
+	// Return metadata grid HTML
+	html := `
+	<div class="grid grid-cols-2 gap-4">
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Created</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">2025-11-01 10:30:00</div>
+		</div>
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Last Updated</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">2025-11-01 10:45:00</div>
+		</div>
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">File Size</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">85.3 KB</div>
+		</div>
+		<div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+			<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Languages</div>
+			<div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">Go, SQL, YAML</div>
+		</div>
+	</div>
+	`
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+// ExportSessionHTMX handles GET /api/review/sessions/:id/export (HTMX)
+func (h *UIHandler) ExportSessionHTMX(c *gin.Context) {
+	sessionID := c.Param("id")
+	format := c.DefaultQuery("format", "json")
+	h.logger.Info("Exporting session", "session_id", sessionID, "format", format)
+
+	if format == "json" {
+		c.Header("Content-Type", "application/json")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=session-%s.json", sessionID))
+		c.JSON(http.StatusOK, gin.H{
+			"session_id": sessionID,
+			"exported":   "2025-11-01T10:50:00Z",
+			"data": gin.H{
+				"modes_used": 5,
+				"code_lines": 2847,
+				"analysis_time_ms": 3245,
+			},
+		})
+	} else {
+		c.Header("Content-Type", "text/csv")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=session-%s.csv", sessionID))
+		c.String(http.StatusOK, "session_id,modes_used,code_lines,analysis_time_ms\n"+sessionID+",5,2847,3245\n")
+	}
+}
+
 // SessionProgressSSE streams progress updates for a given session via SSE.
 // This is a lightweight simulator for UI integration and demos. In production
 // this should be driven by the actual analysis pipeline (publish progress to

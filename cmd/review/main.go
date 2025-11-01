@@ -167,6 +167,9 @@ func main() {
 	router.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX) // Duplicate session
 	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)   // Archive session
 	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)          // Delete session
+	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)    // Session statistics
+	router.GET("/api/review/sessions/:id/metadata", uiHandler.GetSessionMetadataHTMX) // Session metadata
+	router.GET("/api/review/sessions/:id/export", uiHandler.ExportSessionHTMX)     // Export session
 
 	port := os.Getenv("PORT")
 	if port == "" {
