@@ -4625,3 +4625,34 @@ TESTING COMPLETE - ALL PHASES DONE
 
 ---
 
+
+## 2025-11-01 18:54 - register UI routes and fix nginx proxy configuration
+**Branch:** development
+**Files Changed:**  5 files changed, 70 insertions(+), 17 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/logs/handlers/ui_handler.go`
+- `docker/nginx/conf.d/default.conf`
+- `logs`
+- `tests/e2e/smoke/full-suite/logs-dashboard-loads.spec.ts`
+
+**Action:** register UI routes and fix nginx proxy configuration
+
+**Commit:** `fa03993`
+
+**Commit Message:**
+```
+fix(logs): register UI routes and fix nginx proxy configuration
+```
+
+**Details:**
+```
+- Fixed nginx proxy_pass for /logs route (removed trailing slash)
+- Added /logs route to logs service UIHandler
+- Fixed smoke tests to use actual element IDs and classes
+- All 5 logs dashboard smoke tests now passing
+
+Closes part of option B: dashboard route fixes
+```
+
+---
+

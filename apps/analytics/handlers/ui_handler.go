@@ -112,6 +112,7 @@ func RegisterUIRoutes(router *gin.Engine, logger *logrus.Logger) {
 	// Dashboard UI route
 	router.GET("/", uiHandler.DashboardHandler)
 	router.GET("/dashboard", uiHandler.DashboardHandler)
+	router.GET("/analytics", uiHandler.DashboardHandler) // Route from nginx proxy /analytics
 
 	// Health check route
 	router.GET("/health", uiHandler.HealthHandler)
