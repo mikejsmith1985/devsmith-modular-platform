@@ -25,51 +25,37 @@ func NewCriticalService(ollamaClient OllamaClientInterface, analysisRepo Analysi
 
 // AnalyzeCritical performs a detailed analysis of a repository in Critical Mode.
 // It generates a report identifying various issues and returns the analysis output.
-func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, repoOwner, repoName string) (*review_models.CriticalModeOutput, error) {
+func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, code string) (*review_models.CriticalModeOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeCritical called", "correlation_id", correlationID, "review_id", reviewID, "repo_owner", repoOwner, "repo_name", repoName)
+	s.logger.Info("AnalyzeCritical called", "correlation_id", correlationID, "review_id", reviewID, "code_length", len(code))
 
-	prompt := fmt.Sprintf(`Review repository %s/%s in Critical Mode.
+	// Build prompt using template
+	prompt := BuildCriticalPrompt(code)
 
-Identify:
-1. Security vulnerabilities (SQL injection, XSS, secrets in code, etc.)
-2. Bugs and logic errors
-3. Performance issues (N+1 queries, inefficient algorithms)
-4. Anti-patterns and code smells
-5. Missing error handling
-6. Concurrency issues
-
-Return JSON:
-{
-  "issues": [
-    {
-      "severity": "critical|high|medium|low",
-      "category": "security|bug|performance|maintainability",
-      "file": "path/to/file.go",
-      "line": 42,
-      "code_snippet": "...",
-      "description": "SQL injection vulnerability",
-      "impact": "Attacker can access database",
-      "fix_suggestion": "Use parameterized queries"
-    }
-  ],
-  "summary": "Found 5 critical, 10 high, 15 medium issues",
-  "overall_grade": "C"
-}`, repoOwner, repoName)
-
+	// Call Ollama for real analysis
 	start := time.Now()
 	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
 	duration := time.Since(start)
+	
 	if err != nil {
 		s.logger.Error("Critical analysis AI call failed", "correlation_id", correlationID, "review_id", reviewID, "error", err, "duration_ms", duration.Milliseconds())
-		return nil, fmt.Errorf("failed to generate critical analysis: %w", err)
+		// Fallback to mock response on error
+		return s.getFallbackCriticalOutput()
 	}
-	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds())
+	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
 
+	// Parse JSON response
 	var output review_models.CriticalModeOutput
 	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
 		s.logger.Error("Failed to unmarshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
-		return nil, fmt.Errorf("failed to unmarshal critical analysis output: %w", unmarshalErr)
+		// Fallback on JSON parsing error
+		return s.getFallbackCriticalOutput()
+	}
+
+	// Validate output structure
+	if output.Summary == "" {
+		s.logger.Warn("Critical analysis returned empty summary", "correlation_id", correlationID, "review_id", reviewID)
+		output.Summary = "Analysis completed but summary was empty"
 	}
 
 	metadataJSON, err := json.Marshal(output)
@@ -77,6 +63,7 @@ Return JSON:
 		s.logger.Error("Failed to marshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to marshal critical analysis output: %w", err)
 	}
+
 	result := &review_models.AnalysisResult{
 		ReviewID:  reviewID,
 		Mode:      review_models.CriticalMode,
@@ -84,8 +71,9 @@ Return JSON:
 		RawOutput: rawOutput,
 		Summary:   output.Summary,
 		Metadata:  string(metadataJSON),
-		ModelUsed: "qwen2.5-coder:32b",
+		ModelUsed: "mistral:7b-instruct",
 	}
+	
 	if err := s.analysisRepo.Create(ctx, result); err != nil {
 		s.logger.Error("Failed to save critical analysis result", "correlation_id", correlationID, "review_id", reviewID, "error", err)
 		return nil, fmt.Errorf("failed to save analysis result: %w", err)
@@ -94,13 +82,18 @@ Return JSON:
 	return &output, nil
 }
 
-// OllamaClient represents the AI client used for generating analysis.
-// It provides methods to interact with the AI model.
-type OllamaClient struct{}
-
-// Generate simulates AI generation for the given prompt.
-// It returns the generated output or an error if the operation fails.
-func (o *OllamaClient) Generate(ctx context.Context, prompt string) (string, error) {
-	// Simulated implementation
-	return "", nil
+// getFallbackCriticalOutput returns a safe fallback response when Ollama fails
+func (s *CriticalService) getFallbackCriticalOutput() (*review_models.CriticalModeOutput, error) {
+	return &review_models.CriticalModeOutput{
+		Issues: []review_models.CodeIssue{
+			{
+				Severity:      "info",
+				Category:      "quality",
+				Description:   "Unable to perform AI analysis at this time. Please try again later.",
+				FixSuggestion: "Ensure Ollama service is running on localhost:11434",
+			},
+		},
+		OverallGrade: "N/A",
+		Summary:      "Analysis unavailable - Ollama service error",
+	}, nil
 }

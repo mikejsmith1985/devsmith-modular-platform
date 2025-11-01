@@ -26,40 +26,28 @@ func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 	}
 }
 
-// AnalyzeSkim performs Skim Mode analysis for the given review session and repository.
-func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner, repoName string) (*review_models.SkimModeOutput, error) {
+// AnalyzeSkim performs Skim Mode analysis for the given review session and code.
+func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, code string) (*review_models.SkimModeOutput, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeSkim called", "correlation_id", correlationID, "review_id", reviewID, "repo_owner", repoOwner, "repo_name", repoName)
+	s.logger.Info("AnalyzeSkim called", "correlation_id", correlationID, "review_id", reviewID, "code_length", len(code))
 
-	existing, err := s.analysisRepo.FindByReviewAndMode(ctx, reviewID, review_models.SkimMode)
-	if err != nil && err.Error() != "not found" {
-		s.logger.Error("SkimService: cache lookup failed", "correlation_id", correlationID, "review_id", reviewID, "error", err)
-		return nil, fmt.Errorf("cache lookup failed: %w", err)
-	}
-	if existing != nil {
-		var output review_models.SkimModeOutput
-		if unmarshalErr := json.Unmarshal([]byte(existing.Metadata), &output); unmarshalErr != nil {
-			s.logger.Error("SkimService: failed to unmarshal existing metadata", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
-			return nil, fmt.Errorf("failed to unmarshal existing metadata: %w", unmarshalErr)
-		}
-		s.logger.Info("SkimService: cache hit", "correlation_id", correlationID, "review_id", reviewID)
-		return &output, nil
-	}
+	// Build prompt using template
+	prompt := BuildSkimPrompt(code)
 
-	prompt := s.buildSkimPrompt(repoOwner, repoName)
 	start := time.Now()
 	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
 	duration := time.Since(start)
 	if err != nil {
 		s.logger.Error("SkimService: AI call failed", "correlation_id", correlationID, "review_id", reviewID, "error", err, "duration_ms", duration.Milliseconds())
-		return nil, err
+		// Return fallback on error
+		return s.getFallbackSkimOutput(), nil
 	}
 	s.logger.Info("SkimService: AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds())
 
 	output, err := s.parseSkimOutput(rawOutput)
 	if err != nil {
 		s.logger.Error("SkimService: failed to parse AI output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
-		return nil, err
+		return s.getFallbackSkimOutput(), nil
 	}
 
 	metadataJSON, err := json.Marshal(output)
@@ -74,7 +62,7 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner
 		RawOutput: rawOutput,
 		Summary:   output.Summary,
 		Metadata:  string(metadataJSON),
-		ModelUsed: "qwen2.5-coder:32b",
+		ModelUsed: "mistral:7b-instruct",
 	}
 	if err := s.analysisRepo.Create(ctx, result); err != nil {
 		s.logger.Error("SkimService: failed to save analysis result", "correlation_id", correlationID, "review_id", reviewID, "error", err)
@@ -84,7 +72,19 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, reviewID int64, repoOwner
 	return output, nil
 }
 
+// getFallbackSkimOutput returns safe fallback data when Ollama fails
+func (s *SkimService) getFallbackSkimOutput() *review_models.SkimModeOutput {
+	return &review_models.SkimModeOutput{
+		Functions:  []review_models.FunctionSignature{},
+		Interfaces: []review_models.InterfaceInfo{},
+		DataModels: []review_models.DataModelInfo{},
+		Workflows:  []review_models.WorkflowInfo{},
+		Summary:    "Analysis unavailable - using mock data",
+	}
+}
+
 func (s *SkimService) buildSkimPrompt(owner, repo string) string {
+	// Deprecated - use BuildSkimPrompt instead
 	return fmt.Sprintf(`Analyze repository %s/%s in Skim Mode.
 
 Goal: Extract function signatures, interfaces, and data models WITHOUT implementation details.
