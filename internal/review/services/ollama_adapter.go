@@ -35,10 +35,10 @@ func (a *OllamaClientAdapter) Generate(ctx context.Context, prompt string) (stri
 
 	// Construct ai.Request from simple prompt
 	req := &ai.Request{
-		Model:       "",             // Will use client's default model
+		Model:       "", // Will use client's default model
 		Prompt:      prompt,
-		Temperature: 0.7,            // Default temperature for code analysis
-		MaxTokens:   2048,           // Reasonable limit for analysis
+		Temperature: 0.7,  // Default temperature for code analysis
+		MaxTokens:   2048, // Reasonable limit for analysis
 	}
 
 	// Call wrapped client
