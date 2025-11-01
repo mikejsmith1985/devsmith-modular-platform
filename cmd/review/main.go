@@ -135,10 +135,6 @@ func main() {
 	// Handler setup (UIHandler takes logger and optional logging client)
 	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient)
 
-	// Session handler setup (handles session management endpoints)
-	reviewRepo := review_db.NewReviewRepository(sqlDB)
-	sessionHandler := app_handlers.NewSessionHandler(reviewRepo, reviewLogger)
-
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)
 	router.GET("/review", uiHandler.HomeHandler) // Serve UI at /review for E2E tests
@@ -147,10 +143,10 @@ func main() {
 	// SSE endpoint for session progress (demo stream)
 	router.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
 
-	// Session management endpoints (NEW for Issue #25)
-	router.GET("/api/review/sessions", sessionHandler.ListSessions)         // List user's sessions with pagination
-	router.GET("/api/review/sessions/:id", sessionHandler.GetSession)       // Get specific session
-	router.DELETE("/api/review/sessions/:id", sessionHandler.DeleteSession) // Delete session
+	// Session management endpoints (HTMX versions - Phase 11.5)
+	// Note: These endpoints are replaced by HTMX versions below
+	// Kept: router.GET("/api/review/sessions", sessionHandler.ListSessions) -> Use HTMX /list instead
+	// Kept pagination for non-HTMX clients if needed, but HTMX UI uses /list
 
 	// HTMX mode endpoints (Phase 12.3)
 	router.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)   // Preview mode HTMX
@@ -159,14 +155,14 @@ func main() {
 	router.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode) // Detailed mode HTMX
 	router.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode) // Critical mode HTMX
 
-	// HTMX session endpoints (Phase 11.5)
+	// HTMX session endpoints (Phase 11.5) - HTMX-first design
 	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)     // List sessions for sidebar
 	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX) // Search sessions
-	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)  // Get session detail
+	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)  // Get session detail (HTMX, replaces sessionHandler.GetSession)
 	router.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)     // Resume session
 	router.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX) // Duplicate session
 	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)   // Archive session
-	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)          // Delete session
+	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)          // Delete session (HTMX, replaces sessionHandler.DeleteSession)
 	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)    // Session statistics
 	router.GET("/api/review/sessions/:id/metadata", uiHandler.GetSessionMetadataHTMX) // Session metadata
 	router.GET("/api/review/sessions/:id/export", uiHandler.ExportSessionHTMX)     // Export session
