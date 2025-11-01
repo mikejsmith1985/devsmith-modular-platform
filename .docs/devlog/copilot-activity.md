@@ -4203,3 +4203,36 @@ When needed, debug Docker-specific issue or use GitHub Actions for CI.
 
 ---
 
+
+## 2025-11-01 17:07 - fix(e2e): Run smoke tests locally instead of Docker to avoid hanging
+**Branch:** development
+**Files Changed:**  2 files changed, 111 insertions(+), 28 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `scripts/run-smoke-tests.sh`
+
+**Action:** fix(e2e): Run smoke tests locally instead of Docker to avoid hanging
+
+**Commit:** `e1004b6`
+
+**Commit Message:**
+```
+fix(e2e): Run smoke tests locally instead of Docker to avoid hanging
+```
+
+**Details:**
+```
+- Updated scripts/run-smoke-tests.sh to execute tests locally
+- Tests complete in < 60 seconds locally
+- Avoids Docker-specific hanging issue
+- Feature mapping: ollama, ui, all, review, logs, analytics, portal
+
+Usage:
+  ./scripts/run-smoke-tests.sh ollama  # Run ollama-integration tests
+  ./scripts/run-smoke-tests.sh all     # Run all smoke tests
+  npx playwright test tests/e2e/smoke/ollama-integration/ --project=smoke
+
+Docker infrastructure remains in place for CI/CD integration when ready.
+```
+
+---
+
