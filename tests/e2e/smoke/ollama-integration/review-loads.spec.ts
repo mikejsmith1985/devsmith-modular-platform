@@ -2,12 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Review Loads', () => {
   test('Review page is accessible', async ({ page }) => {
-    const response = await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('/review', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
   });
 
   test('Session creation form renders with all input methods', async ({ page }) => {
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    await page.goto('/review', { waitUntil: 'domcontentloaded' });
     
     // Check for form
     const form = page.locator('form#review-session-form');
@@ -24,7 +24,7 @@ test.describe('SMOKE: Review Loads', () => {
   });
 
   test('Reading mode cards are visible and clickable', async ({ page }) => {
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    await page.goto('/review', { waitUntil: 'domcontentloaded' });
     
     // Check for mode buttons with correct text (Select Preview, Select Skim, etc.)
     const previewButton = page.locator('button:has-text("Select Preview")');
@@ -41,7 +41,7 @@ test.describe('SMOKE: Review Loads', () => {
   });
 
   test('Submit button is present and enabled', async ({ page }) => {
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    await page.goto('/review', { waitUntil: 'domcontentloaded' });
     
     const submitButton = page.locator('button[type="submit"]').filter({ hasText: 'Start Review' });
     await expect(submitButton).toBeVisible();

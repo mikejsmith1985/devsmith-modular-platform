@@ -4034,3 +4034,38 @@ Tests can now run in isolated containers without host dependencies.
 
 ---
 
+
+## 2025-11-01 16:28 - feat(e2e): Add Basic Auth support for nginx-protected endpoints
+**Branch:** development
+**Files Changed:**  4 files changed, 78 insertions(+), 3 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `docker-compose.playwright.yml`
+- `playwright-report/index.html`
+- `playwright.config.ts`
+
+**Action:** feat(e2e): Add Basic Auth support for nginx-protected endpoints
+
+**Commit:** `e3155a6`
+
+**Commit Message:**
+```
+feat(e2e): Add Basic Auth support for nginx-protected endpoints
+```
+
+**Details:**
+```
+- Updated playwright.config.ts to inject Basic Auth headers via PLAYWRIGHT_BASIC_AUTH env var
+- Added platform detection (Linux vs Docker Desktop) for baseURL
+- Updated docker-compose.playwright.yml with auth credentials
+- Tests now authenticate automatically when accessing localhost:3000 through nginx
+
+Usage:
+  PLAYWRIGHT_BASIC_AUTH="user:pass" npx playwright test
+  # or in Docker:
+  docker run -e PLAYWRIGHT_BASIC_AUTH="user:pass" ... playwright test
+
+Default test credentials: testuser:devsmith
+```
+
+---
+
