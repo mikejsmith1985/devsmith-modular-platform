@@ -1,0 +1,164 @@
+package templates
+
+import "fmt"
+
+type SessionInfo struct {
+	ID        int64
+	Title     string
+	CreatedAt string
+	UpdatedAt string
+	Status    string
+	ModeCount int
+}
+
+templ SessionsSidebar(sessions []SessionInfo, currentSessionID int64) {
+	<aside class="w-full lg:w-80 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 lg:sticky lg:top-12">
+		<!-- Sessions Header -->
+		<div class="flex items-center justify-between mb-6">
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white">📋 Sessions</h3>
+			<button
+				class="px-3 py-1 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors"
+				hx-get="/api/review/sessions/new"
+				hx-target="#session-detail"
+				hx-swap="innerHTML"
+				aria-label="Create new session">
+				+ New
+			</button>
+		</div>
+
+		<!-- Session Search -->
+		<div class="mb-4">
+			<input
+				type="text"
+				placeholder="Search sessions..."
+				class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm"
+				hx-get="/api/review/sessions/search"
+				hx-target="#sessions-list"
+				hx-swap="innerHTML"
+				hx-trigger="input changed delay:300ms"
+				name="query"
+				aria-label="Search sessions" />
+		</div>
+
+		<!-- Sessions List -->
+		<div
+			id="sessions-list"
+			class="space-y-2 max-h-96 overflow-y-auto"
+			hx-get="/api/review/sessions/list"
+			hx-trigger="load"
+			hx-swap="innerHTML">
+			<!-- Sessions will be loaded here via HTMX -->
+			if len(sessions) == 0 {
+				<div class="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+					<p>No sessions yet</p>
+					<p class="text-xs mt-1">Create a new session to get started</p>
+				</div>
+			} else {
+				for _, session := range sessions {
+					<div
+						class={ "p-3 rounded-lg border cursor-pointer transition-all", templ.KV("border-indigo-400 bg-indigo-50 dark:bg-indigo-900 dark:border-indigo-600", session.ID == currentSessionID), templ.KV("border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600", session.ID != currentSessionID) }
+						hx-get={ fmt.Sprintf("/api/review/sessions/%d", session.ID) }
+						hx-target="#session-detail"
+						hx-swap="innerHTML"
+						aria-label={ fmt.Sprintf("Session: %s", session.Title) }
+						role="button"
+						tabindex="0">
+						<div class="flex items-start justify-between">
+							<div class="flex-1 min-w-0">
+								<h4 class={ "text-sm font-medium truncate", templ.KV("text-indigo-900 dark:text-indigo-200", session.ID == currentSessionID), templ.KV("text-gray-900 dark:text-white", session.ID != currentSessionID) }>
+									{ session.Title }
+								</h4>
+								<p class={ "text-xs truncate", templ.KV("text-indigo-700 dark:text-indigo-300", session.ID == currentSessionID), templ.KV("text-gray-600 dark:text-gray-400", session.ID != currentSessionID) }>
+									{ session.CreatedAt }
+								</p>
+							</div>
+							<span class={ "px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2", templ.KV("bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200", session.Status == "active"), templ.KV("bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200", session.Status != "active") }>
+								{ session.Status }
+							</span>
+						</div>
+						<div class="mt-2 flex items-center justify-between">
+							<span class="text-xs text-gray-500 dark:text-gray-400">
+								{ fmt.Sprintf("%d modes", session.ModeCount) }
+							</span>
+							<button
+								class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+								hx-delete={ fmt.Sprintf("/api/review/sessions/%d", session.ID) }
+								hx-target="#session-detail"
+								hx-swap="innerHTML"
+								hx-confirm="Delete this session? This cannot be undone."
+								aria-label="Delete session">
+								🗑️
+							</button>
+						</div>
+					</div>
+				}
+			}
+		</div>
+
+		<!-- Sessions Statistics -->
+		<div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+			<h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Statistics</h4>
+			<div class="space-y-2 text-sm">
+				<div class="flex justify-between">
+					<span class="text-gray-600 dark:text-gray-400">Total Sessions</span>
+					<span class="font-medium text-gray-900 dark:text-white">{ fmt.Sprintf("%d", len(sessions)) }</span>
+				</div>
+				<div class="flex justify-between">
+					<span class="text-gray-600 dark:text-gray-400">Active</span>
+					<span class="font-medium text-green-600 dark:text-green-400">
+						{
+							templ.Raw(func() string {
+								count := 0
+								for _, s := range sessions {
+									if s.Status == "active" {
+										count++
+									}
+								}
+								return fmt.Sprintf("%d", count)
+							}())
+						}
+					</span>
+				</div>
+			</div>
+		</div>
+	</aside>
+}
+
+templ SessionListItem(session SessionInfo, isActive bool) {
+	<div
+		class={ "p-3 rounded-lg border cursor-pointer transition-all", templ.KV("border-indigo-400 bg-indigo-50 dark:bg-indigo-900 dark:border-indigo-600", isActive), templ.KV("border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600", !isActive) }
+		hx-get={ fmt.Sprintf("/api/review/sessions/%d", session.ID) }
+		hx-target="#session-detail"
+		hx-swap="innerHTML"
+		aria-label={ fmt.Sprintf("Session: %s", session.Title) }
+		role="button"
+		tabindex="0">
+		<div class="flex items-start justify-between">
+			<div class="flex-1 min-w-0">
+				<h4 class={ "text-sm font-medium truncate", templ.KV("text-indigo-900 dark:text-indigo-200", isActive), templ.KV("text-gray-900 dark:text-white", !isActive) }>
+					{ session.Title }
+				</h4>
+				<p class={ "text-xs truncate", templ.KV("text-indigo-700 dark:text-indigo-300", isActive), templ.KV("text-gray-600 dark:text-gray-400", !isActive) }>
+					{ session.CreatedAt }
+				</p>
+			</div>
+			<span class={ "px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2", templ.KV("bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200", session.Status == "active"), templ.KV("bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200", session.Status != "active") }>
+				{ session.Status }
+			</span>
+		</div>
+		<div class="mt-2 flex items-center justify-between">
+			<span class="text-xs text-gray-500 dark:text-gray-400">
+				{ fmt.Sprintf("%d modes", session.ModeCount) }
+			</span>
+			<button
+				class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+				hx-delete={ fmt.Sprintf("/api/review/sessions/%d", session.ID) }
+				hx-target="#session-detail"
+				hx-swap="innerHTML"
+				hx-confirm="Delete this session? This cannot be undone."
+				aria-label="Delete session">
+				🗑️
+			</button>
+		</div>
+	</div>
+}
