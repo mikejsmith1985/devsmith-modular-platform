@@ -4339,3 +4339,43 @@ NOW READY:
 
 ---
 
+
+## 2025-11-01 17:24 - UI rendering tests now passing - 7/7 tests pass in 4.7s
+**Branch:** development
+**Files Changed:**  3 files changed, 79 insertions(+), 41 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `tests/e2e/smoke/ui-rendering/dark-mode-toggle.spec.ts`
+- `tests/e2e/smoke/ui-rendering/portal-loads.spec.ts`
+
+**Action:** UI rendering tests now passing - 7/7 tests pass in 4.7s
+
+**Commit:** `dd93c3f`
+
+**Commit Message:**
+```
+test(smoke): UI rendering tests now passing - 7/7 tests pass in 4.7s
+```
+
+**Details:**
+```
+SMOKE TESTS PASSING:
+✅ dark-mode-toggle.spec.ts: 4 tests (clickable, DOM update, localStorage, persistence)
+✅ portal-loads.spec.ts: 3 tests (accessible, nav renders, dark mode button)
+
+Total: 7 tests, 4.7 seconds execution time
+
+KEY FIXES:
+- Updated tests to use /dashboard authenticated route
+- Fixed icon visibility check (one icon hidden by default)
+- Auth endpoint working correctly
+- Cookie persistence working
+- Dark mode toggle fully functional
+
+NEXT STEPS:
+- Test Ollama integration (review reading modes)
+- Test other services (logs, analytics)
+- Clean up debug test files
+```
+
+---
+
