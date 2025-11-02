@@ -4743,3 +4743,74 @@ Verified: All services built and healthy, all tests pass
 
 ---
 
+
+## 2025-11-01 19:31 - improve form data binding for HTMX mode handlers
+**Branch:** development
+**Files Changed:**  5 files changed, 122 insertions(+), 13 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/handlers/ui_handler.go`
+- `internal/ui/components/nav/nav.templ`
+- `internal/ui/components/nav/nav_templ.go`
+- `tests/e2e/verify-review-works.spec.ts`
+
+**Action:** improve form data binding for HTMX mode handlers
+
+**Commit:** `90f2939`
+
+**Commit Message:**
+```
+fix(review): improve form data binding for HTMX mode handlers
+```
+
+**Details:**
+```
+- Changed bindCodeRequest to try PostForm first (HTMX format)
+- Fixed navigation links from /apps/{service} to /{service}
+- Added verification test to check actual functionality
+
+Current issues found:
+- Mode buttons configured with HTMX but binding still fails (400)
+- Database connection pool exhausted (too many clients)
+- Dark mode toggle works correctly
+- Navigation now goes to correct URLs
+
+Next steps:
+- Fix database connection pooling
+- Debug why PostForm binding still returns 400
+- Verify Ollama integration actually calls AI model
+```
+
+---
+
+
+## 2025-11-01 19:47 - docs: comprehensive fix document for AI agent handoff
+**Branch:** development
+**Files Changed:**  1 file changed, 984 insertions(+)
+- `.docs/CRITICAL_FIXES_NEEDED.md`
+
+**Action:** docs: comprehensive fix document for AI agent handoff
+
+**Commit:** `853cf49`
+
+**Commit Message:**
+```
+docs: comprehensive fix document for AI agent handoff
+```
+
+**Details:**
+```
+Created detailed document covering:
+- All broken functionality in Review app
+- Root cause analysis with debug steps
+- Fix strategies with code examples
+- Testing procedures for validation
+- Priority-ordered action plan
+- Success criteria and done definition
+
+Document optimized for AI agent consumption without human prompts.
+
+Token budget: 145K used, 55K remaining (sufficient for fixes)
+```
+
+---
+

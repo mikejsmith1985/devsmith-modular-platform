@@ -33,9 +33,17 @@ func (a *OllamaClientAdapter) Generate(ctx context.Context, prompt string) (stri
 		return "", fmt.Errorf("ollama client is not initialized")
 	}
 
+	// Check if model override exists in context
+	model := ""
+	if ctxModel := ctx.Value("model"); ctxModel != nil {
+		if m, ok := ctxModel.(string); ok && m != "" {
+			model = m
+		}
+	}
+
 	// Construct ai.Request from simple prompt
 	req := &ai.Request{
-		Model:       "", // Will use client's default model
+		Model:       model, // Use context model or empty for client's default
 		Prompt:      prompt,
 		Temperature: 0.7,  // Default temperature for code analysis
 		MaxTokens:   2048, // Reasonable limit for analysis

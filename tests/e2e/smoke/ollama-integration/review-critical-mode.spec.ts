@@ -25,8 +25,8 @@ test.describe('SMOKE: Review Critical Mode', () => {
     const testCode = `package main\nfunc main() { x := 1; }`;
     await page.fill('textarea[name="pasted_code"]', testCode);
     
-    // Find and click Critical Mode button
-    const criticalButton = page.locator('button:has-text("Critical Mode")').first();
+  // Find and click Critical Mode button (use hx-post attribute so selector matches templated button)
+  const criticalButton = page.locator('button[hx-post="/api/review/modes/critical"]').first();
     
     // Listen for network requests to /api/review/modes/critical
     const responsePromise = page.waitForResponse(

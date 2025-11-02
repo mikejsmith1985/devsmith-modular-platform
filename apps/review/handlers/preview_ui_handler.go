@@ -21,9 +21,9 @@ func RegisterPreviewUIRoutes(router *gin.Engine, previewService *review_services
 			"FileTree":             result.FileTree,
 			"BoundedContexts":      result.BoundedContexts,
 			"TechStack":            result.TechStack,
-			"ArchitecturePattern":  result.ArchitecturePattern,
+			"ArchitecturePattern":  result.ArchitectureStyle,
 			"EntryPoints":          result.EntryPoints,
-			"ExternalDependencies": result.ExternalDependencies,
+			"ExternalDependencies": result.ExternalDeps,
 			"Summary":              result.Summary,
 			"SessionID":            "demo-session",
 		})
