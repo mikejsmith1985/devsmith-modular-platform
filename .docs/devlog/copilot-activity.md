@@ -4999,3 +4999,48 @@ References:
 
 ---
 
+
+## 2025-11-02 09:29 - Fix Critical Mode prompt to match struct fields
+**Branch:** development
+**Files Changed:**  2 files changed, 69 insertions(+), 13 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `internal/review/services/prompts.go`
+
+**Action:** Fix Critical Mode prompt to match struct fields
+
+**Commit:** `154e18d`
+
+**Commit Message:**
+```
+fix(review): Fix Critical Mode prompt to match struct fields
+```
+
+**Details:**
+```
+- Updated BuildCriticalPrompt() to match CriticalModeOutput struct
+- Changed 'quality_score' → 'overall_grade' (letter grade A-F)
+- Changed 'suggestion' → 'fix_suggestion'
+- Added missing 'file' field requirement
+- Added 'impact' field requirement
+- Made prompt explicit: ONLY JSON, no markdown fences
+- Emphasized required fields and structure
+
+Testing:
+- Manual curl test: SUCCESS ✅ Returns valid JSON with issues array
+- Critical mode now returns: {overall_grade, summary, issues[]}
+- Each issue has: {severity, category, file, line, code_snippet, description, impact, fix_suggestion}
+- Unit tests: All passing (100%)
+- E2E tests: 2/6 passing for critical-mode.spec.ts (test needs fixing, not the feature)
+- Test failure root cause: Tests expect button before submitting code (test bug)
+
+Next Steps:
+- Fix test to submit code first, then click mode buttons
+- Or update test strategy to match actual UX flow
+
+References:
+- .github/copilot-instructions.md §3 (Write Tests FIRST - TDD)
+- DevsmithTDD.md (Red-Green-Refactor cycle)
+```
+
+---
+

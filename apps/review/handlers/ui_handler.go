@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -93,7 +94,7 @@ func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, 
 	resultJSON, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		h.logger.Error("Failed to marshal result", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to format analysis result")
+		h.renderError(c, err, "Failed to format analysis result")
 		return
 	}
 
@@ -107,6 +108,33 @@ func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, 
 	c.String(http.StatusOK, html)
 }
 
+// renderError classifies the error and renders appropriate HTMX-compatible error template
+func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage string) {
+	h.logger.Error("Request error", "error", err.Error(), "path", c.Request.URL.Path)
+	
+	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c.Status(http.StatusInternalServerError)
+	
+	// Classify error and render appropriate template
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "circuit breaker is open") || strings.Contains(errMsg, "ErrOpenState") {
+		templates.CircuitOpen().Render(c.Request.Context(), c.Writer)
+	} else if strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout") {
+		templates.AITimeout().Render(c.Request.Context(), c.Writer)
+	} else if strings.Contains(errMsg, "ollama") && strings.Contains(errMsg, "unavailable") {
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+	} else if strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host") {
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+	} else {
+		// Generic error
+		message := fallbackMessage
+		if message == "" {
+			message = fmt.Sprintf("Analysis failed: %v", err)
+		}
+		templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer)
+	}
+}
+
 // HomeHandler serves the main Review UI (mode selector + repo input)
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
@@ -114,7 +142,7 @@ func (h *UIHandler) HomeHandler(c *gin.Context) {
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := templates.Home().Render(c.Request.Context(), c.Writer); err != nil {
 		h.logger.Error("Failed to render Home template", "error", err)
-		c.String(http.StatusInternalServerError, "Failed to render page")
+		h.renderError(c, err, "Failed to render page")
 	}
 }
 
@@ -194,7 +222,9 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 
 	if h.previewService == nil {
 		h.logger.Warn("Preview service not initialized")
-		c.String(http.StatusServiceUnavailable, "Preview service unavailable")
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusServiceUnavailable)
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 		return
 	}
 
@@ -204,7 +234,7 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Preview analysis failed", "error", err.Error(), "model", req.Model)
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		h.renderError(c, err, "Preview analysis failed")
 		return
 	}
 
@@ -221,7 +251,9 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 
 	if h.skimService == nil {
 		h.logger.Warn("Skim service not initialized")
-		c.String(http.StatusServiceUnavailable, "Skim service unavailable")
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusServiceUnavailable)
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 		return
 	}
 
@@ -231,7 +263,7 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 	result, err := h.skimService.AnalyzeSkim(ctx, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Skim analysis failed", "error", err.Error(), "model", req.Model)
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		h.renderError(c, err, "Skim analysis failed")
 		return
 	}
 
@@ -250,7 +282,9 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 
 	if h.scanService == nil {
 		h.logger.Warn("Scan service not initialized")
-		c.String(http.StatusServiceUnavailable, "Scan service unavailable")
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusServiceUnavailable)
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 		return
 	}
 
@@ -260,7 +294,7 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model)
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		h.renderError(c, err, "Scan analysis failed")
 		return
 	}
 
@@ -279,7 +313,9 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 
 	if h.detailedService == nil {
 		h.logger.Warn("Detailed service not initialized")
-		c.String(http.StatusServiceUnavailable, "Detailed service unavailable")
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusServiceUnavailable)
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 		return
 	}
 
@@ -289,7 +325,7 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 	result, err := h.detailedService.AnalyzeDetailed(ctx, filename, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Detailed analysis failed", "error", err.Error(), "model", req.Model)
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		h.renderError(c, err, "Detailed analysis failed")
 		return
 	}
 
@@ -306,7 +342,9 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 
 	if h.criticalService == nil {
 		h.logger.Warn("Critical service not initialized")
-		c.String(http.StatusServiceUnavailable, "Critical service unavailable")
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusServiceUnavailable)
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 		return
 	}
 
@@ -316,7 +354,7 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 	result, err := h.criticalService.AnalyzeCritical(ctx, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Critical analysis failed", "error", err.Error(), "model", req.Model)
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
+		h.renderError(c, err, "Critical analysis failed")
 		return
 	}
 
@@ -761,7 +799,7 @@ func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 
 	if err := templates.Workspace(props).Render(c.Request.Context(), c.Writer); err != nil {
 		h.logger.Error("failed to render workspace template", "error", err.Error())
-		c.String(http.StatusInternalServerError, "Failed to render workspace")
+		h.renderError(c, err, "Failed to render workspace")
 	}
 }
 
