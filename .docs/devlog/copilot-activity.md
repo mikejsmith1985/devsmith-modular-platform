@@ -4963,3 +4963,39 @@ Refs: ARCHITECTURAL_RESURRECTION_PLAN.md Phase 4A.3
 
 ---
 
+
+## 2025-11-02 09:25 - Fix context key type mismatch in ollama adapter
+**Branch:** development
+**Files Changed:**  2 files changed, 56 insertions(+), 2 deletions(-)
+- `.docs/devlog/copilot-activity.md`
+- `internal/review/services/ollama_adapter.go`
+
+**Action:** Fix context key type mismatch in ollama adapter
+
+**Commit:** `4210bf2`
+
+**Commit Message:**
+```
+fix(review): Fix context key type mismatch in ollama adapter
+```
+
+**Details:**
+```
+- Changed modelContextKey from string constant to typed contextKey
+- This fixes critical mode 404 errors where model wasn't passed to Ollama
+- Handler and adapter now use same contextKey type for context.Value()
+- Tests show improvement: was getting 404, now gets 500 (progress toward fix)
+
+Testing:
+- Unit tests: All passing (cache, circuit, db, github, health, retry, security, ollama adapter)
+- E2E tests baseline: 58/62 passing (93.5%), 4 failures in critical mode
+- After fix: Critical mode now communicates with Ollama (no more 404)
+- Remaining issue: AI response parsing error (next to fix)
+
+References:
+- .github/copilot-instructions.md §2.6 (Pre-Implementation Validation)
+- Go context key best practices (use typed keys to avoid collisions)
+```
+
+---
+
