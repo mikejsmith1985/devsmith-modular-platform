@@ -3,9 +3,16 @@ package review_services
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
+)
+
+const (
+	modelContextKey    = "model"
+	defaultOllamaModel = "mistral:7b-instruct" // Fallback if context empty
 )
 
 // OllamaClientAdapter implements OllamaClientInterface by wrapping providers.OllamaClient
@@ -33,17 +40,21 @@ func (a *OllamaClientAdapter) Generate(ctx context.Context, prompt string) (stri
 		return "", fmt.Errorf("ollama client is not initialized")
 	}
 
-	// Check if model override exists in context
-	model := ""
-	if ctxModel := ctx.Value("model"); ctxModel != nil {
-		if m, ok := ctxModel.(string); ok && m != "" {
-			model = m
+	// Try to get model from context
+	model, ok := ctx.Value(modelContextKey).(string)
+	if !ok || model == "" {
+		// Defensive fallback: use environment variable or default
+		model = os.Getenv("OLLAMA_MODEL")
+		if model == "" {
+			model = defaultOllamaModel
 		}
+		// Log warning but continue
+		log.Printf("Warning: model not in context, using fallback: %s", model)
 	}
 
 	// Construct ai.Request from simple prompt
 	req := &ai.Request{
-		Model:       model, // Use context model or empty for client's default
+		Model:       model, // Use resolved model (from context, env, or default)
 		Prompt:      prompt,
 		Temperature: 0.7,  // Default temperature for code analysis
 		MaxTokens:   2048, // Reasonable limit for analysis
