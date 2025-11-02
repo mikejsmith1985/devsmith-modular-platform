@@ -3,9 +3,14 @@ package review_services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"net/http"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	review_errors "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/errors"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
@@ -23,77 +28,77 @@ func NewCriticalService(ollamaClient OllamaClientInterface, analysisRepo Analysi
 	return &CriticalService{ollamaClient: ollamaClient, analysisRepo: analysisRepo, logger: logger}
 }
 
-// AnalyzeCritical performs a detailed analysis of a repository in Critical Mode.
-// It generates a report identifying various issues and returns the analysis output.
-func (s *CriticalService) AnalyzeCritical(ctx context.Context, reviewID int64, code string) (*review_models.CriticalModeOutput, error) {
+// AnalyzeCritical performs a detailed quality analysis of code in Critical Mode.
+// Evaluates architecture, security, performance, and identifies improvements.
+// Returns error if analysis fails.
+func (s *CriticalService) AnalyzeCritical(ctx context.Context, code string) (*review_models.CriticalModeOutput, error) {
+	// Start tracing span
+	tracer := otel.Tracer("devsmith-review")
+	ctx, span := tracer.Start(ctx, "CriticalService.AnalyzeCritical",
+		trace.WithAttributes(
+			attribute.Int("code_length", len(code)),
+		),
+	)
+	defer span.End()
+
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeCritical called", "correlation_id", correlationID, "review_id", reviewID, "code_length", len(code))
+	s.logger.Info("AnalyzeCritical called", "correlation_id", correlationID, "code_length", len(code))
 
 	// Build prompt using template
 	prompt := BuildCriticalPrompt(code)
+	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
 
 	// Call Ollama for real analysis
 	start := time.Now()
 	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
 	duration := time.Since(start)
-	
+	span.SetAttributes(
+		attribute.Int64("ollama_duration_ms", duration.Milliseconds()),
+		attribute.Int("response_length", len(rawOutput)),
+	)
+
 	if err != nil {
-		s.logger.Error("Critical analysis AI call failed", "correlation_id", correlationID, "review_id", reviewID, "error", err, "duration_ms", duration.Milliseconds())
-		// Fallback to mock response on error
-		return s.getFallbackCriticalOutput()
+		s.logger.Error("Critical analysis AI call failed", "correlation_id", correlationID, "error", err, "duration_ms", duration.Milliseconds())
+		infraErr := &review_errors.InfrastructureError{
+			Code:       "ERR_OLLAMA_UNAVAILABLE",
+			Message:    "AI analysis service is unavailable",
+			Cause:      err,
+			HTTPStatus: http.StatusServiceUnavailable,
+		}
+		span.RecordError(infraErr)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, infraErr
 	}
-	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
+	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
 
 	// Parse JSON response
 	var output review_models.CriticalModeOutput
 	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
-		s.logger.Error("Failed to unmarshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", unmarshalErr)
-		// Fallback on JSON parsing error
-		return s.getFallbackCriticalOutput()
+		s.logger.Error("Failed to unmarshal critical analysis output", "correlation_id", correlationID, "error", unmarshalErr)
+		parseErr := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      unmarshalErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(parseErr)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, parseErr
 	}
 
 	// Validate output structure
 	if output.Summary == "" {
-		s.logger.Warn("Critical analysis returned empty summary", "correlation_id", correlationID, "review_id", reviewID)
+		s.logger.Warn("Critical analysis returned empty summary", "correlation_id", correlationID)
 		output.Summary = "Analysis completed but summary was empty"
 	}
 
-	metadataJSON, err := json.Marshal(output)
-	if err != nil {
-		s.logger.Error("Failed to marshal critical analysis output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
-		return nil, fmt.Errorf("failed to marshal critical analysis output: %w", err)
-	}
+	span.SetAttributes(
+		attribute.Bool("error", false),
+		attribute.Bool("success", true),
+		attribute.Int("issues_count", len(output.Issues)),
+		attribute.String("overall_grade", output.OverallGrade),
+	)
 
-	result := &review_models.AnalysisResult{
-		ReviewID:  reviewID,
-		Mode:      review_models.CriticalMode,
-		Prompt:    prompt,
-		RawOutput: rawOutput,
-		Summary:   output.Summary,
-		Metadata:  string(metadataJSON),
-		ModelUsed: "mistral:7b-instruct",
-	}
-	
-	if err := s.analysisRepo.Create(ctx, result); err != nil {
-		s.logger.Error("Failed to save critical analysis result", "correlation_id", correlationID, "review_id", reviewID, "error", err)
-		return nil, fmt.Errorf("failed to save analysis result: %w", err)
-	}
-	s.logger.Info("Critical analysis completed and saved", "correlation_id", correlationID, "review_id", reviewID)
+	s.logger.Info("Critical analysis completed", "correlation_id", correlationID, "issues_found", len(output.Issues), "grade", output.OverallGrade)
 	return &output, nil
-}
-
-// getFallbackCriticalOutput returns a safe fallback response when Ollama fails
-func (s *CriticalService) getFallbackCriticalOutput() (*review_models.CriticalModeOutput, error) {
-	return &review_models.CriticalModeOutput{
-		Issues: []review_models.CodeIssue{
-			{
-				Severity:      "info",
-				Category:      "quality",
-				Description:   "Unable to perform AI analysis at this time. Please try again later.",
-				FixSuggestion: "Ensure Ollama service is running on localhost:11434",
-			},
-		},
-		OverallGrade: "N/A",
-		Summary:      "Analysis unavailable - Ollama service error",
-	}, nil
 }

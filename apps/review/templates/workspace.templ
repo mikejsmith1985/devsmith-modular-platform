@@ -1,0 +1,194 @@
+// Package templates provides Templ components for the Review service workspace UI.
+package templates
+
+// WorkspaceProps contains the data needed to render the workspace.
+type WorkspaceProps struct {
+	SessionID      int
+	Title          string
+	Code           string
+	CurrentMode    string
+	AnalysisResult string
+}
+
+// Workspace renders the two-pane layout for code review with dynamic mode switching.
+// Left pane: Code editor with syntax highlighting and line numbers
+// Right pane: AI analysis results that update via HTMX based on selected mode
+templ Workspace(props WorkspaceProps) {
+	@Layout("Review Workspace - " + props.Title) {
+		<div class="workspace-container min-h-screen bg-gray-50 dark:bg-gray-900">
+			<!-- Workspace Header -->
+			<header class="workspace-header border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 px-6 py-4">
+				<div class="flex items-center justify-between">
+					<div class="flex-1">
+						<h1 class="text-2xl font-bold text-gray-900 dark:text-white">{ props.Title }</h1>
+						<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Session #{ string(props.SessionID) }</p>
+					</div>
+					
+					<!-- Mode Selector -->
+					<div class="flex items-center gap-4">
+						<label for="mode-selector" class="text-sm font-medium text-gray-700 dark:text-gray-300">Reading Mode:</label>
+						<select
+							id="mode-selector"
+							name="mode"
+							class="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+							hx-get={ "/api/review/sessions/" + string(props.SessionID) + "/analyze" }
+							hx-target="#analysis-pane"
+							hx-indicator="#analysis-loading"
+							hx-swap="innerHTML"
+							aria-label="Select reading mode for code analysis"
+						>
+							<option value="preview" selected?={ props.CurrentMode == "preview" }>👁️ Preview (2-3 min)</option>
+							<option value="skim" selected?={ props.CurrentMode == "skim" }>⚡ Skim (5-7 min)</option>
+							<option value="scan" selected?={ props.CurrentMode == "scan" }>🔎 Scan (3-5 min)</option>
+							<option value="detailed" selected?={ props.CurrentMode == "detailed" }>🔬 Detailed (10-15 min)</option>
+							<option value="critical" selected?={ props.CurrentMode == "critical" }>⚠️ Critical (15-20 min)</option>
+						</select>
+						
+						<!-- Analyze Button -->
+						<button
+							type="button"
+							class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+							hx-post={ "/api/review/sessions/" + string(props.SessionID) + "/analyze" }
+							hx-include="#mode-selector"
+							hx-target="#analysis-pane"
+							hx-indicator="#analysis-loading"
+							hx-swap="innerHTML"
+							aria-label="Analyze code with selected reading mode"
+						>
+							Analyze Code
+						</button>
+					</div>
+				</div>
+			</header>
+
+			<!-- Two-Pane Layout -->
+			<div class="workspace-content flex h-[calc(100vh-120px)]">
+				<!-- Left Pane: Code Editor -->
+				<div class="code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden">
+					<div class="code-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+						<div class="flex items-center justify-between">
+							<h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Code</h2>
+							<div class="flex items-center gap-2">
+								<span class="text-xs text-gray-500 dark:text-gray-400">{ string(len(props.Code)) } characters</span>
+								<button
+									type="button"
+									class="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors"
+									onclick="copyToClipboard(document.getElementById('code-content').innerText)"
+									aria-label="Copy code to clipboard"
+								>
+									📋 Copy
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="code-content overflow-auto h-full p-6">
+						<pre
+							id="code-content"
+							class="text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words"
+							tabindex="0"
+							role="region"
+							aria-label="Code content"
+						><code>{ props.Code }</code></pre>
+					</div>
+				</div>
+
+				<!-- Right Pane: Analysis Results -->
+				<div class="analysis-pane flex-1 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+					<div class="analysis-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+						<div class="flex items-center justify-between">
+							<h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">AI Analysis</h2>
+							<!-- Loading Indicator -->
+							<div id="analysis-loading" class="htmx-indicator flex items-center gap-2">
+								<svg class="animate-spin h-4 w-4 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								<span class="text-xs text-gray-600 dark:text-gray-400">Analyzing...</span>
+							</div>
+						</div>
+					</div>
+					<div
+						id="analysis-pane"
+						class="analysis-content overflow-auto h-full p-6"
+						role="region"
+						aria-label="AI analysis results"
+						aria-live="polite"
+					>
+						if props.AnalysisResult != "" {
+							<!-- Analysis results will be injected here via HTMX -->
+							@RenderAnalysisResult(props.CurrentMode, props.AnalysisResult)
+						} else {
+							<!-- Empty state -->
+							<div class="flex flex-col items-center justify-center h-full text-center">
+								<svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+								</svg>
+								<h3 class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">No Analysis Yet</h3>
+								<p class="text-sm text-gray-500 dark:text-gray-400 max-w-md">
+									Select a reading mode from the dropdown above and click "Analyze Code" to start AI-powered code analysis.
+								</p>
+								<div class="mt-6 space-y-2 text-left text-sm text-gray-600 dark:text-gray-400">
+									<p>📖 <strong>Preview:</strong> Quick structural overview</p>
+									<p>⚡ <strong>Skim:</strong> Abstractions and key components</p>
+									<p>🔎 <strong>Scan:</strong> Search for specific patterns</p>
+									<p>🔬 <strong>Detailed:</strong> Line-by-line explanation</p>
+									<p>⚠️ <strong>Critical:</strong> Quality review and issues</p>
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Copy to Clipboard Helper Script -->
+		<script>
+			function copyToClipboard(text) {
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(text).then(() => {
+						// Show temporary success message
+						const toast = document.createElement('div');
+						toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+						toast.textContent = '✓ Copied to clipboard';
+						document.body.appendChild(toast);
+						setTimeout(() => toast.remove(), 2000);
+					}).catch(err => {
+						console.error('Failed to copy:', err);
+					});
+				} else {
+					// Fallback for older browsers
+					const textarea = document.createElement('textarea');
+					textarea.value = text;
+					textarea.style.position = 'fixed';
+					textarea.style.opacity = '0';
+					document.body.appendChild(textarea);
+					textarea.select();
+					document.execCommand('copy');
+					document.body.removeChild(textarea);
+					alert('Code copied to clipboard');
+				}
+			}
+		</script>
+	}
+}
+
+// RenderAnalysisResult renders the appropriate analysis component based on mode
+templ RenderAnalysisResult(mode string, result string) {
+	switch mode {
+		case "preview":
+			@PreviewModeResult(result)
+		case "skim":
+			@SkimModeFunctionList([]string{}) // Will be populated from actual result
+		case "scan":
+			@ScanModeSearch()
+		case "detailed":
+			@DetailedModeLineByLine([]string{})
+		case "critical":
+			@CriticalModeIssueList([]CriticalModeIssue{})
+		default:
+			<div class="text-gray-700 dark:text-gray-300">
+				<p class="text-sm">Unknown mode: { mode }</p>
+				<pre class="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs overflow-auto">{ result }</pre>
+			</div>
+	}
+}

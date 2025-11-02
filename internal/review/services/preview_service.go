@@ -3,101 +3,101 @@ package review_services
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	review_errors "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/errors"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
-// PreviewResult holds the analysis for Preview Mode
-type PreviewResult struct {
-	FileTree             []string `json:"file_tree"`
-	BoundedContexts      []string `json:"bounded_contexts"`
-	TechStack            []string `json:"tech_stack"`
-	ArchitecturePattern  string   `json:"architecture_pattern"`
-	EntryPoints          []string `json:"entry_points"`
-	ExternalDependencies []string `json:"external_dependencies"`
-	Summary              string   `json:"summary"`
-}
-
-// FileNode represents a node in the file/folder tree (deprecated, kept for compatibility)
-type FileNode struct {
-	Name        string
-	Path        string
-	Description string
-	Children    []FileNode
-}
-
-// PreviewService provides Preview Mode analysis
+// PreviewService provides Preview Mode analysis for code review sessions.
 type PreviewService struct {
 	ollamaClient OllamaClientInterface
 	logger       logger.Interface
 }
 
-// NewPreviewService creates a new PreviewService with logger.
-// Note: For backward compatibility, OllamaClientInterface can be nil and will use mock data.
-func NewPreviewService(logger logger.Interface) *PreviewService {
-	return &PreviewService{logger: logger}
+// NewPreviewService creates a new PreviewService with the given dependencies.
+func NewPreviewService(ollamaClient OllamaClientInterface, logger logger.Interface) *PreviewService {
+	return &PreviewService{
+		ollamaClient: ollamaClient,
+		logger:       logger,
+	}
 }
 
-// NewPreviewServiceWithOllama creates a new PreviewService with Ollama integration.
-func NewPreviewServiceWithOllama(ollamaClient OllamaClientInterface, logger logger.Interface) *PreviewService {
-	return &PreviewService{ollamaClient: ollamaClient, logger: logger}
-}
+// AnalyzePreview performs Preview Mode analysis for the given code.
+// Returns rapid structural assessment.
+// Returns error if analysis fails.
+func (s *PreviewService) AnalyzePreview(ctx context.Context, code string) (*review_models.PreviewModeOutput, error) {
+	// Start tracing span
+	tracer := otel.Tracer("devsmith-review")
+	ctx, span := tracer.Start(ctx, "PreviewService.AnalyzePreview",
+		trace.WithAttributes(
+			attribute.Int("code_length", len(code)),
+		),
+	)
+	defer span.End()
 
-// AnalyzePreview analyzes the codebase in Preview Mode.
-// It returns a PreviewResult containing high-level structure and context for the given codebase.
-func (s *PreviewService) AnalyzePreview(ctx context.Context, code string) (*PreviewResult, error) {
 	correlationID := ctx.Value(logger.CorrelationIDKey)
 	s.logger.Info("AnalyzePreview called", "correlation_id", correlationID, "code_length", len(code))
 
-	// If no Ollama client configured, return mock data (backward compatibility)
-	if s.ollamaClient == nil {
-		s.logger.Info("AnalyzePreview using mock data (no Ollama configured)", "correlation_id", correlationID)
-		return s.getMockPreviewResult(), nil
-	}
-
 	// Build prompt using template
 	prompt := BuildPreviewPrompt(code)
+	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
 
-	// Call Ollama for real analysis
 	start := time.Now()
 	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
 	duration := time.Since(start)
+	span.SetAttributes(
+		attribute.Int64("ollama_duration_ms", duration.Milliseconds()),
+		attribute.Int("response_length", len(rawOutput)),
+	)
 
 	if err != nil {
-		s.logger.Error("Preview analysis AI call failed", "correlation_id", correlationID, "error", err, "duration_ms", duration.Milliseconds())
-		// Fallback to mock data on error
-		return s.getMockPreviewResult(), nil
+		s.logger.Error("PreviewService: AI call failed", "correlation_id", correlationID, "error", err, "duration_ms", duration.Milliseconds())
+		aiErr := &review_errors.InfrastructureError{
+			Code:       "ERR_OLLAMA_UNAVAILABLE",
+			Message:    "AI analysis service is unavailable",
+			Cause:      err,
+			HTTPStatus: http.StatusServiceUnavailable,
+		}
+		span.RecordError(aiErr)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, aiErr
 	}
-	s.logger.Info("Preview analysis AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
+	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
 
 	// Parse JSON response
-	var result PreviewResult
-	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &result); unmarshalErr != nil {
-		s.logger.Error("Failed to unmarshal preview analysis output", "correlation_id", correlationID, "error", unmarshalErr)
-		// Fallback on JSON parsing error
-		return s.getMockPreviewResult(), nil
+	var output review_models.PreviewModeOutput
+	if parseErr := json.Unmarshal([]byte(rawOutput), &output); parseErr != nil {
+		s.logger.Error("PreviewService: failed to parse AI output", "correlation_id", correlationID, "error", parseErr)
+		parseErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      parseErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(parseErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, parseErrWrapped
 	}
 
 	// Validate output structure
-	if result.Summary == "" {
-		s.logger.Warn("Preview analysis returned empty summary", "correlation_id", correlationID)
-		result.Summary = "Analysis completed"
+	if output.Summary == "" {
+		output.Summary = "No summary provided by AI"
 	}
 
-	s.logger.Info("AnalyzePreview completed", "correlation_id", correlationID, "result_summary", result.Summary)
-	return &result, nil
-}
+	span.SetAttributes(
+		attribute.Bool("error", false),
+		attribute.Bool("success", true),
+		attribute.Int("bounded_contexts_count", len(output.BoundedContexts)),
+		attribute.Int("tech_stack_count", len(output.TechStack)),
+	)
 
-// getMockPreviewResult returns safe fallback mock data
-func (s *PreviewService) getMockPreviewResult() *PreviewResult {
-	return &PreviewResult{
-		FileTree:             []string{"main.go", "handler.go", "models/"},
-		BoundedContexts:      []string{"Auth domain", "Review domain"},
-		TechStack:            []string{"Go", "Gin", "PostgreSQL"},
-		ArchitecturePattern:  "layered",
-		EntryPoints:          []string{"main()", "NewServer()"},
-		ExternalDependencies: []string{"PostgreSQL", "Redis"},
-		Summary:              "This is a Go microservice using Gin and PostgreSQL.",
-	}
+	s.logger.Info("PreviewService: analysis completed successfully", "correlation_id", correlationID, "bounded_contexts_count", len(output.BoundedContexts))
+	return &output, nil
 }

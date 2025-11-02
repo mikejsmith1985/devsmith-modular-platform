@@ -4,10 +4,14 @@ package review_services
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"net/http"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	review_errors "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/errors"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
@@ -29,91 +33,81 @@ func NewDetailedService(ollama OllamaClientInterface, repo AnalysisRepositoryInt
 	}
 }
 
-// DetailedLine represents a single line of code and its analysis in Detailed Mode.
-// It includes the line number, code snippet, explanation, complexity, and side effects.
-type DetailedLine struct {
-	Code              string   `json:"code"`
-	Explanation       string   `json:"explanation"`
-	Complexity        string   `json:"complexity"`
-	SideEffects       []string `json:"side_effects"`
-	VariablesModified []string `json:"variables_modified"`
-	LineNum           int      `json:"line_num"`
-}
-
-// DataFlow describes the flow of data between code elements in Detailed Mode.
-// It includes the source, destination, and a description of the data flow.
-type DataFlow struct {
-	From        string `json:"from"`
-	To          string `json:"to"`
-	Description string `json:"description"`
-}
-
-// DetailedAnalysisOutput is the result of a Detailed Mode analysis.
-// It includes line-by-line explanations, data flow, and a summary.
-type DetailedAnalysisOutput struct {
-	Summary  string         `json:"summary"`
-	Lines    []DetailedLine `json:"lines"`
-	DataFlow []DataFlow     `json:"data_flow"`
-}
-
 // AnalyzeDetailed performs a line-by-line analysis of code in Detailed Mode.
-// It generates a detailed report and stores the result in the analysis repository.
-func (s *DetailedService) AnalyzeDetailed(ctx context.Context, reviewID int64, code string, filename string) (*DetailedAnalysisOutput, error) {
+// Returns DetailedModeOutput with line explanations, algorithm analysis, and complexity assessment.
+// Returns error if analysis fails.
+func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, code string) (*review_models.DetailedModeOutput, error) {
+	// Start tracing span
+	tracer := otel.Tracer("devsmith-review")
+	ctx, span := tracer.Start(ctx, "DetailedService.AnalyzeDetailed",
+		trace.WithAttributes(
+			attribute.String("filename", filename),
+			attribute.Int("code_length", len(code)),
+		),
+	)
+	defer span.End()
+
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "review_id", reviewID, "filename", filename, "code_length", len(code))
-	
+	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "filename", filename, "code_length", len(code))
+
 	if code == "" {
-		s.logger.Error("DetailedService: code empty", "correlation_id", correlationID, "review_id", reviewID)
-		return nil, errors.New("code cannot be empty")
+		s.logger.Error("DetailedService: code empty", "correlation_id", correlationID)
+		err := &BusinessError{
+			Code:       "ERR_INVALID_CODE",
+			Message:    "Code cannot be empty",
+			HTTPStatus: 400,
+		}
+		span.RecordError(err)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, err
 	}
-	
+
 	// Build prompt using template
 	prompt := BuildDetailedPrompt(code, filename)
-	
+	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
+
 	start := time.Now()
 	resp, err := s.ollamaClient.Generate(ctx, prompt)
 	duration := time.Since(start)
-	if err != nil {
-		s.logger.Error("DetailedService: AI call failed", "correlation_id", correlationID, "review_id", reviewID, "error", err, "duration_ms", duration.Milliseconds())
-		// Return fallback on error
-		return s.getFallbackDetailedOutput(), nil
-	}
-	s.logger.Info("DetailedService: AI call succeeded", "correlation_id", correlationID, "review_id", reviewID, "duration_ms", duration.Milliseconds())
-	
-	var output DetailedAnalysisOutput
-	if err := json.Unmarshal([]byte(resp), &output); err != nil {
-		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "review_id", reviewID, "error", err)
-		return s.getFallbackDetailedOutput(), nil
-	}
-	
-	metadataJSON, marshalErr := json.Marshal(output)
-	if marshalErr != nil {
-		s.logger.Error("DetailedService: failed to marshal output", "correlation_id", correlationID, "review_id", reviewID, "error", marshalErr)
-		return nil, fmt.Errorf("failed to marshal detailed analysis output: %w", marshalErr)
-	}
-	
-	result := &review_models.AnalysisResult{
-		ReviewID:  reviewID,
-		Mode:      review_models.DetailedMode,
-		Prompt:    prompt,
-		RawOutput: resp,
-		Summary:   output.Summary,
-		Metadata:  string(metadataJSON),
-		ModelUsed: "mistral:7b-instruct",
-	}
-	if err := s.analysisRepo.Create(ctx, result); err != nil {
-		s.logger.Error("DetailedService: failed to save analysis result", "correlation_id", correlationID, "review_id", reviewID, "error", err)
-		return nil, fmt.Errorf("failed to create analysis result: %w", err)
-	}
-	s.logger.Info("DetailedService: analysis completed and saved", "correlation_id", correlationID, "review_id", reviewID)
-	return &output, nil
-}
+	span.SetAttributes(
+		attribute.Int64("ollama_duration_ms", duration.Milliseconds()),
+		attribute.Int("response_length", len(resp)),
+	)
 
-// getFallbackDetailedOutput returns safe fallback data when Ollama fails
-func (s *DetailedService) getFallbackDetailedOutput() *DetailedAnalysisOutput {
-	return &DetailedAnalysisOutput{
-		Summary:  "Analysis unavailable - detailed line-by-line analysis not currently available",
-		Lines:    []DetailedLine{},
-		DataFlow: []DataFlow{},
+	if err != nil {
+		s.logger.Error("DetailedService: AI call failed", "correlation_id", correlationID, "error", err, "duration_ms", duration.Milliseconds())
+		infraErr := &review_errors.InfrastructureError{
+			Code:       "ERR_OLLAMA_UNAVAILABLE",
+			Message:    "AI analysis service is unavailable",
+			Cause:      err,
+			HTTPStatus: http.StatusServiceUnavailable,
+		}
+		span.RecordError(infraErr)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, infraErr
 	}
+	s.logger.Info("DetailedService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
+
+	var output review_models.DetailedModeOutput
+	if err := json.Unmarshal([]byte(resp), &output); err != nil {
+		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "error", err)
+		parseErr := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      err,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(parseErr)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, parseErr
+	}
+
+	span.SetAttributes(
+		attribute.Bool("error", false),
+		attribute.Bool("success", true),
+		attribute.Int("line_explanations_count", len(output.LineExplanations)),
+	)
+
+	s.logger.Info("DetailedService: analysis completed", "correlation_id", correlationID, "line_explanations_count", len(output.LineExplanations))
+	return &output, nil
 }

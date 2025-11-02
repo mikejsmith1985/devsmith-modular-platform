@@ -1,9 +1,11 @@
 package review_handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,26 +16,35 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const (
+	modelContextKey contextKey = "model"
+)
+
 // UIHandler provides HTTP handlers for the Review UI with logging.
+// This handler depends on interfaces (not concrete types) to enforce clean architecture.
 type UIHandler struct {
 	logger          logger.Interface
 	logClient       *logging.Client
-	previewService  *review_services.PreviewService
-	skimService     *review_services.SkimService
-	scanService     *review_services.ScanService
-	detailedService *review_services.DetailedService
-	criticalService *review_services.CriticalService
+	previewService  review_services.PreviewAnalyzer
+	skimService     review_services.SkimAnalyzer
+	scanService     review_services.ScanAnalyzer
+	detailedService review_services.DetailedAnalyzer
+	criticalService review_services.CriticalAnalyzer
 }
 
-// NewUIHandler creates a new UIHandler with the given logger, logging client, and optional AI services.
+// NewUIHandler creates a new UIHandler with the given logger, logging client, and analyzer services.
+// This enforces dependency inversion - handlers depend on abstractions, not implementations.
 func NewUIHandler(
 	logger logger.Interface,
 	client *logging.Client,
-	previewService *review_services.PreviewService,
-	skimService *review_services.SkimService,
-	scanService *review_services.ScanService,
-	detailedService *review_services.DetailedService,
-	criticalService *review_services.CriticalService,
+	previewService review_services.PreviewAnalyzer,
+	skimService review_services.SkimAnalyzer,
+	scanService review_services.ScanAnalyzer,
+	detailedService review_services.DetailedAnalyzer,
+	criticalService review_services.CriticalAnalyzer,
 ) *UIHandler {
 	return &UIHandler{
 		logger:          logger,
@@ -46,27 +57,35 @@ func NewUIHandler(
 	}
 }
 
-// bindCodeRequest binds code from JSON or form data
-func (h *UIHandler) bindCodeRequest(c *gin.Context) (string, bool) {
-	// Try form data first (HTMX sends this)
-	code := c.PostForm("pasted_code")
-	if code == "" {
-		// Try JSON binding
-		var req struct {
-			Code string `json:"code"`
-		}
-		if err := c.ShouldBindJSON(&req); err == nil {
-			code = req.Code
-		}
+// CodeRequest represents the code submission request
+type CodeRequest struct {
+	PastedCode string `form:"pasted_code" json:"pasted_code" binding:"required"`
+	Model      string `form:"model" json:"model"`
+}
+
+// bindCodeRequest binds code from JSON or form data using Gin's binding
+func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
+	var req CodeRequest
+
+	// Try binding as form first, then JSON
+	if err := c.ShouldBind(&req); err != nil {
+		h.logger.Warn("Failed to bind code request",
+			"error", err,
+			"content-type", c.GetHeader("Content-Type"))
+		c.String(http.StatusBadRequest, "Code required. Please paste code in the textarea.")
+		return nil, false
 	}
 
-	if code == "" {
-		h.logger.Debug("No code provided in request")
-		c.String(http.StatusBadRequest, "Code required")
-		return "", false
+	// Default model if not provided
+	if req.Model == "" {
+		req.Model = "mistral:7b-instruct"
 	}
 
-	return code, true
+	h.logger.Info("Code request bound successfully",
+		"code_length", len(req.PastedCode),
+		"model", req.Model)
+
+	return &req, true
 }
 
 // marshalAndFormat converts analysis result to JSON and renders HTML response
@@ -168,7 +187,7 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 // HandlePreviewMode handles POST /api/review/modes/preview (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
-	code, ok := h.bindCodeRequest(c)
+	req, ok := h.bindCodeRequest(c)
 	if !ok {
 		return
 	}
@@ -179,9 +198,12 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	result, err := h.previewService.AnalyzePreview(c.Request.Context(), code)
+	// TODO: Pass model to service via context for Ollama override
+	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+
+	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode)
 	if err != nil {
-		h.logger.Error("Preview analysis failed", "error", err.Error())
+		h.logger.Error("Preview analysis failed", "error", err.Error(), "model", req.Model)
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
 		return
 	}
@@ -192,7 +214,7 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 // HandleSkimMode handles POST /api/review/modes/skim (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleSkimMode(c *gin.Context) {
-	code, ok := h.bindCodeRequest(c)
+	req, ok := h.bindCodeRequest(c)
 	if !ok {
 		return
 	}
@@ -203,10 +225,12 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.skimService.AnalyzeSkim(c.Request.Context(), 1, code)
+	// Pass model to service via context for Ollama override
+	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+
+	result, err := h.skimService.AnalyzeSkim(ctx, req.PastedCode)
 	if err != nil {
-		h.logger.Error("Skim analysis failed", "error", err.Error())
+		h.logger.Error("Skim analysis failed", "error", err.Error(), "model", req.Model)
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
 		return
 	}
@@ -217,7 +241,7 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleScanMode(c *gin.Context) {
-	code, ok := h.bindCodeRequest(c)
+	req, ok := h.bindCodeRequest(c)
 	if !ok {
 		return
 	}
@@ -230,10 +254,12 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.scanService.AnalyzeScan(c.Request.Context(), 1, code, query)
+	// Pass model to service via context for Ollama override
+	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+
+	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode)
 	if err != nil {
-		h.logger.Error("Scan analysis failed", "error", err.Error())
+		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model)
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
 		return
 	}
@@ -244,7 +270,7 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 // HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
-	code, ok := h.bindCodeRequest(c)
+	req, ok := h.bindCodeRequest(c)
 	if !ok {
 		return
 	}
@@ -257,10 +283,12 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.detailedService.AnalyzeDetailed(c.Request.Context(), 1, code, filename)
+	// Pass model to service via context for Ollama override
+	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+
+	result, err := h.detailedService.AnalyzeDetailed(ctx, filename, req.PastedCode)
 	if err != nil {
-		h.logger.Error("Detailed analysis failed", "error", err.Error())
+		h.logger.Error("Detailed analysis failed", "error", err.Error(), "model", req.Model)
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
 		return
 	}
@@ -271,7 +299,7 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 // HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
 func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
-	code, ok := h.bindCodeRequest(c)
+	req, ok := h.bindCodeRequest(c)
 	if !ok {
 		return
 	}
@@ -282,15 +310,32 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
-	// Use dummy reviewID for now (placeholder until sessions are fully integrated)
-	result, err := h.criticalService.AnalyzeCritical(c.Request.Context(), 1, code)
+	// Pass model to service via context for Ollama override
+	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+
+	result, err := h.criticalService.AnalyzeCritical(ctx, req.PastedCode)
 	if err != nil {
-		h.logger.Error("Critical analysis failed", "error", err.Error())
+		h.logger.Error("Critical analysis failed", "error", err.Error(), "model", req.Model)
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Analysis failed: %v", err))
 		return
 	}
 
 	h.marshalAndFormat(c, result, "🚨 Critical Mode Analysis", "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700")
+}
+
+// GetAvailableModels returns a list of available Ollama models
+func (h *UIHandler) GetAvailableModels(c *gin.Context) {
+	// Return hardcoded list of common models
+	// TODO: Query Ollama API for actual available models
+	models := []map[string]string{
+		{"name": "mistral:7b-instruct", "description": "Fast, General (Recommended)"},
+		{"name": "codellama:13b", "description": "Better for code"},
+		{"name": "llama2:13b", "description": "Balanced"},
+		{"name": "deepseek-coder:6.7b", "description": "Code specialist"},
+		{"name": "deepseek-coder-v2:16b", "description": "Most accurate (slower)"},
+	}
+
+	c.JSON(http.StatusOK, gin.H{"models": models})
 }
 
 // ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)
@@ -679,4 +724,85 @@ func generateAnalysisID() string {
 // GenerateAnalysisID creates a unique ID for analysis sessions.
 func GenerateAnalysisID() string {
 	return uuid.New().String()
+}
+
+// ShowWorkspace renders the two-pane workspace for code review with mode selection
+// GET /review/workspace/:session_id
+//
+// Path Parameters:
+//   - session_id: Session ID (integer)
+//
+// Response: HTML page with two-pane layout (code left, analysis right)
+func (h *UIHandler) ShowWorkspace(c *gin.Context) {
+	// Extract session ID from URL
+	sessionIDStr := c.Param("session_id")
+	sessionID, err := strconv.Atoi(sessionIDStr)
+	if err != nil {
+		h.logger.Warn("invalid session_id", "session_id", sessionIDStr, "error", err)
+		c.String(http.StatusBadRequest, "Invalid session ID")
+		return
+	}
+
+	h.logger.Info("showing workspace", "session_id", sessionID)
+
+	// For now, use sample data (in production this would come from database)
+	// TODO: Fetch actual session data from ReviewRepository
+	props := templates.WorkspaceProps{
+		SessionID:      sessionID,
+		Title:          "Sample Code Review",
+		Code:           sampleCodeForWorkspace(),
+		CurrentMode:    "preview",
+		AnalysisResult: "",
+	}
+
+	// Render workspace template
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(http.StatusOK)
+
+	if err := templates.Workspace(props).Render(c.Request.Context(), c.Writer); err != nil {
+		h.logger.Error("failed to render workspace template", "error", err.Error())
+		c.String(http.StatusInternalServerError, "Failed to render workspace")
+	}
+}
+
+// sampleCodeForWorkspace provides sample Go code for workspace demo
+func sampleCodeForWorkspace() string {
+	return `package handlers
+
+import (
+	"net/http"
+	"github.com/gin-gonic/gin"
+)
+
+// GetUser retrieves a user by ID from the database.
+// This function demonstrates common patterns in Go web handlers.
+func GetUser(c *gin.Context) {
+	// Extract user ID from URL parameter
+	userID := c.Param("id")
+	
+	// Potential SQL injection vulnerability (Critical issue)
+	query := "SELECT * FROM users WHERE id = " + userID
+	
+	// Missing error handling (Quality issue)
+	rows, _ := db.Query(query)
+	
+	// Handler calling database directly (Architecture issue - layer violation)
+	// Should call a service layer instead
+	
+	c.JSON(http.StatusOK, gin.H{"user": rows})
+}
+
+// CreateUser adds a new user to the database.
+func CreateUser(c *gin.Context) {
+	var user User
+	
+	// Missing input validation (Security issue)
+	c.BindJSON(&user)
+	
+	// Global variable usage (Scope issue)
+	db.Exec("INSERT INTO users ...")
+	
+	c.JSON(http.StatusCreated, user)
+}
+`
 }

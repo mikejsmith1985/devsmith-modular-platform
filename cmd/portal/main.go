@@ -81,6 +81,12 @@ func main() {
 		return
 	}
 
+	// Configure connection pool to prevent exhaustion
+	dbConn.SetMaxOpenConns(10)               // Max 10 connections per service
+	dbConn.SetMaxIdleConns(5)                // Keep 5 idle
+	dbConn.SetConnMaxLifetime(3600000000000) // 1 hour
+	dbConn.SetConnMaxIdleTime(600000000000)  // 10 minutes
+
 	// Ping the database to verify connection
 	if err := dbConn.Ping(); err != nil {
 		log.Printf("Failed to ping database: %v", err)

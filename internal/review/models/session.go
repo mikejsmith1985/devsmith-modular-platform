@@ -3,9 +3,10 @@ package review_models
 
 import "time"
 
-//nolint:fieldalignment // Data models prioritize readability over memory optimization
 // CodeReviewSession represents a complete code review session.
 // It tracks the current state across all reading modes and maintains history.
+//
+//nolint:fieldalignment // Data models prioritize readability over memory optimization
 type CodeReviewSession struct {
 	ID              int64
 	UserID          int64

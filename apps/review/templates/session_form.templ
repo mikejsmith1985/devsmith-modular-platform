@@ -36,6 +36,27 @@ templ SessionForm() {
       type="file"
       aria-label="Upload file"
       accept=".go,.py,.js,.ts,.java,.cpp,.c,.rb,.cs,.php,.txt" />
+    
+    <!-- AI Model Selection -->
+    <div class="mt-4">
+      <label for="model" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        AI Model
+      </label>
+      <select 
+        id="model"
+        name="model"
+        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+        <option value="mistral:7b-instruct" selected>Mistral 7B (Fast, General)</option>
+        <option value="codellama:13b">CodeLlama 13B (Better for code)</option>
+        <option value="llama2:13b">Llama 2 13B (Balanced)</option>
+        <option value="deepseek-coder:6.7b">DeepSeek Coder 6.7B (Code specialist)</option>
+        <option value="deepseek-coder-v2:16b">DeepSeek Coder V2 16B (Most accurate, slower)</option>
+      </select>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Select the AI model for code analysis. Larger models are slower but more accurate.
+      </p>
+    </div>
+    
     <div class="error-message text-error aria-live-polite" aria-live="polite"></div>
     <button
       type="submit"

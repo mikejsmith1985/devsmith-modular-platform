@@ -66,7 +66,8 @@ func (h *ReviewHandler) GetScanAnalysis(c *gin.Context) {
 	}
 
 	// Check and handle errors for AnalyzeScan
-	output, err := h.scanService.AnalyzeScan(c.Request.Context(), review.ID, query)
+	// Note: Code should come from request body or session. Using empty string as placeholder.
+	output, err := h.scanService.AnalyzeScan(c.Request.Context(), query, "")
 	if err != nil {
 		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
 		h.instrLogger.LogError(c.Request.Context(), "scan_analysis_failed", "failed to perform scan analysis", map[string]interface{}{
@@ -156,27 +157,28 @@ type ReviewServiceInterface interface {
 
 // ScanServiceInterface defines the contract for scan-related review_services.
 type ScanServiceInterface interface {
-	// AnalyzeScan analyzes the scan for a given review.
-	AnalyzeScan(ctx context.Context, reviewID int64, query string) (*review_models.ScanModeOutput, error)
+	// AnalyzeScan analyzes code using semantic search with the given query.
+	AnalyzeScan(ctx context.Context, query string, code string) (*review_models.ScanModeOutput, error)
 }
 
 // GetSkimAnalysis handles GET /api/reviews/:id/skim
 func (h *ReviewHandler) GetSkimAnalysis(c *gin.Context) {
-	// Check and handle errors for ParseInt
+	// Parse review ID from URL parameter
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review ID"})
 		return
 	}
 
-	review, err := h.reviewService.GetReview(c.Request.Context(), id)
+	// Verify review exists
+	_, err = h.reviewService.GetReview(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
 		return
 	}
 
 	// TODO: Get code from request body or session. For now, pass empty code.
-	output, err := h.skimService.AnalyzeSkim(c.Request.Context(), review.ID, "")
+	output, err := h.skimService.AnalyzeSkim(c.Request.Context(), "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
