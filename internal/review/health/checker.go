@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
@@ -131,6 +132,13 @@ func (h *ServiceHealthChecker) checkOllamaConnectivity(ctx context.Context) Comp
 	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	// Ensure the model context is provided to the adapter so the underlying
+	// Ollama client receives a model name instead of an empty string.
+	model := os.Getenv("OLLAMA_MODEL")
+	if model != "" {
+		testCtx = context.WithValue(testCtx, "model", model)
+	}
+
 	_, err := h.ollamaClient.Generate(testCtx, "test")
 	comp.ResponseTime = time.Since(start)
 
@@ -158,6 +166,13 @@ func (h *ServiceHealthChecker) checkOllamaModel(ctx context.Context) ComponentHe
 	// Try to generate with the specific model
 	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
+	// Explicitly set the required model into context so adapter forwards it
+	required := os.Getenv("OLLAMA_MODEL")
+	if required == "" {
+		required = "mistral:7b-instruct"
+	}
+	testCtx = context.WithValue(testCtx, "model", required)
 
 	_, err := h.ollamaClient.Generate(testCtx, "test")
 	comp.ResponseTime = time.Since(start)
@@ -192,17 +207,17 @@ func (h *ServiceHealthChecker) checkDatabaseConnectivity(ctx context.Context) Co
 		return comp
 	}
 
-	// Check if review schema exists
+	// Check if reviews schema exists (note: plural 'reviews' not singular 'review')
 	var schemaExists bool
-	err = h.db.QueryRowContext(testCtx, "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'review')").Scan(&schemaExists)
+	err = h.db.QueryRowContext(testCtx, "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'reviews')").Scan(&schemaExists)
 	if err != nil || !schemaExists {
 		comp.Status = HealthStatusDegraded
-		comp.Message = "Database connected but review schema missing"
+		comp.Message = "Database connected but reviews schema missing"
 		return comp
 	}
 
 	comp.Status = HealthStatusHealthy
-	comp.Message = "Database connected and review schema present"
+	comp.Message = "Database connected and reviews schema present"
 	return comp
 }
 
