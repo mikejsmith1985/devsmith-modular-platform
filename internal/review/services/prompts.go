@@ -131,30 +131,50 @@ func BuildCriticalPrompt(code string) string {
 CODE:
 %s
 
-Return a JSON object with ONLY these fields:
+You MUST respond with ONLY a valid JSON object (no markdown, no explanation text). Use EXACTLY this structure:
+
 {
+  "overall_grade": "B",
+  "summary": "Found 1 critical, 2 high, 3 medium severity issues affecting security and performance",
   "issues": [
     {
       "severity": "critical",
       "category": "security",
+      "file": "main.go",
       "line": 42,
       "code_snippet": "db.Query(query + userInput)",
       "description": "SQL injection vulnerability - user input not parameterized",
-      "impact": "Attacker can execute arbitrary SQL",
-      "suggestion": "Use parameterized query: db.Query(query, userInput)"
+      "impact": "Attacker can execute arbitrary SQL commands",
+      "fix_suggestion": "Use parameterized query: db.Query(query, userInput)"
     }
-  ],
-  "quality_score": 65,
-  "summary": "Found 1 critical, 2 high, 3 medium severity issues"
+  ]
 }
 
-SEVERITY LEVELS: critical | high | medium | low
-CATEGORIES: security | performance | maintainability | reliability | testing
+REQUIRED FIELDS (all must be present):
+- overall_grade: "A", "B", "C", "D", or "F"
+- summary: Brief overview of findings
+- issues: Array of issue objects
+
+ISSUE OBJECT FIELDS (all required):
+- severity: "critical" | "high" | "medium" | "low"
+- category: "security" | "performance" | "maintainability" | "reliability" | "testing"
+- file: filename or "unknown" if not determinable
+- line: line number or 0 if not determinable
+- code_snippet: The problematic code
+- description: What's wrong
+- impact: What harm this causes
+- fix_suggestion: How to fix it
+
+GRADING CRITERIA:
+A = No critical/high issues, excellent quality
+B = Minor issues, good quality
+C = Some concerning issues, acceptable
+D = Multiple serious issues, needs work
+F = Critical issues present, unsafe
 
 IMPORTANT:
-- Identify actual problems, not style preferences
-- Prioritize SECURITY and CORRECTNESS issues
-- Provide actionable fix suggestions
-- Score 0-100 (100 = perfect, 0 = unusable)
-- Return ONLY valid JSON`, code)
+- Return ONLY the JSON object (no json code fences, no explanatory text)
+- Focus on SECURITY and CORRECTNESS
+- If no issues found, return empty issues array
+- Be precise and actionable`, code)
 }
