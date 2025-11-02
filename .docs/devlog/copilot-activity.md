@@ -5044,3 +5044,82 @@ References:
 
 ---
 
+
+## 2025-11-02 10:00 - Phase 4B.2 - HTMX error templates for graceful degradation
+**Branch:** development
+**Files Changed:**  16 files changed, 897 insertions(+), 116 deletions(-)
+- `.docs/ARCHITECTURAL_RESURRECTION_PLAN.md`
+- `.docs/devlog/copilot-activity.md`
+- `apps/review/handlers/ui_handler.go`
+- `apps/review/templates/analysis_templ.go`
+- `apps/review/templates/critical_mode_templ.go`
+- `apps/review/templates/detailed_mode_templ.go`
+- `apps/review/templates/errors.templ`
+- `apps/review/templates/errors_templ.go`
+- `apps/review/templates/home_templ.go`
+- `apps/review/templates/layout_templ.go`
+- `apps/review/templates/preview_mode_templ.go`
+- `apps/review/templates/preview_templ.go`
+- `apps/review/templates/progress_indicator_templ.go`
+- `apps/review/templates/sessions_sidebar_templ.go`
+- `apps/review/templates/skim_mode_templ.go`
+- `apps/review/templates/workspace_templ.go`
+
+**Action:** Phase 4B.2 - HTMX error templates for graceful degradation
+
+**Commit:** `98b646f`
+
+**Commit Message:**
+```
+feat(review): Phase 4B.2 - HTMX error templates for graceful degradation
+```
+
+**Details:**
+```
+Implemented HTMX-compatible error templates to replace plain text error strings:
+
+**Error Templates Created:**
+- apps/review/templates/errors.templ with ErrorDisplay component
+- AIServiceUnavailable (Ollama unreachable/starting)
+- AITimeout (analysis takes too long)
+- CircuitOpen (circuit breaker protecting system)
+- InvalidInput (user input validation)
+- RateLimitExceeded (too many requests)
+
+**Refactored Error Handlers:**
+- Added renderError() helper classifies errors and renders templates
+- Updated 11 error handlers in ui_handler.go:
+  - 5 mode analysis handlers (Preview/Skim/Scan/Detailed/Critical)
+  - 5 service unavailable checks
+  - 1 workspace render error
+- Replaced c.String(http.StatusInternalServerError) with error templates
+
+**Error Classification Logic:**
+- Circuit breaker open → CircuitOpen template
+- Timeout/deadline exceeded → AITimeout template
+- Connection refused/no host → AIServiceUnavailable template
+- Other errors → ErrorDisplay with retry button
+
+**Benefits:**
+- HTMX seamlessly swaps error HTML into results container
+- Styled error messages match platform design
+- Retry buttons for recoverable errors
+- User-friendly explanations replace raw error strings
+- Circuit breaker states explained to users
+
+**Testing:**
+- Build succeeds: go build ./cmd/review
+- Service healthy: All 8 components passing health checks
+- Templates generated: templ generate successful
+
+**Status:**
+Phase 4B.2 (Graceful Degradation UI) COMPLETE ✅
+
+**Next Phase:** 4D - Docker Production Readiness
+- Add HEALTHCHECK to Dockerfile
+- Implement graceful shutdown (SIGTERM handling)
+- Container reliability improvements
+```
+
+---
+

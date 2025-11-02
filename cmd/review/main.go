@@ -5,7 +5,11 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -236,9 +240,36 @@ func main() {
 	if port == "" {
 		port = "8081"
 	}
-	reviewLogger.Info("Review service starting", "port", port)
-	if err := router.Run(":" + port); err != nil {
-		reviewLogger.Error("Failed to start server", "error", err)
+
+	// Create HTTP server with graceful shutdown support
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
+
+	// Start server in goroutine
+	go func() {
+		reviewLogger.Info("Review service starting", "port", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			reviewLogger.Error("Failed to start server", "error", err)
+		}
+	}()
+
+	// Wait for interrupt signal for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	reviewLogger.Info("Shutting down gracefully...")
+
+	// Give outstanding requests 30 seconds to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		reviewLogger.Error("Server forced to shutdown", "error", err)
 		return
 	}
+
+	reviewLogger.Info("Server shutdown complete")
 }
