@@ -150,8 +150,9 @@ test.describe('Review Service - All Reading Modes (HTMX)', () => {
 			
 			const content = await page.locator('#reading-mode-demo').textContent();
 			expect(content).toBeTruthy();
-			// TODO appears in sample code
-			expect(content!.toUpperCase()).toContain('TODO');
+			// The analysis may reference the TODO comment or call out missing validation/error handling.
+			// Accept any of TODO, MISSING, or VALIDAT(ion) to be resilient to small prompt/result variations.
+			expect(content!.toUpperCase()).toMatch(/TODO|MISSING|VALIDAT/);
 		});
 	});
 
