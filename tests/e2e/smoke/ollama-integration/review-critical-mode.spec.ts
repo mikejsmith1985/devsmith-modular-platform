@@ -29,8 +29,10 @@ test.describe('SMOKE: Review Critical Mode', () => {
   const criticalButton = page.locator('button[hx-post="/api/review/modes/critical"]').first();
     
     // Listen for network requests to /api/review/modes/critical
+    // AI analysis can take 20-30 seconds, so increase timeout
     const responsePromise = page.waitForResponse(
-      response => response.url().includes('/api/review/modes/critical') && response.status() === 200
+      response => response.url().includes('/api/review/modes/critical') && response.status() === 200,
+      { timeout: 45000 } // 45 seconds for AI analysis
     );
     
     await criticalButton.click({ timeout: 15000 });
@@ -56,7 +58,8 @@ test.describe('SMOKE: Review Critical Mode', () => {
     const resultsContainer = page.locator('#results-container');
     
     // Wait for HTMX to swap content (poll for non-empty content)
-    let retries = 10;
+    // AI analysis can take 20-30 seconds, increase timeout
+    let retries = 60; // 60 * 500ms = 30 seconds max
     let hasContent = false;
     while (retries > 0 && !hasContent) {
       const content = await resultsContainer.textContent();
