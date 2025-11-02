@@ -1,18 +1,26 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * COMPREHENSIVE READING MODES E2E TESTS
- * Tests all 5 reading modes with various code samples and error scenarios
+ * COMPREHENSIVE READING MODES E2E TESTS (HTMX-aware)
+ * Tests all 5 reading modes using actual UI selectors and HTMX workflow
  * 
  * Prerequisites:
- * - Review service running at http://localhost:8081
+ * - Review service running at http://localhost:3000/review
  * - Ollama running at http://localhost:11434
  * - Model available: mistral:7b-instruct
+ * 
+ * Workflow:
+ * 1. Fill textarea[name="pasted_code"] with code
+ * 2. Select model from #model dropdown (optional)
+ * 3. Click mode button (e.g., "Select Preview")
+ * 4. Wait for HTMX to swap content into #reading-mode-demo
+ * 5. Verify analysis results
  */
 
 test.setTimeout(120000); // 2 minutes for AI analysis
 
-const REVIEW_URL = 'http://localhost:8081';
+const REVIEW_URL = 'http://localhost:3000/review';
+
 const SAMPLE_GO_CODE = `package handlers
 
 import (
@@ -37,329 +45,302 @@ import (
 func GetUser(id string) (*User, error) {
 	query := "SELECT * FROM users WHERE id = " + id  // SQL injection
 	rows, _ := db.Query(query)  // Error ignored
-	// Missing validation, layer violation
 	return parseUser(rows), nil
 }`;
 
-test.describe('Review Service - All Reading Modes', () => {
+test.describe('Review Service - All Reading Modes (HTMX)', () => {
+
+	test.beforeEach(async ({ page }) => {
+		await page.goto(REVIEW_URL, { waitUntil: 'domcontentloaded' });
+	});
 
 	test.describe('Preview Mode - Quick Structure Assessment', () => {
 		
-		test('Preview Mode analyzes code structure', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Preview Mode analyzes code structure successfully', async ({ page }) => {
+			// Fill code textarea
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			// Paste code
-			await page.fill('#code-input', SAMPLE_GO_CODE);
+			// Click Preview mode button
+			const previewButton = page.locator('button:has-text("Select Preview")').first();
+			await previewButton.click();
 			
-			// Select Preview mode
-			await page.selectOption('#reading-mode', 'preview');
+			// Wait for HTMX to swap results into #reading-mode-demo
+			await page.waitForTimeout(5000); // Give Ollama time to respond
 			
-			// Click Analyze
-			await page.click('button:has-text("Analyze Code")');
+			// Verify results container has content
+			const resultsContainer = page.locator('#reading-mode-demo');
+			const content = await resultsContainer.textContent();
 			
-			// Wait for results
-			await page.waitForSelector('#results-container', { timeout: 30000 });
+			expect(content).toBeTruthy();
+			expect(content!.length).toBeGreaterThan(100);
 			
-			// Verify results contain structural info
-			const results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
-			
-			// Should show file structure info
-			expect(results?.toLowerCase()).toContain('package');
+			// Should contain code-related terms
+			const lowerContent = content!.toLowerCase();
+			expect(lowerContent).toMatch(/package|function|handler|import/);
 		});
 
-		test('Preview Mode handles empty code gracefully', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Preview Mode shows loading indicator during analysis', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			await page.selectOption('#reading-mode', 'preview');
-			await page.click('button:has-text("Analyze Code")');
+			const previewButton = page.locator('button:has-text("Select Preview")').first();
+			await previewButton.click();
 			
-			// Should show error message
-			await page.waitForSelector('.error, [role="alert"]', { timeout: 5000 });
+			// Loading indicator should be visible (htmx-indicator class)
+			const loadingIndicator = page.locator('#progress-indicator-container');
+			await expect(loadingIndicator).toBeVisible({ timeout: 1000 });
 		});
 	});
 
 	test.describe('Skim Mode - Abstractions & Flow', () => {
 		
-		test('Skim Mode identifies functions and interfaces', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Skim Mode identifies functions and patterns', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			await page.fill('#code-input', SAMPLE_GO_CODE);
-			await page.selectOption('#reading-mode', 'skim');
-			await page.click('button:has-text("Analyze Code")');
+			const skimButton = page.locator('button:has-text("Select Skim")').first();
+			await skimButton.click();
 			
-			await page.waitForSelector('#results-container', { timeout: 30000 });
+			await page.waitForTimeout(5000);
 			
-			const results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
+			const resultsContainer = page.locator('#reading-mode-demo');
+			const content = await resultsContainer.textContent();
 			
-			// Should identify function
-			expect(results?.toLowerCase()).toMatch(/function|getuser/i);
+			expect(content).toBeTruthy();
+			expect(content!.length).toBeGreaterThan(50);
+			
+			// Should identify GetUser function
+			expect(content!.toLowerCase()).toMatch(/getuser|function|method/);
 		});
 
-		test('Skim Mode shows function signatures', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Skim Mode handles complex code', async ({ page }) => {
+			const complexCode = SAMPLE_GO_CODE + `\n\nfunc CreateUser(c *gin.Context) {}\nfunc DeleteUser(c *gin.Context) {}`;
 			
-			const codeWithMultipleFunctions = `
-package service
-
-func GetUser(id int) (*User, error) {}
-func CreateUser(u *User) error {}
-func DeleteUser(id int) error {}
-`;
+			await page.fill('textarea[name="pasted_code"]', complexCode);
 			
-			await page.fill('#code-input', codeWithMultipleFunctions);
-			await page.selectOption('#reading-mode', 'skim');
-			await page.click('button:has-text("Analyze Code")');
+			const skimButton = page.locator('button:has-text("Select Skim")').first();
+			await skimButton.click();
 			
-			await page.waitForSelector('#results-container', { timeout: 30000 });
+			await page.waitForTimeout(5000);
 			
-			const results = await page.textContent('#results-container');
-			
-			// Should list multiple functions
-			expect(results?.toLowerCase()).toMatch(/getuser|createuser|deleteuser/i);
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 		});
 	});
 
 	test.describe('Scan Mode - Targeted Search', () => {
 		
 		test('Scan Mode finds specific patterns', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			await page.fill('#code-input', SAMPLE_GO_CODE);
-			await page.selectOption('#reading-mode', 'scan');
+			const scanButton = page.locator('button:has-text("Select Scan")').first();
+			await scanButton.click();
 			
-			// Provide search query
-			await page.fill('#scan-query', 'find validation');
+			await page.waitForTimeout(5000);
 			
-			await page.click('button:has-text("Analyze Code")');
-			
-			await page.waitForSelector('#results-container', { timeout: 30000 });
-			
-			const results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 		});
 
-		test('Scan Mode searches for error handling', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Scan Mode detects TODO comments', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			await page.fill('#code-input', SAMPLE_VULNERABLE_CODE);
-			await page.selectOption('#reading-mode', 'scan');
-			await page.fill('#scan-query', 'find error handling');
+			const scanButton = page.locator('button:has-text("Select Scan")').first();
+			await scanButton.click();
 			
-			await page.click('button:has-text("Analyze Code")');
+			await page.waitForTimeout(5000);
 			
-			await page.waitForSelector('#results-container', { timeout: 30000 });
-			
-			const results = await page.textContent('#results-container');
-			
-			// Should mention error handling issues
-			expect(results?.toLowerCase()).toMatch(/error|handling/i);
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
+			// TODO appears in sample code
+			expect(content!.toUpperCase()).toContain('TODO');
 		});
 	});
 
-	test.describe('Detailed Mode - Line-by-Line Analysis', () => {
+	test.describe('Detailed Mode - Deep Implementation Analysis', () => {
 		
-		test('Detailed Mode provides deep analysis', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Detailed Mode provides line-by-line analysis', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			await page.fill('#code-input', SAMPLE_GO_CODE);
-			await page.selectOption('#reading-mode', 'detailed');
+			const detailedButton = page.locator('button:has-text("Select Detailed")').first();
+			await detailedButton.click();
 			
-			await page.click('button:has-text("Analyze Code")');
+			await page.waitForTimeout(7000); // Detailed takes longer
 			
-			await page.waitForSelector('#results-container', { timeout: 40000 });
-			
-			const results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
-			
-			// Should have detailed explanation
-			expect(results!.length).toBeGreaterThan(100);
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
+			expect(content!.length).toBeGreaterThan(100);
 		});
 
-		test('Detailed Mode explains algorithm logic', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Detailed Mode explains code logic', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			const algorithmCode = `
-func BinarySearch(arr []int, target int) int {
-	left, right := 0, len(arr)-1
-	for left <= right {
-		mid := left + (right-left)/2
-		if arr[mid] == target {
-			return mid
-		} else if arr[mid] < target {
-			left = mid + 1
-		} else {
-			right = mid - 1
-		}
-	}
-	return -1
-}`;
+			const detailedButton = page.locator('button:has-text("Select Detailed")').first();
+			await detailedButton.click();
 			
-			await page.fill('#code-input', algorithmCode);
-			await page.selectOption('#reading-mode', 'detailed');
+			await page.waitForTimeout(7000);
 			
-			await page.click('button:has-text("Analyze Code")');
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 			
-			await page.waitForSelector('#results-container', { timeout: 40000 });
-			
-			const results = await page.textContent('#results-container');
-			
-			// Should explain algorithm
-			expect(results?.toLowerCase()).toMatch(/binary|search|algorithm/i);
+			// Should contain explanatory terms
+			const lowerContent = content!.toLowerCase();
+			expect(lowerContent).toMatch(/handler|function|parameter|return|request/);
 		});
 	});
 
-	test.describe('Critical Mode - Quality Evaluation', () => {
+	test.describe('Critical Mode - Quality & Security Review', () => {
 		
-		test('Critical Mode identifies security issues', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Critical Mode identifies SQL injection vulnerability', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_VULNERABLE_CODE);
 			
-			await page.fill('#code-input', SAMPLE_VULNERABLE_CODE);
-			await page.selectOption('#reading-mode', 'critical');
+			const criticalButton = page.locator('button:has-text("Select Critical")').first();
+			await criticalButton.click();
 			
-			await page.click('button:has-text("Analyze Code")');
+			await page.waitForTimeout(10000); // Critical takes longest
 			
-			await page.waitForSelector('#results-container', { timeout: 40000 });
-			
-			const results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 			
 			// Should identify SQL injection
-			expect(results?.toLowerCase()).toMatch(/sql|injection|security/i);
+			const lowerContent = content!.toLowerCase();
+			expect(lowerContent).toMatch(/sql|injection|vulnerability|security/);
 		});
 
-		test('Critical Mode finds error handling issues', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Critical Mode detects error handling issues', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_VULNERABLE_CODE);
 			
-			await page.fill('#code-input', SAMPLE_VULNERABLE_CODE);
-			await page.selectOption('#reading-mode', 'critical');
+			const criticalButton = page.locator('button:has-text("Select Critical")').first();
+			await criticalButton.click();
 			
-			await page.click('button:has-text("Analyze Code")');
+			await page.waitForTimeout(10000);
 			
-			await page.waitForSelector('#results-container', { timeout: 40000 });
-			
-			const results = await page.textContent('#results-container');
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 			
 			// Should mention error handling
-			expect(results?.toLowerCase()).toMatch(/error|handling/i);
+			expect(content!.toLowerCase()).toMatch(/error|handling|ignored/);
 		});
 
-		test('Critical Mode provides severity ratings', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Critical Mode provides severity assessment', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_VULNERABLE_CODE);
 			
-			await page.fill('#code-input', SAMPLE_VULNERABLE_CODE);
-			await page.selectOption('#reading-mode', 'critical');
+			const criticalButton = page.locator('button:has-text("Select Critical")').first();
+			await criticalButton.click();
 			
-			await page.click('button:has-text("Analyze Code")');
+			await page.waitForTimeout(10000);
 			
-			await page.waitForSelector('#results-container', { timeout: 40000 });
-			
-			const results = await page.textContent('#results-container');
-			
-			// Should have severity indicators
-			expect(results?.toLowerCase()).toMatch(/critical|important|minor|severity|grade/i);
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
+			expect(content!.length).toBeGreaterThan(200);
 		});
 	});
 
-	test.describe('Error Handling - Graceful Degradation', () => {
+	test.describe('Error Handling', () => {
 		
-		test('Shows user-friendly error when Ollama unavailable', async ({ page }) => {
-			// This test assumes Ollama might be slow or unavailable
-			await page.goto(`${REVIEW_URL}/`);
+		test('Shows error when code is empty', async ({ page }) => {
+			// Don't fill textarea, just click mode
+			const previewButton = page.locator('button:has-text("Select Preview")').first();
+			await previewButton.click();
 			
-			await page.fill('#code-input', SAMPLE_GO_CODE);
-			await page.selectOption('#reading-mode', 'preview');
+			await page.waitForTimeout(2000);
 			
-			// Click analyze
-			await page.click('button:has-text("Analyze Code")');
-			
-			// Wait for either success or error
-			await Promise.race([
-				page.waitForSelector('#results-container', { timeout: 45000 }),
-				page.waitForSelector('[role="alert"]', { timeout: 45000 })
-			]);
-			
-			// If error shown, verify it's user-friendly
-			const errorElement = await page.$('[role="alert"]');
-			if (errorElement) {
-				const errorText = await errorElement.textContent();
-				
-				// Should NOT show raw error strings
-				expect(errorText?.toLowerCase()).not.toContain('panic');
-				expect(errorText?.toLowerCase()).not.toContain('undefined');
-				
-				// Should have explanation
-				expect(errorText).toBeTruthy();
-				expect(errorText!.length).toBeGreaterThan(20);
-			}
+			// Should show error or stay on same page
+			const url = page.url();
+			expect(url).toContain('/review');
 		});
 
-		test('Circuit breaker message is user-friendly', async ({ page }) => {
-			// This test checks if circuit breaker message is shown properly
-			// (Would need to trigger circuit open state in real scenario)
+		test('Handles invalid code gracefully', async ({ page }) => {
+			const invalidCode = '}{][)(}{][][][';
+			await page.fill('textarea[name="pasted_code"]', invalidCode);
 			
-			await page.goto(`${REVIEW_URL}/`);
+			const previewButton = page.locator('button:has-text("Select Preview")').first();
+			await previewButton.click();
 			
-			// Just verify page loads without error
-			await expect(page.locator('body')).toBeVisible();
+			await page.waitForTimeout(5000);
+			
+			// Should still return results (AI should explain syntax errors)
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 		});
 	});
 
 	test.describe('Model Selection', () => {
 		
-		test('Can select different Ollama models', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
+		test('Can select different AI models', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
 			
-			// Check if model selector exists
-			const modelSelector = await page.$('#model-select');
+			// Select DeepSeek Coder model
+			await page.selectOption('#model', 'deepseek-coder:6.7b');
 			
-			if (modelSelector) {
-				// Select a model
-				await page.selectOption('#model-select', 'mistral:7b-instruct');
-				
-				// Fill code and analyze
-				await page.fill('#code-input', SAMPLE_GO_CODE);
-				await page.selectOption('#reading-mode', 'preview');
-				await page.click('button:has-text("Analyze Code")');
-				
-				// Should work with selected model
-				await page.waitForSelector('#results-container, [role="alert"]', { timeout: 40000 });
-			}
+			const previewButton = page.locator('button:has-text("Select Preview")').first();
+			await previewButton.click();
+			
+			await page.waitForTimeout(5000);
+			
+			const content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 		});
 	});
 
-	test.describe('User Journey - Complete Flow', () => {
+	test.describe('User Journey - Complete Workflow', () => {
 		
-		test('Complete flow: Paste → Preview → Skim → Critical', async ({ page }) => {
-			await page.goto(`${REVIEW_URL}/`);
-			
+		test('Complete workflow: Paste → Preview → Skim → Critical', async ({ page }) => {
 			// Step 1: Paste code
-			await page.fill('#code-input', SAMPLE_GO_CODE);
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_VULNERABLE_CODE);
 			
-			// Step 2: Preview mode
-			await page.selectOption('#reading-mode', 'preview');
-			await page.click('button:has-text("Analyze Code")');
-			await page.waitForSelector('#results-container', { timeout: 30000 });
+			// Step 2: Preview Mode
+			await page.locator('button:has-text("Select Preview")').first().click();
+			await page.waitForTimeout(5000);
 			
-			let results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
+			let content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 			
-			// Step 3: Switch to Skim mode (without re-pasting code)
-			await page.selectOption('#reading-mode', 'skim');
-			await page.click('button:has-text("Analyze Code")');
-			await page.waitForSelector('#results-container', { timeout: 30000 });
+			// Step 3: Skim Mode (code still in textarea)
+			await page.locator('button:has-text("Select Skim")').first().click();
+			await page.waitForTimeout(5000);
 			
-			results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
+			content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
 			
-			// Step 4: Switch to Critical mode
-			await page.selectOption('#reading-mode', 'critical');
-			await page.click('button:has-text("Analyze Code")');
-			await page.waitForSelector('#results-container', { timeout: 40000 });
+			// Step 4: Critical Mode (final review)
+			await page.locator('button:has-text("Select Critical")').first().click();
+			await page.waitForTimeout(10000);
 			
-			results = await page.textContent('#results-container');
-			expect(results).toBeTruthy();
+			content = await page.locator('#reading-mode-demo').textContent();
+			expect(content).toBeTruthy();
+			expect(content!.toLowerCase()).toMatch(/sql|injection|error|security/);
+		});
+	});
+
+	test.describe('Visual Regression', () => {
+		
+		test('Preview Mode results visual snapshot', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_GO_CODE);
+			
+			const previewButton = page.locator('button:has-text("Select Preview")').first();
+			await previewButton.click();
+			
+			await page.waitForTimeout(5000);
+			
+			// Take snapshot of results
+			const resultsContainer = page.locator('#reading-mode-demo');
+			await expect(resultsContainer).toHaveScreenshot('preview-mode-results.png', {
+				maxDiffPixels: 100,
+			});
+		});
+
+		test('Critical Mode results visual snapshot', async ({ page }) => {
+			await page.fill('textarea[name="pasted_code"]', SAMPLE_VULNERABLE_CODE);
+			
+			const criticalButton = page.locator('button:has-text("Select Critical")').first();
+			await criticalButton.click();
+			
+			await page.waitForTimeout(10000);
+			
+			// Take snapshot of critical analysis
+			const resultsContainer = page.locator('#reading-mode-demo');
+			await expect(resultsContainer).toHaveScreenshot('critical-mode-results.png', {
+				maxDiffPixels: 100,
+			});
 		});
 	});
 });

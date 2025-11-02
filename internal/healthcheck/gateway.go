@@ -97,15 +97,37 @@ func (c *GatewayChecker) Check() CheckResult {
 	return result
 }
 
-// parseNginxConfig extracts route mappings from nginx.conf
+// parseNginxConfig extracts route mappings from nginx.conf and included files
 func (c *GatewayChecker) parseNginxConfig() ([]RouteMapping, error) {
-	file, err := os.Open(c.ConfigPath)
+	var routes []RouteMapping
+
+	// Parse main config file
+	mainRoutes, err := c.parseConfigFile(c.ConfigPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open nginx config: %w", err)
+		return nil, err
+	}
+	routes = append(routes, mainRoutes...)
+
+	// Parse conf.d/*.conf files (common nginx pattern)
+	// Try docker/nginx/conf.d/default.conf
+	confDPath := strings.Replace(c.ConfigPath, "nginx.conf", "conf.d/default.conf", 1)
+	confDRoutes, err := c.parseConfigFile(confDPath)
+	if err == nil {
+		routes = append(routes, confDRoutes...)
+	}
+
+	return routes, nil
+}
+
+// parseConfigFile extracts route mappings from a single nginx config file
+func (c *GatewayChecker) parseConfigFile(configPath string) ([]RouteMapping, error) {
+	file, err := os.Open(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open config %s: %w", configPath, err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("warning: failed to close nginx config file: %v", err)
+			log.Printf("warning: failed to close config file: %v", err)
 		}
 	}()
 
@@ -138,7 +160,7 @@ func (c *GatewayChecker) parseNginxConfig() ([]RouteMapping, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading nginx config: %w", err)
+		return nil, fmt.Errorf("error reading config: %w", err)
 	}
 
 	return routes, nil

@@ -1,0 +1,337 @@
+name: Quality & Performance
+
+# Comprehensive quality checks including tests, benchmarks, and E2E
+# Runs on PRs and pushes to main branches
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+jobs:
+  # Job 1: Unit & Integration Tests with Race Detection
+  tests:
+    name: Tests (Unit + Integration + Race)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: devsmith
+          POSTGRES_PASSWORD: devsmith
+          POSTGRES_DB: devsmith_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests with race detection and coverage
+        env:
+          DATABASE_URL: postgres://devsmith:devsmith@localhost:5432/devsmith_test?sslmode=disable
+        run: |
+          echo "Running tests with race detection..."
+          go test -race -coverprofile=coverage.out -covermode=atomic ./...
+          
+          echo "Coverage report:"
+          go tool cover -func=coverage.out
+
+      - name: Check test coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below 70% threshold"
+            exit 1
+          fi
+          
+          echo "✅ Coverage ${COVERAGE}% meets 70% threshold"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # Job 2: Circuit Breaker Benchmarks (Non-blocking)
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run circuit breaker benchmarks
+        run: |
+          echo "Running circuit breaker benchmarks..."
+          go test -bench=. -benchmem -benchtime=5s ./internal/review/circuit/ | tee benchmark-results.txt
+
+      - name: Parse benchmark results
+        run: |
+          echo "Benchmark Summary:"
+          grep "BenchmarkCircuitBreaker" benchmark-results.txt
+          
+          # Extract key metrics
+          SUCCESS_NS=$(grep "BenchmarkCircuitBreaker_Execute_Success" benchmark-results.txt | awk '{print $3}')
+          ALLOCS=$(grep "BenchmarkCircuitBreaker_Execute_Success" benchmark-results.txt | awk '{print $7}')
+          
+          echo "Success path latency: ${SUCCESS_NS}"
+          echo "Allocations per operation: ${ALLOCS}"
+          
+          # Validate performance targets
+          if [[ $(echo "${SUCCESS_NS}" | cut -d'.' -f1) -gt 100 ]]; then
+            echo "⚠️ Circuit breaker overhead >100ns (target: <100ns)"
+          else
+            echo "✅ Circuit breaker overhead <100ns"
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.txt
+          retention-days: 30
+
+  # Job 3: Playwright E2E Smoke Tests
+  e2e-smoke:
+    name: E2E Smoke Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [tests]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: devsmith
+          POSTGRES_PASSWORD: devsmith
+          POSTGRES_DB: devsmith
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          npm ci
+
+      - name: Build services
+        run: |
+          go build -o bin/portal ./cmd/portal
+          go build -o bin/review ./cmd/review
+          go build -o bin/logs ./cmd/logs
+          go build -o bin/analytics ./cmd/analytics
+
+      - name: Start services in background
+        env:
+          DATABASE_URL: postgres://devsmith:devsmith@localhost:5432/devsmith?sslmode=disable
+          PORT: 8080
+          LOGS_SERVICE_URL: http://localhost:8082/api/logs
+          ENABLE_TEST_AUTH: "true"
+        run: |
+          echo "Starting Portal service..."
+          ./bin/portal &
+          PORTAL_PID=$!
+          echo "PORTAL_PID=$PORTAL_PID" >> $GITHUB_ENV
+          
+          echo "Starting Logs service..."
+          PORT=8082 ./bin/logs &
+          LOGS_PID=$!
+          echo "LOGS_PID=$LOGS_PID" >> $GITHUB_ENV
+          
+          echo "Waiting for services to be ready..."
+          sleep 10
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests only
+        run: npx playwright test tests/e2e/verify-review-works.spec.ts
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Cleanup services
+        if: always()
+        run: |
+          if [ -n "$PORTAL_PID" ]; then kill $PORTAL_PID || true; fi
+          if [ -n "$LOGS_PID" ]; then kill $LOGS_PID || true; fi
+
+  # Job 4: Accessibility Tests (axe-core)
+  accessibility:
+    name: Accessibility Tests (axe-core)
+    runs-on: ubuntu-latest
+    needs: [tests]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: devsmith
+          POSTGRES_PASSWORD: devsmith
+          POSTGRES_DB: devsmith
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          npm ci
+
+      - name: Build services
+        run: |
+          go build -o bin/portal ./cmd/portal
+          go build -o bin/review ./cmd/review
+          go build -o bin/logs ./cmd/logs
+
+      - name: Start services in background
+        env:
+          DATABASE_URL: postgres://devsmith:devsmith@localhost:5432/devsmith?sslmode=disable
+          PORT: 8080
+          ENABLE_TEST_AUTH: "true"
+        run: |
+          ./bin/portal &
+          PORT=8082 ./bin/logs &
+          sleep 10
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run accessibility tests
+        run: npx playwright test tests/e2e/review/accessibility.spec.ts
+
+      - name: Upload accessibility report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-report
+          path: playwright-report/
+          retention-days: 30
+
+  # Job 5: OpenAPI Validation
+  openapi:
+    name: OpenAPI Spec Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate OpenAPI spec
+        uses: char0n/swagger-editor-validate@v1
+        with:
+          definition-file: docs/openapi-review.yaml
+
+      - name: Check for OpenAPI linting issues
+        uses: stoplightio/spectral-action@latest
+        with:
+          file_glob: 'docs/openapi-review.yaml'
+
+  # Summary Job (Branch Protection Rule Target)
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [tests, benchmarks, e2e-smoke, accessibility, openapi]
+    if: always()
+
+    steps:
+      - name: Check all required jobs
+        run: |
+          echo "Tests: ${{ needs.tests.result }}"
+          echo "Benchmarks: ${{ needs.benchmarks.result }}"
+          echo "E2E Smoke: ${{ needs.e2e-smoke.result }}"
+          echo "Accessibility: ${{ needs.accessibility.result }}"
+          echo "OpenAPI: ${{ needs.openapi.result }}"
+
+          # Benchmarks are informational only (don't block)
+          if [ "${{ needs.tests.result }}" != "success" ] || \
+             [ "${{ needs.e2e-smoke.result }}" != "success" ] || \
+             [ "${{ needs.accessibility.result }}" != "success" ] || \
+             [ "${{ needs.openapi.result }}" != "success" ]; then
+            echo "❌ Quality gate failed"
+            exit 1
+          fi
+          
+          echo "✅ Quality gate passed"
+          
+          # Show benchmark status
+          if [ "${{ needs.benchmarks.result }}" != "success" ]; then
+            echo "⚠️ Benchmarks failed (non-blocking)"
+          else
+            echo "✅ Benchmarks passed"
+          fi
