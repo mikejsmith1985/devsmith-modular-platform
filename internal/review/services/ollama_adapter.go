@@ -10,9 +10,12 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
 )
 
+// contextKey is a custom type for context keys (must match handlers)
+type contextKey string
+
 const (
-	modelContextKey    = "model"
-	defaultOllamaModel = "mistral:7b-instruct" // Fallback if context empty
+	modelContextKey    contextKey = "model"
+	defaultOllamaModel            = "mistral:7b-instruct" // Fallback if context empty
 )
 
 // OllamaClientAdapter implements OllamaClientInterface by wrapping providers.OllamaClient
