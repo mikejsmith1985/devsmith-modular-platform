@@ -229,6 +229,9 @@ func main() {
 	router.GET("/api/review/sessions/:id/metadata", uiHandler.GetSessionMetadataHTMX) // Session metadata
 	router.GET("/api/review/sessions/:id/export", uiHandler.ExportSessionHTMX)        // Export session
 
+	// Debug routes (TODO: remove in production or guard with env flag)
+	app_handlers.RegisterDebugRoutes(router)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"
