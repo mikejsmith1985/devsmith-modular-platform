@@ -111,10 +111,10 @@ func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, 
 // renderError classifies the error and renders appropriate HTMX-compatible error template
 func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage string) {
 	h.logger.Error("Request error", "error", err.Error(), "path", c.Request.URL.Path)
-	
+
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Status(http.StatusInternalServerError)
-	
+
 	// Classify error and render appropriate template
 	errMsg := err.Error()
 	if strings.Contains(errMsg, "circuit breaker is open") || strings.Contains(errMsg, "ErrOpenState") {
