@@ -497,8 +497,8 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 
 	// Generate session ID
 	sessionID := uuid.New().String()
-	h.logger.Info("Session created", 
-		"session_id", sessionID, 
+	h.logger.Info("Session created",
+		"session_id", sessionID,
 		"user_id", userID,
 		"source", "form")
 
@@ -807,7 +807,7 @@ func determineGradeFromIssues(issues []review_models.CodeIssue) string {
 // GetAvailableModels returns a list of available Ollama models (queries dynamically)
 func (h *UIHandler) GetAvailableModels(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Use model service to query Ollama for actual available models
 	modelsJSON, err := h.modelService.ListAvailableModelsJSON(ctx)
 	if err != nil {

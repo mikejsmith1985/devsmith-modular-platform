@@ -250,8 +250,8 @@ func main() {
 
 	// Public endpoints (no authentication required)
 	router.GET("/", uiHandler.HomeHandler)
-	router.GET("/review", uiHandler.HomeHandler)                         // Serve UI at /review for E2E tests
-	router.GET("/api/review/models", uiHandler.GetAvailableModels)      // Model list is public
+	router.GET("/review", uiHandler.HomeHandler)                   // Serve UI at /review for E2E tests
+	router.GET("/api/review/models", uiHandler.GetAvailableModels) // Model list is public
 
 	// Protected endpoints group (require JWT authentication)
 	protected := router.Group("/")
@@ -259,7 +259,7 @@ func main() {
 	{
 		// Workspace access (requires auth to track user sessions)
 		protected.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace)
-		
+
 		// Analysis endpoints (require auth for usage tracking and rate limiting)
 		protected.GET("/analysis", uiHandler.AnalysisResultHandler)
 		protected.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
