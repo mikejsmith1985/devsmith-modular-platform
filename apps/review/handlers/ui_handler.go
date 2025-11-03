@@ -30,6 +30,7 @@ type UIHandler struct {
 	scanService     review_services.ScanAnalyzer
 	detailedService review_services.DetailedAnalyzer
 	criticalService review_services.CriticalAnalyzer
+	modelService    *review_services.ModelService
 }
 
 // NewUIHandler creates a new UIHandler with the given logger, logging client, and analyzer services.
@@ -42,6 +43,7 @@ func NewUIHandler(
 	scanService review_services.ScanAnalyzer,
 	detailedService review_services.DetailedAnalyzer,
 	criticalService review_services.CriticalAnalyzer,
+	modelService *review_services.ModelService,
 ) *UIHandler {
 	return &UIHandler{
 		logger:          logger,
@@ -51,6 +53,7 @@ func NewUIHandler(
 		scanService:     scanService,
 		detailedService: detailedService,
 		criticalService: criticalService,
+		modelService:    modelService,
 	}
 }
 
@@ -204,18 +207,18 @@ func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_mode
 }
 
 func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.SkimModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
-		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-blue-700 pb-4">
+	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700">
+		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-slate-700 pb-4">
 			<span class="text-3xl">📚</span>
-			<div><h3 class="text-xl font-bold text-blue-900 dark:text-blue-50">Skim Analysis</h3>
-			<p class="text-sm text-blue-700 dark:text-blue-200">Key components and abstractions</p></div>
+			<div><h3 class="text-xl font-bold text-blue-900 dark:text-slate-50">Skim Analysis</h3>
+			<p class="text-sm text-blue-700 dark:text-slate-200">Key components and abstractions</p></div>
 		</div>`
 
 	// If the service returned a summary (used when input wasn't code), show it prominently
 	if result.Summary != "" {
-		html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
-			<h4 class="text-sm font-semibold text-blue-900 dark:text-blue-50 mb-2">ℹ️ Note</h4>
-			<p class="text-sm text-gray-700 dark:text-blue-100">%s</p>
+		html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-100 dark:border-slate-700">
+			<h4 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-2">ℹ️ Note</h4>
+			<p class="text-sm text-gray-700 dark:text-slate-200">%s</p>
 		</div>`, result.Summary)
 	}
 
@@ -395,6 +398,26 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 	} else if strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host") {
 		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+	} else if strings.Contains(errMsg, "ERR_AI_RESPONSE_INVALID") || strings.Contains(strings.ToLower(errMsg), "invalid response") {
+		// AI returned malformed JSON or couldn't be repaired. Show a helpful message
+		// including any excerpt available in the error string to aid troubleshooting.
+		excerpt := errMsg
+		// attempt to extract a raw response excerpt marker if present
+		if idx := strings.Index(errMsg, "Raw response excerpt:"); idx != -1 {
+			excerpt = errMsg[idx:]
+		} else if idx := strings.Index(errMsg, "Excerpt:"); idx != -1 {
+			excerpt = errMsg[idx:]
+		}
+		if len(excerpt) > 1200 {
+			excerpt = excerpt[:1200] + "..."
+		}
+		html := fmt.Sprintf(`<div class="p-6 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+			<h3 class="text-lg font-semibold text-yellow-900 dark:text-yellow-50">Analysis could not be parsed</h3>
+			<p class="mt-2 text-sm text-gray-700 dark:text-yellow-100">The AI returned an unexpected response format and automatic repair failed. We've captured a short excerpt below to help debugging.</p>
+			<pre class="mt-3 p-3 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-200 overflow-auto">%s</pre>
+			<p class="mt-3 text-sm text-gray-600 dark:text-gray-300">We saved the full AI output for 14 days for troubleshooting. Try again or choose a different model.</p>
+		</div>`, templateEscape(excerpt))
+		c.String(http.StatusOK, html)
 	} else {
 		// Generic error
 		message := fallbackMessage
@@ -403,6 +426,12 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 		}
 		templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer)
 	}
+}
+
+// templateEscape performs a minimal HTML escape for safe insertion into templates
+func templateEscape(s string) string {
+	replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
+	return replacer.Replace(s)
 }
 
 // HomeHandler serves the main Review UI (mode selector + repo input)
@@ -572,6 +601,52 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	// Pass model to service via context for Ollama override
 	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
+	// If the pasted content doesn't look like source code, avoid calling the LLM-driven
+	// scan which may hallucinate code-like matches. Instead, perform a safe local
+	// substring search over the pasted text for the user's query and return those
+	// matches directly. If no query is provided, return a friendly note.
+	if !looksLikeCode(req.PastedCode) {
+		// If user provided a query, run a local text search (case-insensitive).
+		if strings.TrimSpace(query) != "" && query != "find issues and improvements" {
+			lines := strings.Split(req.PastedCode, "\n")
+			matches := make([]review_models.CodeMatch, 0)
+			qLower := strings.ToLower(query)
+			for i, line := range lines {
+				if strings.Contains(strings.ToLower(line), qLower) {
+					ctxBefore := ""
+					if i-2 >= 0 {
+						ctxBefore = lines[i-2] + "\n"
+					}
+					if i-1 >= 0 {
+						ctxBefore += lines[i-1]
+					}
+					ctxAfter := ""
+					if i+1 < len(lines) {
+						ctxAfter = "\n" + lines[i+1]
+					}
+					match := review_models.CodeMatch{
+						FilePath:    "pasted_input",
+						CodeSnippet: strings.TrimSpace(line),
+						Context:     strings.TrimSpace(ctxBefore + "\n" + line + ctxAfter),
+						Relevance:   1.0,
+						Line:        i + 1,
+					}
+					matches = append(matches, match)
+				}
+			}
+			out := &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
+			h.marshalAndFormat(c, out, "🔎 Scan Mode (Text)", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
+			return
+		}
+
+		// No meaningful query supplied - return a note guiding the user
+		summary := "The content you pasted looks like natural language text, not source code.\n" +
+			"Scan mode can search code for patterns (SQL, auth, queries). For prose, provide a search query or paste source code."
+		out := &review_models.ScanModeOutput{Summary: summary, Matches: nil}
+		h.marshalAndFormat(c, out, "🔎 Scan Mode - Not Code", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
+		return
+	}
+
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model)
@@ -603,6 +678,27 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 	// Pass model to service via context for Ollama override
 	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
+	// If the content doesn't look like code, avoid running Detailed Mode (it expects source)
+	if !looksLikeCode(req.PastedCode) {
+		html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900 rounded-lg border border-yellow-200 dark:border-yellow-700">
+			<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-700 pb-4">
+				<span class="text-3xl">📖</span>
+				<div>
+					<h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-50">Detailed Analysis</h3>
+					<p class="text-sm text-yellow-700 dark:text-yellow-200">Line-by-line explanation</p>
+				</div>
+			</div>
+			<div class="p-4 bg-white dark:bg-yellow-800 rounded-lg border border-yellow-100 dark:border-yellow-700">
+				<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-50 mb-2">ℹ️ Note</h4>
+				<p class="text-sm text-gray-700 dark:text-yellow-200">The content you pasted looks like natural language text, not source code.</p>
+				<p class="text-sm text-gray-700 dark:text-yellow-200 mt-2">Detailed mode performs line-by-line code analysis and requires source code. If you want to summarize prose or search for phrases, use <strong>Scan mode</strong> or paste source code.</p>
+			</div>
+		</div>`
+		c.Header("Content-Type", "text/html")
+		c.String(http.StatusOK, html)
+		return
+	}
+
 	result, err := h.detailedService.AnalyzeDetailed(ctx, filename, req.PastedCode)
 	if err != nil {
 		h.logger.Error("Detailed analysis failed", "error", err.Error(), "model", req.Model)
@@ -631,6 +727,16 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 
 	// Pass model to service via context for Ollama override
 	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+
+	// If pasted content doesn't look like source code, avoid running full Critical
+	// analysis which focuses on architecture/layering and code quality.
+	if !looksLikeCode(req.PastedCode) {
+		summary := "The content you pasted appears to be natural language text rather than source code.\n" +
+			"Critical mode evaluates code quality, architecture and security. For prose, please use Scan mode or paste source code."
+		out := &review_models.CriticalModeOutput{Summary: summary, Issues: nil}
+		h.marshalAndFormat(c, out, "🚨 Critical Mode - Not Code", "bg-red-50 dark:bg-slate-800 border border-red-200 dark:border-slate-700")
+		return
+	}
 
 	result, err := h.criticalService.AnalyzeCritical(ctx, req.PastedCode)
 	if err != nil {
@@ -687,19 +793,26 @@ func determineGradeFromIssues(issues []review_models.CodeIssue) string {
 	}
 }
 
-// GetAvailableModels returns a list of available Ollama models
+// GetAvailableModels returns a list of available Ollama models (queries dynamically)
 func (h *UIHandler) GetAvailableModels(c *gin.Context) {
-	// Return hardcoded list of common models
-	// TODO: Query Ollama API for actual available models
-	models := []map[string]string{
-		{"name": "mistral:7b-instruct", "description": "Fast, General (Recommended)"},
-		{"name": "codellama:13b", "description": "Better for code"},
-		{"name": "llama2:13b", "description": "Balanced"},
-		{"name": "deepseek-coder:6.7b", "description": "Code specialist"},
-		{"name": "deepseek-coder-v2:16b", "description": "Most accurate (slower)"},
+	ctx := c.Request.Context()
+	
+	// Use model service to query Ollama for actual available models
+	modelsJSON, err := h.modelService.ListAvailableModelsJSON(ctx)
+	if err != nil {
+		h.logger.Error("Failed to retrieve available models", "error", err.Error())
+		// Return fallback models on error
+		fallbackModels := []map[string]string{
+			{"name": "mistral:7b-instruct", "description": "Fast, General (Recommended)"},
+			{"name": "codellama:13b", "description": "Better for code"},
+			{"name": "deepseek-coder:6.7b", "description": "Code specialist"},
+		}
+		c.JSON(http.StatusOK, gin.H{"models": fallbackModels})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"models": models})
+	c.Header("Content-Type", "application/json")
+	c.String(http.StatusOK, string(modelsJSON))
 }
 
 // ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)
