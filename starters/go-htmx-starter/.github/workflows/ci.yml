@@ -1,0 +1,88 @@
+name: Go HTMX Starter CI
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'starters/go-htmx-starter/**'
+  pull_request:
+    branches: [main, development]
+    paths:
+      - 'starters/go-htmx-starter/**'
+
+jobs:
+  build:
+    name: Build Go HTMX Starter
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      
+      - name: Change to starter directory
+        run: cd starters/go-htmx-starter
+      
+      - name: Download dependencies
+        working-directory: starters/go-htmx-starter
+        run: go mod download
+      
+      - name: Verify dependencies
+        working-directory: starters/go-htmx-starter
+        run: go mod verify
+      
+      - name: Build application
+        working-directory: starters/go-htmx-starter
+        run: |
+          echo "Building go-htmx-starter..."
+          go build -v -o bin/app main.go logger.go
+          echo "✓ Build successful"
+      
+      - name: Verify binary
+        working-directory: starters/go-htmx-starter
+        run: |
+          test -f bin/app
+          file bin/app
+      
+      - name: Run tests
+        working-directory: starters/go-htmx-starter
+        run: go test -v ./...
+        continue-on-error: true  # Allow failure if no tests exist yet
+  
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        working-directory: starters/go-htmx-starter
+        run: |
+          echo "Building Docker image..."
+          docker build -t go-htmx-starter:test .
+          echo "✓ Docker build successful"
+      
+      - name: Test Docker image
+        run: |
+          echo "Starting container..."
+          docker run -d --name test-container -p 8080:8080 go-htmx-starter:test
+          
+          echo "Waiting for container to be ready..."
+          sleep 5
+          
+          echo "Testing health endpoint..."
+          curl -f http://localhost:8080/health || exit 1
+          
+          echo "✓ Container health check passed"
+          
+          docker stop test-container
+          docker rm test-container

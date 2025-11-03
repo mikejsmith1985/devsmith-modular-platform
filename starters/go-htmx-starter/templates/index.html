@@ -1,0 +1,70 @@
+{{define "content"}}
+<div class="alert alert-info">
+    <strong>{{.Message}}</strong>
+</div>
+
+<h2>Welcome to the Go + HTMX Starter</h2>
+
+<p>This starter template demonstrates the DevSmith platform contract with the following features:</p>
+
+<ul style="margin: 1.5rem 0; line-height: 2;">
+    <li>✅ <strong>Health Endpoint</strong>: <a href="/health" target="_blank">/health</a></li>
+    <li>✅ <strong>Structured JSON Logging</strong> with correlation IDs</li>
+    <li>✅ <strong>Correlation Headers</strong> (X-Correlation-ID) for request tracing</li>
+    <li>✅ <strong>Docker Container</strong> with non-root user</li>
+    <li>✅ <strong>HTMX Integration</strong> for dynamic content</li>
+</ul>
+
+<h3 style="margin-top: 2rem;">Try HTMX</h3>
+
+<p>Click the button below to load dynamic content without a full page reload:</p>
+
+<button 
+    class="button" 
+    hx-get="/api/fragment" 
+    hx-target="#dynamic-content" 
+    hx-swap="innerHTML"
+    style="margin: 1rem 0;">
+    Load Dynamic Content
+    <span class="htmx-indicator">⏳</span>
+</button>
+
+<div id="dynamic-content" style="margin-top: 1rem; padding: 1rem; background: #ecf0f1; border-radius: 4px; min-height: 60px;">
+    <em style="color: #7f8c8d;">Dynamic content will appear here...</em>
+</div>
+
+<h3 style="margin-top: 2rem;">What's Included</h3>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+    <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #3498db;">
+        <h4>Server-Side Templates</h4>
+        <p style="font-size: 0.9rem; color: #555; margin-top: 0.5rem;">
+            Go's html/template for safe, efficient rendering with layout inheritance.
+        </p>
+    </div>
+    
+    <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #2ecc71;">
+        <h4>HTMX Hypermedia</h4>
+        <p style="font-size: 0.9rem; color: #555; margin-top: 0.5rem;">
+            Build dynamic UIs with HTML responses instead of JSON APIs.
+        </p>
+    </div>
+    
+    <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #e74c3c;">
+        <h4>Platform Contract</h4>
+        <p style="font-size: 0.9rem; color: #555; margin-top: 0.5rem;">
+            Health checks, structured logs, correlation tracking built-in.
+        </p>
+    </div>
+</div>
+
+<h3 style="margin-top: 2rem;">Next Steps</h3>
+
+<ol style="margin: 1rem 0; line-height: 2;">
+    <li>Explore the <code style="background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px;">main.go</code> file to see how routes are defined</li>
+    <li>Check <code style="background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px;">logger.go</code> for structured logging patterns</li>
+    <li>View <code style="background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px;">templates/</code> to understand template inheritance</li>
+    <li>Read <code style="background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px;">README.md</code> for detailed documentation</li>
+    <li>Customize and build your application!</li>
+</ol>
+{{end}}
