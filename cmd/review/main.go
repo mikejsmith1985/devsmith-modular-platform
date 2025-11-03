@@ -22,6 +22,7 @@ import (
 	review_circuit "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/circuit"
 	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	review_health "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/health"
+	review_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/middleware"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	review_tracing "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/tracing"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
@@ -247,37 +248,38 @@ func main() {
 	router.Static("/static", "./apps/review/static")
 	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
 
-	// Register endpoints
+	// Public endpoints (no authentication required)
 	router.GET("/", uiHandler.HomeHandler)
 	router.GET("/review", uiHandler.HomeHandler)                         // Serve UI at /review for E2E tests
-	router.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace) // Two-pane workspace for code review
-	router.GET("/analysis", uiHandler.AnalysisResultHandler)
-	router.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
-	// SSE endpoint for session progress (demo stream)
-	router.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
+	router.GET("/api/review/models", uiHandler.GetAvailableModels)      // Model list is public
 
-	// Models endpoint for model selection
-	router.GET("/api/review/models", uiHandler.GetAvailableModels)
+	// Protected endpoints group (require JWT authentication)
+	protected := router.Group("/")
+	protected.Use(review_middleware.JWTAuthMiddleware(reviewLogger))
+	{
+		// Workspace access (requires auth to track user sessions)
+		protected.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace)
+		
+		// Analysis endpoints (require auth for usage tracking and rate limiting)
+		protected.GET("/analysis", uiHandler.AnalysisResultHandler)
+		protected.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
+		protected.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
 
-	// Session management endpoints (HTMX versions - Phase 11.5)
-	// Note: These endpoints are replaced by HTMX versions below
-	// Kept: router.GET("/api/review/sessions", sessionHandler.ListSessions) -> Use HTMX /list instead
-	// Kept pagination for non-HTMX clients if needed, but HTMX UI uses /list
+		// Mode endpoints - all require authentication
+		protected.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)
+		protected.POST("/api/review/modes/skim", uiHandler.HandleSkimMode)
+		protected.POST("/api/review/modes/scan", uiHandler.HandleScanMode)
+		protected.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode)
+		protected.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode)
 
-	// HTMX mode endpoints - direct mode-based analysis
-	router.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)   // Preview mode HTMX
-	router.POST("/api/review/modes/skim", uiHandler.HandleSkimMode)         // Skim mode HTMX
-	router.POST("/api/review/modes/scan", uiHandler.HandleScanMode)         // Scan mode HTMX
-	router.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode) // Detailed mode HTMX
-	router.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode) // Critical mode HTMX
-
-	// HTMX session endpoints (Phase 11.5) - HTMX-first design
-	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)               // List sessions for sidebar
-	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX)           // Search sessions
-	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)            // Get session detail (HTMX, replaces sessionHandler.GetSession)
-	router.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)       // Resume session
-	router.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX) // Duplicate session
-	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)     // Archive session
+		// Session management endpoints (all require auth)
+		protected.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)
+		protected.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX)
+		protected.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)
+		protected.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)
+		protected.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX)
+		protected.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)
+	}
 	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)            // Delete session (HTMX, replaces sessionHandler.DeleteSession)
 	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)       // Session statistics
 	router.GET("/api/review/sessions/:id/metadata", uiHandler.GetSessionMetadataHTMX) // Session metadata
