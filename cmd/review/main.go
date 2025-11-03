@@ -237,8 +237,11 @@ func main() {
 		logClient = nil
 	}
 
+	// Create model service for dynamic model discovery
+	modelService := review_services.NewModelService(reviewLogger)
+
 	// Handler setup with services (UIHandler takes logger, logging client, and AI services)
-	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService)
+	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService, modelService)
 
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")
