@@ -21,7 +21,7 @@ func JWTAuthMiddleware(log logger.Interface) gin.HandlerFunc {
 			if tokenString == "" {
 				log.Warn("Authentication required - no token provided", "path", c.Request.URL.Path)
 				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "Authentication required",
+					"error":   "Authentication required",
 					"message": "Please log in to access this resource",
 				})
 				c.Abort()
@@ -34,7 +34,7 @@ func JWTAuthMiddleware(log logger.Interface) gin.HandlerFunc {
 		if err != nil {
 			log.Warn("Invalid JWT token", "error", err.Error(), "path", c.Request.URL.Path)
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Invalid authentication token",
+				"error":   "Invalid authentication token",
 				"message": "Your session may have expired. Please log in again.",
 			})
 			c.Abort()
@@ -46,7 +46,7 @@ func JWTAuthMiddleware(log logger.Interface) gin.HandlerFunc {
 		c.Set("user_id", claims.GithubID) // Convenient access to user_id
 		c.Set("username", claims.Username)
 
-		log.Info("User authenticated", 
+		log.Info("User authenticated",
 			"user_id", claims.GithubID,
 			"username", claims.Username,
 			"path", c.Request.URL.Path)

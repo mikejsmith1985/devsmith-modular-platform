@@ -17,24 +17,25 @@ import * as path from 'path';
 
 test.describe('Portal → Review Integration', () => {
   const screenshotDir = '/tmp/devsmith-screenshots';
-  const portalBaseURL = 'http://localhost:8080';  // Portal service port
+  const gatewayURL = 'http://localhost:3000';  // Nginx gateway - single entry point
 
   test('complete flow: login → dashboard → review → analyze', async ({ page }) => {
-    // Step 1: Navigate to Portal
-    await page.goto(portalBaseURL + '/');
+    // Step 1: Navigate to Portal via gateway
+    await page.goto(gatewayURL + '/');
     await page.screenshot({ 
       path: path.join(screenshotDir, '01-portal-home.png'),
       fullPage: true 
     });
 
     // Step 2: Authenticate using test login endpoint (POST request)
+    // Note: Portal is accessible via gateway at port 3000
     const testUser = {
       username: 'e2e-test-user',
       email: 'e2e@devsmith.test',
       avatar_url: 'https://avatars.githubusercontent.com/u/test'
     };
 
-    const loginResponse = await page.request.post(portalBaseURL + '/auth/test-login', {
+    const loginResponse = await page.request.post(gatewayURL + '/auth/test-login', {
       data: testUser
     });
 
@@ -60,8 +61,8 @@ test.describe('Portal → Review Integration', () => {
       fullPage: true 
     });
 
-    // Step 3: Navigate to dashboard
-    await page.goto(portalBaseURL + '/dashboard');
+    // Step 3: Navigate to dashboard via gateway
+    await page.goto(gatewayURL + '/dashboard');
     await expect(page).toHaveURL(/.*dashboard/);
     await page.screenshot({ 
       path: path.join(screenshotDir, '03-portal-dashboard.png'),
@@ -183,9 +184,8 @@ func main() {
     // Clear cookies to simulate unauthenticated user
     await page.context().clearCookies();
 
-    // Try to access Review workspace directly (port 8081)
-    const reviewBaseURL = 'http://localhost:8081';
-    const response = await page.goto(reviewBaseURL + '/review/workspace/test-session');
+    // Try to access Review workspace directly via gateway
+    const response = await page.goto(gatewayURL + '/review/workspace/test-session');
 
     // Should receive 401 Unauthorized (Review service protects these endpoints)
     // Check either status code or page content

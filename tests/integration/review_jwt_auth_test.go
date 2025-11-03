@@ -30,7 +30,7 @@ func TestReviewModeWithoutJWT(t *testing.T) {
 
 	// Act: POST without JWT
 	code := `package main\nfunc main() {}`
-	req := httptest.NewRequest("POST", "/api/review/modes/preview", 
+	req := httptest.NewRequest("POST", "/api/review/modes/preview",
 		bytes.NewBufferString(fmt.Sprintf("pasted_code=%s&model=mistral:7b-instruct", code)))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -38,7 +38,7 @@ func TestReviewModeWithoutJWT(t *testing.T) {
 
 	// Assert: Should return 401 Unauthorized
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Should require authentication")
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestReviewSessionCreationWithUserID(t *testing.T) {
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	// Session should have user_id field matching JWT github_id
 	sessionData := response["session"].(map[string]interface{})
 	assert.Equal(t, "12345", sessionData["user_id"], "Session should be tied to authenticated user")
