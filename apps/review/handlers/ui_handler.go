@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,16 +14,10 @@ import (
 	"github.com/google/uuid"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
+	reviewcontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/context"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
-)
-
-// contextKey is a custom type for context keys to avoid collisions
-type contextKey string
-
-const (
-	modelContextKey contextKey = "model"
 )
 
 // UIHandler provides HTTP handlers for the Review UI with logging.
@@ -71,8 +66,36 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
+		// If binding failed, attempt to accept a file upload fallback
+		// Some clients may POST a file part (e.g. curl -F '@-') instead of a plain form field.
+		// Try to read an uploaded file named 'pasted_code' and use its contents.
+		if fileHeader, ferr := c.FormFile("pasted_code"); ferr == nil {
+			fh, openErr := fileHeader.Open()
+			if openErr == nil {
+				defer fh.Close()
+				if data, readErr := io.ReadAll(fh); readErr == nil {
+					req.PastedCode = string(data)
+					// try to bind model separately (optional)
+					if m := c.PostForm("model"); m != "" {
+						req.Model = m
+					}
+					h.logger.Info("Code request bound from uploaded file",
+						"code_length", len(req.PastedCode),
+						"filename", fileHeader.Filename,
+						"content-type", c.GetHeader("Content-Type"))
+
+					// Default model if not provided
+					if req.Model == "" {
+						req.Model = "mistral:7b-instruct"
+					}
+
+					return &req, true
+				}
+			}
+		}
+
 		h.logger.Warn("Failed to bind code request",
-			"error", err,
+			"error", err.Error(),
 			"content-type", c.GetHeader("Content-Type"))
 		c.String(http.StatusBadRequest, "Code required. Please paste code in the textarea.")
 		return nil, false
@@ -88,6 +111,25 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 		"model", req.Model)
 
 	return &req, true
+}
+
+// looksLikeCode performs a lightweight heuristic check to determine whether the
+// provided text looks like source code. This prevents modes that expect source
+// code (Skim/Detailed) from hallucinating when given natural language input.
+func looksLikeCode(s string) bool {
+	if s == "" {
+		return false
+	}
+	// heuristics: common code tokens across languages
+	checks := []string{"package ", "func ", "class ", "import ", "def ", "struct ", "interface ", "=>", "->", "{", "}"}
+	score := 0
+	for _, token := range checks {
+		if strings.Contains(s, token) {
+			score++
+		}
+	}
+	// if multiple tokens present, very likely code
+	return score >= 1
 }
 
 // marshalAndFormat converts analysis result to user-friendly HTML
@@ -126,33 +168,33 @@ func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, 
 }
 
 func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_models.PreviewModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-		<div class="flex items-center gap-3 border-b border-indigo-200 dark:border-indigo-800 pb-4">
+	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900 rounded-lg border border-indigo-200 dark:border-indigo-700">
+		<div class="flex items-center gap-3 border-b border-indigo-200 dark:border-gray-700 pb-4">
 			<span class="text-3xl">👁️</span>
-			<div><h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-100">Quick Preview</h3>
-			<p class="text-sm text-indigo-700 dark:text-indigo-300">High-level structure and overview</p></div>
+			<div><h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-50">Quick Preview</h3>
+			<p class="text-sm text-indigo-700 dark:text-indigo-200">High-level structure and overview</p></div>
 		</div>`
 
 	if result.Summary != "" {
 		html += fmt.Sprintf(`<div class="prose prose-sm dark:prose-invert max-w-none">
-			<h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-2">📋 Summary</h4>
-			<p class="text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			<h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-50 mb-2">📋 Summary</h4>
+			<p class="text-gray-700 dark:text-indigo-100 leading-relaxed">%s</p>
 		</div>`, result.Summary)
 	}
 
 	if len(result.BoundedContexts) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🎯 Key Areas</h4><div class="grid gap-2">`
+		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-gray-100 mb-3">🎯 Key Areas</h4><div class="grid gap-2">`
 		for _, ctx := range result.BoundedContexts {
-			html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-100 dark:border-indigo-900">
-				<span class="font-medium text-indigo-700 dark:text-indigo-300">%s</span></div>`, ctx)
+			html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-indigo-800 rounded-lg border border-indigo-100 dark:border-indigo-700">
+				<span class="font-medium text-indigo-700 dark:text-indigo-50">%s</span></div>`, ctx)
 		}
 		html += `</div></div>`
 	}
 
 	if len(result.TechStack) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🔧 Technologies Used</h4><div class="flex flex-wrap gap-2">`
+		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-gray-100 mb-3">🔧 Technologies Used</h4><div class="flex flex-wrap gap-2">`
 		for _, tech := range result.TechStack {
-			html += fmt.Sprintf(`<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">%s</span>`, tech)
+			html += fmt.Sprintf(`<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-100 rounded-full text-sm font-medium">%s</span>`, tech)
 		}
 		html += `</div></div>`
 	}
@@ -162,31 +204,39 @@ func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_mode
 }
 
 func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.SkimModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-blue-800 pb-4">
+	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
+		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-blue-700 pb-4">
 			<span class="text-3xl">📚</span>
-			<div><h3 class="text-xl font-bold text-blue-900 dark:text-blue-100">Skim Analysis</h3>
-			<p class="text-sm text-blue-700 dark:text-blue-300">Key components and abstractions</p></div>
+			<div><h3 class="text-xl font-bold text-blue-900 dark:text-blue-50">Skim Analysis</h3>
+			<p class="text-sm text-blue-700 dark:text-blue-200">Key components and abstractions</p></div>
 		</div>`
 
+	// If the service returned a summary (used when input wasn't code), show it prominently
+	if result.Summary != "" {
+		html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
+			<h4 class="text-sm font-semibold text-blue-900 dark:text-blue-50 mb-2">ℹ️ Note</h4>
+			<p class="text-sm text-gray-700 dark:text-blue-100">%s</p>
+		</div>`, result.Summary)
+	}
+
 	if len(result.Functions) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">⚡ Functions & Methods</h4><div class="space-y-3">`
+		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-gray-100 mb-3">⚡ Functions & Methods</h4><div class="space-y-3">`
 		for _, fn := range result.Functions {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-blue-100 dark:border-blue-900">
-				<div class="font-mono text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">%s</div>
-				<div class="font-mono text-xs text-gray-600 dark:text-gray-400 mb-2 pl-4">%s</div>
-				<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
+				<div class="font-mono text-sm text-blue-700 dark:text-blue-100 font-semibold mb-2">%s</div>
+				<div class="font-mono text-xs text-gray-600 dark:text-blue-200 mb-2 pl-4">%s</div>
+				<p class="text-sm text-gray-700 dark:text-blue-100 leading-relaxed">%s</p>
 			</div>`, fn.Name, fn.Signature, fn.Description)
 		}
 		html += `</div></div>`
 	}
 
 	if len(result.Interfaces) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">🔌 Interfaces</h4><div class="space-y-3">`
+		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-gray-100 mb-3">🔌 Interfaces</h4><div class="space-y-3">`
 		for _, iface := range result.Interfaces {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-blue-100 dark:border-blue-900">
-				<div class="font-mono text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">%s</div>
-				<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
+				<div class="font-mono text-sm text-blue-700 dark:text-blue-100 font-semibold mb-2">%s</div>
+				<p class="text-sm text-gray-700 dark:text-blue-100 leading-relaxed">%s</p>
 			</div>`, iface.Name, iface.Description)
 		}
 		html += `</div></div>`
@@ -197,17 +247,17 @@ func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.
 }
 
 func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.ScanModeOutput) {
-	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-		<div class="flex items-center gap-3 border-b border-green-200 dark:border-green-800 pb-4">
+	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
+		<div class="flex items-center gap-3 border-b border-green-200 dark:border-green-700 pb-4">
 			<span class="text-3xl">🔎</span>
-			<div><h3 class="text-xl font-bold text-green-900 dark:text-green-100">Search Results</h3>
-			<p class="text-sm text-green-700 dark:text-green-300">Found %d matches</p></div>
+			<div><h3 class="text-xl font-bold text-green-900 dark:text-green-50">Search Results</h3>
+			<p class="text-sm text-green-700 dark:text-green-200">Found %d matches</p></div>
 		</div>`, len(result.Matches))
 
 	if len(result.Matches) > 0 {
 		html += `<div class="space-y-4">`
 		for i, match := range result.Matches {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-green-100 dark:border-green-900">
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-green-800 rounded-lg border border-green-100 dark:border-green-700">
 				<div class="flex items-center justify-between mb-3">
 					<span class="text-sm font-semibold text-green-700 dark:text-green-300">Match %d</span>
 					<span class="text-xs font-mono text-gray-600 dark:text-gray-400">%s</span>
@@ -225,29 +275,29 @@ func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.
 }
 
 func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_models.DetailedModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-		<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-800 pb-4">
+	html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900 rounded-lg border border-yellow-200 dark:border-yellow-700">
+		<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-700 pb-4">
 			<span class="text-3xl">📖</span>
-			<div><h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-100">Detailed Analysis</h3>
-			<p class="text-sm text-yellow-700 dark:text-yellow-300">Line-by-line explanation</p></div>
+			<div><h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-50">Detailed Analysis</h3>
+			<p class="text-sm text-yellow-700 dark:text-yellow-200">Line-by-line explanation</p></div>
 		</div>`
 
 	if result.AlgorithmSummary != "" {
-		html += fmt.Sprintf(`<div class="p-4 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg border border-yellow-200 dark:border-yellow-700">
-			<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">🧠 Algorithm Overview</h4>
-			<p class="text-sm text-yellow-800 dark:text-yellow-200 leading-relaxed">%s</p>
+		html += fmt.Sprintf(`<div class="p-4 bg-yellow-100 dark:bg-yellow-800 rounded-lg border border-yellow-200 dark:border-yellow-700">
+			<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-50 mb-2">🧠 Algorithm Overview</h4>
+			<p class="text-sm text-yellow-800 dark:text-yellow-100 leading-relaxed">%s</p>
 		</div>`, result.AlgorithmSummary)
 	}
 
 	if len(result.LineExplanations) > 0 {
 		html += `<div><h4 class="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">📝 Line-by-Line Walkthrough</h4><div class="space-y-3">`
 		for _, line := range result.LineExplanations {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-yellow-100 dark:border-yellow-900">
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-yellow-900/10 rounded-lg border border-yellow-100 dark:border-yellow-700">
 				<div class="flex items-start gap-3 mb-2">
-					<span class="flex-shrink-0 w-12 text-right font-mono text-xs text-yellow-600 dark:text-yellow-400 font-semibold">L%d</span>
+					<span class="flex-shrink-0 w-12 text-right font-mono text-xs text-yellow-600 dark:text-yellow-300 font-semibold">L%d</span>
 					<div class="flex-1">
-						<div class="font-mono text-sm text-gray-700 dark:text-gray-300 mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">%s</div>
-						<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+						<div class="font-mono text-sm text-gray-700 dark:text-yellow-100 mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">%s</div>
+						<p class="text-sm text-gray-700 dark:text-yellow-100 leading-relaxed">%s</p>
 					</div>
 				</div>
 			</div>`, line.LineNumber, line.Code, line.Explanation)
@@ -260,11 +310,11 @@ func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_mod
 }
 
 func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_models.CriticalModeOutput) {
-	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-		<div class="flex items-center gap-3 border-b border-red-200 dark:border-red-800 pb-4">
+	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-red-50 dark:bg-red-900 rounded-lg border border-red-200 dark:border-red-700">
+		<div class="flex items-center gap-3 border-b border-red-200 dark:border-red-700 pb-4">
 			<span class="text-3xl">🚨</span>
-			<div><h3 class="text-xl font-bold text-red-900 dark:text-red-100">Critical Review</h3>
-			<p class="text-sm text-red-700 dark:text-red-300">Found %d issues</p></div>
+			<div><h3 class="text-xl font-bold text-red-900 dark:text-red-50">Critical Review</h3>
+			<p class="text-sm text-red-700 dark:text-red-200">Found %d issues</p></div>
 		</div>`, len(result.Issues))
 
 	if result.OverallGrade != "" {
@@ -292,10 +342,10 @@ func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_mod
 
 		// Critical
 		if len(critical) > 0 {
-			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-red-900 dark:text-red-100 mb-3">🔴 Critical Issues (%d)</h4><div class="space-y-3">`, len(critical))
+			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-red-900 dark:text-red-50 mb-3">🔴 Critical Issues (%d)</h4><div class="space-y-3">`, len(critical))
 			for _, issue := range critical {
-				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-red-200">
-					<div class="text-sm font-semibold text-red-700 mb-2">%s <span class="text-xs text-gray-600">%s:%d</span></div>
+				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-red-900/5 rounded-lg border border-red-200 dark:border-red-700">
+					<div class="text-sm font-semibold text-red-700 mb-2">%s <span class="text-xs text-gray-600 dark:text-gray-300">%s:%d</span></div>
 					<p class="text-sm text-gray-700 dark:text-gray-300 mb-2">%s</p>
 					<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200">
 						<div class="text-xs font-semibold text-green-700 mb-1">💡 Fix:</div>
@@ -448,7 +498,7 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 	}
 
 	// TODO: Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode)
 	if err != nil {
@@ -477,7 +527,19 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+
+	// If the pasted input doesn't look like source code, avoid calling Skim mode
+	// which expects actual source files (functions, interfaces, data models).
+	if !looksLikeCode(req.PastedCode) {
+		// Return a friendly message instead of hallucinated abstractions.
+		summary := "The content you pasted looks like natural language text, not source code.\n" +
+			"Skim mode extracts functions, interfaces and data models from source files. " +
+			"If you want to search or summarize prose, use Scan mode or paste source code."
+		out := &review_models.SkimModeOutput{Summary: summary}
+		h.marshalAndFormat(c, out, "📚 Skim Mode - Not Code", "bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700")
+		return
+	}
 
 	result, err := h.skimService.AnalyzeSkim(ctx, req.PastedCode)
 	if err != nil {
@@ -508,7 +570,7 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode)
 	if err != nil {
@@ -539,7 +601,7 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.detailedService.AnalyzeDetailed(ctx, filename, req.PastedCode)
 	if err != nil {
@@ -568,7 +630,7 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.criticalService.AnalyzeCritical(ctx, req.PastedCode)
 	if err != nil {
@@ -577,7 +639,52 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
+	// Normalize overall grade deterministically based on issues to reduce LLM variance
+	deterministic := determineGradeFromIssues(result.Issues)
+	if deterministic != "" && deterministic != result.OverallGrade {
+		// preserve original grade in the summary for traceability
+		orig := result.OverallGrade
+		if orig == "" {
+			result.Summary = fmt.Sprintf("Grade: %s. %s", deterministic, result.Summary)
+		} else {
+			result.Summary = fmt.Sprintf("Original grade: %s. Normalized grade: %s. %s", orig, deterministic, result.Summary)
+		}
+		result.OverallGrade = deterministic
+	}
+
 	h.marshalAndFormat(c, result, "🚨 Critical Mode Analysis", "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700")
+}
+
+// determineGradeFromIssues applies a simple deterministic rubric to compute an overall grade
+// based on the counts of issues by severity. This prevents non-deterministic LLM grades.
+func determineGradeFromIssues(issues []review_models.CodeIssue) string {
+	if len(issues) == 0 {
+		return "A"
+	}
+	var crit, high, med int
+	for _, it := range issues {
+		switch strings.ToLower(it.Severity) {
+		case "critical":
+			crit++
+		case "high":
+			high++
+		case "medium":
+			med++
+		}
+	}
+	// Rubric (conservative): any critical -> F, 2+ high -> D, 1 high or 3+ med -> C, 1-2 med -> B, else A
+	switch {
+	case crit > 0:
+		return "F"
+	case high >= 2:
+		return "D"
+	case high == 1 || med >= 3:
+		return "C"
+	case med >= 1:
+		return "B"
+	default:
+		return "A"
+	}
 }
 
 // GetAvailableModels returns a list of available Ollama models
