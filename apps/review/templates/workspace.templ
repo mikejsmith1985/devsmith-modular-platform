@@ -43,16 +43,32 @@ templ Workspace(props WorkspaceProps) {
 							<option value="critical" selected?={ props.CurrentMode == "critical" }>⚠️ Critical (15-20 min)</option>
 						</select>
 
-						<!-- Mode gauge: small 1-5 bar indicator (battery/cell style) -->
-						<div id="mode-gauge" class="flex items-center gap-1 ml-2" aria-hidden="true" title="Estimated effort gauge">
-							<span data-index="1" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
-							<span data-index="2" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
-							<span data-index="3" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
-							<span data-index="4" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
-							<span data-index="5" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
-						</div>
-						
-						<!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) -->
+					<!-- Mode gauge: small 1-5 bar indicator (battery/cell style) -->
+					<div id="mode-gauge" class="flex items-center gap-1 ml-2" aria-hidden="true" title="Estimated effort gauge">
+						<span data-index="1" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+						<span data-index="2" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+						<span data-index="3" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+						<span data-index="4" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+						<span data-index="5" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+					</div>
+
+					<!-- Model Selector -->
+					<div class="flex items-center gap-2 ml-4">
+						<label for="model-selector" class="text-sm font-medium text-gray-700 dark:text-gray-300">Model:</label>
+						<select
+							id="model-selector"
+							name="model"
+							class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
+							aria-label="Select AI model for analysis"
+						>
+							<option value="mistral:7b-instruct" selected>Mistral 7B (Default)</option>
+							<option value="deepseek-coder:6.7b">DeepSeek Coder 6.7B</option>
+							<option value="qwen2.5-coder:7b">Qwen2.5 Coder 7B</option>
+							<option value="codellama:13b">CodeLlama 13B</option>
+						</select>
+					</div>
+					
+					<!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) -->
 						<div id="scan-query-container" class="hidden flex items-center gap-2">
 							<label for="scan-query" class="text-sm font-medium text-gray-700 dark:text-gray-300">Search for:</label>
 							<input
@@ -264,39 +280,43 @@ templ Workspace(props WorkspaceProps) {
 					return;
 				}
 				
-				// For Scan mode, get the query
-				let scanQuery = '';
-				if (mode === 'scan') {
-					scanQuery = document.getElementById('scan-query').value.trim();
-					if (!scanQuery) {
-						showToast('⚠️ Please enter what you want to scan for');
-						return;
-					}
-					console.log('Scan query:', scanQuery);
+			// For Scan mode, get the query
+			let scanQuery = '';
+			if (mode === 'scan') {
+				scanQuery = document.getElementById('scan-query').value.trim();
+				if (!scanQuery) {
+					showToast('⚠️ Please enter what you want to scan for');
+					return;
 				}
-				
-				const analysisPane = document.getElementById('analysis-pane');
-				const loadingIndicator = document.getElementById('analysis-loading');
-				const analyzeBtn = document.getElementById('analyze-btn');
-				
-				// Show loading state
-				loadingIndicator.classList.remove('hidden');
-				analyzeBtn.disabled = true;
-				analyzeBtn.textContent = 'Analyzing...';
-				analysisPane.innerHTML = '<div class="flex items-center justify-center h-full"><div class="text-center"><svg class="animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-sm text-gray-600 dark:text-gray-400">Running ' + mode + ' analysis...</p></div></div>';
-				
-				// Make API call to correct mode endpoint
-				let endpoint = '/api/review/modes/' + mode;
-				if (mode === 'scan' && scanQuery) {
-					endpoint += '?query=' + encodeURIComponent(scanQuery);
-				}
-				
-				const formData = new FormData();
-				formData.append('pasted_code', code);
-				
-				console.log('Sending request to:', endpoint);
-				
-				fetch(endpoint, {
+				console.log('Scan query:', scanQuery);
+			}
+
+			// Get selected model
+			const modelSelector = document.getElementById('model-selector');
+			const selectedModel = modelSelector ? modelSelector.value : 'mistral:7b-instruct';
+			console.log('Selected model:', selectedModel);
+			
+			const analysisPane = document.getElementById('analysis-pane');
+			const loadingIndicator = document.getElementById('analysis-loading');
+			const analyzeBtn = document.getElementById('analyze-btn');
+			
+			// Show loading state
+			loadingIndicator.classList.remove('hidden');
+			analyzeBtn.disabled = true;
+			analyzeBtn.textContent = 'Analyzing...';
+			analysisPane.innerHTML = '<div class="flex items-center justify-center h-full"><div class="text-center"><svg class="animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-sm text-gray-600 dark:text-gray-400">Running ' + mode + ' analysis...</p></div></div>';
+			
+			// Make API call to correct mode endpoint
+			let endpoint = '/api/review/modes/' + mode;
+			if (mode === 'scan' && scanQuery) {
+				endpoint += '?query=' + encodeURIComponent(scanQuery);
+			}
+			
+			const formData = new FormData();
+			formData.append('pasted_code', code);
+			formData.append('model', selectedModel);
+			
+			console.log('Sending request to:', endpoint);				fetch(endpoint, {
 					method: 'POST',
 					body: formData
 				})
