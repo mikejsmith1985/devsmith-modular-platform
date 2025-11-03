@@ -434,14 +434,31 @@ func templateEscape(s string) string {
 	return replacer.Replace(s)
 }
 
-// HomeHandler serves the main Review UI (mode selector + repo input)
+// HomeHandler serves the main Review UI - creates new authenticated session
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
 	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
 
-	// Redirect to demo workspace instead of showing 5-card landing page
-	// This provides immediate access to the 2-pane editor UI
-	c.Redirect(http.StatusFound, "/review/workspace/demo")
+	// Extract authenticated user from JWT context
+	userID, exists := c.Get("user_id")
+	username, _ := c.Get("username")
+	
+	if !exists {
+		h.logger.Warn("User not authenticated, cannot create session")
+		c.String(http.StatusUnauthorized, "Authentication required. Please log in via Portal.")
+		return
+	}
+
+	// Generate a new session ID (timestamp-based for uniqueness)
+	sessionID := time.Now().Unix()
+	
+	h.logger.Info("Creating new session for user",
+		"user_id", userID,
+		"username", username,
+		"session_id", sessionID)
+
+	// Redirect to workspace with new session
+	c.Redirect(http.StatusFound, fmt.Sprintf("/review/workspace/%d", sessionID))
 }
 
 // AnalysisResultHandler displays analysis results
@@ -1225,15 +1242,19 @@ func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 	// Extract session ID from URL
 	sessionIDStr := c.Param("session_id")
 
+	// Extract authenticated user info from JWT context
+	userID, _ := c.Get("user_id")
+	username, _ := c.Get("username")
+
 	var sessionID int
 	var props templates.WorkspaceProps
 
-	// Handle special "demo" session for quick access
+	// Handle special "demo" session for quick access (legacy)
 	if sessionIDStr == "demo" {
-		h.logger.Info("showing demo workspace")
+		h.logger.Info("showing demo workspace (legacy)", "user_id", userID)
 		props = templates.WorkspaceProps{
 			SessionID:      0,
-			Title:          "DevSmith Review - Demo Workspace",
+			Title:          fmt.Sprintf("DevSmith Review - Workspace (User: %v)", username),
 			Code:           sampleCodeForWorkspace(),
 			CurrentMode:    "preview",
 			AnalysisResult: "",
@@ -1248,13 +1269,13 @@ func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 			return
 		}
 
-		h.logger.Info("showing workspace", "session_id", sessionID)
+		h.logger.Info("showing workspace", "session_id", sessionID, "user_id", userID, "username", username)
 
-		// For now, use sample data (in production this would come from database)
-		// TODO: Fetch actual session data from ReviewRepository
+		// For now, use sample data with user context
+		// TODO: Fetch actual session data from ReviewRepository by session_id and user_id
 		props = templates.WorkspaceProps{
 			SessionID:      sessionID,
-			Title:          "Sample Code Review",
+			Title:          fmt.Sprintf("Code Review Session #%d (User: %v)", sessionID, username),
 			Code:           sampleCodeForWorkspace(),
 			CurrentMode:    "preview",
 			AnalysisResult: "",
