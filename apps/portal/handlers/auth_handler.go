@@ -147,7 +147,10 @@ func RegisterTestAuthEndpoint(router *gin.Engine) {
 	}
 
 	router.POST("/auth/test-login", HandleTestLogin)
-	log.Println("[DEBUG] Test authentication endpoint enabled at POST /auth/test-login")
+	// Also expose a convenience GET endpoint for quick manual testing in dev.
+	// This returns a token immediately (or accepts query params) and is gated by ENABLE_TEST_AUTH.
+	router.GET("/auth/test-login", HandleTestLoginGET)
+	log.Println("[DEBUG] Test authentication endpoint enabled at POST /auth/test-login and GET /auth/test-login (dev only)")
 }
 
 // HandleTestLogin handles test authentication (bypasses GitHub OAuth).
@@ -198,6 +201,62 @@ func HandleTestLogin(c *gin.Context) {
 		"message": "success",
 		"token":   tokenString,
 		"user":    testUser,
+	})
+}
+
+// HandleTestLoginGET provides a quick GET endpoint for development that returns
+// a JWT for a test user. It's gated by the same environment flag as the POST
+// endpoint and should NOT be enabled in production.
+func HandleTestLoginGET(c *gin.Context) {
+	// Only available when explicitly enabled
+	if os.Getenv("ENABLE_TEST_AUTH") != "true" && os.Getenv("ENV") != "test" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+		return
+	}
+
+	// Read optional query params, provide sensible defaults
+	username := c.Query("username")
+	if username == "" {
+		username = "dev-user"
+	}
+	email := c.Query("email")
+	if email == "" {
+		email = "dev@example.com"
+	}
+	avatar := c.Query("avatar_url")
+	if avatar == "" {
+		avatar = "https://avatars.githubusercontent.com/u/12345?v=4"
+	}
+
+	log.Printf("[DEBUG] Dev GET test login called for user=%s", username)
+
+	jwtKey := []byte("your-secret-key")
+	claims := UserClaims{
+		Username:  username,
+		Email:     email,
+		AvatarURL: avatar,
+		GithubID:  "dev-user-123",
+		CreatedAt: time.Now(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtKey)
+	if err != nil {
+		log.Printf("[ERROR] Failed to sign test JWT (GET): %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	// Set cookie for convenience and return JSON
+	SetSecureJWTCookie(c, tokenString)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+		"token":   tokenString,
+		"user": gin.H{
+			"username":   username,
+			"email":      email,
+			"avatar_url": avatar,
+		},
 	})
 }
 
