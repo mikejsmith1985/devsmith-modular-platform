@@ -8,14 +8,11 @@ import (
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
+	reviewcontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/context"
 )
 
-// contextKey is a custom type for context keys (must match handlers)
-type contextKey string
-
 const (
-	modelContextKey    contextKey = "model"
-	defaultOllamaModel            = "mistral:7b-instruct" // Fallback if context empty
+	defaultOllamaModel = "mistral:7b-instruct" // Fallback if context empty
 )
 
 // OllamaClientAdapter implements OllamaClientInterface by wrapping providers.OllamaClient
@@ -44,7 +41,7 @@ func (a *OllamaClientAdapter) Generate(ctx context.Context, prompt string) (stri
 	}
 
 	// Try to get model from context
-	model, ok := ctx.Value(modelContextKey).(string)
+	model, ok := ctx.Value(reviewcontext.ModelContextKey).(string)
 	if !ok || model == "" {
 		// Defensive fallback: use environment variable or default
 		model = os.Getenv("OLLAMA_MODEL")

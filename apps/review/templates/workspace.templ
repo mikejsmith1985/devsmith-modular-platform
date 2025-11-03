@@ -34,7 +34,7 @@ templ Workspace(props WorkspaceProps) {
 							name="mode"
 							class="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
 							aria-label="Select reading mode for code analysis"
-							onchange="toggleScanQueryInput()"
+							onchange="toggleScanQueryInput(); updateModeGauge();"
 						>
 							<option value="preview" selected?={ props.CurrentMode == "preview" }>👁️ Preview (2-3 min)</option>
 							<option value="skim" selected?={ props.CurrentMode == "skim" }>⚡ Skim (5-7 min)</option>
@@ -42,6 +42,15 @@ templ Workspace(props WorkspaceProps) {
 							<option value="detailed" selected?={ props.CurrentMode == "detailed" }>🔬 Detailed (10-15 min)</option>
 							<option value="critical" selected?={ props.CurrentMode == "critical" }>⚠️ Critical (15-20 min)</option>
 						</select>
+
+						<!-- Mode gauge: small 1-5 bar indicator (battery/cell style) -->
+						<div id="mode-gauge" class="flex items-center gap-1 ml-2" aria-hidden="true" title="Estimated effort gauge">
+							<span data-index="1" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+							<span data-index="2" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+							<span data-index="3" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+							<span data-index="4" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+							<span data-index="5" class="w-6 h-2 rounded bg-gray-300 dark:bg-gray-700"></span>
+						</div>
 						
 						<!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) -->
 						<div id="scan-query-container" class="hidden flex items-center gap-2">
@@ -182,10 +191,37 @@ templ Workspace(props WorkspaceProps) {
 					scanQueryContainer.classList.remove('flex');
 				}
 			}
+
+			// Update the small mode gauge (1-5 bars) next to the selector
+			function updateModeGauge() {
+				const mode = document.getElementById('mode-selector').value;
+				const mapping = {
+					'preview': 1,
+					'scan': 2,
+					'skim': 2,
+					'detailed': 4,
+					'critical': 5
+				};
+				const level = mapping[mode] || 1;
+				const gauge = document.getElementById('mode-gauge');
+				if (!gauge) return;
+				const bars = gauge.querySelectorAll('[data-index]');
+				bars.forEach((bar) => {
+					const idx = Number(bar.getAttribute('data-index'));
+					if (idx <= level) {
+						bar.classList.remove('bg-gray-300', 'dark:bg-gray-700');
+						bar.classList.add('bg-indigo-600', 'dark:bg-indigo-400');
+					} else {
+						bar.classList.remove('bg-indigo-600', 'dark:bg-indigo-400');
+						bar.classList.add('bg-gray-300', 'dark:bg-gray-700');
+					}
+				});
+			}
 			
 			// Initialize scan query input visibility on page load
 			document.addEventListener('DOMContentLoaded', () => {
 				toggleScanQueryInput();
+				updateModeGauge();
 			});
 			
 			// Copy code to clipboard

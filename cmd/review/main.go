@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -28,6 +29,10 @@ import (
 
 // nolint:gocyclo // Main initialization is inherently complex with multiple setup steps
 func main() {
+	// Create app-level context that will be cancelled on shutdown
+	appCtx, cancelAppCtx := context.WithCancel(context.Background())
+	defer cancelAppCtx()
+
 	router := gin.Default()
 
 	// Load and validate logs service configuration (allow configurable fallback)
@@ -109,6 +114,22 @@ func main() {
 
 	// Repository and service setup
 	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
+
+	// Start retention job for troubleshooting analysis captures (default 14 days)
+	retentionDays := 14
+	if v := os.Getenv("ANALYSIS_RETENTION_DAYS"); v != "" {
+		if d, err := strconv.Atoi(v); err == nil {
+			retentionDays = d
+		}
+	}
+	retentionInterval := 24 * time.Hour
+	if v := os.Getenv("ANALYSIS_RETENTION_INTERVAL_HOURS"); v != "" {
+		if h, err := strconv.Atoi(v); err == nil && h > 0 {
+			retentionInterval = time.Duration(h) * time.Hour
+		}
+	}
+	// Start retention job (best-effort, uses analysisRepo.DeleteOlderThan)
+	review_services.StartRetentionJob(appCtx, analysisRepo, retentionDays, retentionInterval, reviewLogger)
 
 	// Initialize Ollama client with configuration from environment
 	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
@@ -287,6 +308,9 @@ func main() {
 	<-quit
 
 	reviewLogger.Info("Shutting down gracefully...")
+
+	// Cancel app context to signal retention job and other background tasks to stop
+	cancelAppCtx()
 
 	// Give outstanding requests 30 seconds to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

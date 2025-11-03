@@ -3,6 +3,7 @@ package testutils
 
 import (
 	"context"
+	"time"
 
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
@@ -32,4 +33,11 @@ func (m *MockAnalysisRepository) FindByReviewAndMode(ctx context.Context, review
 		return m.SavedResult, nil
 	}
 	return nil, nil
+}
+
+// DeleteOlderThan is a mock implementation that clears the saved result when the cutoff is in the past.
+func (m *MockAnalysisRepository) DeleteOlderThan(ctx context.Context, cutoff time.Time) error {
+	// Simple mock behaviour: clear saved result
+	m.SavedResult = nil
+	return nil
 }
