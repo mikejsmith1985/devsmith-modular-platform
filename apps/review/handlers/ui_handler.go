@@ -468,6 +468,14 @@ func (h *UIHandler) AnalysisResultHandler(c *gin.Context) {
 
 // CreateSessionHandler handles POST /api/review/sessions (HTMX form submission)
 func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
+	// Extract authenticated user from JWT context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		h.logger.Error("User ID not found in context - authentication middleware may not be configured")
+		c.String(http.StatusUnauthorized, `<div class="alert alert-error"><p>Authentication required</p></div>`)
+		return
+	}
+
 	var req struct {
 		PastedCode string `form:"pasted_code" json:"pasted_code"`
 		GitHubURL  string `form:"github_url" json:"github_url"`
@@ -489,7 +497,10 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 
 	// Generate session ID
 	sessionID := uuid.New().String()
-	h.logger.Info("Session created", "session_id", sessionID, "source", "form")
+	h.logger.Info("Session created", 
+		"session_id", sessionID, 
+		"user_id", userID,
+		"source", "form")
 
 	// Return HTML with SSE progress indicator
 	progressHTML := fmt.Sprintf(`
