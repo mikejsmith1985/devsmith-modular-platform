@@ -14,12 +14,32 @@ CODE:
 
 Return a JSON object with ONLY these fields (no extra fields):
 {
-  "file_tree": ["main.go", "handler.go", "models/user.go"],
+  "file_tree": [
+    {
+      "name": "main.go",
+      "type": "file",
+      "path": "main.go",
+      "description": "Entry point with main function"
+    },
+    {
+      "name": "handler.go",
+      "type": "file",
+      "path": "handler.go",
+      "description": "HTTP request handlers"
+    }
+  ],
   "bounded_contexts": ["authentication", "user management"],
   "tech_stack": ["Go", "PostgreSQL", "Gin"],
-  "architecture_pattern": "layered",
+  "architecture_style": "layered",
   "entry_points": ["main()", "NewServer()"],
   "external_dependencies": ["PostgreSQL", "Redis"],
+  "stats": {
+    "total_files": 5,
+    "total_lines": 500,
+    "total_functions": 20,
+    "total_interfaces": 3,
+    "total_tests": 15
+  },
   "summary": "Brief 1-2 sentence summary of what this code does"
 }
 
@@ -27,6 +47,7 @@ IMPORTANT:
 - Be concise and high-level
 - Don't dive into implementation details
 - Focus on structure and context
+- file_tree items MUST have name, type, path, and description fields
 - Return ONLY valid JSON, no markdown or explanation`, code)
 }
 
@@ -38,21 +59,43 @@ func BuildSkimPrompt(code string) string {
 CODE:
 %s
 
-Return a JSON object with ONLY these fields:
+Return a JSON object with ONLY these fields matching this exact structure:
 {
-  "functions": ["GetUser(id)", "CreateUser(data)", "DeleteUser(id)"],
-  "interfaces": ["UserRepository", "AuthService"],
-  "data_models": ["User{ID, Name, Email}", "Request{}"],
-  "workflows": ["User creation flow: ValidateInput -> StoreDB -> ReturnUser"],
-  "summary": "What does this code provide at a high level?"
+  "functions": [
+    {
+      "name": "GetUser",
+      "signature": "func GetUser(id int) (*User, error)",
+      "description": "Retrieves user by ID from database"
+    }
+  ],
+  "interfaces": [
+    {
+      "purpose": "Manages user data persistence",
+      "methods": ["GetUser(id int)", "CreateUser(user *User)", "DeleteUser(id int)"]
+    }
+  ],
+  "data_models": [
+    {
+      "purpose": "Represents a user account",
+      "fields": ["ID int", "Name string", "Email string", "CreatedAt time.Time"]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "User creation flow",
+      "steps": ["1. Validate input data", "2. Check if user exists", "3. Store in database", "4. Return created user"]
+    }
+  ],
+  "summary": "Brief overview of what this code provides at a high level"
 }
 
 IMPORTANT:
-- List function signatures, not full implementations
-- Identify key interfaces and abstractions
-- Show data structures (not full definitions)
-- Don't explain line-by-line logic
-- Return ONLY valid JSON`, code)
+- For functions: include name, full signature, and brief description
+- For interfaces: describe purpose and list method signatures
+- For data_models: explain purpose and list field names with types
+- For workflows: name the workflow and list sequential steps
+- Don't explain implementation details or line-by-line logic
+- Return ONLY valid JSON matching the structure above`, code)
 }
 
 // BuildScanPrompt creates a prompt for Scan Mode analysis
@@ -91,36 +134,87 @@ IMPORTANT:
 // BuildDetailedPrompt creates a prompt for Detailed Mode analysis
 // Detailed: Line-by-line understanding (10-15 minutes)
 func BuildDetailedPrompt(code, filename string) string {
-	return fmt.Sprintf(`Analyze this code in DETAILED mode - provide line-by-line algorithm explanation.
+	return fmt.Sprintf(`Analyze this code in DETAILED mode - provide comprehensive line-by-line explanation with algorithm analysis.
 
 FILE: %s
 CODE:
 %s
 
-Return a JSON object with ONLY these fields:
+Return a JSON object with these fields in this EXACT structure:
 {
-  "file": "%s",
-  "line_by_line": [
+  "line_explanations": [
     {
       "line_number": 1,
-      "code": "package main",
-      "explanation": "Declares this as the main executable package"
+      "code": "func BinarySearch(arr []int, target int) int {",
+      "explanation": "Function declaration that takes a sorted array and target value, returns index or -1",
+      "variables": "arr: input array, target: value to find"
     },
     {
       "line_number": 2,
-      "code": "import \"fmt\"",
-      "explanation": "Imports fmt package for formatted output"
+      "code": "left, right := 0, len(arr)-1",
+      "explanation": "Initialize pointers to search boundaries",
+      "variables": "left=0, right=len(arr)-1"
     }
   ],
-  "summary": "This function implements X algorithm by doing Y then Z"
+  "algorithm_summary": "This implements binary search algorithm, which efficiently finds a target value by repeatedly dividing the search space in half",
+  "complexity": "Time: O(log n) - halves search space each iteration. Space: O(1) - only uses constant extra space",
+  "edge_cases": [
+    "Empty array: returns -1",
+    "Target not found: returns -1",
+    "Array with one element: checks element and returns 0 or -1"
+  ],
+  "variable_tracking": [
+    {
+      "line_number": 2,
+      "variables": {
+        "left": "0",
+        "right": "len(arr)-1"
+      }
+    },
+    {
+      "line_number": 5,
+      "variables": {
+        "left": "0",
+        "right": "4",
+        "mid": "2"
+      }
+    }
+  ],
+  "control_flow": [
+    {
+      "type": "loop",
+      "line_number": 3,
+      "description": "While loop continues until left exceeds right",
+      "children": ["condition_check", "binary_search_logic"]
+    },
+    {
+      "type": "if",
+      "line_number": 5,
+      "description": "Check if middle element matches target",
+      "children": ["return_mid", "check_less_than", "check_greater_than"]
+    }
+  ],
+  "summary": "Binary search implementation with O(log n) complexity"
 }
 
+CRITICAL INSTRUCTIONS:
+1. line_explanations is the PRIMARY OUTPUT - explain EVERY significant line
+2. For each line, include:
+   - What the code does
+   - Why it's needed
+   - Current state of variables at that point
+3. algorithm_summary: explain the overall algorithm/pattern used
+4. complexity: provide time and space complexity analysis
+5. edge_cases: identify boundary conditions and special cases
+6. variable_tracking: show variable values at key execution points
+7. control_flow: map out if/else branches, loops, function calls
+8. summary: brief 1-sentence overview (LEAST important field)
+
 IMPORTANT:
-- Explain EVERY significant line
-- Explain the purpose and effect of each line
-- Show how lines work together (data flow)
-- Explain key logic and conditionals
-- Return ONLY valid JSON`, filename, code, filename)
+- Focus on building complete mental model of code execution
+- Explain logic flow, not just syntax
+- Track how data changes through execution
+- Return ONLY valid JSON matching structure above`, filename, code)
 }
 
 // BuildCriticalPrompt creates a prompt for Critical Mode analysis

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
@@ -89,23 +90,242 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 	return &req, true
 }
 
-// marshalAndFormat converts analysis result to JSON and renders HTML response
+// marshalAndFormat converts analysis result to user-friendly HTML
 func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, bgColor string) {
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		h.logger.Error("Failed to marshal result", "error", err.Error())
-		h.renderError(c, err, "Failed to format analysis result")
-		return
+	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c.Status(http.StatusOK)
+
+	// Render user-friendly HTML based on result type
+	switch v := result.(type) {
+	case *review_models.PreviewModeOutput:
+		h.renderPreviewHTML(c.Writer, v)
+	case *review_models.SkimModeOutput:
+		h.renderSkimHTML(c.Writer, v)
+	case *review_models.ScanModeOutput:
+		h.renderScanHTML(c.Writer, v)
+	case *review_models.DetailedModeOutput:
+		h.renderDetailedHTML(c.Writer, v)
+	case *review_models.CriticalModeOutput:
+		h.renderCriticalHTML(c.Writer, v)
+	default:
+		// Fallback to JSON for unknown types
+		resultJSON, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			h.logger.Error("Failed to marshal result", "error", err.Error())
+			h.renderError(c, err, "Failed to format analysis result")
+			return
+		}
+		html := fmt.Sprintf(`
+		<div class="p-4 rounded-lg %s">
+			<h4 class="font-semibold">%s</h4>
+			<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
+		</div>
+		`, bgColor, title, string(resultJSON))
+		c.String(http.StatusOK, html)
+	}
+}
+
+func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_models.PreviewModeOutput) {
+	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+		<div class="flex items-center gap-3 border-b border-indigo-200 dark:border-indigo-800 pb-4">
+			<span class="text-3xl">👁️</span>
+			<div><h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-100">Quick Preview</h3>
+			<p class="text-sm text-indigo-700 dark:text-indigo-300">High-level structure and overview</p></div>
+		</div>`
+
+	if result.Summary != "" {
+		html += fmt.Sprintf(`<div class="prose prose-sm dark:prose-invert max-w-none">
+			<h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-2">📋 Summary</h4>
+			<p class="text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+		</div>`, result.Summary)
 	}
 
-	html := fmt.Sprintf(`
-	<div class="p-4 rounded-lg %s">
-		<h4 class="font-semibold">%s</h4>
-		<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-	</div>
-	`, bgColor, title, string(resultJSON))
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, html)
+	if len(result.BoundedContexts) > 0 {
+		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🎯 Key Areas</h4><div class="grid gap-2">`
+		for _, ctx := range result.BoundedContexts {
+			html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-100 dark:border-indigo-900">
+				<span class="font-medium text-indigo-700 dark:text-indigo-300">%s</span></div>`, ctx)
+		}
+		html += `</div></div>`
+	}
+
+	if len(result.TechStack) > 0 {
+		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🔧 Technologies Used</h4><div class="flex flex-wrap gap-2">`
+		for _, tech := range result.TechStack {
+			html += fmt.Sprintf(`<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">%s</span>`, tech)
+		}
+		html += `</div></div>`
+	}
+
+	html += `</div>`
+	fmt.Fprint(w, html)
+}
+
+func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.SkimModeOutput) {
+	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-blue-800 pb-4">
+			<span class="text-3xl">📚</span>
+			<div><h3 class="text-xl font-bold text-blue-900 dark:text-blue-100">Skim Analysis</h3>
+			<p class="text-sm text-blue-700 dark:text-blue-300">Key components and abstractions</p></div>
+		</div>`
+
+	if len(result.Functions) > 0 {
+		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">⚡ Functions & Methods</h4><div class="space-y-3">`
+		for _, fn := range result.Functions {
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-blue-100 dark:border-blue-900">
+				<div class="font-mono text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">%s</div>
+				<div class="font-mono text-xs text-gray-600 dark:text-gray-400 mb-2 pl-4">%s</div>
+				<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			</div>`, fn.Name, fn.Signature, fn.Description)
+		}
+		html += `</div></div>`
+	}
+
+	if len(result.Interfaces) > 0 {
+		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">🔌 Interfaces</h4><div class="space-y-3">`
+		for _, iface := range result.Interfaces {
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-blue-100 dark:border-blue-900">
+				<div class="font-mono text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">%s</div>
+				<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			</div>`, iface.Name, iface.Description)
+		}
+		html += `</div></div>`
+	}
+
+	html += `</div>`
+	fmt.Fprint(w, html)
+}
+
+func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.ScanModeOutput) {
+	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+		<div class="flex items-center gap-3 border-b border-green-200 dark:border-green-800 pb-4">
+			<span class="text-3xl">🔎</span>
+			<div><h3 class="text-xl font-bold text-green-900 dark:text-green-100">Search Results</h3>
+			<p class="text-sm text-green-700 dark:text-green-300">Found %d matches</p></div>
+		</div>`, len(result.Matches))
+
+	if len(result.Matches) > 0 {
+		html += `<div class="space-y-4">`
+		for i, match := range result.Matches {
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-green-100 dark:border-green-900">
+				<div class="flex items-center justify-between mb-3">
+					<span class="text-sm font-semibold text-green-700 dark:text-green-300">Match %d</span>
+					<span class="text-xs font-mono text-gray-600 dark:text-gray-400">%s</span>
+				</div>
+				<div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 font-mono text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap overflow-x-auto">%s</div>
+			</div>`, i+1, match.FilePath, match.CodeSnippet)
+		}
+		html += `</div>`
+	} else {
+		html += `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">No matches found.</p></div>`
+	}
+
+	html += `</div>`
+	fmt.Fprint(w, html)
+}
+
+func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_models.DetailedModeOutput) {
+	html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+		<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-800 pb-4">
+			<span class="text-3xl">📖</span>
+			<div><h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-100">Detailed Analysis</h3>
+			<p class="text-sm text-yellow-700 dark:text-yellow-300">Line-by-line explanation</p></div>
+		</div>`
+
+	if result.AlgorithmSummary != "" {
+		html += fmt.Sprintf(`<div class="p-4 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg border border-yellow-200 dark:border-yellow-700">
+			<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">🧠 Algorithm Overview</h4>
+			<p class="text-sm text-yellow-800 dark:text-yellow-200 leading-relaxed">%s</p>
+		</div>`, result.AlgorithmSummary)
+	}
+
+	if len(result.LineExplanations) > 0 {
+		html += `<div><h4 class="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">📝 Line-by-Line Walkthrough</h4><div class="space-y-3">`
+		for _, line := range result.LineExplanations {
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-yellow-100 dark:border-yellow-900">
+				<div class="flex items-start gap-3 mb-2">
+					<span class="flex-shrink-0 w-12 text-right font-mono text-xs text-yellow-600 dark:text-yellow-400 font-semibold">L%d</span>
+					<div class="flex-1">
+						<div class="font-mono text-sm text-gray-700 dark:text-gray-300 mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">%s</div>
+						<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+					</div>
+				</div>
+			</div>`, line.LineNumber, line.Code, line.Explanation)
+		}
+		html += `</div></div>`
+	}
+
+	html += `</div>`
+	fmt.Fprint(w, html)
+}
+
+func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_models.CriticalModeOutput) {
+	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+		<div class="flex items-center gap-3 border-b border-red-200 dark:border-red-800 pb-4">
+			<span class="text-3xl">🚨</span>
+			<div><h3 class="text-xl font-bold text-red-900 dark:text-red-100">Critical Review</h3>
+			<p class="text-sm text-red-700 dark:text-red-300">Found %d issues</p></div>
+		</div>`, len(result.Issues))
+
+	if result.OverallGrade != "" {
+		html += fmt.Sprintf(`<div class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
+			<div class="text-3xl font-bold text-red-600 dark:text-red-400">%s</div>
+			<div class="text-sm text-gray-600 dark:text-gray-400">Overall Grade</div>
+		</div>`, result.OverallGrade)
+	}
+
+	if len(result.Issues) > 0 {
+		// Group by severity
+		critical, high, medium, low := []review_models.CodeIssue{}, []review_models.CodeIssue{}, []review_models.CodeIssue{}, []review_models.CodeIssue{}
+		for _, issue := range result.Issues {
+			switch issue.Severity {
+			case "critical":
+				critical = append(critical, issue)
+			case "high":
+				high = append(high, issue)
+			case "medium":
+				medium = append(medium, issue)
+			default:
+				low = append(low, issue)
+			}
+		}
+
+		// Critical
+		if len(critical) > 0 {
+			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-red-900 dark:text-red-100 mb-3">🔴 Critical Issues (%d)</h4><div class="space-y-3">`, len(critical))
+			for _, issue := range critical {
+				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-red-200">
+					<div class="text-sm font-semibold text-red-700 mb-2">%s <span class="text-xs text-gray-600">%s:%d</span></div>
+					<p class="text-sm text-gray-700 dark:text-gray-300 mb-2">%s</p>
+					<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200">
+						<div class="text-xs font-semibold text-green-700 mb-1">💡 Fix:</div>
+						<p class="text-sm text-green-800 dark:text-green-200">%s</p>
+					</div>
+				</div>`, issue.Category, issue.File, issue.Line, issue.Description, issue.FixSuggestion)
+			}
+			html += `</div></div>`
+		}
+
+		// High
+		if len(high) > 0 {
+			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-orange-900 mb-3">🟠 High Priority (%d)</h4><div class="space-y-3">`, len(high))
+			for _, issue := range high {
+				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-orange-200">
+					<div class="text-sm font-semibold text-orange-700 mb-2">%s</div>
+					<p class="text-sm text-gray-700 dark:text-gray-300">%s</p>
+				</div>`, issue.Category, issue.Description)
+			}
+			html += `</div></div>`
+		}
+	} else {
+		html += `<div class="text-center py-8">
+			<span class="text-5xl mb-4 block">✅</span>
+			<p class="text-lg font-semibold text-green-700">No critical issues found!</p>
+		</div>`
+	}
+
+	html += `</div>`
+	fmt.Fprint(w, html)
 }
 
 // renderError classifies the error and renders appropriate HTMX-compatible error template
@@ -139,11 +359,10 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
 	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
-	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := templates.Home().Render(c.Request.Context(), c.Writer); err != nil {
-		h.logger.Error("Failed to render Home template", "error", err)
-		h.renderError(c, err, "Failed to render page")
-	}
+
+	// Redirect to demo workspace instead of showing 5-card landing page
+	// This provides immediate access to the 2-pane editor UI
+	c.Redirect(http.StatusFound, "/review/workspace/demo")
 }
 
 // AnalysisResultHandler displays analysis results
@@ -774,23 +993,41 @@ func GenerateAnalysisID() string {
 func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 	// Extract session ID from URL
 	sessionIDStr := c.Param("session_id")
-	sessionID, err := strconv.Atoi(sessionIDStr)
-	if err != nil {
-		h.logger.Warn("invalid session_id", "session_id", sessionIDStr, "error", err)
-		c.String(http.StatusBadRequest, "Invalid session ID")
-		return
-	}
 
-	h.logger.Info("showing workspace", "session_id", sessionID)
+	var sessionID int
+	var props templates.WorkspaceProps
 
-	// For now, use sample data (in production this would come from database)
-	// TODO: Fetch actual session data from ReviewRepository
-	props := templates.WorkspaceProps{
-		SessionID:      sessionID,
-		Title:          "Sample Code Review",
-		Code:           sampleCodeForWorkspace(),
-		CurrentMode:    "preview",
-		AnalysisResult: "",
+	// Handle special "demo" session for quick access
+	if sessionIDStr == "demo" {
+		h.logger.Info("showing demo workspace")
+		props = templates.WorkspaceProps{
+			SessionID:      0,
+			Title:          "DevSmith Review - Demo Workspace",
+			Code:           sampleCodeForWorkspace(),
+			CurrentMode:    "preview",
+			AnalysisResult: "",
+		}
+	} else {
+		// Parse numeric session ID
+		var err error
+		sessionID, err = strconv.Atoi(sessionIDStr)
+		if err != nil {
+			h.logger.Warn("invalid session_id", "session_id", sessionIDStr, "error", err)
+			c.String(http.StatusBadRequest, "Invalid session ID")
+			return
+		}
+
+		h.logger.Info("showing workspace", "session_id", sessionID)
+
+		// For now, use sample data (in production this would come from database)
+		// TODO: Fetch actual session data from ReviewRepository
+		props = templates.WorkspaceProps{
+			SessionID:      sessionID,
+			Title:          "Sample Code Review",
+			Code:           sampleCodeForWorkspace(),
+			CurrentMode:    "preview",
+			AnalysisResult: "",
+		}
 	}
 
 	// Render workspace template

@@ -299,7 +299,7 @@ func TestUIHandler_DashboardHandler_ValidHTML(t *testing.T) {
 	assert.Contains(t, body, "</html>")
 	assert.Contains(t, body, "<head>")
 	assert.Contains(t, body, "</head>")
-	assert.Contains(t, body, "<body")  // Check for body tag with any attributes
+	assert.Contains(t, body, "<body") // Check for body tag with any attributes
 	assert.Contains(t, body, "</body>")
 
 	// Check tags are properly closed

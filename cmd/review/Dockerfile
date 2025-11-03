@@ -12,6 +12,7 @@ RUN addgroup -g 1000 appuser && \
 	adduser -D -u 1000 -G appuser appuser
 WORKDIR /home/appuser
 COPY --from=builder /app/bin/review ./review
+COPY --from=builder /app/apps/review/static ./apps/review/static
 COPY scripts/wait-for-postgres.sh /wait-for-postgres.sh
 COPY scripts/start-review.sh /start-review.sh
 RUN chmod +x /wait-for-postgres.sh /start-review.sh && chown appuser:appuser /wait-for-postgres.sh /start-review.sh

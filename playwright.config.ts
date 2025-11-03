@@ -13,16 +13,20 @@ import * as os from 'os';
  * - Basic Auth support for nginx-protected endpoints
  */
 
-// Determine base URL based on platform (Linux vs Docker Desktop)
+// Determine base URL:
+// - If PLAYWRIGHT_BASE_URL is set (passed from docker-compose) use it.
+// - Otherwise, fall back to host detection used for local runs.
+const envBase = process.env.PLAYWRIGHT_BASE_URL;
 const isDockerDesktop = ['darwin', 'win32'].includes(os.platform());
 const host = isDockerDesktop ? 'host.docker.internal' : 'localhost';
-const baseURL = `http://${host}:3000`;
+const defaultBase = `http://${host}:3000`;
+const baseURL = envBase || defaultBase;
 
 // Build Basic Auth header if credentials provided
-const getAuthHeader = () => {
+const getAuthHeader = (): { [key: string]: string } => {
   const basicAuth = process.env.PLAYWRIGHT_BASIC_AUTH;
   if (!basicAuth) return {};
-  
+
   const encoded = Buffer.from(basicAuth).toString('base64');
   return {
     Authorization: `Basic ${encoded}`,

@@ -1,6 +1,8 @@
 // Package templates provides Templ components for the Review service workspace UI.
 package templates
 
+import "strconv"
+
 // WorkspaceProps contains the data needed to render the workspace.
 type WorkspaceProps struct {
 	SessionID      int
@@ -11,7 +13,7 @@ type WorkspaceProps struct {
 }
 
 // Workspace renders the two-pane layout for code review with dynamic mode switching.
-// Left pane: Code editor with syntax highlighting and line numbers
+// Left pane: Editable code textarea
 // Right pane: AI analysis results that update via HTMX based on selected mode
 templ Workspace(props WorkspaceProps) {
 	@Layout("Review Workspace - " + props.Title) {
@@ -21,21 +23,18 @@ templ Workspace(props WorkspaceProps) {
 				<div class="flex items-center justify-between">
 					<div class="flex-1">
 						<h1 class="text-2xl font-bold text-gray-900 dark:text-white">{ props.Title }</h1>
-						<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Session #{ string(props.SessionID) }</p>
+						<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Session #{ strconv.Itoa(props.SessionID) }</p>
 					</div>
 					
-					<!-- Mode Selector -->
-					<div class="flex items-center gap-4">
+					<!-- Mode Selector and Analyze Button -->
+					<div class="flex items-center gap-4 flex-wrap">
 						<label for="mode-selector" class="text-sm font-medium text-gray-700 dark:text-gray-300">Reading Mode:</label>
 						<select
 							id="mode-selector"
 							name="mode"
 							class="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent"
-							hx-get={ "/api/review/sessions/" + string(props.SessionID) + "/analyze" }
-							hx-target="#analysis-pane"
-							hx-indicator="#analysis-loading"
-							hx-swap="innerHTML"
 							aria-label="Select reading mode for code analysis"
+							onchange="toggleScanQueryInput()"
 						>
 							<option value="preview" selected?={ props.CurrentMode == "preview" }>👁️ Preview (2-3 min)</option>
 							<option value="skim" selected?={ props.CurrentMode == "skim" }>⚡ Skim (5-7 min)</option>
@@ -44,15 +43,24 @@ templ Workspace(props WorkspaceProps) {
 							<option value="critical" selected?={ props.CurrentMode == "critical" }>⚠️ Critical (15-20 min)</option>
 						</select>
 						
-						<!-- Analyze Button -->
+						<!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) -->
+						<div id="scan-query-container" class="hidden flex items-center gap-2">
+							<label for="scan-query" class="text-sm font-medium text-gray-700 dark:text-gray-300">Search for:</label>
+							<input
+								type="text"
+								id="scan-query"
+								placeholder="e.g., authentication, SQL queries, error handling..."
+								class="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent min-w-[300px]"
+								aria-label="Enter search query for Scan mode"
+							/>
+						</div>
+						
+						<!-- Analyze Button with Dynamic Endpoint -->
 						<button
+							id="analyze-btn"
 							type="button"
 							class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-							hx-post={ "/api/review/sessions/" + string(props.SessionID) + "/analyze" }
-							hx-include="#mode-selector"
-							hx-target="#analysis-pane"
-							hx-indicator="#analysis-loading"
-							hx-swap="innerHTML"
+							onclick="analyzeCode()"
 							aria-label="Analyze code with selected reading mode"
 						>
 							Analyze Code
@@ -63,32 +71,40 @@ templ Workspace(props WorkspaceProps) {
 
 			<!-- Two-Pane Layout -->
 			<div class="workspace-content flex h-[calc(100vh-120px)]">
-				<!-- Left Pane: Code Editor -->
-				<div class="code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden">
+				<!-- Left Pane: Editable Code -->
+				<div class="code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex flex-col">
 					<div class="code-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
 						<div class="flex items-center justify-between">
 							<h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Code</h2>
 							<div class="flex items-center gap-2">
-								<span class="text-xs text-gray-500 dark:text-gray-400">{ string(len(props.Code)) } characters</span>
+								<span id="char-count" class="text-xs text-gray-500 dark:text-gray-400">{ strconv.Itoa(len(props.Code)) } characters</span>
 								<button
 									type="button"
 									class="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors"
-									onclick="copyToClipboard(document.getElementById('code-content').innerText)"
+									onclick="copyCodeToClipboard()"
 									aria-label="Copy code to clipboard"
 								>
 									📋 Copy
 								</button>
+								<button
+									type="button"
+									class="px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors"
+									onclick="clearCode()"
+									aria-label="Clear code"
+								>
+									🗑️ Clear
+								</button>
 							</div>
 						</div>
 					</div>
-					<div class="code-content overflow-auto h-full p-6">
-						<pre
-							id="code-content"
-							class="text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words"
-							tabindex="0"
-							role="region"
-							aria-label="Code content"
-						><code>{ props.Code }</code></pre>
+					<div class="code-content flex-1 overflow-hidden">
+						<textarea
+							id="code-editor"
+							class="w-full h-full p-6 text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 border-none focus:outline-none focus:ring-0 resize-none"
+							placeholder="Paste or type your code here..."
+							spellcheck="false"
+							aria-label="Code editor"
+						>{ props.Code }</textarea>
 					</div>
 				</div>
 
@@ -98,7 +114,7 @@ templ Workspace(props WorkspaceProps) {
 						<div class="flex items-center justify-between">
 							<h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">AI Analysis</h2>
 							<!-- Loading Indicator -->
-							<div id="analysis-loading" class="htmx-indicator flex items-center gap-2">
+							<div id="analysis-loading" class="hidden flex items-center gap-2">
 								<svg class="animate-spin h-4 w-4 text-indigo-600 dark:text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
 									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -115,8 +131,10 @@ templ Workspace(props WorkspaceProps) {
 						aria-live="polite"
 					>
 						if props.AnalysisResult != "" {
-							<!-- Analysis results will be injected here via HTMX -->
-							@RenderAnalysisResult(props.CurrentMode, props.AnalysisResult)
+							<!-- Analysis results will be injected here via JavaScript -->
+							<div class="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700">
+								<pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{ props.AnalysisResult }</pre>
+							</div>
 						} else {
 							<!-- Empty state -->
 							<div class="flex flex-col items-center justify-center h-full text-center">
@@ -141,34 +159,164 @@ templ Workspace(props WorkspaceProps) {
 			</div>
 		</div>
 
-		<!-- Copy to Clipboard Helper Script -->
+		<!-- Workspace JavaScript -->
 		<script>
-			function copyToClipboard(text) {
-				if (navigator.clipboard && navigator.clipboard.writeText) {
-					navigator.clipboard.writeText(text).then(() => {
-						// Show temporary success message
-						const toast = document.createElement('div');
-						toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-						toast.textContent = '✓ Copied to clipboard';
-						document.body.appendChild(toast);
-						setTimeout(() => toast.remove(), 2000);
-					}).catch(err => {
-						console.error('Failed to copy:', err);
-					});
+			// Update character count on input
+			const codeEditor = document.getElementById('code-editor');
+			const charCount = document.getElementById('char-count');
+			
+			codeEditor.addEventListener('input', () => {
+				charCount.textContent = codeEditor.value.length + ' characters';
+			});
+			
+			// Toggle Scan query input visibility
+			function toggleScanQueryInput() {
+				const mode = document.getElementById('mode-selector').value;
+				const scanQueryContainer = document.getElementById('scan-query-container');
+				
+				if (mode === 'scan') {
+					scanQueryContainer.classList.remove('hidden');
+					scanQueryContainer.classList.add('flex');
 				} else {
-					// Fallback for older browsers
-					const textarea = document.createElement('textarea');
-					textarea.value = text;
-					textarea.style.position = 'fixed';
-					textarea.style.opacity = '0';
-					document.body.appendChild(textarea);
-					textarea.select();
-					document.execCommand('copy');
-					document.body.removeChild(textarea);
-					alert('Code copied to clipboard');
+					scanQueryContainer.classList.add('hidden');
+					scanQueryContainer.classList.remove('flex');
 				}
 			}
+			
+			// Initialize scan query input visibility on page load
+			document.addEventListener('DOMContentLoaded', () => {
+				toggleScanQueryInput();
+			});
+			
+			// Copy code to clipboard
+			function copyCodeToClipboard() {
+				const code = codeEditor.value;
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(code).then(() => {
+						showToast('✓ Copied to clipboard');
+					}).catch(err => {
+						console.error('Failed to copy:', err);
+						showToast('✗ Failed to copy');
+					});
+				} else {
+					// Fallback
+					codeEditor.select();
+					document.execCommand('copy');
+					showToast('✓ Copied to clipboard');
+				}
+			}
+			
+			// Clear code
+			function clearCode() {
+				if (confirm('Clear all code?')) {
+					codeEditor.value = '';
+					charCount.textContent = '0 characters';
+				}
+			}
+			
+			// Analyze code with selected mode
+			function analyzeCode() {
+				const mode = document.getElementById('mode-selector').value;
+				// CRITICAL: Always read fresh value from textarea DOM element
+				const code = document.getElementById('code-editor').value.trim();
+				
+				console.log('Analyze clicked - Mode:', mode, 'Code length:', code.length);
+				console.log('First 100 chars:', code.substring(0, 100));
+				
+				if (!code) {
+					showToast('⚠️ Please paste some code first');
+					return;
+				}
+				
+				// For Scan mode, get the query
+				let scanQuery = '';
+				if (mode === 'scan') {
+					scanQuery = document.getElementById('scan-query').value.trim();
+					if (!scanQuery) {
+						showToast('⚠️ Please enter what you want to scan for');
+						return;
+					}
+					console.log('Scan query:', scanQuery);
+				}
+				
+				const analysisPane = document.getElementById('analysis-pane');
+				const loadingIndicator = document.getElementById('analysis-loading');
+				const analyzeBtn = document.getElementById('analyze-btn');
+				
+				// Show loading state
+				loadingIndicator.classList.remove('hidden');
+				analyzeBtn.disabled = true;
+				analyzeBtn.textContent = 'Analyzing...';
+				analysisPane.innerHTML = '<div class="flex items-center justify-center h-full"><div class="text-center"><svg class="animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-sm text-gray-600 dark:text-gray-400">Running ' + mode + ' analysis...</p></div></div>';
+				
+				// Make API call to correct mode endpoint
+				let endpoint = '/api/review/modes/' + mode;
+				if (mode === 'scan' && scanQuery) {
+					endpoint += '?query=' + encodeURIComponent(scanQuery);
+				}
+				
+				const formData = new FormData();
+				formData.append('pasted_code', code);
+				
+				console.log('Sending request to:', endpoint);
+				
+				fetch(endpoint, {
+					method: 'POST',
+					body: formData
+				})
+				.then(response => {
+					console.log('Response status:', response.status);
+					if (!response.ok) {
+						throw new Error('Analysis failed: ' + response.statusText);
+					}
+					return response.text();
+				})
+				.then(html => {
+					console.log('Analysis complete, response length:', html.length);
+					analysisPane.innerHTML = html;
+					showToast('✓ Analysis complete');
+				})
+				.catch(error => {
+					console.error('Analysis error:', error);
+					analysisPane.innerHTML = '<div class="p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"><h4 class="font-semibold text-red-900 dark:text-red-100">Analysis Failed</h4><p class="mt-2 text-sm text-red-800 dark:text-red-200">' + error.message + '</p><button onclick="analyzeCode()" class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm">Retry</button></div>';
+					showToast('✗ Analysis failed');
+				})
+				.finally(() => {
+					loadingIndicator.classList.add('hidden');
+					analyzeBtn.disabled = false;
+					analyzeBtn.textContent = 'Analyze Code';
+				});
+			}
+			
+			// Show toast notification
+			function showToast(message) {
+				const toast = document.createElement('div');
+				toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in';
+				toast.textContent = message;
+				document.body.appendChild(toast);
+				setTimeout(() => {
+					toast.classList.add('animate-fade-out');
+					setTimeout(() => toast.remove(), 300);
+				}, 2000);
+			}
 		</script>
+		
+		<style>
+			@keyframes fade-in {
+				from { opacity: 0; transform: translateY(-10px); }
+				to { opacity: 1; transform: translateY(0); }
+			}
+			@keyframes fade-out {
+				from { opacity: 1; transform: translateY(0); }
+				to { opacity: 0; transform: translateY(-10px); }
+			}
+			.animate-fade-in {
+				animation: fade-in 0.3s ease-out;
+			}
+			.animate-fade-out {
+				animation: fade-out 0.3s ease-out;
+			}
+		</style>
 	}
 }
 

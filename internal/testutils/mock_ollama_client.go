@@ -3,7 +3,7 @@ package testutils
 
 import (
 	"context"
-	"fmt"
+	"errors"
 )
 
 // MockOllamaClient provides a mock implementation of OllamaClientInterface for testing.
@@ -17,7 +17,7 @@ type MockOllamaClient struct {
 // This allows tests to control Ollama behavior without a running service.
 func (m *MockOllamaClient) Generate(ctx context.Context, prompt string) (string, error) {
 	if m.GenerateError != "" {
-		return "", fmt.Errorf(m.GenerateError)
+		return "", errors.New(m.GenerateError)
 	}
 	return m.GenerateResponse, nil
 }

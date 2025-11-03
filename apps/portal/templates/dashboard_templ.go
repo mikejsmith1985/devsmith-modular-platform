@@ -69,7 +69,7 @@ func Dashboard(user DashboardUser) templ.Component {
 				BadgeText:   "Ready",
 				BadgeColor:  "green",
 				ActionText:  "Open Review",
-				ActionURL:   "http://localhost:8081",
+				ActionURL:   "/review",
 				StatLabel:   "Reading Modes",
 				StatValue:   "5",
 			}).Render(ctx, templ_7745c5c3_Buffer)
@@ -87,7 +87,7 @@ func Dashboard(user DashboardUser) templ.Component {
 				BadgeText:   "Ready",
 				BadgeColor:  "green",
 				ActionText:  "Open Logs",
-				ActionURL:   "http://localhost:8082",
+				ActionURL:   "/logs",
 				StatLabel:   "Health Check",
 				StatValue:   "Active",
 			}).Render(ctx, templ_7745c5c3_Buffer)
@@ -105,7 +105,7 @@ func Dashboard(user DashboardUser) templ.Component {
 				BadgeText:   "Ready",
 				BadgeColor:  "green",
 				ActionText:  "Open Analytics",
-				ActionURL:   "http://localhost:8083",
+				ActionURL:   "/analytics",
 				StatLabel:   "Metrics",
 				StatValue:   "Live",
 			}).Render(ctx, templ_7745c5c3_Buffer)

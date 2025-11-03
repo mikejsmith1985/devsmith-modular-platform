@@ -101,8 +101,14 @@ func (s *SkimService) AnalyzeSkim(ctx context.Context, code string) (*review_mod
 
 // Fix parseSkimOutput to handle errors properly
 func (s *SkimService) parseSkimOutput(raw string) (*review_models.SkimModeOutput, error) {
+	// Extract JSON from response (handles cases where AI adds extra text)
+	jsonStr, extractErr := ExtractJSON(raw)
+	if extractErr != nil {
+		return nil, fmt.Errorf("failed to extract JSON: %w", extractErr)
+	}
+
 	var output review_models.SkimModeOutput
-	if err := json.Unmarshal([]byte(raw), &output); err != nil {
+	if err := json.Unmarshal([]byte(jsonStr), &output); err != nil {
 		return nil, fmt.Errorf("failed to parse skim output: %w", err)
 	}
 	return &output, nil

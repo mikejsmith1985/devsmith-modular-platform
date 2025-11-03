@@ -12,7 +12,7 @@ func TestSetSecureJWTCookie_ImplementsSecurityStandards(t *testing.T) {
 	// This test verifies the logic of SetSecureJWTCookie function
 	// Note: HTTP response cookies in test environment don't fully reflect Gin's internal settings
 	// The function correctly implements: HttpOnly=true, 24h expiry, SameSite=Strict
-	
+
 	t.Run("FunctionExists", func(t *testing.T) {
 		// GIVEN: SetSecureJWTCookie function is defined
 		// WHEN: Function signature is correct
@@ -32,7 +32,7 @@ func TestSetSecureJWTCookie_ImplementsSecurityStandards(t *testing.T) {
 
 	t.Run("SetsHttpOnlyFlag", func(t *testing.T) {
 		// GIVEN: HttpOnly flag prevents JavaScript XSS attacks
-		// WHEN: SetSecureJWTCookie is called  
+		// WHEN: SetSecureJWTCookie is called
 		// THEN: HttpOnly should be set to true
 		// This is verified in the source code: SetSecureJWTCookie uses true for httpOnly parameter
 		assert.True(t, true, "SetSecureJWTCookie must set HttpOnly=true")
@@ -78,14 +78,14 @@ func TestJWTSecurityHeaders_ConfigurableByEnvironment(t *testing.T) {
 	// GIVEN: Secure flag should depend on environment (HTTPS vs HTTP)
 	// WHEN: REDIRECT_URI is set
 	// THEN: SetSecureJWTCookie should use secure flag based on REDIRECT_URI
-	
+
 	t.Run("HTTPS_EnablesSecureFlag", func(t *testing.T) {
 		// Set REDIRECT_URI to HTTPS URL
 		oldRedirectURI := os.Getenv("REDIRECT_URI")
 		defer os.Setenv("REDIRECT_URI", oldRedirectURI)
-		
+
 		os.Setenv("REDIRECT_URI", "https://example.com/callback")
-		
+
 		// When REDIRECT_URI starts with https://, Secure flag should be true
 		// (verified in source: SetSecureJWTCookie checks strings.HasPrefix(os.Getenv("REDIRECT_URI"), "https://"))
 		assert.True(t, true, "Secure flag enabled for HTTPS URLs")
@@ -95,9 +95,9 @@ func TestJWTSecurityHeaders_ConfigurableByEnvironment(t *testing.T) {
 		// Set REDIRECT_URI to localhost HTTP URL (development)
 		oldRedirectURI := os.Getenv("REDIRECT_URI")
 		defer os.Setenv("REDIRECT_URI", oldRedirectURI)
-		
+
 		os.Setenv("REDIRECT_URI", "http://localhost:3000/callback")
-		
+
 		// When REDIRECT_URI doesn't start with https://, Secure flag is false (development mode)
 		// (verified in source: SetSecureJWTCookie allows HTTP for localhost)
 		assert.False(t, true && false, "Secure flag disabled for development HTTP URLs")
@@ -108,14 +108,14 @@ func TestJWTCookie_AllFieldsCorrect(t *testing.T) {
 	// GIVEN: JWT cookie should have all security fields set
 	// WHEN: SetSecureJWTCookie is called with token
 	// THEN: Verify cookie is configured correctly
-	
+
 	// Cookie fields that MUST be set:
 	requiredFields := map[string]string{
-		"name":      "devsmith_token",
-		"httpOnly":  "true",
-		"path":      "/",
-		"maxAge":    "86400",
-		"sameSite":  "Strict",
+		"name":     "devsmith_token",
+		"httpOnly": "true",
+		"path":     "/",
+		"maxAge":   "86400",
+		"sameSite": "Strict",
 	}
 
 	assert.NotEmpty(t, requiredFields)

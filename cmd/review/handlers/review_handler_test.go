@@ -32,8 +32,8 @@ type MockScanService struct {
 	mock.Mock
 }
 
-func (m *MockScanService) AnalyzeScan(ctx context.Context, reviewID int64, query string) (*review_models.ScanModeOutput, error) {
-	args := m.Called(ctx, reviewID, query)
+func (m *MockScanService) AnalyzeScan(ctx context.Context, query string, code string) (*review_models.ScanModeOutput, error) {
+	args := m.Called(ctx, query, code)
 	return args.Get(0).(*review_models.ScanModeOutput), args.Error(1)
 }
 
@@ -47,7 +47,7 @@ func TestGetScanAnalysis(t *testing.T) {
 	}
 
 	reviewService.On("GetReview", mock.Anything, int64(1)).Return(&review_models.Review{ID: 1}, nil)
-	scanService.On("AnalyzeScan", mock.Anything, int64(1), "auth").Return(&review_models.ScanModeOutput{}, nil)
+	scanService.On("AnalyzeScan", mock.Anything, "auth", "").Return(&review_models.ScanModeOutput{}, nil)
 
 	r := gin.Default()
 	r.GET("/api/reviews/:id/scan", handler.GetScanAnalysis)
@@ -69,7 +69,7 @@ func TestGetScanAnalysis_WithDifferentQuery(t *testing.T) {
 	}
 
 	reviewService.On("GetReview", mock.Anything, int64(1)).Return(&review_models.Review{ID: 1}, nil)
-	scanService.On("AnalyzeScan", mock.Anything, int64(1), "database").Return(&review_models.ScanModeOutput{}, nil)
+	scanService.On("AnalyzeScan", mock.Anything, "database", "").Return(&review_models.ScanModeOutput{}, nil)
 
 	r := gin.Default()
 	r.GET("/api/reviews/:id/scan", handler.GetScanAnalysis)
@@ -106,9 +106,9 @@ func TestMockReviewService_CreateReview(t *testing.T) {
 
 func TestMockScanService_AnalyzeScan(t *testing.T) {
 	mockService := new(MockScanService)
-	mockService.On("AnalyzeScan", mock.Anything, int64(1), "query").Return(&review_models.ScanModeOutput{}, nil)
+	mockService.On("AnalyzeScan", mock.Anything, "query", "").Return(&review_models.ScanModeOutput{}, nil)
 
-	result, err := mockService.AnalyzeScan(context.Background(), 1, "query")
+	result, err := mockService.AnalyzeScan(context.Background(), "query", "")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -124,7 +124,7 @@ func TestGetScanAnalysis_ScanServiceError(t *testing.T) {
 	}
 
 	reviewService.On("GetReview", mock.Anything, int64(1)).Return(&review_models.Review{ID: 1}, nil)
-	scanService.On("AnalyzeScan", mock.Anything, int64(1), "test").Return((*review_models.ScanModeOutput)(nil), errors.New("analysis error"))
+	scanService.On("AnalyzeScan", mock.Anything, "test", "").Return((*review_models.ScanModeOutput)(nil), errors.New("analysis error"))
 
 	r := gin.Default()
 	r.GET("/api/reviews/:id/scan", handler.GetScanAnalysis)
@@ -143,14 +143,14 @@ func TestMockServices_MultipleInteractions(t *testing.T) {
 	// Set up multiple expectations
 	reviewService.On("GetReview", mock.Anything, int64(1)).Return(&review_models.Review{ID: 1}, nil)
 	reviewService.On("GetReview", mock.Anything, int64(2)).Return(&review_models.Review{ID: 2}, nil)
-	scanService.On("AnalyzeScan", mock.Anything, int64(1), "auth").Return(&review_models.ScanModeOutput{}, nil)
-	scanService.On("AnalyzeScan", mock.Anything, int64(2), "db").Return(&review_models.ScanModeOutput{}, nil)
+	scanService.On("AnalyzeScan", mock.Anything, "auth", "").Return(&review_models.ScanModeOutput{}, nil)
+	scanService.On("AnalyzeScan", mock.Anything, "db", "").Return(&review_models.ScanModeOutput{}, nil)
 
 	// Call multiple times
 	r1, _ := reviewService.GetReview(context.Background(), 1)
 	r2, _ := reviewService.GetReview(context.Background(), 2)
-	s1, _ := scanService.AnalyzeScan(context.Background(), 1, "auth")
-	s2, _ := scanService.AnalyzeScan(context.Background(), 2, "db")
+	s1, _ := scanService.AnalyzeScan(context.Background(), "auth", "")
+	s2, _ := scanService.AnalyzeScan(context.Background(), "db", "")
 
 	assert.Equal(t, int64(1), r1.ID)
 	assert.Equal(t, int64(2), r2.ID)

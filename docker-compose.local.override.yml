@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  postgres:
+    ports:
+      - "5433:5432"
+  jaeger:
+    ports:
+      - "16687:16686"
+      - "4319:4318"

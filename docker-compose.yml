@@ -32,7 +32,11 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ${PWD}/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./apps/portal/static/:/usr/share/nginx/html:ro
+      # Mount a merged static directory into /usr/share/nginx/html/static so
+      # templates referencing /static/* are resolved. This directory is created
+      # from apps/review/static and apps/portal/static at repo path
+      # docker/nginx/static
+      - ./docker/nginx/static/:/usr/share/nginx/html/static:ro
       # Ensure nginx can create runtime cache/temp directories
       - nginx-cache:/var/cache/nginx
     ports:
@@ -209,6 +213,28 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  # Playwright test runner - runs E2E tests inside the Docker network so
+  # tests exercise the nginx gateway and services via their container names.
+  # This service is intended for local CI / developer smoke runs. It uses
+  # the Playwright official image which includes browsers.
+  playwright:
+    image: mcr.microsoft.com/playwright:latest
+    working_dir: /work
+    volumes:
+      - ./:/work:cached
+    environment:
+      - PLAYWRIGHT_IN_DOCKER=1
+      - PLAYWRIGHT_BASE_URL=http://nginx
+      - CI=1
+    depends_on:
+      nginx:
+        condition: service_healthy
+    networks:
+      - devsmith-network
+    # Install deps and run smoke tests by default. You can override the
+    # command to run a different project or reporter.
+    command: sh -c "npm ci --silent || true && npx playwright install --with-deps || true && npx playwright test --project=smoke --reporter=list"
 
 networks:
   devsmith-network:

@@ -13,47 +13,82 @@ type CardProps struct {
 }
 
 templ Card(props CardProps) {
-	<div
-		role="article"
-		class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 p-6"
-		aria-label={ props.Title }
-	>
-		<div class="flex items-start justify-between gap-4">
-			<div class="flex-1">
-				if props.Icon != "" {
-					<div class="text-2xl mb-3 opacity-100 hover:opacity-110 transition-opacity">{ props.Icon }</div>
-				}
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">{ props.Title }</h3>
-				if props.Description != "" {
-					<p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{ props.Description }</p>
+	if props.ActionURL != "" {
+		<!-- Entire card is clickable -->
+		<a
+			href={ templ.SafeURL(props.ActionURL) }
+			role="article"
+			class="block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-xl hover:border-blue-500 dark:hover:border-blue-400 transition-all duration-300 p-6 cursor-pointer group"
+			aria-label={ props.Title + " - Click to open" }
+		>
+			<div class="flex items-start justify-between gap-4">
+				<div class="flex-1">
+					if props.Icon != "" {
+						<div class="text-2xl mb-3 opacity-100 group-hover:scale-110 transition-transform">{ props.Icon }</div>
+					}
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{ props.Title }</h3>
+					if props.Description != "" {
+						<p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{ props.Description }</p>
+					}
+				</div>
+				if props.BadgeText != "" {
+					<span class={ badgeClass(props.BadgeColor) }>
+						{ props.BadgeText }
+					</span>
 				}
 			</div>
-			if props.BadgeText != "" {
-				<span class={ badgeClass(props.BadgeColor) }>
-					{ props.BadgeText }
-				</span>
+
+			if props.StatLabel != "" || props.ActionText != "" {
+				<div class="mt-5 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-5">
+					if props.StatLabel != "" {
+						<div>
+							<span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{ props.StatLabel }</span>
+							<div class="text-lg font-bold text-gray-900 dark:text-white mt-1">{ props.StatValue }</div>
+						</div>
+					}
+					if props.ActionText != "" {
+						<span class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors">
+							{ props.ActionText }
+							<svg class="w-4 h-4 ml-1.5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							</svg>
+						</span>
+					}
+				</div>
+			}
+		</a>
+	} else {
+		<!-- Non-clickable card for display only -->
+		<div
+			role="article"
+			class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6"
+			aria-label={ props.Title }
+		>
+			<div class="flex items-start justify-between gap-4">
+				<div class="flex-1">
+					if props.Icon != "" {
+						<div class="text-2xl mb-3 opacity-100">{ props.Icon }</div>
+					}
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">{ props.Title }</h3>
+					if props.Description != "" {
+						<p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{ props.Description }</p>
+					}
+				</div>
+				if props.BadgeText != "" {
+					<span class={ badgeClass(props.BadgeColor) }>
+						{ props.BadgeText }
+					</span>
+				}
+			</div>
+
+			if props.StatLabel != "" {
+				<div class="mt-5 border-t border-gray-200 dark:border-gray-700 pt-5">
+					<span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{ props.StatLabel }</span>
+					<div class="text-lg font-bold text-gray-900 dark:text-white mt-1">{ props.StatValue }</div>
+				</div>
 			}
 		</div>
-
-		if props.StatLabel != "" || props.ActionText != "" {
-			<div class="mt-5 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-5">
-				if props.StatLabel != "" {
-					<div>
-						<span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{ props.StatLabel }</span>
-						<div class="text-lg font-bold text-gray-900 dark:text-white mt-1">{ props.StatValue }</div>
-					</div>
-				}
-				if props.ActionText != "" {
-					<a href={ templ.SafeURL(props.ActionURL) } class="inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
-						{ props.ActionText }
-						<svg class="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-						</svg>
-					</a>
-				}
-			</div>
-		}
-	</div>
+	}
 }
 
 func badgeClass(color string) string {

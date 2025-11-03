@@ -423,17 +423,17 @@ func FetchUserInfoHandler(c *gin.Context) {
 func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 	// In production (HTTPS), use Secure flag. In development/test, allow HTTP.
 	isSecure := strings.HasPrefix(os.Getenv("REDIRECT_URI"), "https://")
-	
+
 	c.SetCookie(
-		"devsmith_token",     // name
-		tokenString,          // value
-		86400,                // maxAge (24 hours)
-		"/",                  // path
-		"",                   // domain
-		isSecure,             // secure (HTTPS only in production)
-		true,                 // httpOnly (XSS protection)
+		"devsmith_token", // name
+		tokenString,      // value
+		86400,            // maxAge (24 hours)
+		"/",              // path
+		"",               // domain
+		isSecure,         // secure (HTTPS only in production)
+		true,             // httpOnly (XSS protection)
 	)
-	
+
 	// Set SameSite flag for CSRF protection
 	// Note: Gin's SetCookie doesn't directly support SameSite, so we add it to Set-Cookie header
 	c.SetSameSite(http.SameSiteStrictMode)

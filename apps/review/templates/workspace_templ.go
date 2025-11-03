@@ -10,6 +10,8 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "strconv"
+
 // WorkspaceProps contains the data needed to render the workspace.
 type WorkspaceProps struct {
 	SessionID      int
@@ -20,7 +22,7 @@ type WorkspaceProps struct {
 }
 
 // Workspace renders the two-pane layout for code review with dynamic mode switching.
-// Left pane: Code editor with syntax highlighting and line numbers
+// Left pane: Editable code textarea
 // Right pane: AI analysis results that update via HTMX based on selected mode
 func Workspace(props WorkspaceProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -62,7 +64,7 @@ func Workspace(props WorkspaceProps) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 23, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 25, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -73,136 +75,119 @@ func Workspace(props WorkspaceProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(string(props.SessionID))
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(props.SessionID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 24, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 26, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p></div><!-- Mode Selector --><div class=\"flex items-center gap-4\"><label for=\"mode-selector\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Reading Mode:</label> <select id=\"mode-selector\" name=\"mode\" class=\"px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent\" hx-get=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p></div><!-- Mode Selector and Analyze Button --><div class=\"flex items-center gap-4 flex-wrap\"><label for=\"mode-selector\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Reading Mode:</label> <select id=\"mode-selector\" name=\"mode\" class=\"px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent\" aria-label=\"Select reading mode for code analysis\" onchange=\"toggleScanQueryInput()\"><option value=\"preview\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if props.CurrentMode == "preview" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, ">👁️ Preview (2-3 min)</option> <option value=\"skim\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if props.CurrentMode == "skim" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, ">⚡ Skim (5-7 min)</option> <option value=\"scan\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if props.CurrentMode == "scan" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ">🔎 Scan (3-5 min)</option> <option value=\"detailed\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if props.CurrentMode == "detailed" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, ">🔬 Detailed (10-15 min)</option> <option value=\"critical\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if props.CurrentMode == "critical" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " selected")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, ">⚠️ Critical (15-20 min)</option></select><!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) --><div id=\"scan-query-container\" class=\"hidden flex items-center gap-2\"><label for=\"scan-query\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Search for:</label> <input type=\"text\" id=\"scan-query\" placeholder=\"e.g., authentication, SQL queries, error handling...\" class=\"px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent min-w-[300px]\" aria-label=\"Enter search query for Scan mode\"></div><!-- Analyze Button with Dynamic Endpoint --><button id=\"analyze-btn\" type=\"button\" class=\"px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800\" onclick=\"analyzeCode()\" aria-label=\"Analyze code with selected reading mode\">Analyze Code</button></div></div></header><!-- Two-Pane Layout --><div class=\"workspace-content flex h-[calc(100vh-120px)]\"><!-- Left Pane: Editable Code --><div class=\"code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex flex-col\"><div class=\"code-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900\"><div class=\"flex items-center justify-between\"><h2 class=\"text-sm font-semibold text-gray-700 dark:text-gray-300\">Code</h2><div class=\"flex items-center gap-2\"><span id=\"char-count\" class=\"text-xs text-gray-500 dark:text-gray-400\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs("/api/review/sessions/" + string(props.SessionID) + "/analyze")
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(props.Code)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 34, Col: 78}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 80, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" hx-target=\"#analysis-pane\" hx-indicator=\"#analysis-loading\" hx-swap=\"innerHTML\" aria-label=\"Select reading mode for code analysis\"><option value=\"preview\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if props.CurrentMode == "preview" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " selected")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, ">👁️ Preview (2-3 min)</option> <option value=\"skim\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if props.CurrentMode == "skim" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " selected")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, ">⚡ Skim (5-7 min)</option> <option value=\"scan\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if props.CurrentMode == "scan" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " selected")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, ">🔎 Scan (3-5 min)</option> <option value=\"detailed\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if props.CurrentMode == "detailed" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " selected")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, ">🔬 Detailed (10-15 min)</option> <option value=\"critical\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if props.CurrentMode == "critical" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " selected")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, ">⚠️ Critical (15-20 min)</option></select><!-- Analyze Button --><button type=\"button\" class=\"px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800\" hx-post=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " characters</span> <button type=\"button\" class=\"px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors\" onclick=\"copyCodeToClipboard()\" aria-label=\"Copy code to clipboard\">📋 Copy</button> <button type=\"button\" class=\"px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors\" onclick=\"clearCode()\" aria-label=\"Clear code\">🗑️ Clear</button></div></div></div><div class=\"code-content flex-1 overflow-hidden\"><textarea id=\"code-editor\" class=\"w-full h-full p-6 text-sm font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 border-none focus:outline-none focus:ring-0 resize-none\" placeholder=\"Paste or type your code here...\" spellcheck=\"false\" aria-label=\"Code editor\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("/api/review/sessions/" + string(props.SessionID) + "/analyze")
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(props.Code)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 51, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 107, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" hx-include=\"#mode-selector\" hx-target=\"#analysis-pane\" hx-indicator=\"#analysis-loading\" hx-swap=\"innerHTML\" aria-label=\"Analyze code with selected reading mode\">Analyze Code</button></div></div></header><!-- Two-Pane Layout --><div class=\"workspace-content flex h-[calc(100vh-120px)]\"><!-- Left Pane: Code Editor --><div class=\"code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden\"><div class=\"code-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900\"><div class=\"flex items-center justify-between\"><h2 class=\"text-sm font-semibold text-gray-700 dark:text-gray-300\">Code</h2><div class=\"flex items-center gap-2\"><span class=\"text-xs text-gray-500 dark:text-gray-400\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(string(len(props.Code)))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 72, Col: 88}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " characters</span> <button type=\"button\" class=\"px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded transition-colors\" onclick=\"copyToClipboard(document.getElementById('code-content').innerText)\" aria-label=\"Copy code to clipboard\">📋 Copy</button></div></div></div><div class=\"code-content overflow-auto h-full p-6\"><pre id=\"code-content\" class=\"text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words\" tabindex=\"0\" role=\"region\" aria-label=\"Code content\"><code>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(props.Code)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 91, Col: 25}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</code></pre></div></div><!-- Right Pane: Analysis Results --><div class=\"analysis-pane flex-1 bg-gray-50 dark:bg-gray-900 overflow-hidden\"><div class=\"analysis-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800\"><div class=\"flex items-center justify-between\"><h2 class=\"text-sm font-semibold text-gray-700 dark:text-gray-300\">AI Analysis</h2><!-- Loading Indicator --><div id=\"analysis-loading\" class=\"htmx-indicator flex items-center gap-2\"><svg class=\"animate-spin h-4 w-4 text-indigo-600 dark:text-indigo-400\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\"><circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\"></circle> <path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z\"></path></svg> <span class=\"text-xs text-gray-600 dark:text-gray-400\">Analyzing...</span></div></div></div><div id=\"analysis-pane\" class=\"analysis-content overflow-auto h-full p-6\" role=\"region\" aria-label=\"AI analysis results\" aria-live=\"polite\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</textarea></div></div><!-- Right Pane: Analysis Results --><div class=\"analysis-pane flex-1 bg-gray-50 dark:bg-gray-900 overflow-hidden\"><div class=\"analysis-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800\"><div class=\"flex items-center justify-between\"><h2 class=\"text-sm font-semibold text-gray-700 dark:text-gray-300\">AI Analysis</h2><!-- Loading Indicator --><div id=\"analysis-loading\" class=\"hidden flex items-center gap-2\"><svg class=\"animate-spin h-4 w-4 text-indigo-600 dark:text-indigo-400\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\"><circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\"></circle> <path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z\"></path></svg> <span class=\"text-xs text-gray-600 dark:text-gray-400\">Analyzing...</span></div></div></div><div id=\"analysis-pane\" class=\"analysis-content overflow-auto h-full p-6\" role=\"region\" aria-label=\"AI analysis results\" aria-live=\"polite\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if props.AnalysisResult != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<!-- Analysis results will be injected here via HTMX --> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<!-- Analysis results will be injected here via JavaScript --> <div class=\"p-4 rounded-lg bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700\"><pre class=\"text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = RenderAnalysisResult(props.CurrentMode, props.AnalysisResult).Render(ctx, templ_7745c5c3_Buffer)
+				var templ_7745c5c3_Var7 string
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(props.AnalysisResult)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 136, Col: 104}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</pre></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<!-- Empty state --> <div class=\"flex flex-col items-center justify-center h-full text-center\"><svg class=\"w-16 h-16 text-gray-300 dark:text-gray-600 mb-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path></svg><h3 class=\"text-lg font-medium text-gray-700 dark:text-gray-300 mb-2\">No Analysis Yet</h3><p class=\"text-sm text-gray-500 dark:text-gray-400 max-w-md\">Select a reading mode from the dropdown above and click \"Analyze Code\" to start AI-powered code analysis.</p><div class=\"mt-6 space-y-2 text-left text-sm text-gray-600 dark:text-gray-400\"><p>📖 <strong>Preview:</strong> Quick structural overview</p><p>⚡ <strong>Skim:</strong> Abstractions and key components</p><p>🔎 <strong>Scan:</strong> Search for specific patterns</p><p>🔬 <strong>Detailed:</strong> Line-by-line explanation</p><p>⚠️ <strong>Critical:</strong> Quality review and issues</p></div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<!-- Empty state --> <div class=\"flex flex-col items-center justify-center h-full text-center\"><svg class=\"w-16 h-16 text-gray-300 dark:text-gray-600 mb-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path></svg><h3 class=\"text-lg font-medium text-gray-700 dark:text-gray-300 mb-2\">No Analysis Yet</h3><p class=\"text-sm text-gray-500 dark:text-gray-400 max-w-md\">Select a reading mode from the dropdown above and click \"Analyze Code\" to start AI-powered code analysis.</p><div class=\"mt-6 space-y-2 text-left text-sm text-gray-600 dark:text-gray-400\"><p>📖 <strong>Preview:</strong> Quick structural overview</p><p>⚡ <strong>Skim:</strong> Abstractions and key components</p><p>🔎 <strong>Scan:</strong> Search for specific patterns</p><p>🔬 <strong>Detailed:</strong> Line-by-line explanation</p><p>⚠️ <strong>Critical:</strong> Quality review and issues</p></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></div></div></div><!-- Copy to Clipboard Helper Script --> <script>\n\t\t\tfunction copyToClipboard(text) {\n\t\t\t\tif (navigator.clipboard && navigator.clipboard.writeText) {\n\t\t\t\t\tnavigator.clipboard.writeText(text).then(() => {\n\t\t\t\t\t\t// Show temporary success message\n\t\t\t\t\t\tconst toast = document.createElement('div');\n\t\t\t\t\t\ttoast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';\n\t\t\t\t\t\ttoast.textContent = '✓ Copied to clipboard';\n\t\t\t\t\t\tdocument.body.appendChild(toast);\n\t\t\t\t\t\tsetTimeout(() => toast.remove(), 2000);\n\t\t\t\t\t}).catch(err => {\n\t\t\t\t\t\tconsole.error('Failed to copy:', err);\n\t\t\t\t\t});\n\t\t\t\t} else {\n\t\t\t\t\t// Fallback for older browsers\n\t\t\t\t\tconst textarea = document.createElement('textarea');\n\t\t\t\t\ttextarea.value = text;\n\t\t\t\t\ttextarea.style.position = 'fixed';\n\t\t\t\t\ttextarea.style.opacity = '0';\n\t\t\t\t\tdocument.body.appendChild(textarea);\n\t\t\t\t\ttextarea.select();\n\t\t\t\t\tdocument.execCommand('copy');\n\t\t\t\t\tdocument.body.removeChild(textarea);\n\t\t\t\t\talert('Code copied to clipboard');\n\t\t\t\t}\n\t\t\t}\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div></div></div><!-- Workspace JavaScript --> <script>\n\t\t\t// Update character count on input\n\t\t\tconst codeEditor = document.getElementById('code-editor');\n\t\t\tconst charCount = document.getElementById('char-count');\n\t\t\t\n\t\t\tcodeEditor.addEventListener('input', () => {\n\t\t\t\tcharCount.textContent = codeEditor.value.length + ' characters';\n\t\t\t});\n\t\t\t\n\t\t\t// Toggle Scan query input visibility\n\t\t\tfunction toggleScanQueryInput() {\n\t\t\t\tconst mode = document.getElementById('mode-selector').value;\n\t\t\t\tconst scanQueryContainer = document.getElementById('scan-query-container');\n\t\t\t\t\n\t\t\t\tif (mode === 'scan') {\n\t\t\t\t\tscanQueryContainer.classList.remove('hidden');\n\t\t\t\t\tscanQueryContainer.classList.add('flex');\n\t\t\t\t} else {\n\t\t\t\t\tscanQueryContainer.classList.add('hidden');\n\t\t\t\t\tscanQueryContainer.classList.remove('flex');\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\t// Initialize scan query input visibility on page load\n\t\t\tdocument.addEventListener('DOMContentLoaded', () => {\n\t\t\t\ttoggleScanQueryInput();\n\t\t\t});\n\t\t\t\n\t\t\t// Copy code to clipboard\n\t\t\tfunction copyCodeToClipboard() {\n\t\t\t\tconst code = codeEditor.value;\n\t\t\t\tif (navigator.clipboard && navigator.clipboard.writeText) {\n\t\t\t\t\tnavigator.clipboard.writeText(code).then(() => {\n\t\t\t\t\t\tshowToast('✓ Copied to clipboard');\n\t\t\t\t\t}).catch(err => {\n\t\t\t\t\t\tconsole.error('Failed to copy:', err);\n\t\t\t\t\t\tshowToast('✗ Failed to copy');\n\t\t\t\t\t});\n\t\t\t\t} else {\n\t\t\t\t\t// Fallback\n\t\t\t\t\tcodeEditor.select();\n\t\t\t\t\tdocument.execCommand('copy');\n\t\t\t\t\tshowToast('✓ Copied to clipboard');\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\t// Clear code\n\t\t\tfunction clearCode() {\n\t\t\t\tif (confirm('Clear all code?')) {\n\t\t\t\t\tcodeEditor.value = '';\n\t\t\t\t\tcharCount.textContent = '0 characters';\n\t\t\t\t}\n\t\t\t}\n\t\t\t\n\t\t\t// Analyze code with selected mode\n\t\t\tfunction analyzeCode() {\n\t\t\t\tconst mode = document.getElementById('mode-selector').value;\n\t\t\t\t// CRITICAL: Always read fresh value from textarea DOM element\n\t\t\t\tconst code = document.getElementById('code-editor').value.trim();\n\t\t\t\t\n\t\t\t\tconsole.log('Analyze clicked - Mode:', mode, 'Code length:', code.length);\n\t\t\t\tconsole.log('First 100 chars:', code.substring(0, 100));\n\t\t\t\t\n\t\t\t\tif (!code) {\n\t\t\t\t\tshowToast('⚠️ Please paste some code first');\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\t// For Scan mode, get the query\n\t\t\t\tlet scanQuery = '';\n\t\t\t\tif (mode === 'scan') {\n\t\t\t\t\tscanQuery = document.getElementById('scan-query').value.trim();\n\t\t\t\t\tif (!scanQuery) {\n\t\t\t\t\t\tshowToast('⚠️ Please enter what you want to scan for');\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\t\t\t\t\tconsole.log('Scan query:', scanQuery);\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\tconst analysisPane = document.getElementById('analysis-pane');\n\t\t\t\tconst loadingIndicator = document.getElementById('analysis-loading');\n\t\t\t\tconst analyzeBtn = document.getElementById('analyze-btn');\n\t\t\t\t\n\t\t\t\t// Show loading state\n\t\t\t\tloadingIndicator.classList.remove('hidden');\n\t\t\t\tanalyzeBtn.disabled = true;\n\t\t\t\tanalyzeBtn.textContent = 'Analyzing...';\n\t\t\t\tanalysisPane.innerHTML = '<div class=\"flex items-center justify-center h-full\"><div class=\"text-center\"><svg class=\"animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400 mx-auto mb-4\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\"><circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\"></circle><path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z\"></path></svg><p class=\"text-sm text-gray-600 dark:text-gray-400\">Running ' + mode + ' analysis...</p></div></div>';\n\t\t\t\t\n\t\t\t\t// Make API call to correct mode endpoint\n\t\t\t\tlet endpoint = '/api/review/modes/' + mode;\n\t\t\t\tif (mode === 'scan' && scanQuery) {\n\t\t\t\t\tendpoint += '?query=' + encodeURIComponent(scanQuery);\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\tconst formData = new FormData();\n\t\t\t\tformData.append('pasted_code', code);\n\t\t\t\t\n\t\t\t\tconsole.log('Sending request to:', endpoint);\n\t\t\t\t\n\t\t\t\tfetch(endpoint, {\n\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\tbody: formData\n\t\t\t\t})\n\t\t\t\t.then(response => {\n\t\t\t\t\tconsole.log('Response status:', response.status);\n\t\t\t\t\tif (!response.ok) {\n\t\t\t\t\t\tthrow new Error('Analysis failed: ' + response.statusText);\n\t\t\t\t\t}\n\t\t\t\t\treturn response.text();\n\t\t\t\t})\n\t\t\t\t.then(html => {\n\t\t\t\t\tconsole.log('Analysis complete, response length:', html.length);\n\t\t\t\t\tanalysisPane.innerHTML = html;\n\t\t\t\t\tshowToast('✓ Analysis complete');\n\t\t\t\t})\n\t\t\t\t.catch(error => {\n\t\t\t\t\tconsole.error('Analysis error:', error);\n\t\t\t\t\tanalysisPane.innerHTML = '<div class=\"p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700\"><h4 class=\"font-semibold text-red-900 dark:text-red-100\">Analysis Failed</h4><p class=\"mt-2 text-sm text-red-800 dark:text-red-200\">' + error.message + '</p><button onclick=\"analyzeCode()\" class=\"mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm\">Retry</button></div>';\n\t\t\t\t\tshowToast('✗ Analysis failed');\n\t\t\t\t})\n\t\t\t\t.finally(() => {\n\t\t\t\t\tloadingIndicator.classList.add('hidden');\n\t\t\t\t\tanalyzeBtn.disabled = false;\n\t\t\t\t\tanalyzeBtn.textContent = 'Analyze Code';\n\t\t\t\t});\n\t\t\t}\n\t\t\t\n\t\t\t// Show toast notification\n\t\t\tfunction showToast(message) {\n\t\t\t\tconst toast = document.createElement('div');\n\t\t\t\ttoast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in';\n\t\t\t\ttoast.textContent = message;\n\t\t\t\tdocument.body.appendChild(toast);\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\ttoast.classList.add('animate-fade-out');\n\t\t\t\t\tsetTimeout(() => toast.remove(), 300);\n\t\t\t\t}, 2000);\n\t\t\t}\n\t\t</script> <style>\n\t\t\t@keyframes fade-in {\n\t\t\t\tfrom { opacity: 0; transform: translateY(-10px); }\n\t\t\t\tto { opacity: 1; transform: translateY(0); }\n\t\t\t}\n\t\t\t@keyframes fade-out {\n\t\t\t\tfrom { opacity: 1; transform: translateY(0); }\n\t\t\t\tto { opacity: 0; transform: translateY(-10px); }\n\t\t\t}\n\t\t\t.animate-fade-in {\n\t\t\t\tanimation: fade-in 0.3s ease-out;\n\t\t\t}\n\t\t\t.animate-fade-out {\n\t\t\t\tanimation: fade-out 0.3s ease-out;\n\t\t\t}\n\t\t</style>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -233,9 +218,9 @@ func RenderAnalysisResult(mode string, result string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var9 == nil {
-			templ_7745c5c3_Var9 = templ.NopComponent
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch mode {
@@ -249,7 +234,7 @@ func RenderAnalysisResult(mode string, result string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -269,33 +254,33 @@ func RenderAnalysisResult(mode string, result string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"text-gray-700 dark:text-gray-300\"><p class=\"text-sm\">Unknown mode: ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"text-gray-700 dark:text-gray-300\"><p class=\"text-sm\">Unknown mode: ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(mode)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 338, Col: 43}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</p><pre class=\"mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs overflow-auto\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(mode)
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(result)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 190, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 339, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</p><pre class=\"mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs overflow-auto\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(result)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 191, Col: 96}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</pre></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</pre></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
