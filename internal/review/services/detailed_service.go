@@ -88,8 +88,23 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 	}
 	s.logger.Info("DetailedService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
 
+	// Extract JSON from response (handles cases where AI adds extra text)
+	jsonStr, extractErr := ExtractJSON(resp)
+	if extractErr != nil {
+		s.logger.Error("DetailedService: failed to extract JSON", "correlation_id", correlationID, "error", extractErr)
+		extractErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      extractErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(extractErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, extractErrWrapped
+	}
+
 	var output review_models.DetailedModeOutput
-	if err := json.Unmarshal([]byte(resp), &output); err != nil {
+	if err := json.Unmarshal([]byte(jsonStr), &output); err != nil {
 		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "error", err)
 		parseErr := &review_errors.InfrastructureError{
 			Code:       "ERR_AI_RESPONSE_INVALID",

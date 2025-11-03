@@ -22,7 +22,8 @@ func TestPreviewModeButton_Integration_RedPhase(t *testing.T) {
 
 	// Create a mock preview service
 	mockLogger := &testutils.MockLogger{}
-	previewService := review_services.NewPreviewService(mockLogger)
+	mockOllama := &testutils.MockOllamaClient{GenerateResponse: `{"summary":"ok","bounded_contexts":[],"tech_stack":[],"file_tree":[]}`}
+	previewService := review_services.NewPreviewService(mockOllama, mockLogger)
 
 	// Register the handler that we're testing (currently doesn't exist)
 	RegisterPreviewModeButtonHandler(router, previewService)

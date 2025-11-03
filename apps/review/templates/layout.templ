@@ -12,9 +12,9 @@ templ Layout(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<meta name="description" content="DevSmith Review - AI-powered code analysis with 5 reading modes"/>
 			<title>{ title } - DevSmith Review</title>
-			<script src="https://cdn.tailwindcss.com"></script>
+			<!-- Tailwind CSS with dark mode support (class-based) -->
+			<link rel="stylesheet" href="/static/css/tailwind.css"/>
 			<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-			<link rel="stylesheet" href="/static/css/review.css"/>
 			<style>
 				/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
 				[x-cloak] { display: none !important; }

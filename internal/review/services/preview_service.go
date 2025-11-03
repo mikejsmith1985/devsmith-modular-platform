@@ -71,9 +71,24 @@ func (s *PreviewService) AnalyzePreview(ctx context.Context, code string) (*revi
 	}
 	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
 
+	// Extract JSON from response (handles cases where AI adds extra text)
+	jsonStr, extractErr := ExtractJSON(rawOutput)
+	if extractErr != nil {
+		s.logger.Error("PreviewService: failed to extract JSON", "correlation_id", correlationID, "error", extractErr)
+		extractErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      extractErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(extractErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, extractErrWrapped
+	}
+
 	// Parse JSON response
 	var output review_models.PreviewModeOutput
-	if parseErr := json.Unmarshal([]byte(rawOutput), &output); parseErr != nil {
+	if parseErr := json.Unmarshal([]byte(jsonStr), &output); parseErr != nil {
 		s.logger.Error("PreviewService: failed to parse AI output", "correlation_id", correlationID, "error", parseErr)
 		parseErrWrapped := &review_errors.InfrastructureError{
 			Code:       "ERR_AI_RESPONSE_INVALID",

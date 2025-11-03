@@ -121,6 +121,28 @@ func main() {
 		ollamaModel = "mistral:7b-instruct" // Default to mistral
 	}
 
+	// Allow a fast deterministic mock of Ollama for Playwright/CI runs.
+	// Set OLLAMA_MOCK=true in environment (via docker-compose override) to enable.
+	if os.Getenv("OLLAMA_MOCK") == "true" {
+		// Start a local mock Ollama HTTP server listening on 127.0.0.1:11434
+		mockAddr := "127.0.0.1:11434"
+		reviewLogger.Info("Starting mock Ollama server for tests", "addr", mockAddr, "model", ollamaModel)
+		shutdownMock, err := providers.StartMockOllamaServer(mockAddr, ollamaModel)
+		if err != nil {
+			reviewLogger.Error("Failed to start mock Ollama server", "error", err)
+		} else {
+			// Ensure shutdown during process exit
+			defer func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = shutdownMock(ctx)
+			}()
+
+			// Point client at mock server
+			ollamaEndpoint = "http://127.0.0.1:11434"
+		}
+	}
+
 	reviewLogger.Info("Initializing Ollama client", "endpoint", ollamaEndpoint, "model", ollamaModel)
 	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaModel)
 
@@ -197,6 +219,10 @@ func main() {
 	// Handler setup with services (UIHandler takes logger, logging client, and AI services)
 	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService)
 
+	// Serve static files (CSS, JS) from apps/review/static
+	router.Static("/static", "./apps/review/static")
+	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
+
 	// Register endpoints
 	router.GET("/", uiHandler.HomeHandler)
 	router.GET("/review", uiHandler.HomeHandler)                         // Serve UI at /review for E2E tests
@@ -214,7 +240,7 @@ func main() {
 	// Kept: router.GET("/api/review/sessions", sessionHandler.ListSessions) -> Use HTMX /list instead
 	// Kept pagination for non-HTMX clients if needed, but HTMX UI uses /list
 
-	// HTMX mode endpoints (Phase 12.3)
+	// HTMX mode endpoints - direct mode-based analysis
 	router.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)   // Preview mode HTMX
 	router.POST("/api/review/modes/skim", uiHandler.HandleSkimMode)         // Skim mode HTMX
 	router.POST("/api/review/modes/scan", uiHandler.HandleScanMode)         // Scan mode HTMX

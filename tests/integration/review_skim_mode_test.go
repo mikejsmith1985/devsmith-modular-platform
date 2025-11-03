@@ -63,7 +63,8 @@ func TestSkimMode_Integration(t *testing.T) {
 	mockLogger := &testutils.MockLogger{}
 	skimService := review_services.NewSkimService(ollamaClient, analysisRepo, mockLogger)
 	reviewService := review_services.NewReviewService(skimService, reviewRepo)
-	previewService := review_services.NewPreviewService(mockLogger)
+	mockOllama := &testutils.MockOllamaClient{GenerateResponse: `{"summary":"ok","bounded_contexts":[],"tech_stack":[],"file_tree":[]}`}
+	previewService := review_services.NewPreviewService(mockOllama, mockLogger)
 	scanService := review_services.NewScanService(ollamaClient, analysisRepo, mockLogger)
 
 	// Create a dummy instrumentation logger for testing

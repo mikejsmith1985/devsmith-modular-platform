@@ -71,9 +71,24 @@ func (s *CriticalService) AnalyzeCritical(ctx context.Context, code string) (*re
 	}
 	s.logger.Info("Critical analysis AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
 
+	// Extract JSON from response (handles cases where AI adds extra text)
+	jsonStr, extractErr := ExtractJSON(rawOutput)
+	if extractErr != nil {
+		s.logger.Error("Failed to extract JSON from critical analysis output", "correlation_id", correlationID, "error", extractErr)
+		extractErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      extractErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(extractErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, extractErrWrapped
+	}
+
 	// Parse JSON response
 	var output review_models.CriticalModeOutput
-	if unmarshalErr := json.Unmarshal([]byte(rawOutput), &output); unmarshalErr != nil {
+	if unmarshalErr := json.Unmarshal([]byte(jsonStr), &output); unmarshalErr != nil {
 		s.logger.Error("Failed to unmarshal critical analysis output", "correlation_id", correlationID, "error", unmarshalErr)
 		parseErr := &review_errors.InfrastructureError{
 			Code:       "ERR_AI_RESPONSE_INVALID",

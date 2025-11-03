@@ -122,8 +122,8 @@ type FunctionSignature struct {
 // InterfaceInfo describes an interface and its methods.
 // It includes the interface name, methods, and purpose.
 type InterfaceInfo struct {
-	Name        string
-	Description string
+	Name        string   `json:"name,omitempty"`
+	Description string   `json:"description,omitempty"`
 	Purpose     string   `json:"purpose"`
 	Methods     []string `json:"methods"`
 }
@@ -131,8 +131,8 @@ type InterfaceInfo struct {
 // DataModelInfo describes a data model and its fields.
 // It includes the model name, fields, and purpose.
 type DataModelInfo struct {
-	Name        string
-	Description string
+	Name        string   `json:"name,omitempty"`
+	Description string   `json:"description,omitempty"`
 	Purpose     string   `json:"purpose"`
 	Fields      []string `json:"fields"`
 }

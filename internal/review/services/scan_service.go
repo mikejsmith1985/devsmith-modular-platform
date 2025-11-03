@@ -87,8 +87,23 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, query string, code string
 	}
 	s.logger.Info("AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
 
+	// Extract JSON from response (handles cases where AI adds extra text)
+	jsonStr, extractErr := ExtractJSON(rawOutput)
+	if extractErr != nil {
+		s.logger.Error("Failed to extract JSON from scan analysis output", "correlation_id", correlationID, "error", extractErr)
+		extractErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      extractErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(extractErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, extractErrWrapped
+	}
+
 	var output review_models.ScanModeOutput
-	unmarshalErr := json.Unmarshal([]byte(rawOutput), &output)
+	unmarshalErr := json.Unmarshal([]byte(jsonStr), &output)
 	if unmarshalErr != nil {
 		s.logger.Error("Failed to unmarshal scan analysis output", "correlation_id", correlationID, "error", unmarshalErr)
 		parseErr := &review_errors.InfrastructureError{
