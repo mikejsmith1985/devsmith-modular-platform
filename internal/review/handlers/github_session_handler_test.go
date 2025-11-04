@@ -79,19 +79,19 @@ func TestConvertTreeNodes_EmptySlice(t *testing.T) {
 func TestConvertTreeNodes_DeeplyNested(t *testing.T) {
 	githubNodes := []github.TreeNode{
 		{
-			Path: "root", 
-			Type: "dir", 
-			SHA: "a", 
+			Path: "root",
+			Type: "dir",
+			SHA:  "a",
 			Children: []github.TreeNode{
 				{
-					Path: "root/level1", 
-					Type: "dir", 
-					SHA: "b", 
+					Path: "root/level1",
+					Type: "dir",
+					SHA:  "b",
 					Children: []github.TreeNode{
 						{
-							Path: "root/level1/level2", 
-							Type: "dir", 
-							SHA: "c", 
+							Path: "root/level1/level2",
+							Type: "dir",
+							SHA:  "c",
 							Children: []github.TreeNode{
 								{Path: "root/level1/level2/deep.go", Type: "file", SHA: "d", Size: 42},
 							},
