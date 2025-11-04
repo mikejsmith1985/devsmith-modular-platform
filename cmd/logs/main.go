@@ -14,9 +14,11 @@ import (
 	_ "github.com/lib/pq"
 	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
@@ -118,6 +120,24 @@ func main() {
 	// Create validation aggregation service for analytics
 	validationAgg := logs_services.NewValidationAggregation(logRepo, logger)
 
+	// Phase 1: AI-Driven Diagnostics - Initialize AI analysis services
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://host.docker.internal:11434" // Default for Docker
+	}
+	ollamaModel := os.Getenv("OLLAMA_MODEL")
+	if ollamaModel == "" {
+		ollamaModel = "qwen2.5-coder:7b-instruct-q4_K_M" // Default model
+	}
+
+	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaModel)
+	aiAnalyzer := logs_services.NewAIAnalyzer(ollamaClient)
+	patternMatcher := logs_services.NewPatternMatcher()
+	analysisService := logs_services.NewAnalysisService(aiAnalyzer, patternMatcher)
+	analysisHandler := internal_logs_handlers.NewAnalysisHandler(analysisService, logger)
+
+	log.Println("AI analysis services initialized - Ollama:", ollamaEndpoint, "Model:", ollamaModel)
+
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
 		resthandlers.PostLogs(restSvc)(c)
@@ -176,6 +196,10 @@ func main() {
 	router.PUT("/api/logs/alert-config/:service", func(c *gin.Context) {
 		resthandlers.UpdateAlertConfig(alertSvc)(c)
 	})
+
+	// Phase 1: AI-Driven Diagnostics - Analysis endpoints
+	router.POST("/api/logs/analyze", analysisHandler.AnalyzeLog)
+	router.POST("/api/logs/classify", analysisHandler.ClassifyLog)
 
 	// Initialize WebSocket hub
 	hub := logs_services.NewWebSocketHub()
@@ -332,6 +356,26 @@ COMMENT ON TABLE logs.health_check_details IS 'Stores individual check results (
 COMMENT ON TABLE logs.security_scans IS 'Stores Trivy security scan results for vulnerability tracking';
 COMMENT ON TABLE logs.auto_repairs IS 'Stores auto-repair action history and outcomes';
 COMMENT ON TABLE logs.health_policies IS 'Stores custom health policies for each service';
+
+-- Phase 1: AI-Driven Diagnostics
+-- Add AI analysis columns to logs.entries table
+ALTER TABLE logs.entries 
+ADD COLUMN IF NOT EXISTS issue_type VARCHAR(50),
+ADD COLUMN IF NOT EXISTS ai_analysis JSONB,
+ADD COLUMN IF NOT EXISTS severity_score INT;
+
+-- Create index for efficient querying by issue type
+CREATE INDEX IF NOT EXISTS idx_logs_entries_issue_type 
+ON logs.entries(issue_type, created_at DESC);
+
+-- Create index for severity queries
+CREATE INDEX IF NOT EXISTS idx_logs_entries_severity 
+ON logs.entries(severity_score DESC, created_at DESC);
+
+-- Add comments for documentation
+COMMENT ON COLUMN logs.entries.issue_type IS 'Categorized error type: db_connection, auth_failure, null_pointer, rate_limit, network_timeout, unknown';
+COMMENT ON COLUMN logs.entries.ai_analysis IS 'Cached AI analysis result with root cause, suggested fix, and fix steps';
+COMMENT ON COLUMN logs.entries.severity_score IS 'Severity rating from AI analysis: 1-5 (1=info, 5=critical)';
 `
 
 	if _, err := db.Exec(migrationSQL); err != nil {

@@ -1,0 +1,147 @@
+// Package templates provides Templ components for the Logs service UI.
+package templates
+
+// IssueAnalysis represents the AI analysis result for display
+type IssueAnalysis struct {
+	RootCause    string   `json:"root_cause"`
+	SuggestedFix string   `json:"suggested_fix"`
+	Severity     int      `json:"severity"`
+	RelatedLogs  []string `json:"related_logs"`
+	FixSteps     []string `json:"fix_steps"`
+}
+
+// IssueCard renders an AI analysis issue card with root cause, fix, and actions
+templ IssueCard(issueType string, analysis IssueAnalysis, logID int64) {
+	<div class="issue-card" data-issue-type={ issueType } data-severity={ string(rune(analysis.Severity + '0')) }>
+		<div class="issue-header">
+			<span class="issue-badge issue-badge-{ getSeverityClass(analysis.Severity) }">
+				{ getSeverityLabel(analysis.Severity) }
+			</span>
+			<span class="issue-type-badge">{ issueType }</span>
+			<span class="issue-id">Log #{ string(rune(logID)) }</span>
+		</div>
+
+		<div class="issue-body">
+			<div class="issue-section">
+				<h4 class="issue-section-title">🔍 Root Cause</h4>
+				<p class="issue-text">{ analysis.RootCause }</p>
+			</div>
+
+			<div class="issue-section">
+				<h4 class="issue-section-title">💡 Suggested Fix</h4>
+				<p class="issue-text">{ analysis.SuggestedFix }</p>
+			</div>
+
+			if len(analysis.FixSteps) > 0 {
+				<div class="issue-section">
+					<h4 class="issue-section-title">📋 Fix Steps</h4>
+					<ol class="issue-steps-list">
+						for _, step := range analysis.FixSteps {
+							<li class="issue-step">{ step }</li>
+						}
+					</ol>
+				</div>
+			}
+
+			if len(analysis.RelatedLogs) > 0 {
+				<div class="issue-section">
+					<h4 class="issue-section-title">🔗 Related Logs</h4>
+					<ul class="issue-related-list">
+						for _, relatedID := range analysis.RelatedLogs {
+							<li class="issue-related-item">
+								<a href={ templ.URL("#log-" + relatedID) }>{ relatedID }</a>
+							</li>
+						}
+					</ul>
+				</div>
+			}
+		</div>
+
+		<div class="issue-actions">
+			<button 
+				class="btn-copy" 
+				onclick={ copyToClipboard(analysis.SuggestedFix) }
+				aria-label="Copy fix to clipboard"
+			>
+				📋 Copy Fix
+			</button>
+			<button 
+				class="btn-dismiss" 
+				onclick={ dismissIssue(logID) }
+				aria-label="Dismiss issue"
+			>
+				✖ Dismiss
+			</button>
+		</div>
+	</div>
+}
+
+// IssueList renders a list of issue cards
+templ IssueList(issues []struct{ Type string; Analysis IssueAnalysis; LogID int64 }) {
+	<div class="issue-list-container">
+		<h3 class="issue-list-title">🚨 AI-Detected Issues</h3>
+		
+		if len(issues) == 0 {
+			<div class="issue-empty">
+				<p>No issues detected yet. AI analysis runs automatically on ERROR and WARN logs.</p>
+			</div>
+		} else {
+			<div class="issue-list">
+				for _, issue := range issues {
+					@IssueCard(issue.Type, issue.Analysis, issue.LogID)
+				}
+			</div>
+		}
+	</div>
+}
+
+// Helper functions (Go code, not rendered)
+
+func getSeverityClass(severity int) string {
+	switch severity {
+	case 5:
+		return "critical"
+	case 4:
+		return "high"
+	case 3:
+		return "medium"
+	case 2:
+		return "low"
+	default:
+		return "info"
+	}
+}
+
+func getSeverityLabel(severity int) string {
+	switch severity {
+	case 5:
+		return "CRITICAL"
+	case 4:
+		return "HIGH"
+	case 3:
+		return "MEDIUM"
+	case 2:
+		return "LOW"
+	default:
+		return "INFO"
+	}
+}
+
+// JavaScript helper functions (to be added to dashboard.js)
+script copyToClipboard(text string) {
+	navigator.clipboard.writeText(text).then(() => {
+		showToast('Fix copied to clipboard!', 'success');
+	}).catch(err => {
+		showToast('Failed to copy: ' + err, 'error');
+	});
+}
+
+script dismissIssue(logID int64) {
+	const card = event.target.closest('.issue-card');
+	card.style.opacity = '0';
+	setTimeout(() => {
+		card.remove();
+		// Optionally update backend to mark issue as dismissed
+		fetch(`/api/logs/${logID}/dismiss-issue`, { method: 'POST' });
+	}, 300);
+}
