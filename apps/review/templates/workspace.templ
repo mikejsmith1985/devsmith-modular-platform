@@ -36,11 +36,11 @@ templ Workspace(props WorkspaceProps) {
 							aria-label="Select reading mode for code analysis"
 							onchange="toggleScanQueryInput(); updateModeGauge();"
 						>
-							<option value="preview" selected?={ props.CurrentMode == "preview" }>👁️ Preview (2-3 min)</option>
-							<option value="skim" selected?={ props.CurrentMode == "skim" }>⚡ Skim (5-7 min)</option>
-							<option value="scan" selected?={ props.CurrentMode == "scan" }>🔎 Scan (3-5 min)</option>
-							<option value="detailed" selected?={ props.CurrentMode == "detailed" }>🔬 Detailed (10-15 min)</option>
-							<option value="critical" selected?={ props.CurrentMode == "critical" }>⚠️ Critical (15-20 min)</option>
+							<option value="preview" selected?={ props.CurrentMode == "preview" }>👁️ Preview</option>
+							<option value="skim" selected?={ props.CurrentMode == "skim" }>⚡ Skim</option>
+							<option value="scan" selected?={ props.CurrentMode == "scan" }>🔎 Scan</option>
+							<option value="detailed" selected?={ props.CurrentMode == "detailed" }>🔬 Detailed</option>
+							<option value="critical" selected?={ props.CurrentMode == "critical" }>⚠️ Critical</option>
 						</select>
 
 					<!-- Mode gauge: small 1-5 bar indicator (battery/cell style) -->
@@ -62,9 +62,6 @@ templ Workspace(props WorkspaceProps) {
 							aria-label="Select AI model for analysis"
 						>
 							<option value="mistral:7b-instruct" selected>Mistral 7B (Default)</option>
-							<option value="deepseek-coder:6.7b">DeepSeek Coder 6.7B</option>
-							<option value="qwen2.5-coder:7b">Qwen2.5 Coder 7B</option>
-							<option value="codellama:13b">CodeLlama 13B</option>
 						</select>
 					</div>
 					
@@ -232,15 +229,47 @@ templ Workspace(props WorkspaceProps) {
 						bar.classList.add('bg-gray-300', 'dark:bg-gray-700');
 					}
 				});
-			}
-			
-			// Initialize scan query input visibility on page load
-			document.addEventListener('DOMContentLoaded', () => {
-				toggleScanQueryInput();
-				updateModeGauge();
-			});
-			
-			// Copy code to clipboard
+		}
+		
+		// Initialize scan query input visibility on page load
+		document.addEventListener('DOMContentLoaded', () => {
+			toggleScanQueryInput();
+			updateModeGauge();
+			loadAvailableModels();
+		});
+		
+		// Load available models from API
+		function loadAvailableModels() {
+			fetch('/api/review/models')
+				.then(response => response.json())
+				.then(data => {
+					const modelSelector = document.getElementById('model-selector');
+					if (!modelSelector || !data.models || data.models.length === 0) {
+						console.warn('No models available or selector not found');
+						return;
+					}
+					
+					// Clear existing options
+					modelSelector.innerHTML = '';
+					
+					// Add models dynamically
+					data.models.forEach((model, index) => {
+						const option = document.createElement('option');
+						option.value = model.name;
+						option.textContent = model.name + (model.description ? ' - ' + model.description : '');
+						if (index === 0) {
+							option.selected = true; // Select first model as default
+						}
+						modelSelector.appendChild(option);
+					});
+					
+					console.log('Loaded', data.models.length, 'models from Ollama');
+				})
+				.catch(error => {
+					console.error('Failed to load models:', error);
+					// Keep hardcoded fallback options if fetch fails
+				});
+		}			// Copy code to clipboard
 			function copyCodeToClipboard() {
 				const code = codeEditor.value;
 				if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -42,6 +42,8 @@ lerna-debug.log*
 .env
 .env.local
 .env.*.local
+.env.*            # Ignore other environment files containing secrets (e.g. .env.playwright, .env.test)
+!.env.example     # Keep the example template tracked
 
 # IDEs
 .vscode/
@@ -80,3 +82,5 @@ dist/
 
 # Validation status (runtime generated)
 .validation/
+.env.playwright
+tests/e2e/storageState.json
