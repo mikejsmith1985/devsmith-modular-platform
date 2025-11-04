@@ -38,9 +38,9 @@ func (m *MockAIProvider) GetModelInfo() *ai.ModelInfo {
 // TestNewAIAnalyzer tests analyzer creation
 func TestNewAIAnalyzer(t *testing.T) {
 	mockProvider := new(MockAIProvider)
-	
+
 	analyzer := NewAIAnalyzer(mockProvider)
-	
+
 	assert.NotNil(t, analyzer)
 	assert.NotNil(t, analyzer.cache)
 }
@@ -49,7 +49,7 @@ func TestNewAIAnalyzer(t *testing.T) {
 func TestAnalyze_DatabaseConnectionError(t *testing.T) {
 	mockProvider := new(MockAIProvider)
 	analyzer := NewAIAnalyzer(mockProvider)
-	
+
 	logEntries := []logs_models.LogEntry{
 		{
 			ID:        1,
@@ -60,7 +60,7 @@ func TestAnalyze_DatabaseConnectionError(t *testing.T) {
 			CreatedAt: time.Now(),
 		},
 	}
-	
+
 	expectedAnalysis := &AnalysisResult{
 		RootCause:    "PostgreSQL database connection refused - server may be down or network unreachable",
 		SuggestedFix: "1. Check if PostgreSQL is running: `systemctl status postgresql`\n2. Verify connection string in environment variables\n3. Check network connectivity to database host",
@@ -72,7 +72,7 @@ func TestAnalyze_DatabaseConnectionError(t *testing.T) {
 			"Test network connectivity to database host",
 		},
 	}
-	
+
 	mockProvider.On("Generate", mock.Anything, mock.MatchedBy(func(req *ai.Request) bool {
 		return req.Prompt != "" && req.Model != ""
 	})).Return(&ai.Response{
@@ -81,21 +81,21 @@ func TestAnalyze_DatabaseConnectionError(t *testing.T) {
 		FinishReason: "complete",
 		ResponseTime: 2 * time.Second,
 	}, nil)
-	
+
 	req := AnalysisRequest{
 		LogEntries: logEntries,
 		Context:    "error",
 	}
-	
+
 	result, err := analyzer.Analyze(context.Background(), req)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, expectedAnalysis.RootCause, result.RootCause)
 	assert.Equal(t, expectedAnalysis.Severity, result.Severity)
 	assert.Contains(t, result.SuggestedFix, "PostgreSQL")
 	assert.Len(t, result.FixSteps, 3)
-	
+
 	mockProvider.AssertExpectations(t)
 }
 
@@ -103,7 +103,7 @@ func TestAnalyze_DatabaseConnectionError(t *testing.T) {
 func TestAnalyze_AuthenticationFailure(t *testing.T) {
 	mockProvider := new(MockAIProvider)
 	analyzer := NewAIAnalyzer(mockProvider)
-	
+
 	logEntries := []logs_models.LogEntry{
 		{
 			ID:        2,
@@ -114,27 +114,27 @@ func TestAnalyze_AuthenticationFailure(t *testing.T) {
 			CreatedAt: time.Now(),
 		},
 	}
-	
+
 	mockProvider.On("Generate", mock.Anything, mock.Anything).Return(&ai.Response{
 		Content:      `{"root_cause":"JWT token validation failed - token may be expired or malformed","suggested_fix":"1. Check token expiration time\n2. Verify JWT secret configuration\n3. Ensure token format is correct","severity":3,"related_logs":["req-456"],"fix_steps":["Check JWT token expiration","Verify JWT_SECRET environment variable","Review token generation logic"]}`,
 		Model:        "qwen2.5-coder:7b",
 		FinishReason: "complete",
 		ResponseTime: 1500 * time.Millisecond,
 	}, nil)
-	
+
 	req := AnalysisRequest{
 		LogEntries: logEntries,
 		Context:    "warn",
 	}
-	
+
 	result, err := analyzer.Analyze(context.Background(), req)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Contains(t, result.RootCause, "JWT")
 	assert.Equal(t, 3, result.Severity)
 	assert.Len(t, result.FixSteps, 3)
-	
+
 	mockProvider.AssertExpectations(t)
 }
 
@@ -142,7 +142,7 @@ func TestAnalyze_AuthenticationFailure(t *testing.T) {
 func TestAnalyze_CacheHit(t *testing.T) {
 	mockProvider := new(MockAIProvider)
 	analyzer := NewAIAnalyzer(mockProvider)
-	
+
 	logEntries := []logs_models.LogEntry{
 		{
 			ID:        3,
@@ -153,7 +153,7 @@ func TestAnalyze_CacheHit(t *testing.T) {
 			CreatedAt: time.Now(),
 		},
 	}
-	
+
 	// First call - should hit AI provider
 	mockProvider.On("Generate", mock.Anything, mock.Anything).Return(&ai.Response{
 		Content:      `{"root_cause":"Network timeout connecting to external service","suggested_fix":"Increase timeout value or check network connectivity","severity":4,"related_logs":[],"fix_steps":["Check network latency","Increase timeout configuration","Verify service endpoint is reachable"]}`,
@@ -161,23 +161,23 @@ func TestAnalyze_CacheHit(t *testing.T) {
 		FinishReason: "complete",
 		ResponseTime: 2 * time.Second,
 	}, nil).Once()
-	
+
 	req := AnalysisRequest{
 		LogEntries: logEntries,
 		Context:    "error",
 	}
-	
+
 	// First analysis
 	result1, err := analyzer.Analyze(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, result1)
-	
+
 	// Second analysis - should use cache, no additional AI call
 	result2, err := analyzer.Analyze(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, result2)
 	assert.Equal(t, result1.RootCause, result2.RootCause)
-	
+
 	// Verify mock was called only once
 	mockProvider.AssertNumberOfCalls(t, "Generate", 1)
 }
@@ -186,7 +186,7 @@ func TestAnalyze_CacheHit(t *testing.T) {
 func TestAnalyze_MultipleLogEntries(t *testing.T) {
 	mockProvider := new(MockAIProvider)
 	analyzer := NewAIAnalyzer(mockProvider)
-	
+
 	logEntries := []logs_models.LogEntry{
 		{
 			ID:        4,
@@ -205,27 +205,27 @@ func TestAnalyze_MultipleLogEntries(t *testing.T) {
 			CreatedAt: time.Now(),
 		},
 	}
-	
+
 	mockProvider.On("Generate", mock.Anything, mock.Anything).Return(&ai.Response{
 		Content:      `{"root_cause":"Ollama service is not running or unreachable, causing analysis timeouts","suggested_fix":"Start Ollama service: systemctl start ollama or docker-compose up ollama","severity":5,"related_logs":["req-789"],"fix_steps":["Check if Ollama service is running","Verify OLLAMA_ENDPOINT configuration","Restart Ollama service if needed"]}`,
 		Model:        "qwen2.5-coder:7b",
 		FinishReason: "complete",
 		ResponseTime: 2 * time.Second,
 	}, nil)
-	
+
 	req := AnalysisRequest{
 		LogEntries: logEntries,
 		Context:    "error",
 	}
-	
+
 	result, err := analyzer.Analyze(context.Background(), req)
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Contains(t, result.RootCause, "Ollama")
 	assert.Equal(t, 5, result.Severity)
 	assert.Contains(t, result.RelatedLogs, "req-789")
-	
+
 	mockProvider.AssertExpectations(t)
 }
 
@@ -233,7 +233,7 @@ func TestAnalyze_MultipleLogEntries(t *testing.T) {
 func TestAnalyze_InvalidJSON(t *testing.T) {
 	mockProvider := new(MockAIProvider)
 	analyzer := NewAIAnalyzer(mockProvider)
-	
+
 	logEntries := []logs_models.LogEntry{
 		{
 			ID:        6,
@@ -244,7 +244,7 @@ func TestAnalyze_InvalidJSON(t *testing.T) {
 			CreatedAt: time.Now(),
 		},
 	}
-	
+
 	// AI returns invalid JSON
 	mockProvider.On("Generate", mock.Anything, mock.Anything).Return(&ai.Response{
 		Content:      `This is not valid JSON`,
@@ -252,17 +252,17 @@ func TestAnalyze_InvalidJSON(t *testing.T) {
 		FinishReason: "complete",
 		ResponseTime: 1 * time.Second,
 	}, nil)
-	
+
 	req := AnalysisRequest{
 		LogEntries: logEntries,
 		Context:    "error",
 	}
-	
+
 	result, err := analyzer.Analyze(context.Background(), req)
-	
+
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "parse")
-	
+
 	mockProvider.AssertExpectations(t)
 }
