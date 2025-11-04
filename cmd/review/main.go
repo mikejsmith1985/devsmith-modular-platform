@@ -21,6 +21,8 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 	review_circuit "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/circuit"
 	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/github"
+	review_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/handlers"
 	review_health "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/health"
 	review_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/middleware"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
@@ -115,6 +117,7 @@ func main() {
 
 	// Repository and service setup
 	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
+	githubRepo := review_db.NewGitHubRepository(sqlDB)
 
 	// Start retention job for troubleshooting analysis captures (default 14 days)
 	retentionDays := 14
@@ -244,6 +247,16 @@ func main() {
 	// Handler setup with services (UIHandler takes logger, logging client, and AI services)
 	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService, modelService)
 
+	// Initialize GitHub client for Phase 2 GitHub integration
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		reviewLogger.Warn("GITHUB_TOKEN not set - GitHub API rate limited to 60 requests/hour")
+	}
+	githubClient := github.NewDefaultClient()
+	
+	// Initialize GitHub session handler for repository integration
+	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient)
+
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")
 	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
@@ -281,6 +294,16 @@ func main() {
 		protected.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)
 		protected.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX)
 		protected.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)
+		
+		// GitHub session endpoints (Phase 2 - GitHub integration)
+		protected.POST("/api/review/sessions/github", githubSessionHandler.CreateSession)
+		protected.GET("/api/review/sessions/:id/github", githubSessionHandler.GetSession)
+		protected.GET("/api/review/sessions/:id/tree", githubSessionHandler.GetTree)
+		protected.POST("/api/review/sessions/:id/files", githubSessionHandler.OpenFile)
+		protected.GET("/api/review/sessions/:id/files", githubSessionHandler.GetOpenFiles)
+		protected.DELETE("/api/review/files/:tab_id", githubSessionHandler.CloseFile)
+		protected.PATCH("/api/review/sessions/:id/files/activate", githubSessionHandler.SetActiveTab)
+		protected.POST("/api/review/sessions/:id/analyze", githubSessionHandler.AnalyzeMultipleFiles)
 	}
 	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)            // Delete session (HTMX, replaces sessionHandler.DeleteSession)
 	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)       // Session statistics
