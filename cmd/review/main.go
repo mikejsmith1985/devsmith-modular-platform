@@ -253,7 +253,7 @@ func main() {
 		reviewLogger.Warn("GITHUB_TOKEN not set - GitHub API rate limited to 60 requests/hour")
 	}
 	githubClient := github.NewDefaultClient()
-	
+
 	// Initialize GitHub session handler for repository integration
 	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient)
 
@@ -294,7 +294,7 @@ func main() {
 		protected.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)
 		protected.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX)
 		protected.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)
-		
+
 		// GitHub session endpoints (Phase 2 - GitHub integration)
 		protected.POST("/api/review/sessions/github", githubSessionHandler.CreateSession)
 		protected.GET("/api/review/sessions/:id/github", githubSessionHandler.GetSession)
