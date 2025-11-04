@@ -1017,7 +1017,13 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 		resp.Body.Close()
 	}
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() {
+		// Send close message before closing connection
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		conn.Close()
+		// Allow goroutines to clean up
+		time.Sleep(50 * time.Millisecond)
+	}()
 
 	hub := currentTestHub
 	// Give the client a brief moment to finish registration and start pumps
@@ -1026,15 +1032,22 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 
 	// Publish at a high but slightly throttled rate so the hub and client
 	// have a chance to process messages under varying CPU load.
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for i := 0; i < 1000; i++ {
-			hub.broadcast <- &logs_models.LogEntry{
+			select {
+			case hub.broadcast <- &logs_models.LogEntry{
 				Message: fmt.Sprintf("msg %d", i),
 				Level:   "INFO",
 				Service: "test",
+			}:
+				// Small sleep to avoid saturating hub broadcast channel immediately
+				time.Sleep(1 * time.Millisecond)
+			case <-time.After(100 * time.Millisecond):
+				// Timeout sending, exit gracefully
+				return
 			}
-			// Small sleep to avoid saturating hub broadcast channel immediately
-			time.Sleep(1 * time.Millisecond)
 		}
 	}()
 
@@ -1047,6 +1060,10 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 		}
 		messageCount++
 	}
+	
+	// Wait for sender goroutine to finish
+	<-done
+	
 	assert.Greater(t, messageCount, 10, "Should receive many messages in high-frequency stream")
 }
 
@@ -1173,6 +1190,9 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 	case <-time.After(200 * time.Millisecond):
 		// timed out; continue anyway
 	}
+	
+	// Note: Client cleanup happens automatically when connection closes
+	// ReadPump and WritePump will exit when conn.ReadMessage/WriteMessage fail
 }
 
 func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
