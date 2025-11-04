@@ -30,35 +30,35 @@ type GitHubSession struct {
 // OpenFile represents a file opened in a tab within the multi-tab UI.
 // Each tab has a unique UUID and tracks its position and activity state.
 type OpenFile struct {
-	ID               int64     `json:"id" db:"id"`
-	GitHubSessionID  int64     `json:"github_session_id" db:"github_session_id"`
-	TabID            uuid.UUID `json:"tab_id" db:"tab_id"`
-	FilePath         string    `json:"file_path" db:"file_path"`
-	FileSHA          string    `json:"file_sha,omitempty" db:"file_sha"`
-	FileContent      string    `json:"file_content,omitempty" db:"file_content"`
-	FileSize         int64     `json:"file_size" db:"file_size"`
-	Language         string    `json:"language,omitempty" db:"language"`
-	IsActive         bool      `json:"is_active" db:"is_active"`
-	TabOrder         int       `json:"tab_order" db:"tab_order"`
-	OpenedAt         time.Time `json:"opened_at" db:"opened_at"`
-	LastAccessed     time.Time `json:"last_accessed" db:"last_accessed"`
-	AnalysisCount    int       `json:"analysis_count" db:"analysis_count"`
+	ID              int64     `json:"id" db:"id"`
+	GitHubSessionID int64     `json:"github_session_id" db:"github_session_id"`
+	TabID           uuid.UUID `json:"tab_id" db:"tab_id"`
+	FilePath        string    `json:"file_path" db:"file_path"`
+	FileSHA         string    `json:"file_sha,omitempty" db:"file_sha"`
+	FileContent     string    `json:"file_content,omitempty" db:"file_content"`
+	FileSize        int64     `json:"file_size" db:"file_size"`
+	Language        string    `json:"language,omitempty" db:"language"`
+	IsActive        bool      `json:"is_active" db:"is_active"`
+	TabOrder        int       `json:"tab_order" db:"tab_order"`
+	OpenedAt        time.Time `json:"opened_at" db:"opened_at"`
+	LastAccessed    time.Time `json:"last_accessed" db:"last_accessed"`
+	AnalysisCount   int       `json:"analysis_count" db:"analysis_count"`
 }
 
 // MultiFileAnalysis represents an analysis performed across multiple files.
 // Tracks cross-file dependencies, shared abstractions, and architecture patterns.
 type MultiFileAnalysis struct {
-	ID                     int64     `json:"id" db:"id"`
-	GitHubSessionID        int64     `json:"github_session_id" db:"github_session_id"`
-	FilePaths              []string  `json:"file_paths" db:"file_paths"` // Array type
-	ReadingMode            string    `json:"reading_mode" db:"reading_mode"`
-	CombinedContent        string    `json:"combined_content,omitempty" db:"combined_content"`
-	AIResponse             []byte    `json:"ai_response,omitempty" db:"ai_response"` // JSONB
-	CrossFileDependencies  []byte    `json:"cross_file_dependencies,omitempty" db:"cross_file_dependencies"` // JSONB
-	SharedAbstractions     []byte    `json:"shared_abstractions,omitempty" db:"shared_abstractions"` // JSONB
-	ArchitecturePatterns   []byte    `json:"architecture_patterns,omitempty" db:"architecture_patterns"` // JSONB
-	AnalysisDurationMs     int64     `json:"analysis_duration_ms" db:"analysis_duration_ms"`
-	CreatedAt              time.Time `json:"created_at" db:"created_at"`
+	ID                    int64     `json:"id" db:"id"`
+	GitHubSessionID       int64     `json:"github_session_id" db:"github_session_id"`
+	FilePaths             []string  `json:"file_paths" db:"file_paths"` // Array type
+	ReadingMode           string    `json:"reading_mode" db:"reading_mode"`
+	CombinedContent       string    `json:"combined_content,omitempty" db:"combined_content"`
+	AIResponse            []byte    `json:"ai_response,omitempty" db:"ai_response"`                         // JSONB
+	CrossFileDependencies []byte    `json:"cross_file_dependencies,omitempty" db:"cross_file_dependencies"` // JSONB
+	SharedAbstractions    []byte    `json:"shared_abstractions,omitempty" db:"shared_abstractions"`         // JSONB
+	ArchitecturePatterns  []byte    `json:"architecture_patterns,omitempty" db:"architecture_patterns"`     // JSONB
+	AnalysisDurationMs    int64     `json:"analysis_duration_ms" db:"analysis_duration_ms"`
+	CreatedAt             time.Time `json:"created_at" db:"created_at"`
 }
 
 // TreeNode represents a file or directory in the repository tree (for JSON marshaling).
@@ -79,7 +79,7 @@ type FileTreeJSON struct {
 type CrossFileDependency struct {
 	FromFile   string   `json:"from_file"`
 	ToFile     string   `json:"to_file"`
-	ImportType string   `json:"import_type"` // "import", "require", "include", etc.
+	ImportType string   `json:"import_type"`       // "import", "require", "include", etc.
 	Symbols    []string `json:"symbols,omitempty"` // Specific symbols imported
 }
 
@@ -94,7 +94,7 @@ type SharedAbstraction struct {
 
 // ArchitecturePattern represents a detected architecture pattern.
 type ArchitecturePattern struct {
-	Pattern     string   `json:"pattern"` // "MVC", "Repository", "Factory", etc.
+	Pattern     string   `json:"pattern"`    // "MVC", "Repository", "Factory", etc.
 	Confidence  float64  `json:"confidence"` // 0.0 to 1.0
 	Files       []string `json:"files"`
 	Description string   `json:"description"`

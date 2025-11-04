@@ -186,7 +186,7 @@ func TestMultiFileAnalysis_DataValidation(t *testing.T) {
 	// GIVEN: Valid multi-file analysis data
 	ctx := context.Background()
 	_ = ctx // Use context
-	
+
 	analysis := &review_models.MultiFileAnalysis{
 		GitHubSessionID:    1,
 		FilePaths:          []string{"main.go", "handler.go", "service.go"},
@@ -242,7 +242,7 @@ func TestFileTree_RoundTrip(t *testing.T) {
 	assert.Equal(t, originalTree.RootNodes[0].Type, parsedTree.RootNodes[0].Type)
 	assert.Equal(t, originalTree.RootNodes[0].SHA, parsedTree.RootNodes[0].SHA)
 	assert.Equal(t, originalTree.RootNodes[0].Size, parsedTree.RootNodes[0].Size)
-	
+
 	assert.Equal(t, originalTree.RootNodes[1].Path, parsedTree.RootNodes[1].Path)
 	assert.Equal(t, originalTree.RootNodes[1].Type, parsedTree.RootNodes[1].Type)
 	assert.Len(t, parsedTree.RootNodes[1].Children, 1)
