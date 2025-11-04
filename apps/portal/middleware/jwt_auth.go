@@ -23,9 +23,12 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 				c.Redirect(http.StatusFound, "/login")
 				return
 			}
-		}
 
-		// Parse token with UserClaims structure
+			// Strip "Bearer " prefix if present
+			if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+				tokenString = tokenString[7:]
+			}
+		} // Parse token with UserClaims structure
 		token, err := jwt.ParseWithClaims(tokenString, &portal_handlers.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 			// Validate the signing method
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

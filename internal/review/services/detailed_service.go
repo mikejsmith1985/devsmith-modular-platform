@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	reviewcontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/context"
 	review_errors "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/errors"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
@@ -91,13 +92,41 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 	// Extract JSON from response (handles cases where AI adds extra text)
 	jsonStr, extractErr := ExtractJSON(resp)
 	if extractErr != nil {
-		s.logger.Error("DetailedService: failed to extract JSON", "correlation_id", correlationID, "error", extractErr)
+		s.logger.Warn("DetailedService: failed to extract JSON - attempting repair", "correlation_id", correlationID, "error", extractErr)
+
+		// Attempt automatic JSON-repair via a focused AI call.
+		repaired, repairErr := s.attemptJSONRepair(ctx, resp)
+		if repairErr == nil {
+			// try to unmarshal repaired JSON
+			var output review_models.DetailedModeOutput
+			if uerr := json.Unmarshal([]byte(repaired), &output); uerr == nil {
+				s.logger.Info("DetailedService: repaired AI response and parsed successfully", "correlation_id", correlationID)
+				// persist repaired analysis for caching/inspection
+				_ = s.maybePersistAnalysis(ctx, filename, prompt, repaired, resp)
+				span.SetAttributes(attribute.Bool("error", false))
+				span.SetAttributes(attribute.Int("line_explanations_count", len(output.LineExplanations)))
+				return &output, nil
+			} else {
+				// fall through to record repair failure
+				s.logger.Error("DetailedService: repaired JSON still failed to unmarshal", "correlation_id", correlationID, "error", uerr)
+			}
+		} else {
+			s.logger.Error("DetailedService: JSON repair attempt failed", "correlation_id", correlationID, "error", repairErr)
+		}
+
+		// include an excerpt of the raw AI response to help debugging / user guidance
+		excerpt := resp
+		if len(excerpt) > 800 {
+			excerpt = excerpt[:800] + "..."
+		}
 		extractErrWrapped := &review_errors.InfrastructureError{
 			Code:       "ERR_AI_RESPONSE_INVALID",
-			Message:    "AI returned invalid response format",
+			Message:    "AI returned invalid response format and automatic repair failed. Raw response excerpt: " + excerpt,
 			Cause:      extractErr,
 			HTTPStatus: http.StatusBadGateway,
 		}
+		// persist the original raw response for short-term troubleshooting
+		_ = s.maybePersistAnalysis(ctx, filename, prompt, resp, resp)
 		span.RecordError(extractErrWrapped)
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, extractErrWrapped
@@ -105,13 +134,36 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 
 	var output review_models.DetailedModeOutput
 	if err := json.Unmarshal([]byte(jsonStr), &output); err != nil {
-		s.logger.Error("DetailedService: failed to unmarshal output", "correlation_id", correlationID, "error", err)
+		s.logger.Warn("DetailedService: failed to unmarshal output - attempting repair", "correlation_id", correlationID, "error", err)
+
+		// Try to repair the JSON using the AI
+		repaired, repairErr := s.attemptJSONRepair(ctx, resp)
+		if repairErr == nil {
+			if uerr := json.Unmarshal([]byte(repaired), &output); uerr == nil {
+				s.logger.Info("DetailedService: repaired AI output and parsed successfully", "correlation_id", correlationID)
+				_ = s.maybePersistAnalysis(ctx, filename, prompt, repaired, resp)
+				span.SetAttributes(attribute.Bool("error", false))
+				span.SetAttributes(attribute.Int("line_explanations_count", len(output.LineExplanations)))
+				return &output, nil
+			} else {
+				s.logger.Error("DetailedService: repaired output still invalid", "correlation_id", correlationID, "error", uerr)
+			}
+		} else {
+			s.logger.Error("DetailedService: JSON repair attempt failed", "correlation_id", correlationID, "error", repairErr)
+		}
+
+		excerpt := jsonStr
+		if len(excerpt) > 800 {
+			excerpt = excerpt[:800] + "..."
+		}
 		parseErr := &review_errors.InfrastructureError{
 			Code:       "ERR_AI_RESPONSE_INVALID",
-			Message:    "AI returned invalid response format",
+			Message:    "AI returned invalid JSON structure and automatic repair failed. Excerpt: " + excerpt,
 			Cause:      err,
 			HTTPStatus: http.StatusBadGateway,
 		}
+		// persist the problematic JSON for troubleshooting
+		_ = s.maybePersistAnalysis(ctx, filename, prompt, jsonStr, resp)
 		span.RecordError(parseErr)
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, parseErr
@@ -125,4 +177,112 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 
 	s.logger.Info("DetailedService: analysis completed", "correlation_id", correlationID, "line_explanations_count", len(output.LineExplanations))
 	return &output, nil
+}
+
+// attemptJSONRepair asks the AI to extract/repair JSON from a raw AI response.
+// It returns the repaired JSON string (not further validated) or an error.
+func (s *DetailedService) attemptJSONRepair(ctx context.Context, rawAI string) (string, error) {
+	// Build a comprehensive repair prompt with explicit schema and fallback strategy
+	repairPrompt := `The previous AI response was intended to be valid JSON for Detailed Mode code analysis.
+Your task: Extract and return ONLY valid JSON that matches the following schema EXACTLY.
+
+REQUIRED SCHEMA:
+{
+  "summary": "string - Brief overview of what the code does",
+  "line_explanations": [
+    {
+      "line_number": number,
+      "code": "string - The actual line of code",
+      "explanation": "string - What this line does and why"
+    }
+  ],
+  "algorithm_summary": "string - High-level explanation of the algorithm/logic",
+  "complexity": "string - Time/space complexity (e.g., 'O(n)', 'O(1)')",
+  "edge_cases": ["string - List of edge cases to consider"],
+  "variable_tracking": [
+    {
+      "line_number": number,
+      "variables": {
+        "variable_name": "current_value_or_state"
+      }
+    }
+  ],
+  "control_flow": [
+    {
+      "type": "string - 'if', 'loop', 'function_call', etc.",
+      "line_number": number,
+      "description": "string - What this control flow does"
+    }
+  ]
+}
+
+RULES:
+1. Return ONLY the JSON object - no explanatory text before or after
+2. All fields are REQUIRED (use empty arrays [] or empty strings "" if no data)
+3. Ensure all brackets, braces, and quotes are properly closed
+4. Do not include any markdown code fences or language tags
+5. If the original response is completely unusable, return minimal valid JSON with "summary": "Unable to parse code"
+
+FALLBACK STRATEGY:
+If you cannot extract meaningful analysis, return this minimal valid JSON:
+{
+  "summary": "Analysis could not be completed",
+  "line_explanations": [],
+  "algorithm_summary": "N/A",
+  "complexity": "Unknown",
+  "edge_cases": [],
+  "variable_tracking": [],
+  "control_flow": []
+}
+
+Now extract/repair JSON from this response:`
+	fullPrompt := repairPrompt + "\n\nRaw output:\n" + rawAI + "\n\nReturn only JSON. If you cannot produce valid JSON, return an empty JSON object with the keys present and empty values."
+
+	repairedResp, err := s.ollamaClient.Generate(ctx, fullPrompt)
+	if err != nil {
+		s.logger.Error("DetailedService: attemptJSONRepair failed to call AI", "error", err)
+		return "", err
+	}
+
+	// Try to extract JSON from the repair response
+	jsonStr, extractErr := ExtractJSON(repairedResp)
+	if extractErr != nil {
+		s.logger.Error("DetailedService: attemptJSONRepair could not extract JSON from AI repair response", "error", extractErr)
+		return "", extractErr
+	}
+	return jsonStr, nil
+}
+
+// maybePersistAnalysis persists a minimal AnalysisResult for troubleshooting.
+// This is intentionally best-effort: errors are logged but not returned to callers
+// except as debug info (caller may ignore the returned error).
+func (s *DetailedService) maybePersistAnalysis(ctx context.Context, filename string, prompt string, rawOutput string, rawAI string) error {
+	res := &review_models.AnalysisResult{
+		Mode:      review_models.DetailedMode,
+		Prompt:    prompt,
+		Summary:   "AUTO_CAPTURE: raw AI output captured for troubleshooting",
+		Metadata:  "filename=" + filename + "; captured_at=" + time.Now().Format(time.RFC3339),
+		ModelUsed: "",
+		RawOutput: rawOutput,
+		ReviewID:  0,
+	}
+
+	// Try to capture model from context if provided
+	if ctx != nil {
+		if m, ok := ctx.Value(reviewcontext.ModelContextKey).(string); ok && m != "" {
+			res.ModelUsed = m
+		}
+	}
+
+	if s.analysisRepo == nil {
+		s.logger.Warn("DetailedService: analysisRepo is nil; skipping persistence of AI output")
+		return nil
+	}
+
+	if err := s.analysisRepo.Create(ctx, res); err != nil {
+		s.logger.Error("DetailedService: failed to persist analysis result", "error", err)
+		return err
+	}
+	s.logger.Info("DetailedService: persisted analysis result for troubleshooting", "filename", filename)
+	return nil
 }

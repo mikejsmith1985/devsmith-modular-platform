@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,16 +14,10 @@ import (
 	"github.com/google/uuid"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
+	reviewcontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/context"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
-)
-
-// contextKey is a custom type for context keys to avoid collisions
-type contextKey string
-
-const (
-	modelContextKey contextKey = "model"
 )
 
 // UIHandler provides HTTP handlers for the Review UI with logging.
@@ -35,6 +30,7 @@ type UIHandler struct {
 	scanService     review_services.ScanAnalyzer
 	detailedService review_services.DetailedAnalyzer
 	criticalService review_services.CriticalAnalyzer
+	modelService    *review_services.ModelService
 }
 
 // NewUIHandler creates a new UIHandler with the given logger, logging client, and analyzer services.
@@ -47,6 +43,7 @@ func NewUIHandler(
 	scanService review_services.ScanAnalyzer,
 	detailedService review_services.DetailedAnalyzer,
 	criticalService review_services.CriticalAnalyzer,
+	modelService *review_services.ModelService,
 ) *UIHandler {
 	return &UIHandler{
 		logger:          logger,
@@ -56,6 +53,7 @@ func NewUIHandler(
 		scanService:     scanService,
 		detailedService: detailedService,
 		criticalService: criticalService,
+		modelService:    modelService,
 	}
 }
 
@@ -71,8 +69,36 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
+		// If binding failed, attempt to accept a file upload fallback
+		// Some clients may POST a file part (e.g. curl -F '@-') instead of a plain form field.
+		// Try to read an uploaded file named 'pasted_code' and use its contents.
+		if fileHeader, ferr := c.FormFile("pasted_code"); ferr == nil {
+			fh, openErr := fileHeader.Open()
+			if openErr == nil {
+				defer fh.Close()
+				if data, readErr := io.ReadAll(fh); readErr == nil {
+					req.PastedCode = string(data)
+					// try to bind model separately (optional)
+					if m := c.PostForm("model"); m != "" {
+						req.Model = m
+					}
+					h.logger.Info("Code request bound from uploaded file",
+						"code_length", len(req.PastedCode),
+						"filename", fileHeader.Filename,
+						"content-type", c.GetHeader("Content-Type"))
+
+					// Default model if not provided
+					if req.Model == "" {
+						req.Model = "mistral:7b-instruct"
+					}
+
+					return &req, true
+				}
+			}
+		}
+
 		h.logger.Warn("Failed to bind code request",
-			"error", err,
+			"error", err.Error(),
 			"content-type", c.GetHeader("Content-Type"))
 		c.String(http.StatusBadRequest, "Code required. Please paste code in the textarea.")
 		return nil, false
@@ -88,6 +114,25 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 		"model", req.Model)
 
 	return &req, true
+}
+
+// looksLikeCode performs a lightweight heuristic check to determine whether the
+// provided text looks like source code. This prevents modes that expect source
+// code (Skim/Detailed) from hallucinating when given natural language input.
+func looksLikeCode(s string) bool {
+	if s == "" {
+		return false
+	}
+	// heuristics: common code tokens across languages
+	checks := []string{"package ", "func ", "class ", "import ", "def ", "struct ", "interface ", "=>", "->", "{", "}"}
+	score := 0
+	for _, token := range checks {
+		if strings.Contains(s, token) {
+			score++
+		}
+	}
+	// if multiple tokens present, very likely code
+	return score >= 1
 }
 
 // marshalAndFormat converts analysis result to user-friendly HTML
@@ -126,33 +171,33 @@ func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, 
 }
 
 func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_models.PreviewModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-		<div class="flex items-center gap-3 border-b border-indigo-200 dark:border-indigo-800 pb-4">
+	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900 rounded-lg border border-indigo-200 dark:border-indigo-700">
+		<div class="flex items-center gap-3 border-b border-indigo-200 dark:border-gray-700 pb-4">
 			<span class="text-3xl">👁️</span>
-			<div><h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-100">Quick Preview</h3>
-			<p class="text-sm text-indigo-700 dark:text-indigo-300">High-level structure and overview</p></div>
+			<div><h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-50">Quick Preview</h3>
+			<p class="text-sm text-indigo-700 dark:text-indigo-200">High-level structure and overview</p></div>
 		</div>`
 
 	if result.Summary != "" {
 		html += fmt.Sprintf(`<div class="prose prose-sm dark:prose-invert max-w-none">
-			<h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-2">📋 Summary</h4>
-			<p class="text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			<h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-50 mb-2">📋 Summary</h4>
+			<p class="text-gray-700 dark:text-indigo-100 leading-relaxed">%s</p>
 		</div>`, result.Summary)
 	}
 
 	if len(result.BoundedContexts) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🎯 Key Areas</h4><div class="grid gap-2">`
+		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-gray-100 mb-3">🎯 Key Areas</h4><div class="grid gap-2">`
 		for _, ctx := range result.BoundedContexts {
-			html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-100 dark:border-indigo-900">
-				<span class="font-medium text-indigo-700 dark:text-indigo-300">%s</span></div>`, ctx)
+			html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-indigo-800 rounded-lg border border-indigo-100 dark:border-indigo-700">
+				<span class="font-medium text-indigo-700 dark:text-indigo-50">%s</span></div>`, ctx)
 		}
 		html += `</div></div>`
 	}
 
 	if len(result.TechStack) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3">🔧 Technologies Used</h4><div class="flex flex-wrap gap-2">`
+		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-gray-100 mb-3">🔧 Technologies Used</h4><div class="flex flex-wrap gap-2">`
 		for _, tech := range result.TechStack {
-			html += fmt.Sprintf(`<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm font-medium">%s</span>`, tech)
+			html += fmt.Sprintf(`<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-100 rounded-full text-sm font-medium">%s</span>`, tech)
 		}
 		html += `</div></div>`
 	}
@@ -162,31 +207,39 @@ func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_mode
 }
 
 func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.SkimModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-blue-800 pb-4">
+	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700">
+		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-slate-700 pb-4">
 			<span class="text-3xl">📚</span>
-			<div><h3 class="text-xl font-bold text-blue-900 dark:text-blue-100">Skim Analysis</h3>
-			<p class="text-sm text-blue-700 dark:text-blue-300">Key components and abstractions</p></div>
+			<div><h3 class="text-xl font-bold text-blue-900 dark:text-slate-50">Skim Analysis</h3>
+			<p class="text-sm text-blue-700 dark:text-slate-200">Key components and abstractions</p></div>
 		</div>`
 
+	// If the service returned a summary (used when input wasn't code), show it prominently
+	if result.Summary != "" {
+		html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-100 dark:border-slate-700">
+			<h4 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-2">ℹ️ Note</h4>
+			<p class="text-sm text-gray-700 dark:text-slate-200">%s</p>
+		</div>`, result.Summary)
+	}
+
 	if len(result.Functions) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">⚡ Functions & Methods</h4><div class="space-y-3">`
+		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-gray-100 mb-3">⚡ Functions & Methods</h4><div class="space-y-3">`
 		for _, fn := range result.Functions {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-blue-100 dark:border-blue-900">
-				<div class="font-mono text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">%s</div>
-				<div class="font-mono text-xs text-gray-600 dark:text-gray-400 mb-2 pl-4">%s</div>
-				<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
+				<div class="font-mono text-sm text-blue-700 dark:text-blue-100 font-semibold mb-2">%s</div>
+				<div class="font-mono text-xs text-gray-600 dark:text-blue-200 mb-2 pl-4">%s</div>
+				<p class="text-sm text-gray-700 dark:text-blue-100 leading-relaxed">%s</p>
 			</div>`, fn.Name, fn.Signature, fn.Description)
 		}
 		html += `</div></div>`
 	}
 
 	if len(result.Interfaces) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">🔌 Interfaces</h4><div class="space-y-3">`
+		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-gray-100 mb-3">🔌 Interfaces</h4><div class="space-y-3">`
 		for _, iface := range result.Interfaces {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-blue-100 dark:border-blue-900">
-				<div class="font-mono text-sm text-blue-700 dark:text-blue-300 font-semibold mb-2">%s</div>
-				<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
+				<div class="font-mono text-sm text-blue-700 dark:text-blue-100 font-semibold mb-2">%s</div>
+				<p class="text-sm text-gray-700 dark:text-blue-100 leading-relaxed">%s</p>
 			</div>`, iface.Name, iface.Description)
 		}
 		html += `</div></div>`
@@ -197,17 +250,17 @@ func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.
 }
 
 func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.ScanModeOutput) {
-	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-		<div class="flex items-center gap-3 border-b border-green-200 dark:border-green-800 pb-4">
+	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
+		<div class="flex items-center gap-3 border-b border-green-200 dark:border-green-700 pb-4">
 			<span class="text-3xl">🔎</span>
-			<div><h3 class="text-xl font-bold text-green-900 dark:text-green-100">Search Results</h3>
-			<p class="text-sm text-green-700 dark:text-green-300">Found %d matches</p></div>
+			<div><h3 class="text-xl font-bold text-green-900 dark:text-green-50">Search Results</h3>
+			<p class="text-sm text-green-700 dark:text-green-200">Found %d matches</p></div>
 		</div>`, len(result.Matches))
 
 	if len(result.Matches) > 0 {
 		html += `<div class="space-y-4">`
 		for i, match := range result.Matches {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-green-100 dark:border-green-900">
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-green-800 rounded-lg border border-green-100 dark:border-green-700">
 				<div class="flex items-center justify-between mb-3">
 					<span class="text-sm font-semibold text-green-700 dark:text-green-300">Match %d</span>
 					<span class="text-xs font-mono text-gray-600 dark:text-gray-400">%s</span>
@@ -225,29 +278,29 @@ func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.
 }
 
 func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_models.DetailedModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-		<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-800 pb-4">
+	html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900 rounded-lg border border-yellow-200 dark:border-yellow-700">
+		<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-700 pb-4">
 			<span class="text-3xl">📖</span>
-			<div><h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-100">Detailed Analysis</h3>
-			<p class="text-sm text-yellow-700 dark:text-yellow-300">Line-by-line explanation</p></div>
+			<div><h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-50">Detailed Analysis</h3>
+			<p class="text-sm text-yellow-700 dark:text-yellow-200">Line-by-line explanation</p></div>
 		</div>`
 
 	if result.AlgorithmSummary != "" {
-		html += fmt.Sprintf(`<div class="p-4 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg border border-yellow-200 dark:border-yellow-700">
-			<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">🧠 Algorithm Overview</h4>
-			<p class="text-sm text-yellow-800 dark:text-yellow-200 leading-relaxed">%s</p>
+		html += fmt.Sprintf(`<div class="p-4 bg-yellow-100 dark:bg-yellow-800 rounded-lg border border-yellow-200 dark:border-yellow-700">
+			<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-50 mb-2">🧠 Algorithm Overview</h4>
+			<p class="text-sm text-yellow-800 dark:text-yellow-100 leading-relaxed">%s</p>
 		</div>`, result.AlgorithmSummary)
 	}
 
 	if len(result.LineExplanations) > 0 {
 		html += `<div><h4 class="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">📝 Line-by-Line Walkthrough</h4><div class="space-y-3">`
 		for _, line := range result.LineExplanations {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-yellow-100 dark:border-yellow-900">
+			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-yellow-900/10 rounded-lg border border-yellow-100 dark:border-yellow-700">
 				<div class="flex items-start gap-3 mb-2">
-					<span class="flex-shrink-0 w-12 text-right font-mono text-xs text-yellow-600 dark:text-yellow-400 font-semibold">L%d</span>
+					<span class="flex-shrink-0 w-12 text-right font-mono text-xs text-yellow-600 dark:text-yellow-300 font-semibold">L%d</span>
 					<div class="flex-1">
-						<div class="font-mono text-sm text-gray-700 dark:text-gray-300 mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">%s</div>
-						<p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">%s</p>
+						<div class="font-mono text-sm text-gray-700 dark:text-yellow-100 mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">%s</div>
+						<p class="text-sm text-gray-700 dark:text-yellow-100 leading-relaxed">%s</p>
 					</div>
 				</div>
 			</div>`, line.LineNumber, line.Code, line.Explanation)
@@ -260,11 +313,11 @@ func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_mod
 }
 
 func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_models.CriticalModeOutput) {
-	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-		<div class="flex items-center gap-3 border-b border-red-200 dark:border-red-800 pb-4">
+	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-red-50 dark:bg-red-900 rounded-lg border border-red-200 dark:border-red-700">
+		<div class="flex items-center gap-3 border-b border-red-200 dark:border-red-700 pb-4">
 			<span class="text-3xl">🚨</span>
-			<div><h3 class="text-xl font-bold text-red-900 dark:text-red-100">Critical Review</h3>
-			<p class="text-sm text-red-700 dark:text-red-300">Found %d issues</p></div>
+			<div><h3 class="text-xl font-bold text-red-900 dark:text-red-50">Critical Review</h3>
+			<p class="text-sm text-red-700 dark:text-red-200">Found %d issues</p></div>
 		</div>`, len(result.Issues))
 
 	if result.OverallGrade != "" {
@@ -292,10 +345,10 @@ func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_mod
 
 		// Critical
 		if len(critical) > 0 {
-			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-red-900 dark:text-red-100 mb-3">🔴 Critical Issues (%d)</h4><div class="space-y-3">`, len(critical))
+			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-red-900 dark:text-red-50 mb-3">🔴 Critical Issues (%d)</h4><div class="space-y-3">`, len(critical))
 			for _, issue := range critical {
-				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-red-200">
-					<div class="text-sm font-semibold text-red-700 mb-2">%s <span class="text-xs text-gray-600">%s:%d</span></div>
+				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-red-900/5 rounded-lg border border-red-200 dark:border-red-700">
+					<div class="text-sm font-semibold text-red-700 mb-2">%s <span class="text-xs text-gray-600 dark:text-gray-300">%s:%d</span></div>
 					<p class="text-sm text-gray-700 dark:text-gray-300 mb-2">%s</p>
 					<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200">
 						<div class="text-xs font-semibold text-green-700 mb-1">💡 Fix:</div>
@@ -345,6 +398,26 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
 	} else if strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host") {
 		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+	} else if strings.Contains(errMsg, "ERR_AI_RESPONSE_INVALID") || strings.Contains(strings.ToLower(errMsg), "invalid response") {
+		// AI returned malformed JSON or couldn't be repaired. Show a helpful message
+		// including any excerpt available in the error string to aid troubleshooting.
+		excerpt := errMsg
+		// attempt to extract a raw response excerpt marker if present
+		if idx := strings.Index(errMsg, "Raw response excerpt:"); idx != -1 {
+			excerpt = errMsg[idx:]
+		} else if idx := strings.Index(errMsg, "Excerpt:"); idx != -1 {
+			excerpt = errMsg[idx:]
+		}
+		if len(excerpt) > 1200 {
+			excerpt = excerpt[:1200] + "..."
+		}
+		html := fmt.Sprintf(`<div class="p-6 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+			<h3 class="text-lg font-semibold text-yellow-900 dark:text-yellow-50">Analysis could not be parsed</h3>
+			<p class="mt-2 text-sm text-gray-700 dark:text-yellow-100">The AI returned an unexpected response format and automatic repair failed. We've captured a short excerpt below to help debugging.</p>
+			<pre class="mt-3 p-3 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-200 overflow-auto">%s</pre>
+			<p class="mt-3 text-sm text-gray-600 dark:text-gray-300">We saved the full AI output for 14 days for troubleshooting. Try again or choose a different model.</p>
+		</div>`, templateEscape(excerpt))
+		c.String(http.StatusOK, html)
 	} else {
 		// Generic error
 		message := fallbackMessage
@@ -355,14 +428,38 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 	}
 }
 
-// HomeHandler serves the main Review UI (mode selector + repo input)
+// templateEscape performs a minimal HTML escape for safe insertion into templates
+func templateEscape(s string) string {
+	replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
+	return replacer.Replace(s)
+}
+
+// HomeHandler serves the main Review UI - creates new authenticated session
 func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
 	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
 
-	// Redirect to demo workspace instead of showing 5-card landing page
-	// This provides immediate access to the 2-pane editor UI
-	c.Redirect(http.StatusFound, "/review/workspace/demo")
+	// Extract authenticated user from JWT context (optional - user might not be logged in yet)
+	userID, exists := c.Get("user_id")
+	username, _ := c.Get("username")
+
+	if !exists {
+		// User not authenticated - redirect to portal login
+		h.logger.Info("User not authenticated, redirecting to portal login")
+		c.Redirect(http.StatusFound, "/auth/github/login")
+		return
+	}
+
+	// Generate a new session ID (timestamp-based for uniqueness)
+	sessionID := time.Now().Unix()
+
+	h.logger.Info("Creating new session for user",
+		"user_id", userID,
+		"username", username,
+		"session_id", sessionID)
+
+	// Redirect to workspace with new session
+	c.Redirect(http.StatusFound, fmt.Sprintf("/review/workspace/%d", sessionID))
 }
 
 // AnalysisResultHandler displays analysis results
@@ -389,6 +486,14 @@ func (h *UIHandler) AnalysisResultHandler(c *gin.Context) {
 
 // CreateSessionHandler handles POST /api/review/sessions (HTMX form submission)
 func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
+	// Extract authenticated user from JWT context
+	userID, exists := c.Get("user_id")
+	if !exists {
+		h.logger.Error("User ID not found in context - authentication middleware may not be configured")
+		c.String(http.StatusUnauthorized, `<div class="alert alert-error"><p>Authentication required</p></div>`)
+		return
+	}
+
 	var req struct {
 		PastedCode string `form:"pasted_code" json:"pasted_code"`
 		GitHubURL  string `form:"github_url" json:"github_url"`
@@ -410,7 +515,10 @@ func (h *UIHandler) CreateSessionHandler(c *gin.Context) {
 
 	// Generate session ID
 	sessionID := uuid.New().String()
-	h.logger.Info("Session created", "session_id", sessionID, "source", "form")
+	h.logger.Info("Session created",
+		"session_id", sessionID,
+		"user_id", userID,
+		"source", "form")
 
 	// Return HTML with SSE progress indicator
 	progressHTML := fmt.Sprintf(`
@@ -448,7 +556,7 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 	}
 
 	// TODO: Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode)
 	if err != nil {
@@ -477,7 +585,19 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+
+	// If the pasted input doesn't look like source code, avoid calling Skim mode
+	// which expects actual source files (functions, interfaces, data models).
+	if !looksLikeCode(req.PastedCode) {
+		// Return a friendly message instead of hallucinated abstractions.
+		summary := "The content you pasted looks like natural language text, not source code.\n" +
+			"Skim mode extracts functions, interfaces and data models from source files. " +
+			"If you want to search or summarize prose, use Scan mode or paste source code."
+		out := &review_models.SkimModeOutput{Summary: summary}
+		h.marshalAndFormat(c, out, "📚 Skim Mode - Not Code", "bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700")
+		return
+	}
 
 	result, err := h.skimService.AnalyzeSkim(ctx, req.PastedCode)
 	if err != nil {
@@ -508,7 +628,53 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+
+	// If the pasted content doesn't look like source code, avoid calling the LLM-driven
+	// scan which may hallucinate code-like matches. Instead, perform a safe local
+	// substring search over the pasted text for the user's query and return those
+	// matches directly. If no query is provided, return a friendly note.
+	if !looksLikeCode(req.PastedCode) {
+		// If user provided a query, run a local text search (case-insensitive).
+		if strings.TrimSpace(query) != "" && query != "find issues and improvements" {
+			lines := strings.Split(req.PastedCode, "\n")
+			matches := make([]review_models.CodeMatch, 0)
+			qLower := strings.ToLower(query)
+			for i, line := range lines {
+				if strings.Contains(strings.ToLower(line), qLower) {
+					ctxBefore := ""
+					if i-2 >= 0 {
+						ctxBefore = lines[i-2] + "\n"
+					}
+					if i-1 >= 0 {
+						ctxBefore += lines[i-1]
+					}
+					ctxAfter := ""
+					if i+1 < len(lines) {
+						ctxAfter = "\n" + lines[i+1]
+					}
+					match := review_models.CodeMatch{
+						FilePath:    "pasted_input",
+						CodeSnippet: strings.TrimSpace(line),
+						Context:     strings.TrimSpace(ctxBefore + "\n" + line + ctxAfter),
+						Relevance:   1.0,
+						Line:        i + 1,
+					}
+					matches = append(matches, match)
+				}
+			}
+			out := &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
+			h.marshalAndFormat(c, out, "🔎 Scan Mode (Text)", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
+			return
+		}
+
+		// No meaningful query supplied - return a note guiding the user
+		summary := "The content you pasted looks like natural language text, not source code.\n" +
+			"Scan mode can search code for patterns (SQL, auth, queries). For prose, provide a search query or paste source code."
+		out := &review_models.ScanModeOutput{Summary: summary, Matches: nil}
+		h.marshalAndFormat(c, out, "🔎 Scan Mode - Not Code", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
+		return
+	}
 
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode)
 	if err != nil {
@@ -539,7 +705,28 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+
+	// If the content doesn't look like code, avoid running Detailed Mode (it expects source)
+	if !looksLikeCode(req.PastedCode) {
+		html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900 rounded-lg border border-yellow-200 dark:border-yellow-700">
+			<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-700 pb-4">
+				<span class="text-3xl">📖</span>
+				<div>
+					<h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-50">Detailed Analysis</h3>
+					<p class="text-sm text-yellow-700 dark:text-yellow-200">Line-by-line explanation</p>
+				</div>
+			</div>
+			<div class="p-4 bg-white dark:bg-yellow-800 rounded-lg border border-yellow-100 dark:border-yellow-700">
+				<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-50 mb-2">ℹ️ Note</h4>
+				<p class="text-sm text-gray-700 dark:text-yellow-200">The content you pasted looks like natural language text, not source code.</p>
+				<p class="text-sm text-gray-700 dark:text-yellow-200 mt-2">Detailed mode performs line-by-line code analysis and requires source code. If you want to summarize prose or search for phrases, use <strong>Scan mode</strong> or paste source code.</p>
+			</div>
+		</div>`
+		c.Header("Content-Type", "text/html")
+		c.String(http.StatusOK, html)
+		return
+	}
 
 	result, err := h.detailedService.AnalyzeDetailed(ctx, filename, req.PastedCode)
 	if err != nil {
@@ -568,7 +755,17 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 	}
 
 	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), modelContextKey, req.Model)
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+
+	// If pasted content doesn't look like source code, avoid running full Critical
+	// analysis which focuses on architecture/layering and code quality.
+	if !looksLikeCode(req.PastedCode) {
+		summary := "The content you pasted appears to be natural language text rather than source code.\n" +
+			"Critical mode evaluates code quality, architecture and security. For prose, please use Scan mode or paste source code."
+		out := &review_models.CriticalModeOutput{Summary: summary, Issues: nil}
+		h.marshalAndFormat(c, out, "🚨 Critical Mode - Not Code", "bg-red-50 dark:bg-slate-800 border border-red-200 dark:border-slate-700")
+		return
+	}
 
 	result, err := h.criticalService.AnalyzeCritical(ctx, req.PastedCode)
 	if err != nil {
@@ -577,22 +774,72 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
+	// Normalize overall grade deterministically based on issues to reduce LLM variance
+	deterministic := determineGradeFromIssues(result.Issues)
+	if deterministic != "" && deterministic != result.OverallGrade {
+		// preserve original grade in the summary for traceability
+		orig := result.OverallGrade
+		if orig == "" {
+			result.Summary = fmt.Sprintf("Grade: %s. %s", deterministic, result.Summary)
+		} else {
+			result.Summary = fmt.Sprintf("Original grade: %s. Normalized grade: %s. %s", orig, deterministic, result.Summary)
+		}
+		result.OverallGrade = deterministic
+	}
+
 	h.marshalAndFormat(c, result, "🚨 Critical Mode Analysis", "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700")
 }
 
-// GetAvailableModels returns a list of available Ollama models
+// determineGradeFromIssues applies a simple deterministic rubric to compute an overall grade
+// based on the counts of issues by severity. This prevents non-deterministic LLM grades.
+func determineGradeFromIssues(issues []review_models.CodeIssue) string {
+	if len(issues) == 0 {
+		return "A"
+	}
+	var crit, high, med int
+	for _, it := range issues {
+		switch strings.ToLower(it.Severity) {
+		case "critical":
+			crit++
+		case "high":
+			high++
+		case "medium":
+			med++
+		}
+	}
+	// Rubric (conservative): any critical -> F, 2+ high -> D, 1 high or 3+ med -> C, 1-2 med -> B, else A
+	switch {
+	case crit > 0:
+		return "F"
+	case high >= 2:
+		return "D"
+	case high == 1 || med >= 3:
+		return "C"
+	case med >= 1:
+		return "B"
+	default:
+		return "A"
+	}
+}
+
+// GetAvailableModels returns a list of available Ollama models (queries dynamically)
 func (h *UIHandler) GetAvailableModels(c *gin.Context) {
-	// Return hardcoded list of common models
-	// TODO: Query Ollama API for actual available models
-	models := []map[string]string{
-		{"name": "mistral:7b-instruct", "description": "Fast, General (Recommended)"},
-		{"name": "codellama:13b", "description": "Better for code"},
-		{"name": "llama2:13b", "description": "Balanced"},
-		{"name": "deepseek-coder:6.7b", "description": "Code specialist"},
-		{"name": "deepseek-coder-v2:16b", "description": "Most accurate (slower)"},
+	ctx := c.Request.Context()
+
+	// Use model service to query Ollama for actual available models
+	modelsJSON, err := h.modelService.ListAvailableModelsJSON(ctx)
+	if err != nil {
+		h.logger.Error("Failed to retrieve available models", "error", err.Error())
+		// Return fallback: only Mistral 7B (guaranteed to be available)
+		fallbackModels := []map[string]string{
+			{"name": "mistral:7b-instruct", "description": "Fast, General (Recommended)"},
+		}
+		c.JSON(http.StatusOK, gin.H{"models": fallbackModels})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"models": models})
+	c.Header("Content-Type", "application/json")
+	c.String(http.StatusOK, string(modelsJSON))
 }
 
 // ListSessionsHTMX handles GET /api/review/sessions/list (HTMX)
@@ -994,15 +1241,19 @@ func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 	// Extract session ID from URL
 	sessionIDStr := c.Param("session_id")
 
+	// Extract authenticated user info from JWT context
+	userID, _ := c.Get("user_id")
+	username, _ := c.Get("username")
+
 	var sessionID int
 	var props templates.WorkspaceProps
 
-	// Handle special "demo" session for quick access
+	// Handle special "demo" session for quick access (legacy)
 	if sessionIDStr == "demo" {
-		h.logger.Info("showing demo workspace")
+		h.logger.Info("showing demo workspace (legacy)", "user_id", userID)
 		props = templates.WorkspaceProps{
 			SessionID:      0,
-			Title:          "DevSmith Review - Demo Workspace",
+			Title:          fmt.Sprintf("DevSmith Review - Workspace (User: %v)", username),
 			Code:           sampleCodeForWorkspace(),
 			CurrentMode:    "preview",
 			AnalysisResult: "",
@@ -1017,13 +1268,13 @@ func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 			return
 		}
 
-		h.logger.Info("showing workspace", "session_id", sessionID)
+		h.logger.Info("showing workspace", "session_id", sessionID, "user_id", userID, "username", username)
 
-		// For now, use sample data (in production this would come from database)
-		// TODO: Fetch actual session data from ReviewRepository
+		// For now, use sample data with user context
+		// TODO: Fetch actual session data from ReviewRepository by session_id and user_id
 		props = templates.WorkspaceProps{
 			SessionID:      sessionID,
-			Title:          "Sample Code Review",
+			Title:          fmt.Sprintf("Code Review Session #%d (User: %v)", sessionID, username),
 			Code:           sampleCodeForWorkspace(),
 			CurrentMode:    "preview",
 			AnalysisResult: "",

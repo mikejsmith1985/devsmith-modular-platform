@@ -27,6 +27,49 @@ You are **GitHub Copilot**, the primary implementation developer. Your job is to
 2. **Write Tests FIRST** (Test-Driven Development)
 3. **Create Pull Requests** when implementation complete
 4. **Address Code Review Feedback** from Claude
+5. **Log ALL Errors** to `.docs/ERROR_LOG.md` immediately when encountered
+
+---
+
+## 🚨 MANDATORY: Error Logging Policy
+
+**Every error MUST be logged to `.docs/ERROR_LOG.md` immediately when encountered.**
+
+**What qualifies as an "error":**
+- Build failures
+- Test failures
+- Runtime errors (crashes, exceptions)
+- Silent failures (wrong output, missing features)
+- Configuration issues (wrong settings, missing env vars)
+- Integration issues (service can't reach another service)
+- Template/UI mismatches (code correct but UI wrong)
+- Authentication failures
+- Any issue that blocks progress for >5 minutes
+
+**Logging procedure:**
+1. When you encounter an error, STOP
+2. Add entry to `.docs/ERROR_LOG.md` using template
+3. Include all context (what, why, how to fix, how to prevent)
+4. Note where this error SHOULD appear in Logs application
+5. Continue fixing the error
+
+**Example quick log entry:**
+```markdown
+### Error: Dashboard Template Not Compiled
+**Date**: 2025-11-03  
+**Context**: Modified dashboard.templ but UI didn't update  
+**Root Cause**: Forgot to run `templ generate`  
+**Resolution**: `templ generate && docker-compose up -d --build portal`  
+**Prevention**: Add pre-commit hook to validate templates  
+**Logged to Platform**: ❌ NO (need to implement)
+```
+
+**Why this matters:**
+- Builds knowledge base for Logs application
+- Identifies patterns in errors
+- Helps future debugging
+- Trains AI agents on common pitfalls
+- Supports Mike's debugging when we're offline
 
 ---
 

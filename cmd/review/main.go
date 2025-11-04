@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	review_circuit "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/circuit"
 	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	review_health "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/health"
+	review_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/middleware"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	review_tracing "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/tracing"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
@@ -28,6 +30,10 @@ import (
 
 // nolint:gocyclo // Main initialization is inherently complex with multiple setup steps
 func main() {
+	// Create app-level context that will be cancelled on shutdown
+	appCtx, cancelAppCtx := context.WithCancel(context.Background())
+	defer cancelAppCtx()
+
 	router := gin.Default()
 
 	// Load and validate logs service configuration (allow configurable fallback)
@@ -109,6 +115,22 @@ func main() {
 
 	// Repository and service setup
 	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
+
+	// Start retention job for troubleshooting analysis captures (default 14 days)
+	retentionDays := 14
+	if v := os.Getenv("ANALYSIS_RETENTION_DAYS"); v != "" {
+		if d, err := strconv.Atoi(v); err == nil {
+			retentionDays = d
+		}
+	}
+	retentionInterval := 24 * time.Hour
+	if v := os.Getenv("ANALYSIS_RETENTION_INTERVAL_HOURS"); v != "" {
+		if h, err := strconv.Atoi(v); err == nil && h > 0 {
+			retentionInterval = time.Duration(h) * time.Hour
+		}
+	}
+	// Start retention job (best-effort, uses analysisRepo.DeleteOlderThan)
+	review_services.StartRetentionJob(appCtx, analysisRepo, retentionDays, retentionInterval, reviewLogger)
 
 	// Initialize Ollama client with configuration from environment
 	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
@@ -216,44 +238,50 @@ func main() {
 		logClient = nil
 	}
 
+	// Create model service for dynamic model discovery (needs Ollama endpoint)
+	modelService := review_services.NewModelService(reviewLogger, ollamaEndpoint)
+
 	// Handler setup with services (UIHandler takes logger, logging client, and AI services)
-	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService)
+	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService, modelService)
 
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")
 	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
 
-	// Register endpoints
-	router.GET("/", uiHandler.HomeHandler)
-	router.GET("/review", uiHandler.HomeHandler)                         // Serve UI at /review for E2E tests
-	router.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace) // Two-pane workspace for code review
-	router.GET("/analysis", uiHandler.AnalysisResultHandler)
-	router.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
-	// SSE endpoint for session progress (demo stream)
-	router.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
+	// Public endpoints (no authentication required)
+	router.GET("/api/review/models", uiHandler.GetAvailableModels) // Model list is public
 
-	// Models endpoint for model selection
-	router.GET("/api/review/models", uiHandler.GetAvailableModels)
+	// Home/landing page with optional auth (validates JWT if present, allows unauthenticated)
+	router.GET("/", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler)
+	router.GET("/review", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 
-	// Session management endpoints (HTMX versions - Phase 11.5)
-	// Note: These endpoints are replaced by HTMX versions below
-	// Kept: router.GET("/api/review/sessions", sessionHandler.ListSessions) -> Use HTMX /list instead
-	// Kept pagination for non-HTMX clients if needed, but HTMX UI uses /list
+	// Protected endpoints group (require JWT authentication)
+	protected := router.Group("/")
+	protected.Use(review_middleware.JWTAuthMiddleware(reviewLogger))
+	{
+		// Workspace access (requires auth to track user sessions)
+		protected.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace)
 
-	// HTMX mode endpoints - direct mode-based analysis
-	router.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)   // Preview mode HTMX
-	router.POST("/api/review/modes/skim", uiHandler.HandleSkimMode)         // Skim mode HTMX
-	router.POST("/api/review/modes/scan", uiHandler.HandleScanMode)         // Scan mode HTMX
-	router.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode) // Detailed mode HTMX
-	router.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode) // Critical mode HTMX
+		// Analysis endpoints (require auth for usage tracking and rate limiting)
+		protected.GET("/analysis", uiHandler.AnalysisResultHandler)
+		protected.POST("/api/review/sessions", uiHandler.CreateSessionHandler)
+		protected.GET("/api/review/sessions/:id/progress", uiHandler.SessionProgressSSE)
 
-	// HTMX session endpoints (Phase 11.5) - HTMX-first design
-	router.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)               // List sessions for sidebar
-	router.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX)           // Search sessions
-	router.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)            // Get session detail (HTMX, replaces sessionHandler.GetSession)
-	router.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)       // Resume session
-	router.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX) // Duplicate session
-	router.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)     // Archive session
+		// Mode endpoints - all require authentication
+		protected.POST("/api/review/modes/preview", uiHandler.HandlePreviewMode)
+		protected.POST("/api/review/modes/skim", uiHandler.HandleSkimMode)
+		protected.POST("/api/review/modes/scan", uiHandler.HandleScanMode)
+		protected.POST("/api/review/modes/detailed", uiHandler.HandleDetailedMode)
+		protected.POST("/api/review/modes/critical", uiHandler.HandleCriticalMode)
+
+		// Session management endpoints (all require auth)
+		protected.GET("/api/review/sessions/list", uiHandler.ListSessionsHTMX)
+		protected.GET("/api/review/sessions/search", uiHandler.SearchSessionsHTMX)
+		protected.GET("/api/review/sessions/:id", uiHandler.GetSessionDetailHTMX)
+		protected.POST("/api/review/sessions/:id/resume", uiHandler.ResumeSessionHTMX)
+		protected.POST("/api/review/sessions/:id/duplicate", uiHandler.DuplicateSessionHTMX)
+		protected.POST("/api/review/sessions/:id/archive", uiHandler.ArchiveSessionHTMX)
+	}
 	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)            // Delete session (HTMX, replaces sessionHandler.DeleteSession)
 	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)       // Session statistics
 	router.GET("/api/review/sessions/:id/metadata", uiHandler.GetSessionMetadataHTMX) // Session metadata
@@ -287,6 +315,9 @@ func main() {
 	<-quit
 
 	reviewLogger.Info("Shutting down gracefully...")
+
+	// Cancel app context to signal retention job and other background tasks to stop
+	cancelAppCtx()
 
 	// Give outstanding requests 30 seconds to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

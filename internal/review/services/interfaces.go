@@ -2,6 +2,7 @@ package review_services
 
 import (
 	"context"
+	"time"
 
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
@@ -156,6 +157,8 @@ type OllamaClientInterface interface {
 type AnalysisRepositoryInterface interface {
 	FindByReviewAndMode(ctx context.Context, reviewID int64, mode string) (*review_models.AnalysisResult, error)
 	Create(ctx context.Context, result *review_models.AnalysisResult) error
+	// DeleteOlderThan removes analysis results older than the provided cutoff time.
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) error
 }
 
 // ====================================================================================
