@@ -2,6 +2,7 @@
 package logs_services
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"sync"
@@ -15,12 +16,22 @@ import (
 // It handles client registration, unregistration, filtering, and heartbeat management.
 // nolint:govet // Field order optimized for performance, not memory alignment
 type WebSocketHub struct {
-	clients    map[*Client]bool
-	broadcast  chan *logs_models.LogEntry
-	register   chan *Client
-	unregister chan *Client
-	stop       chan struct{}
-	mu         sync.RWMutex
+	clients         map[*Client]bool
+	broadcast       chan *logs_models.LogEntry
+	analysisResults chan *AnalysisNotification // Phase 1: AI analysis notifications
+	register        chan *Client
+	unregister      chan *Client
+	stop            chan struct{}
+	mu              sync.RWMutex
+}
+
+// AnalysisNotification represents an AI analysis result broadcast to clients
+type AnalysisNotification struct {
+	Type      string          `json:"type"` // "new_issue"
+	LogID     int64           `json:"log_id"`
+	IssueType string          `json:"issue_type"`
+	Analysis  *AnalysisResult `json:"analysis"`
+	Timestamp time.Time       `json:"timestamp"`
 }
 
 // Client represents a WebSocket client connected to the hub.
@@ -45,11 +56,12 @@ type Client struct {
 // NewWebSocketHub creates and returns a new WebSocketHub instance.
 func NewWebSocketHub() *WebSocketHub {
 	return &WebSocketHub{
-		clients:    make(map[*Client]bool),
-		broadcast:  make(chan *logs_models.LogEntry, 256),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		stop:       make(chan struct{}),
+		clients:         make(map[*Client]bool),
+		broadcast:       make(chan *logs_models.LogEntry, 256),
+		analysisResults: make(chan *AnalysisNotification, 128),
+		register:        make(chan *Client),
+		unregister:      make(chan *Client),
+		stop:            make(chan struct{}),
 	}
 }
 
@@ -106,6 +118,10 @@ func (h *WebSocketHub) Run() {
 		case log := <-h.broadcast:
 			h.broadcastToClients(log)
 
+		case analysisNotif := <-h.analysisResults:
+			// Phase 1: Broadcast AI analysis results
+			h.broadcastAnalysisNotification(analysisNotif)
+
 		case <-heartbeatTicker.C:
 			h.sendHeartbeats()
 		}
@@ -152,6 +168,82 @@ func (h *WebSocketHub) broadcastToClients(log *logs_models.LogEntry) {
 			go h.closeClient(client)
 			h.mu.RLock()
 		}
+	}
+}
+
+// broadcastAnalysisNotification broadcasts an AI analysis result to all connected clients
+// Phase 1: This sends "new_issue" notifications when AI analysis completes
+func (h *WebSocketHub) broadcastAnalysisNotification(notif *AnalysisNotification) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	log.Printf("Broadcasting analysis notification: type=%s, issue_type=%s, log_id=%d", 
+		notif.Type, notif.IssueType, notif.LogID)
+
+	// For analysis notifications, send to all authenticated clients
+	// (Public clients typically don't see detailed diagnostic info)
+	for client := range h.clients {
+		if !client.IsAuth {
+			continue
+		}
+
+		// Create a LogEntry wrapper for the notification to send through existing channel
+		// This allows us to reuse the Send channel infrastructure
+		notifLog := &logs_models.LogEntry{
+			ID:        notif.LogID,
+			Level:     "info",
+			Service:   "ai-analyzer",
+			Message:   notif.Type, // "new_issue"
+			IssueType: notif.IssueType,
+			CreatedAt: notif.Timestamp,
+			// Store the full analysis in Metadata for client-side parsing
+			Metadata:  encodeAnalysisToJSON(notif.Analysis),
+		}
+
+		// Attempt to send with backpressure handling
+		select {
+		case client.Send <- notifLog:
+			client.mu.Lock()
+			client.LastActivity = time.Now()
+			client.mu.Unlock()
+		default:
+			// Backpressure: client buffer full, skip this notification
+			log.Printf("Skipped analysis notification for client (buffer full)")
+		}
+	}
+}
+
+// encodeAnalysisToJSON converts AnalysisResult to JSON bytes
+func encodeAnalysisToJSON(analysis *AnalysisResult) []byte {
+	if analysis == nil {
+		return []byte("{}")
+	}
+	data, err := json.Marshal(analysis)
+	if err != nil {
+		log.Printf("Failed to encode analysis to JSON: %v", err)
+		return []byte("{}")
+	}
+	return data
+}
+
+// BroadcastAnalysisResult sends an AI analysis notification to all connected clients
+// This is called when AI analysis completes for a log entry
+func (h *WebSocketHub) BroadcastAnalysisResult(logID int64, issueType string, analysis *AnalysisResult) {
+	notif := &AnalysisNotification{
+		Type:      "new_issue",
+		LogID:     logID,
+		IssueType: issueType,
+		Analysis:  analysis,
+		Timestamp: time.Now(),
+	}
+
+	// Non-blocking send to avoid blocking the caller
+	select {
+	case h.analysisResults <- notif:
+		// Successfully queued
+	default:
+		// Channel full, log warning but don't block
+		log.Printf("Warning: Analysis notification channel full, dropping notification for log %d", logID)
 	}
 }
 
