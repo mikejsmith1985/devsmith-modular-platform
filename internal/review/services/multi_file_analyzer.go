@@ -149,11 +149,11 @@ func (m *MultiFileAnalyzer) parseAIResponse(content string) (*AnalyzeResult, err
 
 	// Parse JSON structure
 	var parsed struct {
-		Summary              string                                   `json:"summary"`
-		Dependencies         []review_models.CrossFileDependency      `json:"dependencies"`
-		SharedAbstractions   []review_models.SharedAbstraction        `json:"shared_abstractions"`
-		ArchitecturePatterns []review_models.ArchitecturePattern      `json:"architecture_patterns"`
-		Recommendations      []string                                 `json:"recommendations"`
+		Summary              string                              `json:"summary"`
+		Dependencies         []review_models.CrossFileDependency `json:"dependencies"`
+		SharedAbstractions   []review_models.SharedAbstraction   `json:"shared_abstractions"`
+		ArchitecturePatterns []review_models.ArchitecturePattern `json:"architecture_patterns"`
+		Recommendations      []string                            `json:"recommendations"`
 	}
 
 	if err := json.Unmarshal([]byte(jsonContent), &parsed); err != nil {

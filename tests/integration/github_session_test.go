@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,19 +27,94 @@ import (
 
 // mockGitHubClient implements github.ClientInterface for testing
 type mockGitHubClient struct {
-	getTreeResult *github.TreeResult
-	getTreeError  error
+	repoTree       *github.RepoTree
+	fileContent    *github.FileContent
+	repoMetadata   *github.RepoMetadata
+	codeFetch      *github.CodeFetch
+	getTreeError   error
+	getContentErr  error
+	fetchCodeErr   error
 }
 
-func (m *mockGitHubClient) GetTree(ctx context.Context, owner, repo, ref string) (*github.TreeResult, error) {
+func (m *mockGitHubClient) FetchCode(ctx context.Context, owner, repo, branch string, token string) (*github.CodeFetch, error) {
+	if m.fetchCodeErr != nil {
+		return nil, m.fetchCodeErr
+	}
+	if m.codeFetch != nil {
+		return m.codeFetch, nil
+	}
+	// Default mock response
+	return &github.CodeFetch{
+		Code:      "// Mock code content",
+		CommitSHA: "abc123",
+		Branch:    branch,
+		Metadata: &github.RepoMetadata{
+			Owner: owner,
+			Name:  repo,
+		},
+	}, nil
+}
+
+func (m *mockGitHubClient) GetRepoMetadata(ctx context.Context, owner, repo string, token string) (*github.RepoMetadata, error) {
+	if m.repoMetadata != nil {
+		return m.repoMetadata, nil
+	}
+	return &github.RepoMetadata{
+		Owner:      owner,
+		Name:       repo,
+		StarsCount: 100,
+		IsPrivate:  false,
+	}, nil
+}
+
+func (m *mockGitHubClient) ValidateURL(url string) (owner string, repo string, err error) {
+	return "test", "repo", nil
+}
+
+func (m *mockGitHubClient) GetRateLimit(ctx context.Context, token string) (remaining int, resetTime time.Time, err error) {
+	return 5000, time.Now().Add(1 * time.Hour), nil
+}
+
+func (m *mockGitHubClient) GetRepoTree(ctx context.Context, owner, repo, branch, token string) (*github.RepoTree, error) {
 	if m.getTreeError != nil {
 		return nil, m.getTreeError
 	}
-	return m.getTreeResult, nil
+	if m.repoTree != nil {
+		return m.repoTree, nil
+	}
+	return &github.RepoTree{
+		Owner:  owner,
+		Repo:   repo,
+		Branch: branch,
+		RootNodes: []github.TreeNode{
+			{Path: "main.go", Type: "file", Size: 1024},
+			{Path: "handler.go", Type: "file", Size: 2048},
+			{Path: "service.go", Type: "file", Size: 3072},
+		},
+	}, nil
 }
 
-func (m *mockGitHubClient) GetFileContent(ctx context.Context, owner, repo, path, ref string) ([]byte, error) {
-	return []byte("// Mock file content"), nil
+func (m *mockGitHubClient) GetFileContent(ctx context.Context, owner, repo, path, branch, token string) (*github.FileContent, error) {
+	if m.getContentErr != nil {
+		return nil, m.getContentErr
+	}
+	if m.fileContent != nil {
+		return m.fileContent, nil
+	}
+	return &github.FileContent{
+		Path:    path,
+		Content: "// Mock file content for " + path,
+		SHA:     "file123",
+		Size:    100,
+	}, nil
+}
+
+func (m *mockGitHubClient) GetPullRequest(ctx context.Context, owner, repo string, prNumber int, token string) (*github.PullRequest, error) {
+	return nil, nil // Not needed for these tests
+}
+
+func (m *mockGitHubClient) GetPRFiles(ctx context.Context, owner, repo string, prNumber int, token string) ([]github.PRFile, error) {
+	return nil, nil // Not needed for these tests
 }
 
 // mockAIProvider implements ai.Provider for testing
@@ -57,22 +134,29 @@ func (m *mockAIProvider) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (m *mockAIProvider) GetModelInfo(ctx context.Context) (string, error) {
-	return "mock-model", nil
+func (m *mockAIProvider) GetModelInfo() *ai.ModelInfo {
+	return &ai.ModelInfo{
+		Provider:    "mock",
+		Model:       "test-model",
+		DisplayName: "Mock Test Model",
+		MaxTokens:   4000,
+	}
 }
 
 // setupTestHandler creates a test handler with in-memory repository and mocks
-func setupTestHandler() (*handlers.GitHubSessionHandler, *review_db.InMemoryGitHubRepository) {
+func setupTestHandler() (*handlers.GitHubSessionHandler, review_db.GitHubRepositoryInterface) {
 	repo := review_db.NewInMemoryGitHubRepository()
 
 	mockGitHub := &mockGitHubClient{
-		getTreeResult: &github.TreeResult{
-			Tree: []github.TreeNode{
+		repoTree: &github.RepoTree{
+			Owner:  "test",
+			Repo:   "repo",
+			Branch: "main",
+			RootNodes: []github.TreeNode{
 				{Path: "main.go", Type: "file", Size: 1024},
 				{Path: "handler.go", Type: "file", Size: 2048},
 				{Path: "service.go", Type: "file", Size: 3072},
 			},
-			SHA: "abc123",
 		},
 	}
 
@@ -154,8 +238,10 @@ func TestCreateGitHubSession(t *testing.T) {
 	assert.NotNil(t, response["file_tree"])
 
 	// Verify session stored in repository
-	sessions, err := repo.ListGitHubSessions(context.Background(), 1)
-	require.Error(t, err) // ListGitHubSessions not supported in in-memory impl
+	sessionID := int64(response["id"].(float64))
+	storedSession, err := repo.GetGitHubSession(context.Background(), sessionID)
+	require.NoError(t, err)
+	assert.Equal(t, sessionID, storedSession.ID)
 }
 
 // TestOpenFile tests opening a file in a session
@@ -227,21 +313,21 @@ func TestGetOpenFiles(t *testing.T) {
 	// Open multiple files
 	file1 := &review_models.OpenFile{
 		GitHubSessionID: session.ID,
-		TabID:           "tab-1",
+		TabID:           uuid.Must(uuid.Parse("00000000-0000-0000-0000-000000000001")),
 		FilePath:        "main.go",
 		IsActive:        true,
 		TabOrder:        0,
 	}
 	file2 := &review_models.OpenFile{
 		GitHubSessionID: session.ID,
-		TabID:           "tab-2",
+		TabID:           uuid.Must(uuid.Parse("00000000-0000-0000-0000-000000000002")),
 		FilePath:        "handler.go",
 		IsActive:        false,
 		TabOrder:        1,
 	}
-	err = repo.OpenFile(context.Background(), file1)
+	err = repo.CreateOpenFile(context.Background(), file1)
 	require.NoError(t, err)
-	err = repo.OpenFile(context.Background(), file2)
+	err = repo.CreateOpenFile(context.Background(), file2)
 	require.NoError(t, err)
 
 	// Get open files request

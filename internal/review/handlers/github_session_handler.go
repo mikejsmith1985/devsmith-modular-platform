@@ -16,14 +16,14 @@ import (
 
 // GitHubSessionHandler handles GitHub session HTTP endpoints
 type GitHubSessionHandler struct {
-	repo         *review_db.GitHubRepository
+	repo         review_db.GitHubRepositoryInterface
 	githubClient github.ClientInterface
 	aiAnalyzer   *review_services.MultiFileAnalyzer
 }
 
 // NewGitHubSessionHandler creates a new GitHub session handler
 func NewGitHubSessionHandler(
-	repo *review_db.GitHubRepository,
+	repo review_db.GitHubRepositoryInterface,
 	client github.ClientInterface,
 	aiAnalyzer *review_services.MultiFileAnalyzer,
 ) *GitHubSessionHandler {

@@ -142,7 +142,7 @@ func TestMultiFileAnalyzer_Analyze_NonJSONResponse(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Contains(t, result.Summary, "plain text analysis")
 	assert.Len(t, result.Recommendations, 1) // Fallback recommendation
-	assert.Len(t, result.Dependencies, 0)     // Empty slices
+	assert.Len(t, result.Dependencies, 0)    // Empty slices
 	assert.Len(t, result.SharedAbstractions, 0)
 	assert.Len(t, result.ArchitecturePatterns, 0)
 }

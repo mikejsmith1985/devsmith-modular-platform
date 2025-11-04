@@ -6,20 +6,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
 // InMemoryGitHubRepository implements GitHubRepository interface for testing
 type InMemoryGitHubRepository struct {
-	mu                sync.RWMutex
-	sessions          map[int64]*review_models.GitHubSession
-	openFiles         map[int64]*review_models.OpenFile
-	analyses          map[int64]*review_models.MultiFileAnalysis
-	nextSessionID     int64
-	nextFileID        int64
-	nextAnalysisID    int64
-	sessionFiles      map[int64][]int64 // session_id -> []file_ids
-	sessionAnalyses   map[int64][]int64 // session_id -> []analysis_ids
+	mu              sync.RWMutex
+	sessions        map[int64]*review_models.GitHubSession
+	openFiles       map[int64]*review_models.OpenFile
+	analyses        map[int64]*review_models.MultiFileAnalysis
+	nextSessionID   int64
+	nextFileID      int64
+	nextAnalysisID  int64
+	sessionFiles    map[int64][]int64 // session_id -> []file_ids
+	sessionAnalyses map[int64][]int64 // session_id -> []analysis_ids
 }
 
 // NewInMemoryGitHubRepository creates a new in-memory repository for testing
@@ -142,8 +143,8 @@ func (r *InMemoryGitHubRepository) ListOpenFiles(ctx context.Context, sessionID 
 	return files, nil
 }
 
-// CloseFile marks a file as closed
-func (r *InMemoryGitHubRepository) CloseFile(ctx context.Context, fileID int64) error {
+// closeFileByID marks a file as closed (internal method using int64 ID)
+func (r *InMemoryGitHubRepository) closeFileByID(ctx context.Context, fileID int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -160,7 +161,6 @@ func (r *InMemoryGitHubRepository) CloseFile(ctx context.Context, fileID int64) 
 			break
 		}
 	}
-
 	delete(r.openFiles, fileID)
 	return nil
 }
@@ -293,4 +293,148 @@ func (r *InMemoryGitHubRepository) InvalidateTreeCache(ctx context.Context, sess
 	session.TreeLastSynced = time.Time{}
 	session.UpdatedAt = time.Now()
 	return nil
+}
+
+// ========== Interface Adapter Methods ==========
+// These methods adapt the in-memory repository to match the GitHubRepositoryInterface
+
+func (r *InMemoryGitHubRepository) CreateGitHubSession(ctx context.Context, session *review_models.GitHubSession) error {
+	return r.CreateSession(ctx, session)
+}
+
+func (r *InMemoryGitHubRepository) GetGitHubSession(ctx context.Context, id int64) (*review_models.GitHubSession, error) {
+	return r.GetSession(ctx, id)
+}
+
+func (r *InMemoryGitHubRepository) GetGitHubSessionBySessionID(ctx context.Context, sessionID int64) (*review_models.GitHubSession, error) {
+	// In the in-memory version, the ID and SessionID are the same
+	return r.GetSession(ctx, sessionID)
+}
+
+func (r *InMemoryGitHubRepository) UpdateFileTree(ctx context.Context, id int64, tree []byte, totalFiles, totalDirs int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	session, exists := r.sessions[id]
+	if !exists {
+		return fmt.Errorf("session not found: %d", id)
+	}
+
+	session.FileTree = tree
+	session.TotalFiles = totalFiles
+	session.TotalDirectories = totalDirs
+	session.TreeLastSynced = time.Now()
+	session.UpdatedAt = time.Now()
+	return nil
+}
+
+func (r *InMemoryGitHubRepository) CreateOpenFile(ctx context.Context, file *review_models.OpenFile) error {
+	return r.OpenFile(ctx, file)
+}
+
+func (r *InMemoryGitHubRepository) GetOpenFiles(ctx context.Context, githubSessionID int64) ([]*review_models.OpenFile, error) {
+	return r.ListOpenFiles(ctx, githubSessionID)
+}
+
+func (r *InMemoryGitHubRepository) GetOpenFileByTabID(ctx context.Context, tabID uuid.UUID) (*review_models.OpenFile, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, file := range r.openFiles {
+		if file.TabID == tabID {
+			return file, nil
+		}
+	}
+
+	return nil, fmt.Errorf("file not found with tab_id: %s", tabID)
+}
+
+func (r *InMemoryGitHubRepository) SetActiveTab(ctx context.Context, githubSessionID int64, tabID uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Set all files in this session to inactive
+	for _, file := range r.openFiles {
+		if file.GitHubSessionID == githubSessionID {
+			file.IsActive = false
+		}
+	}
+
+	// Find and activate the target file
+	for _, file := range r.openFiles {
+		if file.TabID == tabID {
+			file.IsActive = true
+			file.LastAccessed = time.Now()
+			return nil
+		}
+	}
+
+	return fmt.Errorf("file not found with tab_id: %s", tabID)
+}
+
+func (r *InMemoryGitHubRepository) CloseFile(ctx context.Context, tabID uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, file := range r.openFiles {
+		if file.TabID == tabID {
+			// Remove from session files
+			if fileIDs, ok := r.sessionFiles[file.GitHubSessionID]; ok {
+				for i, fid := range fileIDs {
+					if fid == id {
+						r.sessionFiles[file.GitHubSessionID] = append(fileIDs[:i], fileIDs[i+1:]...)
+						break
+					}
+				}
+			}
+			delete(r.openFiles, id)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("file not found with tab_id: %s", tabID)
+}
+
+func (r *InMemoryGitHubRepository) IncrementAnalysisCount(ctx context.Context, tabID uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, file := range r.openFiles {
+		if file.TabID == tabID {
+			file.AnalysisCount++
+			file.LastAccessed = time.Now()
+			return nil
+		}
+	}
+
+	return fmt.Errorf("file not found with tab_id: %s", tabID)
+}
+
+func (r *InMemoryGitHubRepository) CreateMultiFileAnalysis(ctx context.Context, analysis *review_models.MultiFileAnalysis) error {
+	return r.CreateAnalysis(ctx, analysis)
+}
+
+func (r *InMemoryGitHubRepository) GetMultiFileAnalyses(ctx context.Context, githubSessionID int64) ([]*review_models.MultiFileAnalysis, error) {
+	return r.ListAnalyses(ctx, githubSessionID)
+}
+
+func (r *InMemoryGitHubRepository) GetLatestMultiFileAnalysis(ctx context.Context, githubSessionID int64) (*review_models.MultiFileAnalysis, error) {
+	analyses, err := r.ListAnalyses(ctx, githubSessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(analyses) == 0 {
+		return nil, fmt.Errorf("no analyses found for session: %d", githubSessionID)
+	}
+
+	// Return the most recently created analysis
+	latest := analyses[0]
+	for _, a := range analyses {
+		if a.CreatedAt.After(latest.CreatedAt) {
+			latest = a
+		}
+	}
+
+	return latest, nil
 }
