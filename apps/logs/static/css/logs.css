@@ -673,14 +673,6 @@ body {
   color: #1f2937 !important;
 }
 
-.log-card.log-error,
-.log-card.log-warn,
-.log-card.log-warning,
-.log-card.log-info,
-.log-card.log-debug {
-  /* Handled by inline styles for border-left */
-}
-
 /* Metadata and stack trace styling */
 .log-card pre {
   font-family: 'Courier New', Courier, monospace;
@@ -689,3 +681,242 @@ body {
 }
 
 /* Old log-entry styles cleanup (hidden but kept for compat) */
+
+/* ============================================================================
+   PHASE 1: AI-DRIVEN ISSUE CARDS
+   ============================================================================ */
+
+.issue-list-container {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--color-bg-dark);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.issue-list-title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-text);
+}
+
+.issue-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.issue-card {
+  background: #2d2d2d;
+  border-radius: 8px;
+  border-left: 4px solid var(--color-info);
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.issue-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.issue-card[data-severity="5"] {
+  border-left-color: #dc3545; /* Critical - Red */
+}
+
+.issue-card[data-severity="4"] {
+  border-left-color: #fd7e14; /* High - Orange */
+}
+
+.issue-card[data-severity="3"] {
+  border-left-color: #ffc107; /* Medium - Yellow */
+}
+
+.issue-card[data-severity="2"] {
+  border-left-color: #17a2b8; /* Low - Cyan */
+}
+
+.issue-card[data-severity="1"] {
+  border-left-color: #6c757d; /* Info - Gray */
+}
+
+.issue-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.issue-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.issue-badge-critical {
+  background: #dc3545;
+  color: white;
+}
+
+.issue-badge-high {
+  background: #fd7e14;
+  color: white;
+}
+
+.issue-badge-medium {
+  background: #ffc107;
+  color: #000;
+}
+
+.issue-badge-low {
+  background: #17a2b8;
+  color: white;
+}
+
+.issue-badge-info {
+  background: #6c757d;
+  color: white;
+}
+
+.issue-type-badge {
+  padding: 0.25rem 0.75rem;
+  background: #495057;
+  color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: 'Courier New', monospace;
+}
+
+.issue-id {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.issue-body {
+  margin-bottom: 1rem;
+}
+
+.issue-section {
+  margin-bottom: 1rem;
+}
+
+.issue-section:last-child {
+  margin-bottom: 0;
+}
+
+.issue-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.issue-text {
+  color: #adb5bd;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+.issue-steps-list {
+  list-style-position: inside;
+  padding-left: 0.5rem;
+}
+
+.issue-step {
+  color: #adb5bd;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+.issue-related-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.issue-related-item a {
+  padding: 0.25rem 0.5rem;
+  background: #343a40;
+  color: #17a2b8;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-family: 'Courier New', monospace;
+  transition: all 0.2s ease;
+}
+
+.issue-related-item a:hover {
+  background: #495057;
+  color: #3ec1d3;
+}
+
+.issue-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #495057;
+}
+
+.btn-copy,
+.btn-dismiss {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-copy {
+  background: #28a745;
+  color: white;
+}
+
+.btn-copy:hover {
+  background: #218838;
+}
+
+.btn-dismiss {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-dismiss:hover {
+  background: #5a6268;
+}
+
+.issue-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6c757d;
+}
+
+.issue-empty p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .issue-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .issue-actions {
+    flex-direction: column;
+  }
+  
+  .btn-copy,
+  .btn-dismiss {
+    width: 100%;
+  }
+}
