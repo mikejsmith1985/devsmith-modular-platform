@@ -82,4 +82,9 @@ dist/
 .validation/
 .env.playwright
 tests/e2e/storageState.json
-review
+
+# Compiled binaries (in root only, not in internal directories)
+/review
+/portal
+/logs
+/analytics
