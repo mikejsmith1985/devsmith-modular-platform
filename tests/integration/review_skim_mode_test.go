@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -110,6 +111,10 @@ func (m *MockAnalysisRepository) FindByReviewAndMode(_ context.Context, reviewID
 	return nil, fmt.Errorf("not found")
 }
 func (m *MockAnalysisRepository) Create(_ context.Context, _ *review_models.AnalysisResult) error {
+	return nil
+}
+
+func (m *MockAnalysisRepository) DeleteOlderThan(_ context.Context, _ time.Time) error {
 	return nil
 }
 

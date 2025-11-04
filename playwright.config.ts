@@ -67,6 +67,10 @@ export default defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 10000,
     extraHTTPHeaders: getAuthHeader(),
+    // Add no-sandbox flags for CI environments (GitHub Actions)
+    launchOptions: process.env.CI ? {
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    } : undefined,
   },
 
   // Global timeout settings
