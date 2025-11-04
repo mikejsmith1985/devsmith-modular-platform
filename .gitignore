@@ -82,3 +82,4 @@ dist/
 .validation/
 .env.playwright
 tests/e2e/storageState.json
+review
