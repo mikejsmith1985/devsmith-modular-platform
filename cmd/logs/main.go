@@ -14,9 +14,11 @@ import (
 	_ "github.com/lib/pq"
 	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
+	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
@@ -118,6 +120,24 @@ func main() {
 	// Create validation aggregation service for analytics
 	validationAgg := logs_services.NewValidationAggregation(logRepo, logger)
 
+	// Phase 1: AI-Driven Diagnostics - Initialize AI analysis services
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://host.docker.internal:11434" // Default for Docker
+	}
+	ollamaModel := os.Getenv("OLLAMA_MODEL")
+	if ollamaModel == "" {
+		ollamaModel = "qwen2.5-coder:7b-instruct-q4_K_M" // Default model
+	}
+
+	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaModel)
+	aiAnalyzer := logs_services.NewAIAnalyzer(ollamaClient)
+	patternMatcher := logs_services.NewPatternMatcher()
+	analysisService := logs_services.NewAnalysisService(aiAnalyzer, patternMatcher)
+	analysisHandler := internal_logs_handlers.NewAnalysisHandler(analysisService, logger)
+
+	log.Println("AI analysis services initialized - Ollama:", ollamaEndpoint, "Model:", ollamaModel)
+
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
 		resthandlers.PostLogs(restSvc)(c)
@@ -176,6 +196,10 @@ func main() {
 	router.PUT("/api/logs/alert-config/:service", func(c *gin.Context) {
 		resthandlers.UpdateAlertConfig(alertSvc)(c)
 	})
+
+	// Phase 1: AI-Driven Diagnostics - Analysis endpoints
+	router.POST("/api/logs/analyze", analysisHandler.AnalyzeLog)
+	router.POST("/api/logs/classify", analysisHandler.ClassifyLog)
 
 	// Initialize WebSocket hub
 	hub := logs_services.NewWebSocketHub()
