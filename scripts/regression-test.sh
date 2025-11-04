@@ -78,7 +78,8 @@ check_service() {
     local url="$1"
     local service_name="$2"
     
-    if curl -sf "$url" > /dev/null 2>&1; then
+    # 20s timeout to accommodate slow Ollama health checks
+    if timeout 20 curl -sf "$url" > /dev/null 2>&1; then
         return 0
     else
         log_error "Service $service_name not responding at $url"
@@ -194,12 +195,13 @@ fi
 
 log_info "━━━ TEST 2: Review Service UI ━━━"
 
-take_screenshot "http://localhost:8081" "02-review-landing.png" "Review service landing"
+take_screenshot "http://localhost:8081/review" "02-review-landing.png" "Review service landing"
 
-REVIEW_HTML=$(curl -sL "http://localhost:8081" 2>&1 || echo "")
+# Don't follow redirects - redirect to /auth/github/login is the expected response
+REVIEW_HTML=$(curl -s "http://localhost:8081/review" 2>&1 || echo "")
 
 # Review service should either show UI or redirect to auth (both are valid)
-if echo "$REVIEW_HTML" | grep -q -i "review\|code\|analysis\|login\|sign"; then
+if echo "$REVIEW_HTML" | grep -q -i "review\|code\|analysis\|login\|sign\|found"; then
     record_test "Review Service Accessible" "pass" "Review service responding" "02-review-landing.png"
 else
     record_test "Review Service Accessible" "fail" "Review service not responding" "02-review-landing.png"
