@@ -439,19 +439,20 @@ func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
 	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
 
-	// Extract authenticated user from JWT context
+	// Extract authenticated user from JWT context (optional - user might not be logged in yet)
 	userID, exists := c.Get("user_id")
 	username, _ := c.Get("username")
-	
+
 	if !exists {
-		h.logger.Warn("User not authenticated, cannot create session")
-		c.String(http.StatusUnauthorized, "Authentication required. Please log in via Portal.")
+		// User not authenticated - redirect to portal login
+		h.logger.Info("User not authenticated, redirecting to portal login")
+		c.Redirect(http.StatusFound, "/auth/github/login")
 		return
 	}
 
 	// Generate a new session ID (timestamp-based for uniqueness)
 	sessionID := time.Now().Unix()
-	
+
 	h.logger.Info("Creating new session for user",
 		"user_id", userID,
 		"username", username,
@@ -829,11 +830,9 @@ func (h *UIHandler) GetAvailableModels(c *gin.Context) {
 	modelsJSON, err := h.modelService.ListAvailableModelsJSON(ctx)
 	if err != nil {
 		h.logger.Error("Failed to retrieve available models", "error", err.Error())
-		// Return fallback models on error
+		// Return fallback: only Mistral 7B (guaranteed to be available)
 		fallbackModels := []map[string]string{
 			{"name": "mistral:7b-instruct", "description": "Fast, General (Recommended)"},
-			{"name": "codellama:13b", "description": "Better for code"},
-			{"name": "deepseek-coder:6.7b", "description": "Code specialist"},
 		}
 		c.JSON(http.StatusOK, gin.H{"models": fallbackModels})
 		return

@@ -441,13 +441,27 @@ CREATE TABLE logs.entries (
     service VARCHAR(50),      -- 'portal', 'review', 'logging', etc.
     level VARCHAR(20),        -- 'debug', 'info', 'warn', 'error'
     message TEXT,
-    metadata JSONB,
+    metadata JSONB,           -- Generic metadata for flexibility
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- NEW: Browser debugging data (network tab + console output)
+CREATE TABLE logs.browser_debug_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INT,
+    session_name VARCHAR(255),
+    user_action TEXT,         -- "Clicked Review card from dashboard"
+    network_log JSONB,        -- Full DevTools Network tab output
+    console_log JSONB,        -- Full DevTools Console output
+    page_errors JSONB,        -- JavaScript errors
+    navigation_events JSONB,  -- URL changes, redirects
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_logs_service_level ON logs.entries(service, level, created_at DESC);
 CREATE INDEX idx_logs_user ON logs.entries(user_id, created_at DESC);
 CREATE INDEX idx_logs_created ON logs.entries(created_at DESC);
+CREATE INDEX idx_browser_debug_user ON logs.browser_debug_sessions(user_id, created_at DESC);
 ```
 
 **API Endpoints**:
@@ -456,6 +470,11 @@ POST   /api/logs              - Ingest log entry
 GET    /api/logs              - Query logs (with filters)
 GET    /api/logs/stats        - Statistics (count by level, service)
 WS     /ws/logs               - Real-time log stream
+
+-- NEW: Browser debugging endpoints
+POST   /api/logs/browser-debug          - Submit browser debug session
+GET    /api/logs/browser-debug/:id      - Retrieve debug session
+GET    /api/logs/browser-debug/user/:id - Get all debug sessions for user
 ```
 
 **Features**:

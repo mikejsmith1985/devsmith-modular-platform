@@ -43,8 +43,6 @@ func RegisterGitHubRoutes(router *gin.Engine) {
 	router.GET("/auth/github/callback", HandleGitHubOAuthCallback)
 	router.GET("/auth/login", HandleAuthLogin)
 	router.GET("/auth/github/dashboard", HandleGitHubDashboard)
-
-	RegisterTestAuthEndpoint(router)
 }
 
 // HandleGitHubOAuthLogin initiates GitHub OAuth flow
@@ -138,126 +136,6 @@ func HandleGitHubDashboard(c *gin.Context) {
 	}
 	log.Printf("[DEBUG] Dashboard accessed by user_id: %s", userID)
 	c.JSON(http.StatusOK, gin.H{"message": "Dashboard route", "user_id": userID})
-}
-
-// RegisterTestAuthEndpoint registers test authentication endpoint if enabled
-func RegisterTestAuthEndpoint(router *gin.Engine) {
-	if os.Getenv("ENABLE_TEST_AUTH") != "true" && os.Getenv("ENV") != "test" {
-		return
-	}
-
-	router.POST("/auth/test-login", HandleTestLogin)
-	// Also expose a convenience GET endpoint for quick manual testing in dev.
-	// This returns a token immediately (or accepts query params) and is gated by ENABLE_TEST_AUTH.
-	router.GET("/auth/test-login", HandleTestLoginGET)
-	log.Println("[DEBUG] Test authentication endpoint enabled at POST /auth/test-login and GET /auth/test-login (dev only)")
-}
-
-// HandleTestLogin handles test authentication (bypasses GitHub OAuth).
-func HandleTestLogin(c *gin.Context) {
-	log.Println("[DEBUG] Test login endpoint called")
-
-	var testUser struct {
-		Username  string `json:"username"`
-		Email     string `json:"email"`
-		AvatarURL string `json:"avatar_url"`
-	}
-
-	// Update error messages to align with test cases
-	if err := c.ShouldBindJSON(&testUser); err != nil {
-		log.Printf("[ERROR] Invalid JSON in test login request: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
-		return
-	}
-
-	if testUser.Username == "" || testUser.Email == "" || testUser.AvatarURL == "" {
-		log.Printf("[ERROR] Missing required fields in test login request: %+v", testUser)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields in request body"})
-		return
-	}
-
-	log.Printf("[DEBUG] Creating test JWT for user: %s", testUser.Username)
-
-	jwtKey := []byte("your-secret-key")
-	claims := UserClaims{
-		Username:  testUser.Username,
-		Email:     testUser.Email,
-		AvatarURL: testUser.AvatarURL,
-		GithubID:  "test-user-123",
-		CreatedAt: time.Now(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
-	if err != nil {
-		log.Printf("[ERROR] Failed to sign test JWT: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-
-	SetSecureJWTCookie(c, tokenString)
-	log.Printf("[DEBUG] Test login successful for user: %s", testUser.Username)
-	c.JSON(http.StatusOK, gin.H{
-		"message": "success",
-		"token":   tokenString,
-		"user":    testUser,
-	})
-}
-
-// HandleTestLoginGET provides a quick GET endpoint for development that returns
-// a JWT for a test user. It's gated by the same environment flag as the POST
-// endpoint and should NOT be enabled in production.
-func HandleTestLoginGET(c *gin.Context) {
-	// Only available when explicitly enabled
-	if os.Getenv("ENABLE_TEST_AUTH") != "true" && os.Getenv("ENV") != "test" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
-		return
-	}
-
-	// Read optional query params, provide sensible defaults
-	username := c.Query("username")
-	if username == "" {
-		username = "dev-user"
-	}
-	email := c.Query("email")
-	if email == "" {
-		email = "dev@example.com"
-	}
-	avatar := c.Query("avatar_url")
-	if avatar == "" {
-		avatar = "https://avatars.githubusercontent.com/u/12345?v=4"
-	}
-
-	log.Printf("[DEBUG] Dev GET test login called for user=%s", username)
-
-	jwtKey := []byte("your-secret-key")
-	claims := UserClaims{
-		Username:  username,
-		Email:     email,
-		AvatarURL: avatar,
-		GithubID:  "dev-user-123",
-		CreatedAt: time.Now(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
-	if err != nil {
-		log.Printf("[ERROR] Failed to sign test JWT (GET): %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-
-	// Set cookie for convenience and return JSON
-	SetSecureJWTCookie(c, tokenString)
-	c.JSON(http.StatusOK, gin.H{
-		"message": "success",
-		"token":   tokenString,
-		"user": gin.H{
-			"username":   username,
-			"email":      email,
-			"avatar_url": avatar,
-		},
-	})
 }
 
 // ValidateOAuthConfig validates the OAuth configuration by checking environment variables.
@@ -493,7 +371,8 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 		true,             // httpOnly (XSS protection)
 	)
 
-	// Set SameSite flag for CSRF protection
-	// Note: Gin's SetCookie doesn't directly support SameSite, so we add it to Set-Cookie header
-	c.SetSameSite(http.SameSiteStrictMode)
+	// Set SameSite=Lax for CSRF protection while allowing top-level navigation
+	// SameSite=Strict blocks cookies on link navigation (e.g., dashboard -> /review)
+	// SameSite=Lax allows cookies on top-level GET requests (safe for navigation)
+	c.SetSameSite(http.SameSiteLaxMode)
 }

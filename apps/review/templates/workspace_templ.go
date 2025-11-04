@@ -133,14 +133,14 @@ func Workspace(props WorkspaceProps) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, ">⚠️ Critical</option></select><!-- Mode gauge: small 1-5 bar indicator (battery/cell style) --><div id=\"mode-gauge\" class=\"flex items-center gap-1 ml-2\" aria-hidden=\"true\" title=\"Estimated effort gauge\"><span data-index=\"1\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"2\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"3\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"4\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"5\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span></div><!-- Model Selector --><div class=\"flex items-center gap-2 ml-4\"><label for=\"model-selector\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Model:</label> <select id=\"model-selector\" name=\"model\" class=\"px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent\" aria-label=\"Select AI model for analysis\"><option value=\"mistral:7b-instruct\" selected>Mistral 7B (Default)</option> <option value=\"deepseek-coder:6.7b\">DeepSeek Coder 6.7B</option> <option value=\"qwen2.5-coder:7b\">Qwen2.5 Coder 7B</option> <option value=\"codellama:13b\">CodeLlama 13B</option></select></div><!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) --><div id=\"scan-query-container\" class=\"hidden flex items-center gap-2\"><label for=\"scan-query\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Search for:</label> <input type=\"text\" id=\"scan-query\" placeholder=\"e.g., authentication, SQL queries, error handling...\" class=\"px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent min-w-[300px]\" aria-label=\"Enter search query for Scan mode\"></div><!-- Analyze Button with Dynamic Endpoint --><button id=\"analyze-btn\" type=\"button\" class=\"px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800\" onclick=\"analyzeCode()\" aria-label=\"Analyze code with selected reading mode\">Analyze Code</button></div></div></header><!-- Two-Pane Layout --><div class=\"workspace-content flex h-[calc(100vh-120px)]\"><!-- Left Pane: Editable Code --><div class=\"code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex flex-col\"><div class=\"code-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900\"><div class=\"flex items-center justify-between\"><h2 class=\"text-sm font-semibold text-gray-700 dark:text-gray-300\">Code</h2><div class=\"flex items-center gap-2\"><span id=\"char-count\" class=\"text-xs text-gray-500 dark:text-gray-400\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, ">⚠️ Critical</option></select><!-- Mode gauge: small 1-5 bar indicator (battery/cell style) --><div id=\"mode-gauge\" class=\"flex items-center gap-1 ml-2\" aria-hidden=\"true\" title=\"Estimated effort gauge\"><span data-index=\"1\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"2\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"3\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"4\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span> <span data-index=\"5\" class=\"w-6 h-2 rounded bg-gray-300 dark:bg-gray-700\"></span></div><!-- Model Selector --><div class=\"flex items-center gap-2 ml-4\"><label for=\"model-selector\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Model:</label> <select id=\"model-selector\" name=\"model\" class=\"px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent\" aria-label=\"Select AI model for analysis\"><option value=\"mistral:7b-instruct\" selected>Mistral 7B (Default)</option></select></div><!-- Scan Mode Query Input (Hidden by default, shown only for Scan mode) --><div id=\"scan-query-container\" class=\"hidden flex items-center gap-2\"><label for=\"scan-query\" class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">Search for:</label> <input type=\"text\" id=\"scan-query\" placeholder=\"e.g., authentication, SQL queries, error handling...\" class=\"px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent min-w-[300px]\" aria-label=\"Enter search query for Scan mode\"></div><!-- Analyze Button with Dynamic Endpoint --><button id=\"analyze-btn\" type=\"button\" class=\"px-6 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800\" onclick=\"analyzeCode()\" aria-label=\"Analyze code with selected reading mode\">Analyze Code</button></div></div></header><!-- Two-Pane Layout --><div class=\"workspace-content flex h-[calc(100vh-120px)]\"><!-- Left Pane: Editable Code --><div class=\"code-pane flex-1 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex flex-col\"><div class=\"code-header px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900\"><div class=\"flex items-center justify-between\"><h2 class=\"text-sm font-semibold text-gray-700 dark:text-gray-300\">Code</h2><div class=\"flex items-center gap-2\"><span id=\"char-count\" class=\"text-xs text-gray-500 dark:text-gray-400\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(props.Code)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 105, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 102, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -153,7 +153,7 @@ func Workspace(props WorkspaceProps) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(props.Code)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 132, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 129, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -171,7 +171,7 @@ func Workspace(props WorkspaceProps) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(props.AnalysisResult)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 161, Col: 104}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 158, Col: 104}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -261,7 +261,7 @@ func RenderAnalysisResult(mode string, result string) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(mode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 426, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 423, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -274,7 +274,7 @@ func RenderAnalysisResult(mode string, result string) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(result)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 427, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/workspace.templ`, Line: 424, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {

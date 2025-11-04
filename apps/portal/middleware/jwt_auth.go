@@ -14,21 +14,21 @@ import (
 // JWTAuthMiddleware validates JWT tokens and adds user claims to the context
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-	// Check for token in cookies first
-	tokenString, err := c.Cookie("devsmith_token")
-	if err != nil || tokenString == "" {
-		// Fallback to Authorization header
-		tokenString = c.GetHeader("Authorization")
-		if tokenString == "" {
-			c.Redirect(http.StatusFound, "/login")
-			return
-		}
-		
-		// Strip "Bearer " prefix if present
-		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
-			tokenString = tokenString[7:]
-		}
-	}		// Parse token with UserClaims structure
+		// Check for token in cookies first
+		tokenString, err := c.Cookie("devsmith_token")
+		if err != nil || tokenString == "" {
+			// Fallback to Authorization header
+			tokenString = c.GetHeader("Authorization")
+			if tokenString == "" {
+				c.Redirect(http.StatusFound, "/login")
+				return
+			}
+
+			// Strip "Bearer " prefix if present
+			if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+				tokenString = tokenString[7:]
+			}
+		} // Parse token with UserClaims structure
 		token, err := jwt.ParseWithClaims(tokenString, &portal_handlers.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 			// Validate the signing method
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

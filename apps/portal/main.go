@@ -15,7 +15,6 @@ func main() {
 	// Authentication routes
 	r.GET("/auth/login", portal_handlers.HandleGitHubOAuthLogin)
 	r.GET("/auth/github/callback", portal_handlers.HandleGitHubOAuthCallback)
-	r.POST("/auth/test-login", portal_handlers.HandleTestLogin)
 
 	// Dashboard routes (middleware temporarily disabled for testing)
 	r.GET("/dashboard", portal_handlers.DashboardHandler)

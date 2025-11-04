@@ -238,8 +238,8 @@ func main() {
 		logClient = nil
 	}
 
-	// Create model service for dynamic model discovery
-	modelService := review_services.NewModelService(reviewLogger)
+	// Create model service for dynamic model discovery (needs Ollama endpoint)
+	modelService := review_services.NewModelService(reviewLogger, ollamaEndpoint)
 
 	// Handler setup with services (UIHandler takes logger, logging client, and AI services)
 	uiHandler := app_handlers.NewUIHandler(reviewLogger, logClient, previewService, skimService, scanService, detailedService, criticalService, modelService)
@@ -249,9 +249,11 @@ func main() {
 	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
 
 	// Public endpoints (no authentication required)
-	router.GET("/", uiHandler.HomeHandler)
-	router.GET("/review", uiHandler.HomeHandler)                   // Serve UI at /review for E2E tests
 	router.GET("/api/review/models", uiHandler.GetAvailableModels) // Model list is public
+
+	// Home/landing page with optional auth (validates JWT if present, allows unauthenticated)
+	router.GET("/", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler)
+	router.GET("/review", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 
 	// Protected endpoints group (require JWT authentication)
 	protected := router.Group("/")
