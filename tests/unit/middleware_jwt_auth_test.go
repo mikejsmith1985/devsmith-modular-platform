@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +14,11 @@ import (
 	portal_middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	// Set JWT_SECRET for unit tests
+	os.Setenv("JWT_SECRET", "test-secret-key-for-unit-tests")
+}
 
 func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	// Set up Gin context
@@ -40,7 +46,7 @@ func TestJWTAuthMiddleware_ValidToken(t *testing.T) {
 	log.Printf("[DEBUG] Token header: %+v", token.Header)
 	log.Printf("[DEBUG] Token payload: %+v", claims)
 
-	signedToken, err := token.SignedString([]byte("your-secret-key"))
+	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
 		t.Fatalf("Failed to sign token: %v", err)
 	}

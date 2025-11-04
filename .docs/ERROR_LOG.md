@@ -1,17 +1,238 @@
 # DevSmith Platform: Error Log
 
-**Purpose**: Track all errors encountered during development and ensure they're logged to the Logs service for future debugging.
-
-**Format**: Each error entry should include:
-- **Date/Time**: When the error occurred
-- **Context**: What was being attempted
-- **Error Message**: Exact error text
-- **Log Location**: Where this error should appear in Logs app
-- **Root Cause**: Why it happened
-- **Resolution**: How it was fixed
-- **Prevention**: How to avoid in future
+**Purpose**: Track all errors encountered during development to:
+1. Build institutional knowledge for debugging
+2. Train the Logs application's AI for intelligent error analysis
+3. Help Mike debug when Copilot is offline
+4. Prevent recurring issues
 
 ---
+
+## 📝 Error Log Template
+
+Copy this template for each new error:
+
+```markdown
+### Error: [Brief Description]
+**Date**: YYYY-MM-DD HH:MM UTC  
+**Context**: [What were you doing when error occurred]  
+**Error Message**: 
+```
+[Exact error text - code block for formatting]
+```
+
+**Root Cause**: [Why did this happen - be specific]  
+**Impact**: [What broke, who's affected, severity]  
+
+**Resolution**:
+```bash
+# Exact commands used to fix
+command1
+command2
+```
+
+**Prevention**: [How to avoid this in future - process changes, validation checks]  
+**Time Lost**: [Minutes/hours spent debugging]  
+**Logged to Platform**: ❌ NO / ✅ YES [Log ID or location]  
+**Related Issue**: #XXX (if applicable)  
+**Tags**: [database, migration, ui, docker, networking, etc.]
+```
+
+---
+
+## 🎯 Error Categories
+
+### Database Errors
+- Schema issues
+- Migration failures
+- Connection problems
+- Query performance
+
+### Service Errors
+- Startup failures
+- Crash loops
+- Health check failures
+- Dependency issues
+
+### UI/UX Errors
+- Template rendering issues
+- Broken user workflows
+- Loading spinners stuck
+- Navigation problems
+
+### Build/Deploy Errors
+- Compilation failures
+- Docker build issues
+- Image layer problems
+- Container restart loops
+
+### Network Errors
+- Service-to-service communication
+- Gateway routing
+- CORS issues
+- WebSocket disconnections
+
+### Testing Errors
+- Flaky tests
+- Mock expectation failures
+- Integration test issues
+- E2E test failures
+
+---
+
+## 2025-11-04: Migration Ordering Bug
+
+### Error: Logs Service Fails to Start - Relation Does Not Exist
+
+**Date**: 2025-11-04 12:26 UTC  
+**Context**: Running `docker-compose up -d` after implementing Phase 1 AI analysis features. Migration added AI columns to logs.entries table.  
+
+**Error Message**:
+```
+logs-1  | 2025/11/04 17:06:09 Failed to run migrations: migration execution failed: 
+pq: relation "logs.entries" does not exist
+```
+
+**Root Cause**: 
+Migration file `009_add_ai_analysis_columns.sql` runs BEFORE `20251025_001_create_log_entries_table.sql` due to alphabetical sorting:
+- Alphabetical order: `008` → `009` → `20251025_001` → `20251026_002`
+- Correct order: `20251025_001` (create table) → `20251026_002` (add context) → `009` (add AI columns)
+
+Migration 009 tried to ALTER TABLE logs.entries before the table was created.
+
+**Impact**: 
+- **Severity**: CRITICAL
+- Logs service crash on startup
+- Blocked all dependent services (Portal, Review, Analytics)
+- Complete platform outage
+- Prevented Phase 1 testing and validation
+
+**Resolution**:
+```bash
+# Renamed migration to fix execution order
+mv internal/logs/db/migrations/009_add_ai_analysis_columns.sql \
+   internal/logs/db/migrations/20251104_003_add_ai_analysis_columns.sql
+
+# Removed old file from git
+git rm internal/logs/db/migrations/009_add_ai_analysis_columns.sql
+
+# Committed fix
+git commit -m "fix(logs): rename migration to fix execution order"
+
+# Dropped database and restarted to run migrations fresh
+docker-compose down -v
+docker-compose up -d
+
+# Verified migration success
+docker-compose exec -T postgres psql -U devsmith -d devsmith -c "\d logs.entries"
+# Expected: issue_type, ai_analysis, severity_score columns present
+```
+
+**Prevention**: 
+1. **ALWAYS** use `YYYYMMDD_NNN_description.sql` format for migrations
+2. **NEVER** use simple numeric prefixes (001, 002, etc.) - they sort incorrectly
+3. Add pre-commit hook to validate migration naming:
+   ```bash
+   # Check all migrations follow YYYYMMDD_NNN format
+   find internal/*/db/migrations -name "*.sql" | grep -v "^[0-9]\{8\}_[0-9]\{3\}_"
+   ```
+4. Document migration naming standard in ARCHITECTURE.md
+5. Add automated test: verify migrations run in chronological order
+
+**Time Lost**: 45 minutes debugging (3 rebuild attempts before discovering root cause)  
+**Logged to Platform**: ❌ NO (Logs app not yet fully operational)  
+**Related Issue**: Phase 1 AI Diagnostics (#104)  
+**Tags**: database, migration, docker, startup-failure, alphabetical-sorting
+
+---
+
+## 2025-11-04: Container-Branch Mismatch
+
+### Error: Review UI Showing Infinite Loading Spinner
+
+**Date**: 2025-11-04 16:45 UTC  
+**Context**: User tested Review UI after "Phase 1 complete" declaration. Clicked Review card from dashboard, got stuck on infinite loading spinner.
+
+**Error Message**:
+```
+Browser: Loading spinner indefinitely visible
+No console errors
+Network tab: No failed requests
+Behavior: Page never transitions from loading state
+```
+
+**Root Cause**:
+Docker containers were running code from `feature/phase2-github-integration` branch instead of `development` branch. Phase 2 branch had removed authentication checks from `apps/review/handlers/ui_handler.go`:
+
+```diff
+// Development branch (correct):
+func (h *UIHandler) HomeHandler(c *gin.Context) {
+    userID, exists := c.Get("user_id")
+    if !exists {
+        c.Redirect(http.StatusFound, "/auth/github/login")
+        return
+    }
+    // ... proper session creation
+}
+
+// Phase 2 branch (broken):
+func (h *UIHandler) HomeHandler(c *gin.Context) {
+    // No authentication check!
+    c.Redirect(http.StatusPermanentRedirect, "/review/workspace/demo")
+    return
+}
+```
+
+Without authentication, the redirect loop caused infinite loading state.
+
+**Impact**:
+- **Severity**: CRITICAL
+- Complete Review UI failure
+- User unable to access Review features
+- False "complete" status for Phase 1
+- No regression tests caught this
+
+**Resolution**:
+```bash
+# Switched to correct branch
+git checkout development
+
+# Rebuilt services from correct branch
+docker-compose down
+docker-compose up -d --build
+
+# Verified services healthy
+docker-compose ps
+# Expected: All services showing "Up" and "healthy"
+
+# Tested Review UI manually
+open http://localhost:3000
+# Click Review card → should redirect to login (not infinite load)
+```
+
+**Prevention**:
+1. **ALWAYS** verify git branch matches container code before declaring work complete
+2. Add validation to deployment scripts:
+   ```bash
+   CURRENT_BRANCH=$(git branch --show-current)
+   CONTAINER_BRANCH=$(docker-compose exec -T review git branch --show-current)
+   if [ "$CURRENT_BRANCH" != "$CONTAINER_BRANCH" ]; then
+       echo "ERROR: Branch mismatch!"
+       exit 1
+   fi
+   ```
+3. **MANDATORY** regression testing before declaring work complete
+4. Tag Docker images with git commit SHA to ensure traceability
+5. Add automated check: "Does UI show expected state?" (not just "Does service respond?")
+
+**Time Lost**: 20 minutes debugging + 15 minutes rebuilding  
+**Logged to Platform**: ❌ NO (discovered during manual testing)  
+**Related Issue**: Phase 1 Finalization  
+**Tags**: docker, deployment, authentication, ui-regression, branch-mismatch
+
+---
+
+## 2025-11-03: Portal-Review Integration Issues
 
 ## 2025-11-03: Portal-Review Integration Issues
 

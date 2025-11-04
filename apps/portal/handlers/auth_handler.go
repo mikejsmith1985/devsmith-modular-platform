@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 )
 
 // UserClaims represents the JWT claims for authenticated users.
@@ -157,7 +158,7 @@ type UserInfo struct {
 
 // CreateJWTForUser creates a JWT token for the given user information.
 func CreateJWTForUser(user *UserInfo) (string, error) {
-	jwtKey := []byte("your-secret-key")
+	jwtKey := security.GetJWTSecret()
 	claims := UserClaims{
 		Username:  user.Login,
 		Email:     user.Email,

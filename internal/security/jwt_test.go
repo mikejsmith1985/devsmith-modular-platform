@@ -1,6 +1,7 @@
 package security
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -8,6 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// Set JWT_SECRET for all tests in this package
+	os.Setenv("JWT_SECRET", "test-secret-key-for-jwt-tests")
+}
 
 func TestCreateJWT(t *testing.T) {
 	// Act
@@ -109,5 +115,5 @@ func TestGetJWTSecret(t *testing.T) {
 
 	// Assert
 	assert.NotEmpty(t, secret)
-	assert.Equal(t, []byte("your-secret-key"), secret) // Default secret
+	assert.Equal(t, []byte("test-secret-key-for-jwt-tests"), secret)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 )
 
 // JWTAuthMiddleware validates JWT tokens and adds user claims to the context
@@ -34,7 +35,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte("your-secret-key"), nil // Must match the key in auth_handler.go
+			return security.GetJWTSecret(), nil
 		})
 
 		log.Printf("[DEBUG] Authorization header: %s", c.GetHeader("Authorization"))

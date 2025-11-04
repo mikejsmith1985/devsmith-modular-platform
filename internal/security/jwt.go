@@ -21,13 +21,12 @@ type UserClaims struct {
 	GithubID  string    `json:"github_id"`
 }
 
-// GetJWTSecret returns the JWT signing secret from environment or default
+// GetJWTSecret returns the JWT signing secret from environment.
+// Panics if JWT_SECRET is not set - this is intentional to prevent insecure defaults.
 func GetJWTSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		// Fallback to hardcoded secret (matches Portal's current implementation)
-		// TODO: Make this configurable via environment variable in production
-		secret = "your-secret-key"
+		panic("JWT_SECRET environment variable is not set - this is required for secure authentication")
 	}
 	return []byte(secret)
 }
