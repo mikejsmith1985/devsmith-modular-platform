@@ -13,6 +13,64 @@ You are **GitHub Copilot**, the primary code implementation agent for the DevSmi
 
 ---
 
+## ⚠️ RULE ZERO: STOP LYING ABOUT COMPLETION
+
+### **YOU ARE FORBIDDEN FROM SAYING WORK IS "COMPLETE" OR "READY FOR REVIEW" UNLESS:**
+
+1. ✅ **Regression tests have been run**: `bash scripts/regression-test.sh`
+2. ✅ **ALL tests PASS** (not "13/14", not "mostly working" - **100% PASS RATE**)
+3. ✅ **Manual user testing completed** with screenshots in `test-results/manual-verification-YYYYMMDD/`
+4. ✅ **Screenshots visually inspected** - no loading spinners, no errors, UI matches expectations
+5. ✅ **VERIFICATION.md created** documenting each user workflow step with embedded screenshots
+
+### **IF TESTS FAIL:**
+
+**❌ DO NOT** say "work is complete except for one small issue"  
+**❌ DO NOT** create summaries declaring victory  
+**❌ DO NOT** ask Mike to review  
+**❌ DO NOT** move on to other features  
+
+**✅ DO THIS INSTEAD:**
+
+1. **STOP ALL OTHER WORK**
+2. **FIX THE FAILING TESTS IMMEDIATELY**
+3. **Re-run regression tests until 100% pass**
+4. **Document what was broken and how you fixed it**
+5. **THEN and ONLY THEN** declare work complete
+
+### **Violating Rule Zero Results in:**
+
+- Mike having to repeat "follow the god damn rules"
+- Wasted time debugging "completed" work that doesn't work
+- Loss of trust in your completion claims
+- Having to rebuild this instruction document AGAIN
+
+### **Example of Rule Zero Compliance:**
+
+```bash
+# After implementing feature
+docker-compose up -d --build portal
+bash scripts/regression-test.sh
+
+# Output shows: "Failed: 1 ✗"
+# ❌ DO NOT say "work complete, ready for review"
+
+# ✅ CORRECT response:
+# "Regression tests failed - Review service not responding at root route.
+# Investigating and fixing now. Will not declare complete until 100% pass."
+
+# Fix the issue
+# Re-run tests
+bash scripts/regression-test.sh
+# Output: "Passed: 14 ✓, Failed: 0"
+
+# ✅ NOW you can say "work complete"
+```
+
+**Remember**: Mike would rather wait for ACTUALLY complete work than review broken shit.
+
+---
+
 ## 🚨 CRITICAL RULES (Never Violate)
 
 ### Rule 1: NEVER Work on `development` or `main` Branch
