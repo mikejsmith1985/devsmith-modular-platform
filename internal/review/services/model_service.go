@@ -1,11 +1,10 @@
 package review_services
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
+	"net/http"
 	"strings"
 	"time"
 
@@ -18,62 +17,82 @@ type ModelInfo struct {
 	Description string `json:"description"`
 }
 
+// OllamaModel represents a model from Ollama API response
+type OllamaModel struct {
+	Name       string `json:"name"`
+	ModifiedAt string `json:"modified_at"`
+	Size       int64  `json:"size"`
+}
+
+// OllamaTagsResponse is the response from GET /api/tags
+type OllamaTagsResponse struct {
+	Models []OllamaModel `json:"models"`
+}
+
 // ModelService queries Ollama for available models
 type ModelService struct {
-	logger logger.Interface
+	logger         logger.Interface
+	ollamaEndpoint string
 }
 
 // NewModelService creates a ModelService instance
-func NewModelService(logger logger.Interface) *ModelService {
-	return &ModelService{logger: logger}
+func NewModelService(logger logger.Interface, ollamaEndpoint string) *ModelService {
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://localhost:11434"
+	}
+	return &ModelService{
+		logger:         logger,
+		ollamaEndpoint: ollamaEndpoint,
+	}
 }
 
-// ListAvailableModels queries `ollama list` and returns available models
+// ListAvailableModels queries Ollama HTTP API and returns available models
 func (s *ModelService) ListAvailableModels(ctx context.Context) ([]ModelInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "ollama", "list")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	// Call Ollama API: GET /api/tags
+	url := s.ollamaEndpoint + "/api/tags"
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		s.logger.Error("Failed to run 'ollama list'", "error", err.Error(), "stderr", stderr.String())
-		return s.fallbackModels(), fmt.Errorf("ollama list failed: %w", err)
+		s.logger.Error("Failed to create request for Ollama API", "error", err.Error())
+		return s.fallbackModels(), fmt.Errorf("failed to create request: %w", err)
 	}
 
-	output := stdout.String()
-	lines := strings.Split(output, "\n")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.logger.Error("Failed to call Ollama API", "url", url, "error", err.Error())
+		return s.fallbackModels(), fmt.Errorf("ollama API call failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		s.logger.Error("Ollama API returned non-200 status", "status", resp.StatusCode)
+		return s.fallbackModels(), fmt.Errorf("ollama API returned status %d", resp.StatusCode)
+	}
+
+	var tagsResp OllamaTagsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
+		s.logger.Error("Failed to decode Ollama API response", "error", err.Error())
+		return s.fallbackModels(), fmt.Errorf("failed to decode response: %w", err)
+	}
 
 	var models []ModelInfo
-	for i, line := range lines {
-		// Skip header line (first line typically contains column headers)
-		if i == 0 || strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Parse line format: "NAME    ID    SIZE    MODIFIED"
-		fields := strings.Fields(line)
-		if len(fields) < 1 {
-			continue
-		}
-
-		modelName := fields[0]
-		description := s.inferDescription(modelName)
+	for _, model := range tagsResp.Models {
+		description := s.inferDescription(model.Name)
 		models = append(models, ModelInfo{
-			Name:        modelName,
+			Name:        model.Name,
 			Description: description,
 		})
 	}
 
 	if len(models) == 0 {
-		s.logger.Warn("No models detected from 'ollama list', using fallback list")
+		s.logger.Warn("No models detected from Ollama API, using fallback list")
 		return s.fallbackModels(), nil
 	}
 
-	s.logger.Info("Detected available models", "count", len(models))
+	s.logger.Info("Detected available models from Ollama", "count", len(models))
 	return models, nil
 }
 
@@ -98,12 +117,11 @@ func (s *ModelService) inferDescription(name string) string {
 	}
 }
 
-// fallbackModels returns a hardcoded list when `ollama list` fails
+// fallbackModels returns a hardcoded list when Ollama API fails
+// Only Mistral 7B is guaranteed to be available
 func (s *ModelService) fallbackModels() []ModelInfo {
 	return []ModelInfo{
 		{Name: "mistral:7b-instruct", Description: "Fast, General (Recommended)"},
-		{Name: "codellama:13b", Description: "Better for code"},
-		{Name: "deepseek-coder:6.7b", Description: "Code specialist"},
 	}
 }
 

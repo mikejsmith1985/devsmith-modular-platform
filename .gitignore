@@ -80,3 +80,5 @@ dist/
 
 # Validation status (runtime generated)
 .validation/
+.env.playwright
+tests/e2e/storageState.json
