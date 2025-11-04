@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/templates"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 )
 
 // DashboardHandler serves the main dashboard page
@@ -221,5 +222,5 @@ func fetchLogsData(ctx context.Context, url string) (interface{}, error) {
 
 // getJWTKey returns the shared JWT signing key.
 func getJWTKey() []byte {
-	return []byte("your-secret-key")
+	return security.GetJWTSecret()
 }

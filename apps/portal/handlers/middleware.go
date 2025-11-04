@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 )
 
 // JWTAuthMiddleware validates JWT tokens and extracts user claims
@@ -30,8 +31,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Replace with your secret key
-			return []byte("your-secret-key"), nil
+			return security.GetJWTSecret(), nil
 		})
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})

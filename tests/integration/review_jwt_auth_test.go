@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -159,7 +160,11 @@ func createTestJWT(t *testing.T, username, email, githubID string) string {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte("your-secret-key")) // Must match Portal's key
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-key-for-integration-tests"
+	}
+	tokenString, err := token.SignedString([]byte(jwtSecret))
 	require.NoError(t, err)
 
 	return tokenString
