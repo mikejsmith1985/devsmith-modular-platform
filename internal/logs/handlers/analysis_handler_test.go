@@ -43,7 +43,7 @@ func TestAnalyzeLog_Success(t *testing.T) {
 	mockService := new(MockAnalysisService)
 	logger := logrus.New()
 	handler := NewAnalysisHandler(mockService, logger)
-	
+
 	// Create test request
 	logEntry := logs_models.LogEntry{
 		ID:        1,
@@ -53,7 +53,7 @@ func TestAnalyzeLog_Success(t *testing.T) {
 		Metadata:  []byte(`{"correlation_id":"req-123"}`),
 		CreatedAt: time.Now(),
 	}
-	
+
 	expectedAnalysis := &logs_services.AnalysisResult{
 		RootCause:    "PostgreSQL connection refused",
 		SuggestedFix: "Check database service status",
@@ -61,37 +61,37 @@ func TestAnalyzeLog_Success(t *testing.T) {
 		RelatedLogs:  []string{"req-123"},
 		FixSteps:     []string{"Verify PostgreSQL is running", "Check connection string"},
 	}
-	
+
 	mockService.On("AnalyzeLogEntry", mock.Anything, mock.MatchedBy(func(entry *logs_models.LogEntry) bool {
 		return entry.Message == "database connection refused"
 	})).Return(expectedAnalysis, nil)
-	
+
 	// Create request
 	reqBody := AnalyzeLogRequest{
 		LogEntry: logEntry,
 	}
 	jsonData, _ := json.Marshal(reqBody)
-	
+
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("POST", "/api/logs/analyze", bytes.NewReader(jsonData))
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	// Execute
 	handler.AnalyzeLog(c)
-	
+
 	// Assert
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var response Response
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.True(t, response.Success)
-	
+
 	data := response.Data.(map[string]interface{})
 	assert.Equal(t, "PostgreSQL connection refused", data["root_cause"])
 	assert.Equal(t, float64(5), data["severity"])
-	
+
 	mockService.AssertExpectations(t)
 }
 
@@ -101,16 +101,16 @@ func TestAnalyzeLog_InvalidRequest(t *testing.T) {
 	mockService := new(MockAnalysisService)
 	logger := logrus.New()
 	handler := NewAnalysisHandler(mockService, logger)
-	
+
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("POST", "/api/logs/analyze", bytes.NewReader([]byte("invalid json")))
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	handler.AnalyzeLog(c)
-	
+
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	
+
 	var response Response
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.False(t, response.Success)
@@ -123,28 +123,28 @@ func TestAnalyzeLog_ServiceError(t *testing.T) {
 	mockService := new(MockAnalysisService)
 	logger := logrus.New()
 	handler := NewAnalysisHandler(mockService, logger)
-	
+
 	logEntry := logs_models.LogEntry{
 		ID:      1,
 		Service: "portal",
 		Level:   "error",
 		Message: "some error",
 	}
-	
+
 	mockService.On("AnalyzeLogEntry", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-	
+
 	reqBody := AnalyzeLogRequest{LogEntry: logEntry}
 	jsonData, _ := json.Marshal(reqBody)
-	
+
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("POST", "/api/logs/analyze", bytes.NewReader(jsonData))
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	handler.AnalyzeLog(c)
-	
+
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	
+
 	mockService.AssertExpectations(t)
 }
 
@@ -154,34 +154,34 @@ func TestClassifyLog_Success(t *testing.T) {
 	mockService := new(MockAnalysisService)
 	logger := logrus.New()
 	handler := NewAnalysisHandler(mockService, logger)
-	
+
 	logEntry := logs_models.LogEntry{
 		ID:      1,
 		Service: "portal",
 		Level:   "error",
 		Message: "connection refused to database",
 	}
-	
+
 	mockService.On("ClassifyLogEntry", mock.Anything, mock.Anything).Return("db_connection", nil)
-	
+
 	reqBody := ClassifyLogRequest{LogEntry: logEntry}
 	jsonData, _ := json.Marshal(reqBody)
-	
+
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest("POST", "/api/logs/classify", bytes.NewReader(jsonData))
 	c.Request.Header.Set("Content-Type", "application/json")
-	
+
 	handler.ClassifyLog(c)
-	
+
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var response Response
 	json.Unmarshal(w.Body.Bytes(), &response)
 	assert.True(t, response.Success)
-	
+
 	data := response.Data.(map[string]interface{})
 	assert.Equal(t, "db_connection", data["issue_type"])
-	
+
 	mockService.AssertExpectations(t)
 }

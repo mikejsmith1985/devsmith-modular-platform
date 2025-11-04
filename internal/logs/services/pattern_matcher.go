@@ -28,7 +28,7 @@ func NewPatternMatcher() *PatternMatcher {
 func (p *PatternMatcher) Classify(logMsg string) string {
 	// Normalize the message for matching
 	normalizedMsg := strings.TrimSpace(logMsg)
-	
+
 	// Check patterns in order (first match wins)
 	// Order matters - more specific patterns should come first
 	checkOrder := []string{
@@ -38,7 +38,7 @@ func (p *PatternMatcher) Classify(logMsg string) string {
 		"rate_limit",
 		"network_timeout",
 	}
-	
+
 	for _, issueType := range checkOrder {
 		if pattern, exists := p.patterns[issueType]; exists {
 			if pattern.MatchString(normalizedMsg) {
@@ -46,7 +46,7 @@ func (p *PatternMatcher) Classify(logMsg string) string {
 			}
 		}
 	}
-	
+
 	return "unknown"
 }
 

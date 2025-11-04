@@ -35,9 +35,9 @@ type AnalysisRequest struct {
 type AnalysisResult struct {
 	RootCause    string   `json:"root_cause"`
 	SuggestedFix string   `json:"suggested_fix"`
-	Severity     int      `json:"severity"`       // 1-5
-	RelatedLogs  []string `json:"related_logs"`   // correlation_ids
-	FixSteps     []string `json:"fix_steps"`      // Step-by-step instructions
+	Severity     int      `json:"severity"`     // 1-5
+	RelatedLogs  []string `json:"related_logs"` // correlation_ids
+	FixSteps     []string `json:"fix_steps"`    // Step-by-step instructions
 }
 
 // NewAIAnalyzer creates a new AI analyzer service
@@ -54,37 +54,37 @@ func NewAIAnalyzer(provider ai.Provider) *AIAnalyzer {
 func (a *AIAnalyzer) Analyze(ctx context.Context, req AnalysisRequest) (*AnalysisResult, error) {
 	// Generate cache key based on log messages
 	cacheKey := a.generateCacheKey(req)
-	
+
 	// Check cache first
 	if cachedResult := a.cache.Get(cacheKey); cachedResult != nil {
 		return cachedResult, nil
 	}
-	
+
 	// Build prompt for AI
 	prompt := a.buildPrompt(req)
-	
+
 	// Call AI provider
 	aiReq := &ai.Request{
 		Prompt:      prompt,
 		Model:       "qwen2.5-coder:7b-instruct-q4_K_M", // Default model
-		Temperature: 0.3,                                  // Low temperature for consistent analysis
+		Temperature: 0.3,                                // Low temperature for consistent analysis
 		MaxTokens:   2000,
 	}
-	
+
 	resp, err := a.aiProvider.Generate(ctx, aiReq)
 	if err != nil {
 		return nil, fmt.Errorf("AI generation failed: %w", err)
 	}
-	
+
 	// Parse AI response
 	result, err := a.parseResponse(resp.Content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse AI response: %w", err)
 	}
-	
+
 	// Cache the result
 	a.cache.Set(cacheKey, result)
-	
+
 	return result, nil
 }
 
@@ -94,7 +94,7 @@ func (a *AIAnalyzer) generateCacheKey(req AnalysisRequest) string {
 	for _, entry := range req.LogEntries {
 		messages = append(messages, entry.Message)
 	}
-	
+
 	combined := strings.Join(messages, "|")
 	hash := sha256.Sum256([]byte(combined))
 	return fmt.Sprintf("%x", hash)
@@ -103,18 +103,18 @@ func (a *AIAnalyzer) generateCacheKey(req AnalysisRequest) string {
 // buildPrompt constructs the AI prompt from the analysis request
 func (a *AIAnalyzer) buildPrompt(req AnalysisRequest) string {
 	var sb strings.Builder
-	
+
 	sb.WriteString("You are a systems diagnostics expert analyzing application logs.\n\n")
 	sb.WriteString(fmt.Sprintf("Context: %s\n\n", req.Context))
 	sb.WriteString("Log Entries:\n")
-	
+
 	for _, entry := range req.LogEntries {
 		sb.WriteString(fmt.Sprintf("[%s] %s - %s\n", entry.Level, entry.Service, entry.Message))
 		if len(entry.Metadata) > 0 {
 			sb.WriteString(fmt.Sprintf("Metadata: %s\n", string(entry.Metadata)))
 		}
 	}
-	
+
 	sb.WriteString("\nTasks:\n")
 	sb.WriteString("1. Identify the root cause (be specific - which component/function/line is failing?)\n")
 	sb.WriteString("2. Suggest a fix (concrete code change or configuration adjustment)\n")
@@ -129,7 +129,7 @@ func (a *AIAnalyzer) buildPrompt(req AnalysisRequest) string {
     "related_logs": ["correlation-id-1", "correlation-id-2"],
     "fix_steps": ["Step 1", "Step 2"]
 }`)
-	
+
 	return sb.String()
 }
 
@@ -138,18 +138,18 @@ func (a *AIAnalyzer) parseResponse(content string) (*AnalysisResult, error) {
 	// Try to extract JSON from the content (in case AI adds explanation before/after)
 	startIdx := strings.Index(content, "{")
 	endIdx := strings.LastIndex(content, "}")
-	
+
 	if startIdx == -1 || endIdx == -1 {
 		return nil, fmt.Errorf("no JSON found in response")
 	}
-	
+
 	jsonContent := content[startIdx : endIdx+1]
-	
+
 	var result AnalysisResult
 	if err := json.Unmarshal([]byte(jsonContent), &result); err != nil {
 		return nil, fmt.Errorf("JSON parse error: %w", err)
 	}
-	
+
 	return &result, nil
 }
 
