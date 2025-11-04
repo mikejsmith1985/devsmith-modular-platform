@@ -10,10 +10,60 @@ on:
     branches: [development, main]
 
 jobs:
-  # Job 1: Unit & Integration Tests with Race Detection
-  tests:
-    name: Tests (Unit + Integration + Race)
+  # Job 1: Unit Tests (Fast - No Services Required)
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run unit tests with race detection
+        run: |
+          echo "Running unit tests (excluding integration tests)..."
+          go test -race -short ./...
+
+      - name: Generate coverage report
+        run: |
+          echo "Generating coverage report..."
+          go test -coverprofile=coverage.out -short ./...
+          go tool cover -func=coverage.out
+
+      - name: Check test coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below 70% threshold"
+            exit 1
+          fi
+          
+          echo "✅ Coverage ${COVERAGE}% meets 70% threshold"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # Job 2: Integration Tests (Requires Services)
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests  # Only run if unit tests pass
 
     services:
       postgres:
@@ -43,35 +93,12 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests with race detection and coverage
+      - name: Run integration tests with race detection
         env:
           DATABASE_URL: postgres://devsmith:devsmith@localhost:5432/devsmith_test?sslmode=disable
         run: |
-          echo "Running tests with race detection..."
-          go test -race -coverprofile=coverage.out -covermode=atomic ./...
-          
-          echo "Coverage report:"
-          go tool cover -func=coverage.out
-
-      - name: Check test coverage threshold
-        run: |
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage: ${COVERAGE}%"
-          
-          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-            echo "❌ Coverage ${COVERAGE}% is below 70% threshold"
-            exit 1
-          fi
-          
-          echo "✅ Coverage ${COVERAGE}% meets 70% threshold"
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          echo "Running integration tests..."
+          go test -race -tags=integration ./...
 
   # Job 2: Circuit Breaker Benchmarks (Non-blocking)
   benchmarks:
@@ -122,11 +149,11 @@ jobs:
           path: benchmark-results.txt
           retention-days: 30
 
-  # Job 3: Playwright E2E Smoke Tests
+  # Job 4: Playwright E2E Smoke Tests
   e2e-smoke:
     name: E2E Smoke Tests (Playwright)
     runs-on: ubuntu-latest
-    needs: [tests]
+    needs: [unit-tests]
 
     services:
       postgres:
@@ -211,11 +238,11 @@ jobs:
           if [ -n "$PORTAL_PID" ]; then kill $PORTAL_PID || true; fi
           if [ -n "$LOGS_PID" ]; then kill $LOGS_PID || true; fi
 
-  # Job 4: Accessibility Tests (axe-core)
+  # Job 5: Accessibility Tests (axe-core)
   accessibility:
     name: Accessibility Tests (axe-core)
     runs-on: ubuntu-latest
-    needs: [tests]
+    needs: [unit-tests]
 
     services:
       postgres:
@@ -306,20 +333,22 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [tests, benchmarks, e2e-smoke, accessibility, openapi]
+    needs: [unit-tests, integration-tests, benchmarks, e2e-smoke, accessibility, openapi]
     if: always()
 
     steps:
       - name: Check all required jobs
         run: |
-          echo "Tests: ${{ needs.tests.result }}"
+          echo "Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "Integration Tests: ${{ needs.integration-tests.result }}"
           echo "Benchmarks: ${{ needs.benchmarks.result }}"
           echo "E2E Smoke: ${{ needs.e2e-smoke.result }}"
           echo "Accessibility: ${{ needs.accessibility.result }}"
           echo "OpenAPI: ${{ needs.openapi.result }}"
 
           # Benchmarks are informational only (don't block)
-          if [ "${{ needs.tests.result }}" != "success" ] || \
+          if [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.integration-tests.result }}" != "success" ] || \
              [ "${{ needs.e2e-smoke.result }}" != "success" ] || \
              [ "${{ needs.accessibility.result }}" != "success" ] || \
              [ "${{ needs.openapi.result }}" != "success" ]; then
@@ -335,3 +364,4 @@ jobs:
           else
             echo "✅ Benchmarks passed"
           fi
+
