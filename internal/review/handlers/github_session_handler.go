@@ -11,19 +11,26 @@ import (
 	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/github"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 )
 
 // GitHubSessionHandler handles GitHub session HTTP endpoints
 type GitHubSessionHandler struct {
 	repo         *review_db.GitHubRepository
 	githubClient github.ClientInterface
+	aiAnalyzer   *review_services.MultiFileAnalyzer
 }
 
 // NewGitHubSessionHandler creates a new GitHub session handler
-func NewGitHubSessionHandler(repo *review_db.GitHubRepository, client github.ClientInterface) *GitHubSessionHandler {
+func NewGitHubSessionHandler(
+	repo *review_db.GitHubRepository,
+	client github.ClientInterface,
+	aiAnalyzer *review_services.MultiFileAnalyzer,
+) *GitHubSessionHandler {
 	return &GitHubSessionHandler{
 		repo:         repo,
 		githubClient: client,
+		aiAnalyzer:   aiAnalyzer,
 	}
 }
 
@@ -387,12 +394,37 @@ func (h *GitHubSessionHandler) AnalyzeMultipleFiles(c *gin.Context) {
 		return
 	}
 
-	// Concatenate file contents with separators
-	combinedContent := ""
+	// Build file contents for analysis
+	var fileContents []review_services.FileContent
 	for _, path := range req.FilePaths {
-		combinedContent += fmt.Sprintf("\n=== FILE: %s ===\n", path)
-		// In production, fetch actual file content
-		combinedContent += fmt.Sprintf("// Content for %s\n", path)
+		// In production, fetch actual file content from GitHub
+		content := fmt.Sprintf("// Content for %s in %s/%s\n", path, session.Owner, session.Repo)
+		fileContents = append(fileContents, review_services.FileContent{
+			Path:    path,
+			Content: content,
+		})
+	}
+
+	// Call AI analyzer service
+	analyzeReq := &review_services.AnalyzeRequest{
+		Files:       fileContents,
+		ReadingMode: req.ReadingMode,
+		Temperature: 0.3, // Lower temperature for more consistent analysis
+	}
+
+	result, err := h.aiAnalyzer.Analyze(c.Request.Context(), analyzeReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI analysis failed", "details": err.Error()})
+		return
+	}
+
+	// Convert result to AIAnalysisResponse format for storage
+	aiResponse := &review_models.AIAnalysisResponse{
+		Summary:              result.Summary,
+		Dependencies:         result.Dependencies,
+		SharedAbstractions:   result.SharedAbstractions,
+		ArchitecturePatterns: result.ArchitecturePatterns,
+		Recommendations:      result.Recommendations,
 	}
 
 	// Create multi-file analysis record
@@ -400,17 +432,8 @@ func (h *GitHubSessionHandler) AnalyzeMultipleFiles(c *gin.Context) {
 		GitHubSessionID:    githubSessionID,
 		FilePaths:          req.FilePaths,
 		ReadingMode:        req.ReadingMode,
-		CombinedContent:    combinedContent,
-		AnalysisDurationMs: 0, // Will be set after AI analysis
-	}
-
-	// Stub AI response (in production, call AI service)
-	aiResponse := &review_models.AIAnalysisResponse{
-		Summary:              fmt.Sprintf("Analysis of %d files in %s/%s", len(req.FilePaths), session.Owner, session.Repo),
-		Dependencies:         []review_models.CrossFileDependency{},
-		SharedAbstractions:   []review_models.SharedAbstraction{},
-		ArchitecturePatterns: []review_models.ArchitecturePattern{},
-		Recommendations:      []string{"Consider refactoring", "Add more tests"},
+		CombinedContent:    "", // Optional: store combined content if needed
+		AnalysisDurationMs: result.DurationMs,
 	}
 
 	aiResponseData, _ := json.Marshal(aiResponse)
@@ -423,11 +446,14 @@ func (h *GitHubSessionHandler) AnalyzeMultipleFiles(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"analysis_id":  analysis.ID,
-		"file_paths":   req.FilePaths,
-		"reading_mode": req.ReadingMode,
-		"ai_response":  aiResponse,
-		"created_at":   analysis.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"analysis_id":   analysis.ID,
+		"file_paths":    req.FilePaths,
+		"reading_mode":  req.ReadingMode,
+		"ai_response":   aiResponse,
+		"duration_ms":   result.DurationMs,
+		"input_tokens":  result.InputTokens,
+		"output_tokens": result.OutputTokens,
+		"created_at":    analysis.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 

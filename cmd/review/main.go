@@ -254,8 +254,12 @@ func main() {
 	}
 	githubClient := github.NewDefaultClient()
 
+	// Initialize multi-file analyzer service for GitHub session analysis
+	// Note: MultiFileAnalyzer uses ai.Provider interface, so we use ollamaClient directly
+	multiFileAnalyzer := review_services.NewMultiFileAnalyzer(ollamaClient, ollamaModel)
+
 	// Initialize GitHub session handler for repository integration
-	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient)
+	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient, multiFileAnalyzer)
 
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")
