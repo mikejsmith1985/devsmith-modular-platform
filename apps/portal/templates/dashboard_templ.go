@@ -84,12 +84,12 @@ func Dashboard(user DashboardUser) templ.Component {
 				Title:       "Development Logs",
 				Description: "Real-time platform logs, error tracking, and health monitoring",
 				Icon:        "📝",
-				BadgeText:   "Coming Soon",
-				BadgeColor:  "gray",
-				ActionText:  "Coming Soon",
-				ActionURL:   "",
+				BadgeText:   "Ready",
+				BadgeColor:  "green",
+				ActionText:  "Open Logs",
+				ActionURL:   "/logs",
 				StatLabel:   "Status",
-				StatValue:   "In Development",
+				StatValue:   "Operational",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -130,7 +130,7 @@ func Dashboard(user DashboardUser) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><!-- Stats Section --><section class=\"mt-16\"><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">Platform Overview</h3><div class=\"grid gap-4 md:grid-cols-4\"><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Status</p><p class=\"text-3xl font-bold text-green-600 dark:text-green-400 mt-2\">All Online</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">3/3 services operational</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">AI Model</p><p class=\"text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2\">Configured</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Multiple providers ready</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Uptime</p><p class=\"text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2\">99.9%</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Last 30 days</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Version</p><p class=\"text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2\">v1.0</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Latest production</p></div></div></section></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><!-- Stats Section --><section class=\"mt-16\"><h3 class=\"text-2xl font-bold text-gray-900 dark:text-white mb-6\">Platform Overview</h3><div class=\"grid gap-4 md:grid-cols-4\"><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Status</p><p class=\"text-3xl font-bold text-green-600 dark:text-green-400 mt-2\">All Online</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">4/4 services operational</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">AI Model</p><p class=\"text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2\">Configured</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Multiple providers ready</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Uptime</p><p class=\"text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2\">99.9%</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Last 30 days</p></div><div class=\"bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700\"><p class=\"text-sm font-medium text-gray-500 dark:text-gray-400\">Version</p><p class=\"text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2\">v1.0</p><p class=\"text-xs text-gray-500 dark:text-gray-400 mt-2\">Latest production</p></div></div></section></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
