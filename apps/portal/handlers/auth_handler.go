@@ -234,16 +234,29 @@ func exchangeCodeForToken(code string) (string, error) {
 			log.Printf("[ERROR] Failed to close response body: %v", closeErr)
 		}
 	}()
+	// Read response body for logging
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return "", fmt.Errorf("failed to read response body: %w", readErr)
+	}
+	log.Printf("[DEBUG] GitHub token response status: %d", resp.StatusCode)
+	log.Printf("[DEBUG] GitHub token response body: %s", string(bodyBytes))
+
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
 		TokenType   string `json:"token_type"`
 		Scope       string `json:"scope"`
+		Error       string `json:"error"`
+		ErrorDesc   string `json:"error_description"`
 	}
-	if decodeErr := json.NewDecoder(resp.Body).Decode(&tokenResp); decodeErr != nil {
-		return "", decodeErr
+	if decodeErr := json.Unmarshal(bodyBytes, &tokenResp); decodeErr != nil {
+		return "", fmt.Errorf("failed to decode response: %w", decodeErr)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("unexpected status code: %d, error: %s - %s", resp.StatusCode, tokenResp.Error, tokenResp.ErrorDesc)
+	}
+	if tokenResp.Error != "" {
+		return "", fmt.Errorf("github oauth error: %s - %s", tokenResp.Error, tokenResp.ErrorDesc)
 	}
 	if tokenResp.AccessToken == "" {
 		return "", fmt.Errorf("access token is empty")
