@@ -12,6 +12,9 @@ templ Layout(title string, user *DashboardUser) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
 		<title>{ title } - DevSmith</title>
+		<!-- Unified DevSmith Theme -->
+		<link rel="stylesheet" href="/static/css/devsmith-theme.css"/>
+		<link rel="stylesheet" href="/static/fonts/bootstrap-icons.css"/>
 		<script src="https://cdn.tailwindcss.com"></script>
 		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<link rel="stylesheet" href="/static/dashboard.css"/>
@@ -55,6 +58,11 @@ templ Layout(title string, user *DashboardUser) {
 		</script>
 	</head>
 	<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
+		<!-- Skip to main content link for keyboard navigation -->
+		<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded focus:shadow-lg">
+			Skip to main content
+		</a>
+		
 		<!-- Navigation -->
 		@nav.Navigation(nav.NavProps{
 			CurrentUser: &nav.NavUser{
@@ -66,7 +74,7 @@ templ Layout(title string, user *DashboardUser) {
 		})
 
 		<!-- Main Content -->
-		<main class="flex-1">
+		<main id="main-content" class="flex-1">
 			{ children... }
 		</main>
 

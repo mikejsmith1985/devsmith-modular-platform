@@ -20,6 +20,7 @@ import (
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,6 +65,22 @@ func main() {
 		}
 		log.Fatal("Failed to ping database:", err)
 	}
+
+	// --- Redis session store initialization ---
+	redisAddr := os.Getenv("REDIS_URL")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" // Default to local Redis
+	}
+	sessionStore, err := session.NewRedisStore(redisAddr, 7*24*time.Hour) // 7 day session TTL
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis session store: %v", err)
+	}
+	defer func() {
+		if err := sessionStore.Close(); err != nil {
+			log.Printf("Error closing Redis: %v", err)
+		}
+	}()
+	log.Printf("Redis session store initialized: addr=%s, ttl=7 days", redisAddr)
 
 	// Run database migrations
 	if err := runMigrations(dbConn); err != nil {
@@ -154,6 +171,14 @@ func main() {
 	router.DELETE("/api/logs", func(c *gin.Context) {
 		resthandlers.DeleteLogs(restSvc)(c)
 	})
+
+	// TODO: Add protected routes group when authentication is required
+	// Example:
+	// protected := router.Group("/")
+	// protected.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
+	// {
+	//     protected.POST("/api/logs/sensitive", ...) // Protected endpoint
+	// }
 
 	// Also register /api/v1/logs routes (for consistency and direct access)
 	router.POST("/api/v1/logs", func(c *gin.Context) {

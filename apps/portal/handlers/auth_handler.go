@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
 
 // UserClaims represents the JWT claims for authenticated users.
@@ -36,14 +37,123 @@ func RegisterAuthRoutes(router *gin.Engine, dbConn *sql.DB) {
 	RegisterTokenRoutes(router)
 }
 
+// sessionStore is a package-level variable to store the Redis session store
+var sessionStore *session.RedisStore
+
+// RegisterAuthRoutesWithSession registers authentication routes with Redis session support
+func RegisterAuthRoutesWithSession(router *gin.Engine, dbConn *sql.DB, store *session.RedisStore) {
+	sessionStore = store
+	RegisterAuthRoutes(router, dbConn)
+}
+
 // RegisterGitHubRoutes registers GitHub-related authentication routes
 func RegisterGitHubRoutes(router *gin.Engine) {
 	log.Println("[DEBUG] Registering authentication routes")
 
 	router.GET("/auth/github/login", HandleGitHubOAuthLogin)
-	router.GET("/auth/github/callback", HandleGitHubOAuthCallback)
+	router.GET("/auth/github/callback", HandleGitHubOAuthCallbackWithSession)
 	router.GET("/auth/login", HandleAuthLogin)
 	router.GET("/auth/github/dashboard", HandleGitHubDashboard)
+	router.POST("/auth/logout", HandleLogout)
+
+	// Test authentication endpoint - only enabled when ENABLE_TEST_AUTH=true
+	if os.Getenv("ENABLE_TEST_AUTH") == "true" {
+		log.Println("[WARN] Test auth endpoint enabled - DO NOT USE IN PRODUCTION")
+		router.POST("/auth/test-login", HandleTestLogin)
+	}
+}
+
+// HandleTestLogin creates a test session for E2E testing
+// Only enabled when ENABLE_TEST_AUTH=true environment variable is set
+func HandleTestLogin(c *gin.Context) {
+	if os.Getenv("ENABLE_TEST_AUTH") != "true" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Test auth endpoint not enabled"})
+		return
+	}
+
+	type TestUser struct {
+		Username  string `json:"username" binding:"required"`
+		Email     string `json:"email" binding:"required"`
+		AvatarURL string `json:"avatar_url" binding:"required"`
+		GitHubID  string `json:"github_id"`
+	}
+
+	var req TestUser
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	if sessionStore == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session store not initialized"})
+		return
+	}
+
+	// Generate session ID using session package
+	sessionID, err := session.GenerateSessionID()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate session ID"})
+		return
+	}
+
+	// Create test session in Redis
+	sess := &session.Session{
+		SessionID:      sessionID,
+		UserID:         999999, // Test user ID
+		GitHubUsername: req.Username,
+		GitHubToken:    "test-token-not-real",
+		CreatedAt:      time.Now(),
+		LastAccessedAt: time.Now(),
+		Metadata: map[string]interface{}{
+			"email":      req.Email,
+			"avatar_url": req.AvatarURL,
+			"github_id":  req.GitHubID,
+			"is_test":    true,
+		},
+	}
+
+	// Create returns (sessionID string, error)
+	createdSessionID, err := sessionStore.Create(c.Request.Context(), sess)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create test session"})
+		return
+	}
+
+	// Generate JWT with session_id (same pattern as OAuth callback)
+	claims := jwt.MapClaims{
+		"session_id": createdSessionID,
+		"exp":        time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"iat":        time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtSecret := security.GetJWTSecret()
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	// Set JWT cookie
+	c.SetCookie(
+		"devsmith_token",
+		tokenString,
+		int((7 * 24 * time.Hour).Seconds()),
+		"/",
+		"",
+		false, // HTTP-only for dev
+		true,  // HTTP-only
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+		"token":   token,
+		"user": map[string]interface{}{
+			"username":   req.Username,
+			"email":      req.Email,
+			"avatar_url": req.AvatarURL,
+			"github_id":  req.GitHubID,
+		},
+	})
 }
 
 // HandleGitHubOAuthLogin initiates GitHub OAuth flow
@@ -234,16 +344,29 @@ func exchangeCodeForToken(code string) (string, error) {
 			log.Printf("[ERROR] Failed to close response body: %v", closeErr)
 		}
 	}()
+	// Read response body for logging
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return "", fmt.Errorf("failed to read response body: %w", readErr)
+	}
+	log.Printf("[DEBUG] GitHub token response status: %d", resp.StatusCode)
+	log.Printf("[DEBUG] GitHub token response body: %s", string(bodyBytes))
+
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
 		TokenType   string `json:"token_type"`
 		Scope       string `json:"scope"`
+		Error       string `json:"error"`
+		ErrorDesc   string `json:"error_description"`
 	}
-	if decodeErr := json.NewDecoder(resp.Body).Decode(&tokenResp); decodeErr != nil {
-		return "", decodeErr
+	if decodeErr := json.Unmarshal(bodyBytes, &tokenResp); decodeErr != nil {
+		return "", fmt.Errorf("failed to decode response: %w", decodeErr)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("unexpected status code: %d, error: %s - %s", resp.StatusCode, tokenResp.Error, tokenResp.ErrorDesc)
+	}
+	if tokenResp.Error != "" {
+		return "", fmt.Errorf("github oauth error: %s - %s", tokenResp.Error, tokenResp.ErrorDesc)
 	}
 	if tokenResp.AccessToken == "" {
 		return "", fmt.Errorf("access token is empty")
@@ -367,13 +490,133 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 		tokenString,      // value
 		86400,            // maxAge (24 hours)
 		"/",              // path
-		"",               // domain
-		isSecure,         // secure (HTTPS only in production)
-		true,             // httpOnly (XSS protection)
+		"",               // domain (empty = current domain)
+		isSecure,         // secure
+		true,             // httpOnly
 	)
+}
 
-	// Set SameSite=Lax for CSRF protection while allowing top-level navigation
-	// SameSite=Strict blocks cookies on link navigation (e.g., dashboard -> /review)
-	// SameSite=Lax allows cookies on top-level GET requests (safe for navigation)
-	c.SetSameSite(http.SameSiteLaxMode)
+// HandleGitHubOAuthCallbackWithSession processes GitHub OAuth callback with Redis session
+func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code in callback"})
+		return
+	}
+
+	if !ValidateOAuthConfig() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth credentials not configured"})
+		return
+	}
+
+	log.Printf("[DEBUG] Step 1: Received callback code=%s", code)
+
+	// Exchange code for access token
+	accessToken, err := exchangeCodeForToken(code)
+	if err != nil {
+		log.Printf("[ERROR] Failed to exchange code for token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate"})
+		return
+	}
+
+	log.Printf("[DEBUG] Step 2: Got access token, fetching user...")
+
+	// Fetch user info from GitHub
+	user, err := FetchUserInfo(accessToken)
+	if err != nil {
+		log.Printf("[ERROR] Failed to fetch user info: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user info"})
+		return
+	}
+
+	log.Printf("[DEBUG] Step 3: User authenticated: %s (ID: %d)", user.Login, user.ID)
+
+	// Create Redis session (store full user data here, not in JWT)
+	sess := &session.Session{
+		UserID:         int(user.ID),
+		GitHubUsername: user.Login,
+		GitHubToken:    accessToken,
+		Metadata: map[string]interface{}{
+			"email":      user.Email,
+			"avatar_url": user.AvatarURL,
+			"name":       user.Name,
+		},
+	}
+
+	sessionID, err := sessionStore.Create(c.Request.Context(), sess)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create session: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+		return
+	}
+
+	log.Printf("[DEBUG] Step 4: Session created: %s", sessionID)
+
+	// Create JWT containing ONLY session_id (not user data)
+	claims := jwt.MapClaims{
+		"session_id": sessionID,
+		"exp":        time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"iat":        time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtSecret := security.GetJWTSecret()
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		log.Printf("[ERROR] Failed to sign JWT: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to issue JWT"})
+		return
+	}
+
+	log.Printf("[DEBUG] Step 5: JWT created, setting cookie and redirecting")
+	SetSecureJWTCookie(c, tokenString)
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+// HandleLogout logs out the user by deleting their session
+func HandleLogout(c *gin.Context) {
+	// Get JWT from cookie
+	tokenString, err := c.Cookie("devsmith_token")
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "Already logged out"})
+		return
+	}
+
+	// Parse JWT to get session_id
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return security.GetJWTSecret(), nil
+	})
+
+	if err != nil || !token.Valid {
+		// Invalid token, just clear cookie
+		c.SetCookie("devsmith_token", "", -1, "/", "", false, true)
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
+		return
+	}
+
+	// Extract session_id from claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		c.SetCookie("devsmith_token", "", -1, "/", "", false, true)
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
+		return
+	}
+
+	sessionID, ok := claims["session_id"].(string)
+	if !ok || sessionID == "" {
+		c.SetCookie("devsmith_token", "", -1, "/", "", false, true)
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
+		return
+	}
+
+	// Delete session from Redis
+	if err := sessionStore.Delete(c.Request.Context(), sessionID); err != nil {
+		log.Printf("[WARN] Failed to delete session from Redis: %v", err)
+	}
+
+	// Clear JWT cookie
+	c.SetCookie("devsmith_token", "", -1, "/", "", false, true)
+
+	log.Printf("[DEBUG] User logged out, session deleted: %s", sessionID)
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

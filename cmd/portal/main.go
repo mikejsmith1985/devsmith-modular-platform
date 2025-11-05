@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx PostgreSQL driver for DB connection
@@ -19,6 +20,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
 
 func main() {
@@ -96,8 +98,28 @@ func main() {
 		return
 	}
 
-	// Register authentication routes
-	handlers.RegisterAuthRoutes(router, dbConn)
+	// Initialize Redis session store
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "localhost:6379" // Default for local development
+	}
+	sessionStore, err := session.NewRedisStore(redisURL, 7*24*time.Hour) // 7 day session TTL
+	if err != nil {
+		log.Printf("Failed to connect to Redis: %v", err)
+		if closeErr := dbConn.Close(); closeErr != nil {
+			log.Printf("Error closing DB connection: %v", closeErr)
+		}
+		return
+	}
+	defer func() {
+		if closeErr := sessionStore.Close(); closeErr != nil {
+			log.Printf("Error closing Redis connection: %v", closeErr)
+		}
+	}()
+	log.Printf("Redis session store initialized at %s", redisURL)
+
+	// Register authentication routes (pass session store)
+	handlers.RegisterAuthRoutesWithSession(router, dbConn, sessionStore)
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "portal")

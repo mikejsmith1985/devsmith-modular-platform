@@ -1,0 +1,34 @@
+version: 2
+percy:
+  useSystemProxy: false
+  skipBaseBuild: false
+snapshot:
+  widths:
+    - 375    # Mobile
+    - 768    # Tablet
+    - 1920   # Desktop
+  minHeight: 1024
+  percyCSS: ""
+  enableJavaScript: true  # Enable JS for HTMX interactions
+  cliEnableJavaScript: true
+  disableShadowDOM: false
+  forceShadowAsLightDOM: false
+  responsiveSnapshotCapture: true  # Capture responsive breakpoints
+  ignoreCanvasSerializationErrors: false
+  ignoreStyleSheetSerializationErrors: false
+discovery:
+  allowedHostnames:
+    - localhost
+    - localhost:3000
+  disallowedHostnames: []
+  networkIdleTimeout: 500  # Wait for network idle before capture
+  scrollToBottom: false
+  captureMockedServiceWorker: false
+  retry: true  # Retry on failure
+  launchOptions:
+    closeBrowser: true
+upload:
+  files: "**/*.{png,jpg,jpeg}"
+  ignore: "node_modules/**"
+  stripExtensions: false
+
