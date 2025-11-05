@@ -197,14 +197,17 @@ log_info "━━━ TEST 2: Review Service UI ━━━"
 
 take_screenshot "http://localhost:8081/review" "02-review-landing.png" "Review service landing"
 
-# Don't follow redirects - redirect to /auth/github/login is the expected response
-REVIEW_HTML=$(curl -s "http://localhost:8081/review" 2>&1 || echo "")
+# Review service should respond with either:
+# 1. JSON error ({"error":"Authentication required"}) for API requests
+# 2. HTML redirect to login for browser requests
+# 3. 401 status code
+REVIEW_RESPONSE=$(curl -s -w "\n%{http_code}" "http://localhost:8081/review" 2>&1 || echo "")
 
-# Review service should either show UI or redirect to auth (both are valid)
-if echo "$REVIEW_HTML" | grep -q -i "review\|code\|analysis\|login\|sign\|found"; then
-    record_test "Review Service Accessible" "pass" "Review service responding" "02-review-landing.png"
+# Check if service is responding correctly (401 or JSON error or redirect)
+if echo "$REVIEW_RESPONSE" | grep -q -i "Authentication required\|401\|302\|Found"; then
+    record_test "Review Service Accessible" "pass" "Review service responding correctly (auth required)" "02-review-landing.png"
 else
-    record_test "Review Service Accessible" "fail" "Review service not responding" "02-review-landing.png"
+    record_test "Review Service Accessible" "fail" "Review service not responding: $REVIEW_RESPONSE" "02-review-landing.png"
 fi
 
 # ============================================================================

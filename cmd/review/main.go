@@ -25,7 +25,6 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/github"
 	review_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/handlers"
 	review_health "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/health"
-	review_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/middleware"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	review_tracing "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/tracing"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
@@ -286,9 +285,9 @@ func main() {
 	// Public endpoints (no authentication required)
 	router.GET("/api/review/models", uiHandler.GetAvailableModels) // Model list is public
 
-	// Home/landing page with optional auth (validates JWT if present, allows unauthenticated)
-	router.GET("/", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler)
-	router.GET("/review", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler) // Serve UI at /review for E2E tests
+	// Home/landing page - REQUIRES authentication via Redis session (SSO with Portal)
+	router.GET("/", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
+	router.GET("/review", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 
 	// Protected endpoints group (require JWT authentication with Redis session validation)
 	protected := router.Group("/")
