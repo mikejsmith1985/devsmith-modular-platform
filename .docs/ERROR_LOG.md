@@ -80,6 +80,96 @@ command2
 
 ---
 
+## 2025-11-04: Missing JWT_SECRET Causes OAuth Panic
+
+### Error: Portal OAuth Login Returns "Failed to authenticate"
+
+**Date**: 2025-11-04 19:33 UTC  
+**Context**: User completes GitHub OAuth flow, clicks authorize, gets redirected back to localhost:3000/auth/github/callback  
+**Error Message**:
+```
+{"error":"Failed to authenticate"}
+
+Portal logs show:
+2025/11/05 00:33:33 [Recovery] 2025/11/05 - 00:33:33 panic recovered:
+JWT_SECRET environment variable is not set - this is required for secure authentication
+/app/internal/security/jwt.go:29
+```
+
+**Root Cause**:
+OAuth flow worked perfectly - GitHub returned valid access token and user info. BUT the JWT token generation panicked because `JWT_SECRET` environment variable was not set in docker-compose.yml.
+
+Flow that failed:
+1. ✅ User clicks "Login with GitHub"
+2. ✅ Redirects to GitHub OAuth
+3. ✅ User authorizes
+4. ✅ GitHub redirects to /auth/github/callback with code
+5. ✅ Portal exchanges code for access token (got: `gho_***REDACTED***`)
+6. ✅ Portal fetches user info from GitHub API (got: mikejsmith1985, id: 157150032)
+7. ❌ **PANIC** when trying to create JWT token because JWT_SECRET not set
+
+**Impact**:
+- **Severity**: CRITICAL
+- Complete OAuth login failure
+- User cannot log in to platform
+- Error message unhelpful ("Failed to authenticate" - doesn't explain JWT_SECRET missing)
+- Regression tests passed because they only tested redirect behavior, not actual authentication completion
+
+**Resolution**:
+```bash
+# Added JWT_SECRET to docker-compose.yml portal service environment
+# Line 73 in docker-compose.yml:
+- JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+
+# Restarted portal with new env var
+docker-compose up -d portal
+
+# Verified JWT_SECRET is now set
+docker-compose exec -T portal env | grep JWT_SECRET
+# Output: JWT_SECRET=dev-secret-key-change-in-production
+```
+
+**Prevention**:
+1. ✅ **Add startup validation**: Portal should check for JWT_SECRET on startup and fail fast with clear error
+2. ✅ **Add to .env.example**: Document JWT_SECRET requirement
+3. ✅ **Add to docker-compose.yml**: Use default value with override pattern `${VAR:-default}`
+4. ✅ **Improve error message**: Change panic to graceful error: "JWT_SECRET not set - check docker-compose.yml"
+5. ✅ **Add E2E test**: Create OAuth visual test with screenshots (tests/e2e/oauth-visual-test.spec.ts)
+6. ✅ **Container self-healing**: Add health check that validates required env vars
+
+**Why Tests Passed**:
+- Regression tests only checked:
+  - ✅ Does /login return HTML?
+  - ✅ Does /auth/login redirect to GitHub?
+  - ✅ Does /dashboard require auth?
+- Regression tests DID NOT check:
+  - ❌ Does OAuth callback complete successfully?
+  - ❌ Is JWT token created?
+  - ❌ Can user actually log in end-to-end?
+
+**Mike's Container Strategy Feedback**:
+> "I hate docker and I think we should consider a container strategy that self heals and auto updates since we fuck that up basically every time we make a change"
+
+**Valid concerns:**
+1. Manual `docker-compose up` after every code change
+2. No auto-detection of docker-compose.yml changes
+3. Config changes (like missing JWT_SECRET) cause runtime panics instead of startup failures
+4. No self-healing for missing env vars
+
+**TODO - Container Improvements**:
+1. Add startup validation script that checks all required env vars
+2. Add docker-compose healthchecks that validate config
+3. Add watch mode for docker-compose.yml changes
+4. Consider Docker Compose watch feature (docker compose watch)
+5. Add pre-start validation script that fails fast with helpful error messages
+
+**Time Lost**: 45 minutes (multiple OAuth attempts, log analysis, adding debug logging)  
+**Logged to Platform**: ❌ NO (panic prevented logging service call)  
+**Related Issue**: Phase 2 GitHub Integration  
+**Tags**: docker, environment-variables, oauth, jwt, panic-recovery, container-configuration
+
+---
+
 ## 2025-11-04: Migration Ordering Bug
 
 ### Error: Logs Service Fails to Start - Relation Does Not Exist
