@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,6 +45,22 @@ func main() {
 		logger.WithError(err).Fatal("Failed to connect to the database")
 	}
 	defer dbPool.Close()
+
+	// --- Redis session store initialization ---
+	redisAddr := os.Getenv("REDIS_URL")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" // Default to local Redis
+	}
+	sessionStore, err := session.NewRedisStore(redisAddr, 7*24*time.Hour) // 7 day session TTL
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis session store: %v", err)
+	}
+	defer func() {
+		if err := sessionStore.Close(); err != nil {
+			log.Printf("Error closing Redis: %v", err)
+		}
+	}()
+	logger.Infof("Redis session store initialized: addr=%s, ttl=7 days", redisAddr)
 
 	aggregationRepo := analytics_db.NewAggregationRepository(dbPool)
 	logReader := analytics_db.NewLogReader(dbPool)
@@ -76,6 +94,14 @@ func main() {
 
 	// Register API routes
 	apiHandler.RegisterRoutes(router)
+
+	// TODO: Add protected routes group when authentication is required
+	// Example:
+	// protected := router.Group("/")
+	// protected.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
+	// {
+	//     protected.GET("/api/analytics/private", ...) // Protected endpoint
+	// }
 
 	// Register UI routes
 	app_handlers.RegisterUIRoutes(router, logger)

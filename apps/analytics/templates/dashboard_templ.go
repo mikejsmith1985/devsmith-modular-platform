@@ -220,7 +220,7 @@ func TopIssuesSection() templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<section class=\"issues-section card\"><h2>Top Issues</h2><div class=\"issues-filters\"><select id=\"issues-level\" name=\"level\" hx-get=\"/api/analytics/issues\" hx-target=\"#issues-container\" hx-swap=\"innerHTML\" hx-trigger=\"change\" hx-include=\"[name='time_range']\" hx-indicator=\"#analytics-loading\"><option value=\"all\">All Levels</option> <option value=\"error\">Errors Only</option> <option value=\"warn\">Warnings Only</option></select></div><div id=\"issues-container\"><div class=\"loading\">Loading top issues...</div></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<section class=\"issues-section card\"><h2>Top Issues</h2><div class=\"issues-filters\"><label for=\"issues-level\" class=\"sr-only\">Filter issues by level</label> <select id=\"issues-level\" name=\"level\" hx-get=\"/api/analytics/issues\" hx-target=\"#issues-container\" hx-swap=\"innerHTML\" hx-trigger=\"change\" hx-include=\"[name='time_range']\" hx-indicator=\"#analytics-loading\"><option value=\"all\">All Levels</option> <option value=\"error\">Errors Only</option> <option value=\"warn\">Warnings Only</option></select></div><div id=\"issues-container\"><div class=\"loading\">Loading top issues...</div></div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

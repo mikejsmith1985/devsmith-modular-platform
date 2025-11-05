@@ -1,4 +1,21 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - devsmith-network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   postgres:
     build:
       context: ./docker/postgres
@@ -26,21 +43,22 @@ services:
       timeout: 3s
       retries: 5
       start_period: 8s
-  nginx:
-    build:
-      context: ./docker/nginx
-      dockerfile: Dockerfile
-    volumes:
-      - ${PWD}/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      # Mount a merged static directory into /usr/share/nginx/html/static so
-      # templates referencing /static/* are resolved. This directory is created
-      # from apps/review/static and apps/portal/static at repo path
-      # docker/nginx/static
-      - ./docker/nginx/static/:/usr/share/nginx/html/static:ro
-      # Ensure nginx can create runtime cache/temp directories
-      - nginx-cache:/var/cache/nginx
+  traefik:
+    image: traefik:v2.10
+    container_name: devsmith-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:3000"
+      - "--log.level=INFO"
+      - "--accesslog=true"
     ports:
-      - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
+      - "3000:3000"   # Main gateway
+      - "8090:8080"   # Traefik dashboard (changed from 8080 to avoid conflict with Portal)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       portal:
         condition: service_healthy
@@ -52,12 +70,7 @@ services:
         condition: service_healthy
     networks:
       - devsmith-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    restart: unless-stopped
   portal:
     build:
       context: .
@@ -67,6 +80,7 @@ services:
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REDIS_URL=redis:6379
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
@@ -76,6 +90,8 @@ services:
       - ENVIRONMENT=docker
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       logs:
         condition: service_healthy
@@ -87,6 +103,14 @@ services:
       timeout: 3s
       retries: 5
       start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portal.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.portal.entrypoints=web"
+      - "traefik.http.routers.portal.priority=1"
+      - "traefik.http.services.portal.loadbalancer.server.port=8080"
+      - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.portal.loadbalancer.healthcheck.interval=10s"
   review:
     build:
       context: .
@@ -97,6 +121,8 @@ services:
       - PORT=8081
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - OLLAMA_ENDPOINT=http://host.docker.internal:11434
       - OLLAMA_MODEL=mistral:7b-instruct
@@ -104,6 +130,8 @@ services:
         - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4318
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       logs:
         condition: service_healthy
@@ -117,6 +145,14 @@ services:
       timeout: 10s
       retries: 10
       start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.review.rule=Host(`localhost`) && PathPrefix(`/review`)"
+      - "traefik.http.routers.review.entrypoints=web"
+      - "traefik.http.routers.review.priority=10"
+      - "traefik.http.routers.review.middlewares=review-stripprefix"
+      - "traefik.http.middlewares.review-stripprefix.stripprefix.prefixes=/review"
+      - "traefik.http.services.review.loadbalancer.server.port=8081"
   logs:
     build:
       context: .
@@ -126,11 +162,15 @@ services:
     environment:
       - PORT=8082
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - REDIRECT_URI=http://localhost:3000/auth/github/callback
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - devsmith-network
@@ -140,6 +180,14 @@ services:
       timeout: 3s
       retries: 5
       start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.logs.rule=Host(`localhost`) && PathPrefix(`/logs`)"
+      - "traefik.http.routers.logs.entrypoints=web"
+      - "traefik.http.routers.logs.priority=10"
+      - "traefik.http.routers.logs.middlewares=logs-stripprefix"
+      - "traefik.http.middlewares.logs-stripprefix.stripprefix.prefixes=/logs"
+      - "traefik.http.services.logs.loadbalancer.server.port=8082"
   analytics:
     build:
       context: .
@@ -149,10 +197,14 @@ services:
     environment:
       - PORT=8083
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       logs:
         condition: service_healthy
@@ -164,6 +216,14 @@ services:
       timeout: 3s
       retries: 5
       start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.analytics.rule=Host(`localhost`) && PathPrefix(`/analytics`)"
+      - "traefik.http.routers.analytics.entrypoints=web"
+      - "traefik.http.routers.analytics.priority=10"
+      - "traefik.http.routers.analytics.middlewares=analytics-stripprefix"
+      - "traefik.http.middlewares.analytics-stripprefix.stripprefix.prefixes=/analytics"
+      - "traefik.http.services.analytics.loadbalancer.server.port=8083"
 
   maildev:
     image: maildev/maildev:latest
@@ -226,11 +286,11 @@ services:
       - ./:/work:cached
     environment:
       - PLAYWRIGHT_IN_DOCKER=1
-      - PLAYWRIGHT_BASE_URL=http://nginx
+      - PLAYWRIGHT_BASE_URL=http://traefik:3000
       - CI=1
     depends_on:
-      nginx:
-        condition: service_healthy
+      traefik:
+        condition: service_started
     networks:
       - devsmith-network
     # Install deps and run smoke tests by default. You can override the
@@ -243,4 +303,4 @@ networks:
 
 volumes:
   postgres_data:
-  nginx-cache:
+  redis_data:

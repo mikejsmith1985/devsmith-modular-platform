@@ -27,13 +27,13 @@ import (
 
 // mockGitHubClient implements github.ClientInterface for testing
 type mockGitHubClient struct {
-	repoTree       *github.RepoTree
-	fileContent    *github.FileContent
-	repoMetadata   *github.RepoMetadata
-	codeFetch      *github.CodeFetch
-	getTreeError   error
-	getContentErr  error
-	fetchCodeErr   error
+	repoTree      *github.RepoTree
+	fileContent   *github.FileContent
+	repoMetadata  *github.RepoMetadata
+	codeFetch     *github.CodeFetch
+	getTreeError  error
+	getContentErr error
+	fetchCodeErr  error
 }
 
 func (m *mockGitHubClient) FetchCode(ctx context.Context, owner, repo, branch string, token string) (*github.CodeFetch, error) {

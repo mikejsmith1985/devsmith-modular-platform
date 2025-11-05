@@ -19,6 +19,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/middleware"
 	review_circuit "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/circuit"
 	review_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/db"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/review/github"
@@ -27,6 +28,7 @@ import (
 	review_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/middleware"
 	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	review_tracing "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/tracing"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
@@ -114,6 +116,22 @@ func main() {
 		log.Printf("Failed to ping DB: %v", err)
 		return
 	}
+
+	// --- Redis session store initialization ---
+	redisAddr := os.Getenv("REDIS_URL")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" // Default to local Redis
+	}
+	sessionStore, err := session.NewRedisStore(redisAddr, 7*24*time.Hour) // 7 day session TTL
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis session store: %v", err)
+	}
+	defer func() {
+		if err := sessionStore.Close(); err != nil {
+			log.Printf("Error closing Redis: %v", err)
+		}
+	}()
+	reviewLogger.Info("Redis session store initialized", "addr", redisAddr, "ttl", "7 days")
 
 	// Repository and service setup
 	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
@@ -272,9 +290,9 @@ func main() {
 	router.GET("/", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler)
 	router.GET("/review", review_middleware.OptionalAuthMiddleware(reviewLogger), uiHandler.HomeHandler) // Serve UI at /review for E2E tests
 
-	// Protected endpoints group (require JWT authentication)
+	// Protected endpoints group (require JWT authentication with Redis session validation)
 	protected := router.Group("/")
-	protected.Use(review_middleware.JWTAuthMiddleware(reviewLogger))
+	protected.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
 	{
 		// Workspace access (requires auth to track user sessions)
 		protected.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace)
