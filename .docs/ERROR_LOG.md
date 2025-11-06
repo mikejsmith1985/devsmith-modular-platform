@@ -954,6 +954,101 @@ Pass Rate:    100%
 
 ---
 
+## 2025-11-06: RESOLVED - Tailwind CDN Overriding Custom CSS
+
+### Resolution: Removed Tailwind CDN and Old CSS Files
+
+**Date**: 2025-11-06 04:40 UTC  
+**Context**: After implementing PLATFORM_IMPLEMENTATION_PLAN.md, all apps were displaying basic unstyled HTML despite devsmith-theme.css being present. The implementation was in a loop of solving the same problems without resolution.
+
+**Root Cause Analysis**:
+1. **Tailwind CDN was still being loaded** in all layout.templ files (`<script src="https://cdn.tailwindcss.com"></script>`)
+2. **Old CSS files existed alongside new theme** (logs.css, dashboard.css, review.css, analytics.css, etc.)
+3. **Tailwind CDN's default styles overrode custom CSS** in devsmith-theme.css
+4. **Docker containers were using cached old templates** that hadn't been regenerated
+
+**Impact**:
+- **Severity**: CRITICAL - Complete styling failure across all apps
+- **Scope**: Portal, Review, Logs, Analytics
+- **User Experience**: Apps displayed basic HTML without proper styling
+- **Visual Quality**: No colors, no card styles, no layouts - just plain text
+
+**Resolution Steps**:
+```bash
+# 1. Destroyed all containers and volumes (fresh start)
+docker-compose down -v
+
+# 2. Removed ALL old CSS files
+rm -f apps/portal/static/css/dashboard.css
+rm -f apps/review/static/css/tailwind.css
+rm -f apps/review/static/css/file-tree.css
+rm -f apps/review/static/css/review.css
+rm -f apps/logs/static/css/logs.css
+rm -f apps/analytics/static/css/analytics.css
+
+# 3. Removed Tailwind CDN from ALL layout templates
+# - apps/logs/templates/layout.templ
+# - apps/analytics/templates/layout.templ
+# - apps/portal/templates/layout.templ (TWO instances!)
+# Removed: <script src="https://cdn.tailwindcss.com"></script>
+# Removed: * { @apply transition-colors duration-200; } (uses Tailwind)
+
+# 4. Regenerated all Templ templates
+templ generate
+
+# 5. Rebuilt ALL containers from scratch
+docker-compose up -d --build
+
+# 6. Verified styling works
+curl -s http://localhost:3000/logs | grep stylesheet
+# Output: 
+#   <link rel="stylesheet" href="/static/css/devsmith-theme.css">
+#   <link rel="stylesheet" href="/static/fonts/bootstrap-icons.css">
+
+curl -s http://localhost:3000/logs | grep -c "tailwindcss.com"
+# Output: 0 (Tailwind CDN successfully removed)
+
+# 7. Ran regression tests
+bash scripts/regression-test.sh
+# Result: 14/14 PASSED ✅
+```
+
+**Prevention**:
+1. ✅ **NEVER use Tailwind CDN** - Only use compiled devsmith-theme.css
+2. ✅ **Delete old CSS files immediately** when migrating to new theme
+3. ✅ **Always run `templ generate`** after template changes
+4. ✅ **Always run `docker-compose down -v`** before rebuilding to clear cache
+5. ✅ **Verify CSS loads correctly** before declaring work complete: `curl -s http://localhost:3000 | grep stylesheet`
+6. ✅ **Check for CDN imports** before merge: `grep -r "cdn.tailwindcss.com" apps/*/templates/`
+
+**Acceptance Criteria Validated**:
+- ✅ All apps use shared devsmith-theme.css (21.5KB file)
+- ✅ No Tailwind CDN loaded (verified with curl)
+- ✅ No old CSS files exist (removed dashboard.css, logs.css, etc.)
+- ✅ All services healthy and responding
+- ✅ Regression tests pass 100% (14/14 tests)
+- ✅ Portal, Review, Logs, Analytics all accessible through gateway
+
+**Why It Was Breaking**:
+The Tailwind CDN loads a **full CSS framework** that resets and overrides custom styles. Our devsmith-theme.css defines custom classes (`.ds-card`, `.btn-primary`, etc.) but Tailwind CDN doesn't know about them, so they were unstyled. Additionally, `@apply` directives in inline `<style>` tags only work with Tailwind, so removing those was necessary.
+
+**Proper Stack**:
+- ✅ **CSS**: devsmith-theme.css (custom compiled CSS with Tailwind utilities)
+- ✅ **Icons**: Bootstrap Icons (CSS only, no JavaScript)
+- ✅ **JavaScript**: Alpine.js for dark mode and interactivity
+- ✅ **NO**: Tailwind CDN, old CSS files, React, Vue
+
+**Time Invested**: 60 minutes (diagnosis + fix + testing + validation)  
+**Logged to Platform**: ✅ YES - This error log entry  
+**Related Issue**: PLATFORM_IMPLEMENTATION_PLAN.md Priority 3.1  
+**Tags**: styling, tailwind-cdn, css-conflicts, docker-cache, rule-zero-compliance
+
+**Status**: ✅ **RESOLVED** - All services styled correctly, regression tests passing
+
+**Verification**: test-results/regression-20251106-044011/
+
+---
+
 ## Template for Future Errors
 
 ```markdown

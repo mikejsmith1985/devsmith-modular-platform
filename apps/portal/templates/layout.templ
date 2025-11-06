@@ -15,17 +15,11 @@ templ Layout(title string, user *DashboardUser) {
 		<!-- Unified DevSmith Theme -->
 		<link rel="stylesheet" href="/static/css/devsmith-theme.css"/>
 		<link rel="stylesheet" href="/static/fonts/bootstrap-icons.css"/>
-		<script src="https://cdn.tailwindcss.com"></script>
 		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<style>
 			/* Prevent layout shift when scrollbar appears */
 			html {
 				overflow-y: scroll;
-			}
-			
-			/* Smooth transitions for theme changes */
-			* {
-				@apply transition-colors duration-200;
 			}
 
 			/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
@@ -98,15 +92,10 @@ templ LayoutWithoutNav(title string) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
 		<title>{ title } - DevSmith</title>
-		<script src="https://cdn.tailwindcss.com"></script>
 		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<style>
 			html {
 				overflow-y: scroll;
-			}
-			
-			* {
-				@apply transition-colors duration-200;
 			}
 
 			/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
