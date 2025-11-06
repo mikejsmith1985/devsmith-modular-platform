@@ -75,7 +75,12 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+        VITE_API_URL: http://localhost:3000
     container_name: devsmith-frontend
     ports:
       - "5173:80"

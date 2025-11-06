@@ -5,6 +5,14 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Accept build arguments for environment variables
+ARG VITE_GITHUB_CLIENT_ID
+ARG VITE_API_URL=http://localhost:3000
+
+# Set environment variables for Vite build
+ENV VITE_GITHUB_CLIENT_ID=$VITE_GITHUB_CLIENT_ID
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copy package files
 COPY package.json package-lock.json* ./
 
