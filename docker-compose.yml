@@ -99,9 +99,9 @@ services:
       context: .
       dockerfile: cmd/portal/Dockerfile
     ports:
-      - "8080:8080"
+      - "3001:3001"
     environment:
-      - PORT=8080
+      - PORT=3001
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REDIS_URL=redis:6379
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
@@ -121,7 +121,7 @@ services:
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -134,12 +134,13 @@ services:
       - "traefik.http.routers.portal-api.priority=100"
       - "traefik.http.routers.portal-api.service=portal"
       # Auth endpoints (GitHub OAuth) - highest priority
-      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)"
+      # SPECIFIC: Only Portal's OAuth routes, not React's /auth/callback
+      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth/github`)"
       - "traefik.http.routers.portal-auth.entrypoints=web"
       - "traefik.http.routers.portal-auth.priority=200"
       - "traefik.http.routers.portal-auth.service=portal"
       # Service definition with health check
-      - "traefik.http.services.portal.loadbalancer.server.port=8080"
+      - "traefik.http.services.portal.loadbalancer.server.port=3001"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.portal.loadbalancer.healthcheck.interval=10s"
   review:

@@ -6,6 +6,7 @@ import LogsPage from './components/LogsPage';
 import ReviewPage from './components/ReviewPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import LoginPage from './components/LoginPage';
+import OAuthCallback from './components/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -17,6 +18,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<OAuthCallback />} />
           <Route
             path="/"
             element={

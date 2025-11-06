@@ -35,14 +35,27 @@ func RegisterAuthRoutes(r *gin.Engine, dbConn *sql.DB) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code"})
 			return
 		}
-		user, token, err := authService.AuthenticateWithGitHub(c.Request.Context(), code)
+		_, token, err := authService.AuthenticateWithGitHub(c.Request.Context(), code)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		// Set JWT as cookie
-		c.SetCookie("devsmith_token", token, 86400, "/", "", false, true)
-		c.JSON(http.StatusOK, gin.H{"user": user, "token": token})
+
+		// Set cookie
+		c.SetCookie(
+			"devsmith_token",
+			token,
+			3600*24*7, // 7 days
+			"/",
+			"",
+			false, // secure - set to true in production
+			true,  // httpOnly
+		)
+
+		// Redirect to React frontend with token in URL for React to store in localStorage
+		// React will extract token from URL and redirect to dashboard
+		redirectURL := "http://localhost:3000/auth/callback?token=" + token
+		c.Redirect(http.StatusFound, redirectURL)
 	})
 
 	r.POST("/auth/logout", func(c *gin.Context) {
