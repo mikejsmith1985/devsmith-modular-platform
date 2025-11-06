@@ -68,9 +68,32 @@ services:
         condition: service_healthy
       analytics:
         condition: service_healthy
+      frontend:
+        condition: service_healthy
     networks:
       - devsmith-network
     restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: devsmith-frontend
+    ports:
+      - "5173:80"
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
   portal:
     build:
       context: .
@@ -105,9 +128,17 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portal.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/`)"
-      - "traefik.http.routers.portal.entrypoints=web"
-      - "traefik.http.routers.portal.priority=1"
+      # Portal API - higher priority than frontend
+      - "traefik.http.routers.portal-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/portal`)"
+      - "traefik.http.routers.portal-api.entrypoints=web"
+      - "traefik.http.routers.portal-api.priority=100"
+      - "traefik.http.routers.portal-api.service=portal"
+      # Auth endpoints (GitHub OAuth) - highest priority
+      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.portal-auth.entrypoints=web"
+      - "traefik.http.routers.portal-auth.priority=200"
+      - "traefik.http.routers.portal-auth.service=portal"
+      # Service definition with health check
       - "traefik.http.services.portal.loadbalancer.server.port=8080"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.portal.loadbalancer.healthcheck.interval=10s"
@@ -147,10 +178,13 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.review.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`)"
+      - "traefik.http.routers.review.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/review`)"
       - "traefik.http.routers.review.entrypoints=web"
-      - "traefik.http.routers.review.priority=10"
+      - "traefik.http.routers.review.priority=100"
+      - "traefik.http.routers.review.service=review"
       - "traefik.http.services.review.loadbalancer.server.port=8081"
+      - "traefik.http.services.review.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.review.loadbalancer.healthcheck.interval=10s"
   logs:
     build:
       context: .
@@ -180,10 +214,13 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.logs.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/logs`)"
+      - "traefik.http.routers.logs.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/logs`)"
       - "traefik.http.routers.logs.entrypoints=web"
-      - "traefik.http.routers.logs.priority=10"
+      - "traefik.http.routers.logs.priority=100"
+      - "traefik.http.routers.logs.service=logs"
       - "traefik.http.services.logs.loadbalancer.server.port=8082"
+      - "traefik.http.services.logs.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.logs.loadbalancer.healthcheck.interval=10s"
   analytics:
     build:
       context: .
@@ -214,10 +251,13 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.analytics.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/analytics`)"
+      - "traefik.http.routers.analytics.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/analytics`)"
       - "traefik.http.routers.analytics.entrypoints=web"
-      - "traefik.http.routers.analytics.priority=10"
+      - "traefik.http.routers.analytics.priority=100"
+      - "traefik.http.routers.analytics.service=analytics"
       - "traefik.http.services.analytics.loadbalancer.server.port=8083"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.interval=10s"
 
   maildev:
     image: maildev/maildev:latest

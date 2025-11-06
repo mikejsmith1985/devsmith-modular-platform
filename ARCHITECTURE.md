@@ -478,68 +478,103 @@ The **Review application** will explicitly implement **five reading modes**, eac
 
 ### High-Level Architecture
 ```
-[To be designed - Gateway-first architecture diagram]
-
-User → Nginx Gateway (port 3000)
+User → Traefik Gateway (port 3000)
          ↓
-    ┌────┴────┬─────────┬──────────┬──────────┐
-    ↓         ↓         ↓          ↓          ↓
- Portal   Review    Logging   Analytics   Build
-Frontend  Frontend  Frontend  Frontend   Frontend
-    ↓         ↓         ↓          ↓          ↓
- Portal   Review    Logging   Analytics   Build
-Backend   Backend   Backend   Backend    Backend
-    └─────────┴─────────┴──────────┴──────────┘
-                      ↓
-              PostgreSQL Database
-              (Isolated Schemas)
+    ┌────┴─────┐
+    ↓          ↓
+React Frontend   Go Backend APIs
+(Single SPA)     (Microservices)
+/               /api/portal/
+/logs           /api/review/
+/review         /api/logs/
+/analytics      /api/analytics/
+    ↓               ↓
+    └───────┬───────┘
+            ↓
+      PostgreSQL + Redis
+      (Isolated Schemas)
 ```
 
+**Architecture Pattern:** Hybrid SPA + Microservices
+- **Frontend:** Single React 18 app serving all pages (Portal, Review, Logs, Analytics)
+- **Backend:** Go microservices providing RESTful JSON APIs
+- **Gateway:** Traefik routes `/api/*` to Go services, `/*` to React app
+- **Styling:** Bootstrap 5 imported once in React app → consistent UI across all pages
+- **State:** React Context for auth, theme, global state
+- **Navigation:** React Router (SPA - no page reloads)
+
 ### Service Inventory
-| Service | Purpose | Port (Dev) | Gateway Path | Status |
-|---------|---------|------------|--------------|--------|
-| Nginx Gateway | Reverse proxy | 3000 | / | Not implemented |
-| Portal Frontend | Main UI, navigation | TBD | / | Not implemented |
-| Portal Backend | Auth, user mgmt | TBD | /api/platform/ | Not implemented |
-| Review Frontend | Code review UI | TBD | /review/ | Not implemented |
-| Review Backend | Code analysis | TBD | /api/review/ | Not implemented |
-| Logs Frontend | Log monitoring UI | TBD | /logs/ | Not implemented |
-| Logs Backend | Log ingestion | TBD | /api/logs/ | Not implemented |
-| Analytics Frontend | Analytics UI | TBD | /analytics/ | Not implemented |
-| Analytics Backend | Data analysis | TBD | /api/analytics/ | Not implemented |
-| Build Frontend | Terminal UI | TBD | /build/ | Not implemented |
-| Build Backend | Code execution | TBD | /api/build/ | Not implemented |
-| PostgreSQL | Database | 5432 | N/A | Not implemented |
+| Service | Purpose | Port (Dev) | Gateway Path | Technology | Status |
+|---------|---------|------------|--------------|------------|--------|
+| Traefik Gateway | Reverse proxy | 3000 | / | Traefik v2.10 | ✅ Implemented |
+| React Frontend | All UI pages | 5173 | /, /logs, /review, /analytics | React 18 + Vite | 🚧 In Progress |
+| Portal API | Auth, user mgmt | 8080 | /api/portal/ | Go + Gin | ✅ Implemented |
+| Review API | Code analysis | 8081 | /api/review/ | Go + Gin | ✅ Implemented |
+| Logs API | Log ingestion, stats | 8082 | /api/logs/ | Go + Gin | ✅ Implemented |
+| Analytics API | Data aggregation | 8083 | /api/analytics/ | Go + Gin | ✅ Implemented |
+| PostgreSQL | Database | 5432 | N/A | PostgreSQL 15 | ✅ Implemented |
+| Redis | Sessions, cache | 6379 | N/A | Redis 7 | ✅ Implemented |
 
 ---
 
 ## Technology Stack
 
-### Frontend/Backend (Unified)
-- **Language:** Go 1.21+
-- **Web Framework:** Gin (or Echo as alternative)
-- **Templating:** Templ (type-safe Go templates)
-- **Interactivity:** HTMX + Alpine.js (minimal JavaScript)
-- **Styling:** TailwindCSS + DaisyUI components
-- **WebSocket:** Go's native net/http WebSocket support
-- **Testing:** Go's built-in testing + testify
+### **Architecture Decision: Hybrid React Frontend + Go Backend APIs**
+
+**Date:** 2025-11-06  
+**Decision:** Migrate from Go+Templ microservices with separate UIs to single React frontend with Go backend APIs.
 
 **Rationale:**
-- **No Node.js = No V8 crashes** (eliminates build-time crashes from previous platform)
-- Go compiles to single binary (5-20MB vs 500MB+ Node containers)
-- 10-50x faster API performance than Node.js/Python
-- Built-in concurrency (goroutines) perfect for WebSocket and real-time features
-- Memory efficient (50-100MB runtime vs 500MB+ for Node)
-- HTMX provides React-like interactivity without JavaScript framework complexity
-- Templ catches template errors at compile time (type safety)
-- Single language for frontend + backend reduces context switching
+- **Styling Consistency:** Single React app with Bootstrap 5 imported once = automatic styling consistency across all pages (learned from devsmith-platform monolith)
+- **User Experience:** Seamless SPA navigation between Portal/Review/Logs/Analytics
+- **Component Reusability:** Shared React components (StatCards, Navbar, Card, Button) used everywhere
+- **Maintainability:** One frontend codebase instead of 4 separate Templ template directories
+- **Keep Go Strengths:** Backend services remain Go for performance, concurrency, and type safety
+
+### Frontend (Single React App)
+- **Language:** JavaScript/JSX
+- **Framework:** React 18 with Vite
+- **Routing:** React Router v6 (SPA navigation)
+- **Styling:** Bootstrap 5 + Bootstrap Icons
+- **State Management:** React Context API (AuthContext, ThemeContext)
+- **HTTP Client:** Fetch API with custom apiClient utility
+- **Build Tool:** Vite (fast HMR, optimized builds)
+- **Testing:** Vitest + React Testing Library
+
+**Rationale:**
+- Bootstrap 5 imported once in `App.jsx` → automatic consistency
+- React Context for global auth state (like monolith)
+- Vite provides fast development experience
+- Matches proven pattern from devsmith-platform monolith
+- Eliminates CSS duplication problem (4 copies of devsmith-theme.css)
 
 **Key Benefits:**
-✅ **Zero V8 workarounds needed**
-✅ Docker builds in 30 seconds (vs 5+ minutes with Vite)
-✅ Hot reload with Air tool (same experience as HMR)
-✅ Simpler deployment (copy binary, no npm install)
-✅ Lower hosting costs (smaller images, less memory)
+✅ **Automatic styling consistency** - Bootstrap classes work everywhere
+✅ **Seamless UX** - No page reloads between apps
+✅ **Shared components** - Write once, use everywhere
+✅ **Single build** - One frontend deployment
+✅ **Modern tooling** - Vite HMR, ES modules
+
+### Backend (Go Microservices - API-Only)
+- **Language:** Go 1.21+
+- **Web Framework:** Gin
+- **API Format:** RESTful JSON APIs
+- **WebSocket:** Go's native net/http WebSocket support
+- **Testing:** Go's built-in testing + testify
+- **Documentation:** OpenAPI/Swagger specs
+
+**Rationale:**
+- Go's performance for API workloads (10-50x faster than Node.js/Python)
+- Built-in concurrency (goroutines) for WebSocket, real-time features
+- Memory efficient (50-100MB per service)
+- Type safety with struct validation
+- Single binary deployment
+
+**Key Benefits:**
+✅ **High performance** - Handles thousands of concurrent connections
+✅ **Type safety** - Catch errors at compile time
+✅ **Low resource usage** - Efficient memory and CPU
+✅ **Simple deployment** - Single binary per service
 
 ### Database
 - **Primary:** PostgreSQL 15+
