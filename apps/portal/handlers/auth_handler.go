@@ -201,7 +201,8 @@ func HandleGitHubOAuthCallback(c *gin.Context) {
 	log.Printf("[DEBUG] Step 1: Received callback code=%s", code)
 	log.Printf("[DEBUG] Step 2: Exchanging code for token...")
 
-	accessToken, err := exchangeCodeForToken(code)
+	// Legacy non-PKCE flow (no code_verifier)
+	accessToken, err := exchangeCodeForToken(code, "")
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code for token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate"})
@@ -361,12 +362,9 @@ func HandleTokenExchange(c *gin.Context) {
 		return
 	}
 
-	// Note: GitHub's OAuth doesn't validate code_verifier server-side
-	// PKCE is client-side protection (prevents authorization code interception)
-	// Backend still uses client_secret for server-to-server security
-
-	// Exchange code for access token (existing function works)
-	accessToken, err := exchangeCodeForToken(req.Code)
+	// Exchange code for access token with PKCE code_verifier
+	// RFC 7636: code_verifier MUST be sent to token endpoint
+	accessToken, err := exchangeCodeForToken(req.Code, req.CodeVerifier)
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to authenticate"})
@@ -452,7 +450,8 @@ func validateOAuthConfig() error {
 }
 
 // exchangeCodeForToken exchanges the authorization code for an access token
-func exchangeCodeForToken(code string) (string, error) {
+// RFC 7636: For PKCE flow, code_verifier MUST be included
+func exchangeCodeForToken(code string, codeVerifier string) (string, error) {
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
 	redirectURI := os.Getenv("REDIRECT_URI")
@@ -467,6 +466,14 @@ func exchangeCodeForToken(code string) (string, error) {
 	q.Add("client_secret", clientSecret)
 	q.Add("code", code)
 	q.Add("redirect_uri", redirectURI)
+	
+	// RFC 7636: Include code_verifier for PKCE flow
+	// GitHub requires this when code_challenge was sent in authorization request
+	if codeVerifier != "" {
+		q.Add("code_verifier", codeVerifier)
+		log.Printf("[DEBUG] Including code_verifier in token exchange (PKCE)")
+	}
+	
 	tokenReq.URL.RawQuery = q.Encode()
 	tokenReq.Header.Set("Accept", "application/json")
 	resp, err := http.DefaultClient.Do(tokenReq)
@@ -645,8 +652,8 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	log.Printf("[DEBUG] Step 1: Received callback code=%s", code)
 
-	// Exchange code for access token
-	accessToken, err := exchangeCodeForToken(code)
+	// Exchange code for access token (legacy non-PKCE flow)
+	accessToken, err := exchangeCodeForToken(code, "")
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code for token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate"})
