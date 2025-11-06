@@ -80,6 +80,104 @@ command2
 
 ---
 
+## 2025-11-06: Navigation Buttons Using Tailwind Instead of Custom CSS
+
+### Resolution: Navigation Button Styling Fixed
+
+**Date**: 2025-11-06 00:43 UTC  
+**Context**: Implementing PLATFORM_IMPLEMENTATION_PLAN.md Priority 3.1 (Styling Migration). After initial Portal login button fix, discovered navigation buttons across Logs/Analytics still had transparent backgrounds.
+
+**Error Message**: Visual inspection showed:
+```json
+{
+  "service": "logs",
+  "buttons": 6,
+  "class": "p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100",
+  "backgroundColor": "rgba(0, 0, 0, 0)",  // ❌ TRANSPARENT
+  "issue": "Tailwind classes not styled by custom CSS"
+}
+```
+
+**Root Cause**: 
+Navigation component (`internal/ui/components/nav/nav.templ`) was using Tailwind utility classes that weren't defined in `devsmith-theme.css`. When Tailwind CDN loaded, it didn't style these specific classes, resulting in transparent backgrounds with no hover effects.
+
+**Impact**:
+- **Severity**: MEDIUM - UI usability issue
+- **Scope**: All services (Portal, Review, Logs, Analytics)
+- **User Experience**: Navigation buttons had no visual feedback on hover
+- **Acceptance Criteria**: PLATFORM_IMPLEMENTATION_PLAN.md Priority 3.1 blocked
+
+**Resolution**:
+```bash
+# 1. Added .btn-icon CSS class to devsmith-theme.css
+# Added 60+ lines defining button styles with CSS variables
+# - Default: transparent background (intentional for icon buttons)
+# - Hover: var(--color-surface) light gray background
+# - Disabled: 50% opacity
+
+# 2. Updated navigation component templates
+# File: internal/ui/components/nav/nav.templ
+# Changed all buttons from Tailwind to .btn-icon:
+# - Mobile menu: class="btn-icon"
+# - Dark mode toggle: class="btn-icon"
+# - User dropdown: class="btn-icon"
+
+# 3. Regenerated Templ compiled files
+templ generate
+
+# 4. Propagated CSS to all services
+cp apps/portal/static/css/devsmith-theme.css apps/logs/static/css/
+cp apps/portal/static/css/devsmith-theme.css apps/review/static/css/
+cp apps/portal/static/css/devsmith-theme.css apps/analytics/static/css/
+
+# 5. Rebuilt all services
+docker-compose up -d --build portal review logs analytics
+
+# 6. Validated with comprehensive tests
+npx playwright test tests/e2e/comprehensive-ui-check.spec.ts
+npx playwright test tests/e2e/detailed-style-check.spec.ts
+npx playwright test tests/e2e/button-hover-validation.spec.ts
+
+# All tests passed ✅
+```
+
+**Prevention**:
+1. ✅ **Design principle**: Always use custom CSS classes, not Tailwind utilities
+2. ✅ **Pre-commit validation**: Add check for Tailwind classes in nav component
+3. ✅ **Visual regression tests**: Added hover validation test (`button-hover-validation.spec.ts`)
+4. ✅ **Documentation**: Updated VERIFICATION.md with acceptance criteria validation
+5. ✅ **Rule Zero compliance**: All services tested, screenshots captured BEFORE declaring complete
+
+**Validation Results**:
+```
+LOGS SERVICE - Dark Mode Toggle:
+  Default background: rgba(0, 0, 0, 0)      ✅ Transparent (intentional)
+  Hover background: rgb(249, 250, 251)      ✅ Light gray (user feedback)
+
+ANALYTICS SERVICE - Dark Mode Toggle:
+  Default background: rgba(0, 0, 0, 0)      ✅ Transparent
+  Hover background: rgb(249, 250, 251)      ✅ Styled
+
+✅ ALL HOVER STATES WORKING CORRECTLY
+```
+
+**Acceptance Criteria Met**:
+- ✅ All apps use shared devsmith-theme.css (21.0K identical files)
+- ✅ Consistent look and feel across Portal, Review, Logs, Analytics
+- ✅ Navigation buttons styled with hover effects
+- ✅ Dark mode toggle functional in all apps
+
+**Time Invested**: 60 minutes (CSS development + testing + validation + documentation)  
+**Logged to Platform**: ✅ YES - Verification document created  
+**Related Issue**: PLATFORM_IMPLEMENTATION_PLAN.md Priority 3.1  
+**Tags**: ui-styling, css, navigation, tailwind, button-styling, hover-effects, rule-zero-compliance
+
+**Status**: ✅ **RESOLVED** - All acceptance criteria validated with visual tests
+
+**Verification Document**: `test-results/manual-verification-20251105/VERIFICATION.md`
+
+---
+
 ## 2025-11-04: Missing JWT_SECRET Causes OAuth Panic
 
 ### Error: Portal OAuth Login Returns "Failed to authenticate"
