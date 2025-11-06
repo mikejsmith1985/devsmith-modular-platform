@@ -342,6 +342,61 @@ pre code {
   font-size: var(--font-size-lg);
 }
 
+/* Control Buttons (navigation, toolbars) */
+.btn-control {
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background-color: transparent;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.btn-control:hover {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.btn-control.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.btn-control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Icon-only buttons (for toolbars) */
+.btn-icon {
+  padding: var(--space-2);
+  background-color: transparent;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ==========================================================================
    Forms
    ========================================================================== */

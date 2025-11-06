@@ -16,10 +16,10 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx PostgreSQL driver for DB connection
 	handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
-	middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
 
@@ -124,9 +124,9 @@ func main() {
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "portal")
 
-	// Register dashboard routes
+	// Register dashboard routes (use RedisSessionAuth for SSO)
 	authenticated := router.Group("/")
-	authenticated.Use(middleware.JWTAuthMiddleware())
+	authenticated.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
 	authenticated.GET("/dashboard", handlers.DashboardHandler)
 	authenticated.GET("/dashboard/logs", handlers.LogsDashboardHandler)
 	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)

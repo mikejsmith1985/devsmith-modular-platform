@@ -439,9 +439,9 @@ func (h *UIHandler) HomeHandler(c *gin.Context) {
 	correlationID := c.Request.Context().Value("correlation_id")
 	h.logger.Info("HomeHandler called", "correlation_id", correlationID, "path", c.Request.URL.Path)
 
-	// Extract authenticated user from JWT context (optional - user might not be logged in yet)
+	// Extract authenticated user from Redis session context
 	userID, exists := c.Get("user_id")
-	username, _ := c.Get("username")
+	username, _ := c.Get("github_username")
 
 	if !exists {
 		// User not authenticated - redirect to portal login
@@ -1241,9 +1241,9 @@ func (h *UIHandler) ShowWorkspace(c *gin.Context) {
 	// Extract session ID from URL
 	sessionIDStr := c.Param("session_id")
 
-	// Extract authenticated user info from JWT context
+	// Extract authenticated user info from Redis session context
 	userID, _ := c.Get("user_id")
-	username, _ := c.Get("username")
+	username, _ := c.Get("github_username")
 
 	var sessionID int
 	var props templates.WorkspaceProps
