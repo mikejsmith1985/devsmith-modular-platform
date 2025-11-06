@@ -341,6 +341,7 @@ func RegisterTokenRoutes(router *gin.Engine) {
 	authGroup := router.Group("/api/portal/auth")
 	{
 		authGroup.POST("/token", HandleTokenExchange)
+		authGroup.GET("/me", HandleGetCurrentUser)
 	}
 }
 
@@ -439,6 +440,85 @@ func HandleTokenExchange(c *gin.Context) {
 	})
 }
 
+// HandleGetCurrentUser validates JWT token and returns current user info
+// GET /api/portal/auth/me
+func HandleGetCurrentUser(c *gin.Context) {
+	// Extract token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		log.Printf("[DEBUG] No Authorization header provided")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No authorization token provided"})
+		return
+	}
+
+	// Remove "Bearer " prefix
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		log.Printf("[DEBUG] Invalid Authorization header format (missing Bearer prefix)")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
+		return
+	}
+
+	// Parse and validate JWT
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return security.GetJWTSecret(), nil
+	})
+
+	if err != nil {
+		log.Printf("[ERROR] JWT validation failed: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+		return
+	}
+
+	if !token.Valid {
+		log.Printf("[ERROR] JWT token invalid")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	// Extract claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		log.Printf("[ERROR] Failed to extract JWT claims")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+		return
+	}
+
+	// Get session_id from claims
+	sessionID, ok := claims["session_id"].(string)
+	if !ok {
+		log.Printf("[ERROR] No session_id in JWT claims")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: missing session_id"})
+		return
+	}
+
+	// Retrieve session from Redis
+	if sessionStore == nil {
+		log.Printf("[ERROR] Session store not initialized")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session store unavailable"})
+		return
+	}
+
+	sess, err := sessionStore.Get(c.Request.Context(), sessionID)
+	if err != nil {
+		log.Printf("[ERROR] Failed to retrieve session %s: %v", sessionID, err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session not found or expired"})
+		return
+	}
+
+	// Return user info from session metadata
+	c.JSON(http.StatusOK, gin.H{
+		"username":   sess.GitHubUsername,
+		"email":      sess.Metadata["email"],
+		"avatar_url": sess.Metadata["avatar_url"],
+		"github_id":  sess.Metadata["github_id"],
+	})
+}
+
 func validateOAuthConfig() error {
 	required := []string{"GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "REDIRECT_URI"}
 	for _, key := range required {
@@ -466,14 +546,14 @@ func exchangeCodeForToken(code string, codeVerifier string) (string, error) {
 	q.Add("client_secret", clientSecret)
 	q.Add("code", code)
 	q.Add("redirect_uri", redirectURI)
-	
+
 	// RFC 7636: Include code_verifier for PKCE flow
 	// GitHub requires this when code_challenge was sent in authorization request
 	if codeVerifier != "" {
 		q.Add("code_verifier", codeVerifier)
 		log.Printf("[DEBUG] Including code_verifier in token exchange (PKCE)")
 	}
-	
+
 	tokenReq.URL.RawQuery = q.Encode()
 	tokenReq.Header.Set("Accept", "application/json")
 	resp, err := http.DefaultClient.Do(tokenReq)
