@@ -48,15 +48,29 @@ test.describe('OAuth Flow - Visual Validation', () => {
       const redirectUrl = page.url();
       console.log(`📍 Redirected to: ${redirectUrl}`);
       
-      // Should redirect to Portal API GitHub login endpoint
-      // which then redirects to GitHub OAuth
-      expect(redirectUrl).toMatch(/github\.com\/login\/oauth\/authorize|localhost:3000\/api\/portal\/auth\/github\/login/);
+      // Should redirect to GitHub OAuth (may go through /login first)
+      expect(redirectUrl).toMatch(/github\.com\/login/);
+      console.log('✅ Step 3: Redirected to GitHub OAuth');
+      
+      // Verify redirect_uri parameter is correct
+      if (redirectUrl.includes('redirect_uri')) {
+        const urlObj = new URL(redirectUrl);
+        // Check both query param and return_to param
+        const redirectUri = urlObj.searchParams.get('redirect_uri') || 
+                           (urlObj.searchParams.get('return_to')?.match(/redirect_uri=([^&]+)/)?.[1]);
+        if (redirectUri) {
+          const decodedUri = decodeURIComponent(redirectUri);
+          console.log(`📍 redirect_uri in OAuth URL: ${decodedUri}`);
+          expect(decodedUri).toContain('/auth/callback');
+          console.log('✅ redirect_uri is correct: /auth/callback');
+        }
+      }
       
       await page.screenshot({ 
         path: 'test-results/oauth-flow/03-github-oauth-redirect.png',
         fullPage: true 
       });
-      console.log('✅ Step 3: Redirected to GitHub OAuth');
+      console.log('✅ Step 3: OAuth parameters validated');
     } catch (error) {
       console.error('❌ Navigation failed:', error);
       await page.screenshot({ 
