@@ -126,11 +126,31 @@ else
     echo "ℹ️  No Go files modified"
 fi
 
+# 6. TEST CHECK - SHORT TESTS ONLY FOR MODIFIED PACKAGES
+echo "6️⃣  Running tests (short mode)..."
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    MODIFIED_PACKAGES=$(echo "$MODIFIED_GO_FILES" | sed 's|/[^/]*\.go$||' | sort -u | sed 's|^|./|')
+    echo "   Testing packages: $MODIFIED_PACKAGES"
+    
+    # Run tests with -short flag and 30s timeout
+    # This skips slow integration tests and prevents hanging
+    if ! go test -short -timeout=30s $MODIFIED_PACKAGES 2>&1; then
+        echo "❌ FAILED: Tests failed in modified packages"
+        echo "   Run 'go test -v $MODIFIED_PACKAGES' for details"
+        FAILED=1
+    else
+        echo "✅ PASSED: Short tests pass in modified packages"
+    fi
+else
+    echo "ℹ️  No Go files modified"
+fi
+
 echo ""
 echo "════════════════════════════════════════════════════════════"
 echo ""
-echo "⏭️  Note: Test execution and race detection run in CI/CD"
-echo "   Pre-push keeps local feedback FAST (5-10s typical)"
+echo "⏭️  Note: Full test suite and race detection run in CI/CD"
+echo "   Pre-push runs short tests to catch obvious failures fast"
+echo "   Typical duration: 10-20s for modified packages"
 echo ""
 echo "════════════════════════════════════════════════════════════"
 
