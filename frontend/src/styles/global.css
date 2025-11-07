@@ -14,11 +14,12 @@ body.dark-mode .navbar {
 /* Frosted Glass Cards */
 /* Enhanced card styling with bold contrast and visual flare */
 .frosted-card {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 250, 255, 0.95));
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
-  border: 2px solid rgba(99, 102, 241, 0.2);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   box-shadow: 
     0 10px 30px rgba(99, 102, 241, 0.15),
     0 4px 12px rgba(0, 0, 0, 0.1),
@@ -27,6 +28,7 @@ body.dark-mode .navbar {
   position: relative;
 }
 
+/* Gradient border frame - only visible on card border, not filling content */
 .frosted-card::before {
   content: '';
   position: absolute;
@@ -39,25 +41,27 @@ body.dark-mode .navbar {
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: -1;
+  pointer-events: none; /* Don't interfere with content interaction */
 }
 
 .frosted-card:hover {
   transform: translateY(-6px);
-  border-color: rgba(99, 102, 241, 0.4);
   box-shadow: 
     0 20px 50px rgba(99, 102, 241, 0.25),
     0 8px 20px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+/* Show gradient border frame on hover */
 .frosted-card:hover::before {
   opacity: 1;
 }
 
 /* Dark mode with dramatic contrast */
 body.dark-mode .frosted-card {
-  background: linear-gradient(145deg, rgba(30, 33, 48, 0.98), rgba(25, 28, 42, 0.95));
-  border: 2px solid rgba(139, 92, 246, 0.3);
+  background: rgba(30, 33, 48, 0.98);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   box-shadow: 
     0 10px 30px rgba(139, 92, 246, 0.2),
     0 4px 12px rgba(0, 0, 0, 0.4),
@@ -65,27 +69,15 @@ body.dark-mode .frosted-card {
 }
 
 body.dark-mode .frosted-card:hover {
-  border-color: rgba(139, 92, 246, 0.5);
   box-shadow: 
     0 20px 50px rgba(139, 92, 246, 0.3),
     0 8px 20px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.frosted-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-body.dark-mode .frosted-card {
-  background: rgba(45, 49, 72, 0.95);
-  color: #e4e4e7;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
+/* Override duplicate styles */
 body.dark-mode .frosted-card:hover {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateY(-6px);
 }
 
 /* Stat Card Layouts */

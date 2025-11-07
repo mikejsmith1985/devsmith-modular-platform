@@ -6,6 +6,9 @@ import CodeEditor from './CodeEditor';
 import AnalysisModeSelector from './AnalysisModeSelector';
 import ModelSelector from './ModelSelector';
 import AnalysisOutput from './AnalysisOutput';
+import FileTabs from './FileTabs';
+import FileTreeBrowser from './FileTreeBrowser';
+import RepoImportModal from './RepoImportModal';
 import { reviewApi } from '../utils/api';
 
 // Default code for demonstration
@@ -26,18 +29,241 @@ export default function ReviewPage() {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   
+  // Multi-file state management
+  const [files, setFiles] = useState([
+    {
+      id: 'file_1',
+      name: 'example.js',
+      language: 'javascript',
+      content: defaultCode,
+      hasUnsavedChanges: false,
+      path: null
+    }
+  ]);
+  const [activeFileId, setActiveFileId] = useState('file_1');
+  
+  // Get current active file
+  const activeFile = files.find(f => f.id === activeFileId);
+  const code = activeFile?.content || '';
+  
   // State management
-  const [code, setCode] = useState(defaultCode);
   const [selectedMode, setSelectedMode] = useState('preview');
   const [selectedModel, setSelectedModel] = useState('');
-  const [scanQuery, setScanQuery] = useState(''); // Add scan query state
+  const [scanQuery, setScanQuery] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
+  // GitHub import modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [repoInfo, setRepoInfo] = useState(null); // Stores current repo info
 
   // Refs for managing focus
   const codeEditorRef = useRef(null);
+
+  // File management functions
+  const handleCodeChange = (newCode) => {
+    setFiles(prevFiles => prevFiles.map(file => 
+      file.id === activeFileId 
+        ? { ...file, content: newCode, hasUnsavedChanges: true }
+        : file
+    ));
+  };
+
+  const handleFileSelect = (fileId) => {
+    setActiveFileId(fileId);
+    // Clear analysis when switching files
+    setAnalysisResult(null);
+    setError(null);
+  };
+
+  const handleFileClose = (fileId) => {
+    const fileIndex = files.findIndex(f => f.id === fileId);
+    const newFiles = files.filter(f => f.id !== fileId);
+    
+    // If closing the last file, create a new default file
+    if (newFiles.length === 0) {
+      const newFileId = `file_${Date.now()}`;
+      setFiles([{
+        id: newFileId,
+        name: 'untitled.js',
+        language: 'javascript',
+        content: '',
+        hasUnsavedChanges: false,
+        path: null
+      }]);
+      setActiveFileId(newFileId);
+      return;
+    }
+    
+    setFiles(newFiles);
+    
+    // If closing active file, switch to another file
+    if (fileId === activeFileId) {
+      // Select previous file, or first file if closing first
+      const newActiveIndex = fileIndex > 0 ? fileIndex - 1 : 0;
+      setActiveFileId(newFiles[newActiveIndex].id);
+    }
+  };
+
+  const handleFileAdd = () => {
+    const newFileId = `file_${Date.now()}`;
+    const newFile = {
+      id: newFileId,
+      name: `untitled-${files.length + 1}.js`,
+      language: 'javascript',
+      content: '// New file\n',
+      hasUnsavedChanges: false,
+      path: null
+    };
+    
+    setFiles(prevFiles => [...prevFiles, newFile]);
+    setActiveFileId(newFileId);
+    setAnalysisResult(null);
+    setError(null);
+  };
+
+  const handleFileRename = (fileId, newName) => {
+    // Detect language from file extension
+    const extension = newName.split('.').pop().toLowerCase();
+    const languageMap = {
+      'js': 'javascript',
+      'jsx': 'javascript',
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'py': 'python',
+      'go': 'go',
+      'rs': 'rust',
+      'java': 'java',
+      'c': 'c',
+      'cpp': 'cpp',
+      'cs': 'csharp',
+      'sql': 'sql',
+      'html': 'html',
+      'css': 'css',
+      'json': 'json',
+      'yaml': 'yaml',
+      'yml': 'yaml',
+      'md': 'markdown',
+      'sh': 'shell',
+      'bash': 'shell'
+    };
+    
+    const detectedLanguage = languageMap[extension] || 'javascript';
+    
+    setFiles(prevFiles => prevFiles.map(file =>
+      file.id === fileId
+        ? { ...file, name: newName, language: detectedLanguage, hasUnsavedChanges: true }
+        : file
+    ));
+  };
+
+  // Handle GitHub import success
+  const handleGitHubImportSuccess = (importData) => {
+    const { mode, data, repoInfo: repo } = importData;
+    
+    // Store repo info for reference
+    setRepoInfo(repo);
+    
+    if (mode === 'quick') {
+      // Quick Scan Mode - Open core files in tabs
+      console.log('Quick scan data:', data);
+      
+      // Clear existing files
+      setFiles([]);
+      
+      // Create tabs for each fetched file
+      const newFiles = [];
+      
+      // Add README if present
+      if (data.readme) {
+        newFiles.push({
+          id: `file_readme_${Date.now()}`,
+          name: 'README.md',
+          language: 'markdown',
+          content: data.readme,
+          hasUnsavedChanges: false,
+          path: 'README.md',
+          repoInfo: repo
+        });
+      }
+      
+      // Add entry point files
+      if (data.entry_points && Array.isArray(data.entry_points)) {
+        data.entry_points.forEach((entry, idx) => {
+          if (entry.content) {
+            const fileName = entry.path.split('/').pop();
+            const extension = fileName.split('.').pop().toLowerCase();
+            
+            // Detect language from extension
+            const languageMap = {
+              'js': 'javascript', 'jsx': 'javascript',
+              'ts': 'typescript', 'tsx': 'typescript',
+              'py': 'python', 'go': 'go', 'rs': 'rust',
+              'java': 'java', 'c': 'c', 'cpp': 'cpp',
+              'json': 'json', 'yaml': 'yaml', 'yml': 'yaml'
+            };
+            
+            newFiles.push({
+              id: `file_entry_${idx}_${Date.now()}`,
+              name: fileName,
+              language: languageMap[extension] || 'plaintext',
+              content: entry.content,
+              hasUnsavedChanges: false,
+              path: entry.path,
+              repoInfo: repo
+            });
+          }
+        });
+      }
+      
+      // Add config files
+      if (data.config_files && Array.isArray(data.config_files)) {
+        data.config_files.forEach((config, idx) => {
+          if (config.content) {
+            const fileName = config.path.split('/').pop();
+            const extension = fileName.split('.').pop().toLowerCase();
+            
+            newFiles.push({
+              id: `file_config_${idx}_${Date.now()}`,
+              name: fileName,
+              language: extension === 'json' ? 'json' : 'yaml',
+              content: config.content,
+              hasUnsavedChanges: false,
+              path: config.path,
+              repoInfo: repo
+            });
+          }
+        });
+      }
+      
+      // If no files were added, create a placeholder
+      if (newFiles.length === 0) {
+        newFiles.push({
+          id: `file_${Date.now()}`,
+          name: 'info.txt',
+          language: 'plaintext',
+          content: `Repository: ${repo.owner}/${repo.repo}\nBranch: ${repo.branch}\n\nNo core files found.`,
+          hasUnsavedChanges: false,
+          path: null,
+          repoInfo: repo
+        });
+      }
+      
+      setFiles(newFiles);
+      setActiveFileId(newFiles[0].id);
+      
+    } else {
+      // Full Browser Mode - Show tree in FileTreeBrowser
+      console.log('Full tree data:', data);
+      // TODO: Wire FileTreeBrowser component to display tree
+      // FileTreeBrowser will handle file selection → file fetch → open in FileTabs
+    }
+    
+    // Clear any errors
+    setError(null);
+  };
 
   const handleAnalyze = async () => {
     if (!code.trim()) {
@@ -144,7 +370,27 @@ export default function ReviewPage() {
               </h2>
               <p className="text-muted mb-0">AI-powered code analysis with five distinct reading modes</p>
             </div>
-            <div>
+            <div className="d-flex gap-2 align-items-center">
+              {repoInfo && (
+                <div className="text-end me-3">
+                  <small className="text-muted d-block">
+                    <i className="bi bi-github me-1"></i>
+                    {repoInfo.owner}/{repoInfo.repo}
+                  </small>
+                  <small className="text-muted">
+                    <i className="bi bi-git me-1"></i>
+                    {repoInfo.branch}
+                  </small>
+                </div>
+              )}
+              <button 
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowImportModal(true)}
+                disabled={loading}
+              >
+                <i className="bi bi-github me-2"></i>
+                Import from GitHub
+              </button>
               <small className="text-muted">Session: {sessionId}</small>
             </div>
           </div>
@@ -260,12 +506,23 @@ export default function ReviewPage() {
                 </small>
               </div>
             </div>
+            
+            {/* File Tabs */}
+            <FileTabs
+              files={files}
+              activeFileId={activeFileId}
+              onFileSelect={handleFileSelect}
+              onFileClose={handleFileClose}
+              onFileAdd={handleFileAdd}
+              onFileRename={handleFileRename}
+            />
+            
             <div className="p-0 flex-grow-1">
               <CodeEditor 
                 ref={codeEditorRef}
                 value={code}
-                onChange={setCode}
-                language="javascript"
+                onChange={handleCodeChange}
+                language={activeFile?.language || 'javascript'}
                 placeholder="Enter your code here for analysis..."
                 className="h-100"
               />
@@ -301,6 +558,13 @@ export default function ReviewPage() {
           </div>
         </div>
       </div>
+
+      {/* GitHub Import Modal */}
+      <RepoImportModal 
+        show={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={handleGitHubImportSuccess}
+      />
     </div>
   );
 }

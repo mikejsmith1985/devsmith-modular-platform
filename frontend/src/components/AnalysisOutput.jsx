@@ -287,7 +287,8 @@ export default function AnalysisOutput({
             lineHeight: '1.8',
             fontSize: fontSizes[fontSize],
             wordWrap: 'break-word',
-            overflowWrap: 'break-word'
+            overflowWrap: 'break-word',
+            textAlign: 'left'
           }}>
             <ReactMarkdown
               components={{
@@ -340,7 +341,10 @@ export default function AnalysisOutput({
             lineHeight: '1.6',
             fontSize: fontSizes[fontSize],
             fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-            overflowX: 'hidden'
+            overflowX: 'hidden',
+            textAlign: 'left',
+            margin: 0,
+            padding: 0
           }}>
             {rawText}
           </pre>

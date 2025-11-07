@@ -70,6 +70,25 @@ export const reviewApi = {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model }),
   }),
+
+  // GitHub Integration API endpoints (Phase 1)
+  // Fetch repository tree structure
+  githubGetTree: (url, branch = 'main') => {
+    const params = new URLSearchParams({ url, branch });
+    return apiRequest(`/api/review/github/tree?${params.toString()}`);
+  },
+  
+  // Fetch individual file content
+  githubGetFile: (url, path, branch = 'main') => {
+    const params = new URLSearchParams({ url, path, branch });
+    return apiRequest(`/api/review/github/file?${params.toString()}`);
+  },
+  
+  // Quick repo scan (fetches 5-8 core files)
+  githubQuickScan: (url, branch = 'main') => {
+    const params = new URLSearchParams({ url, branch });
+    return apiRequest(`/api/review/github/quick-scan?${params.toString()}`);
+  },
 };
 
 // Logs API endpoints

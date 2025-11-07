@@ -214,12 +214,12 @@ func (e *AlertEngine) checkServiceHealth(ctx context.Context) {
 			e.logger.Printf("Failed to scan health check: %v", err)
 			continue
 		}
-		
+
 		// Skip empty service names
 		if service == "" {
 			continue
 		}
-		
+
 		serviceChecks[service] = append(serviceChecks[service], status)
 	}
 
