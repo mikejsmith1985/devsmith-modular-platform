@@ -86,10 +86,9 @@ func TestUIHandler_DashboardHandler_ContainsScripts(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	assert.Contains(t, body, "tailwindcss", "Should include Tailwind CSS")
+	assert.Contains(t, body, "devsmith-theme.css", "Should include devsmith-theme.css")
 	assert.Contains(t, body, "alpinejs", "Should include Alpine.js for interactivity")
 	assert.Contains(t, body, "logs-output", "Should include logs output container")
-	assert.Contains(t, body, "logs.css", "Should include logs stylesheet")
 }
 
 func TestUIHandler_DashboardHandler_ContainsStylesheet(t *testing.T) {
@@ -107,7 +106,7 @@ func TestUIHandler_DashboardHandler_ContainsStylesheet(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	assert.Contains(t, body, "logs.css")
+	assert.Contains(t, body, "devsmith-theme.css")
 }
 
 func TestUIHandler_HealthHandler_Success(t *testing.T) {

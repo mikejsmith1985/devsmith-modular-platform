@@ -1,6 +1,35 @@
 package templates
 
-import "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+)
+
+// Helper functions for file tree rendering
+func getFileName(path string) string {
+	return filepath.Base(path)
+}
+
+func getFileExtension(path string) string {
+	ext := filepath.Ext(path)
+	return strings.TrimPrefix(ext, ".")
+}
+
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	units := []rune{'K', 'M', 'G', 'T', 'P', 'E'}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), units[exp])
+}
 
 // FileTreeData contains data for rendering the file tree
 type FileTreeData struct {
@@ -28,7 +57,7 @@ templ FileTree(data FileTreeData) {
 
 // FileTreeNode renders a single tree node (file or directory) recursively
 templ FileTreeNode(node review_models.TreeNode, sessionID int64, depth int) {
-	<div class="tree-node" data-path={ node.Path } data-type={ node.Type } style={ templ.KV("padding-left", templ.SafeCSSProperty(string(depth*20)+"px")) }>
+	<div class="tree-node" data-path={ node.Path } data-type={ node.Type } style={ templ.KV("padding-left", templ.SafeCSSProperty(fmt.Sprintf("%dpx", depth*20))) }>
 		if node.Type == "dir" {
 			<!-- Directory: expandable/collapsible -->
 			<div class="tree-node-dir" data-expanded="false">
@@ -52,7 +81,7 @@ templ FileTreeNode(node review_models.TreeNode, sessionID int64, depth int) {
 			<!-- File: clickable to open in tab -->
 			<div 
 				class="tree-node-file"
-				hx-post={ "/review/sessions/" + string(sessionID) + "/files" }
+				hx-post={ fmt.Sprintf("/review/sessions/%d/files", sessionID) }
 				hx-vals={ `{"file_path": "` + node.Path + `"}` }
 				hx-target="#file-tabs"
 				hx-swap="beforeend"

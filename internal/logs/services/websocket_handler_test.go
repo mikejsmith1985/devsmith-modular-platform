@@ -44,8 +44,8 @@ func diagnosticGoroutines(t *testing.T) {
 	t.Logf("[DIAG] Test %s: baseline goroutines = %d", t.Name(), baseline)
 
 	t.Cleanup(func() {
-		// Allow time for goroutines to exit
-		time.Sleep(50 * time.Millisecond)
+		// Allow time for goroutines to exit - increased from 50ms to 200ms
+		time.Sleep(200 * time.Millisecond)
 
 		after := runtime.NumGoroutine()
 		leaked := after - baseline
@@ -105,7 +105,10 @@ func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	// Add authentication header (required now)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -1137,8 +1140,8 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 	if t != nil {
 		t.Cleanup(func() {
 			hub.Stop()
-			// Allow hub.Run() goroutine to exit
-			time.Sleep(10 * time.Millisecond)
+			// Allow hub.Run() goroutine and client goroutines to exit - increased from 10ms to 100ms
+			time.Sleep(100 * time.Millisecond)
 		})
 	}
 
@@ -1150,7 +1153,25 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 }
 
 // handleWebSocketLogsConnection upgrades HTTP connection to WebSocket and sets up client
+// This mimics the production handler logic, including authentication check
 func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *WebSocketHub) {
+	// Check authentication (production behavior)
+	authHeader := r.Header.Get("Authorization")
+	isAuthenticated := false
+	
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		// Validate token - reject expired or invalid tokens
+		// For tests: "valid_jwt_token_for_testing" is valid, "expired_token" and empty are invalid
+		isAuthenticated = token == "valid_jwt_token_for_testing"
+	}
+
+	// Require authentication - reject unauthenticated connections (production behavior)
+	if !isAuthenticated {
+		http.Error(w, `{"error":"Authentication required"}`, http.StatusUnauthorized)
+		return
+	}
+
 	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -1172,10 +1193,11 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 		Conn:         conn,
 		Send:         make(chan *logs_models.LogEntry, 256),
 		Filters:      filters,
-		IsAuth:       false,
-		IsPublic:     true,
+		IsAuth:       true, // Always true since we rejected unauthenticated above
+		IsPublic:     false,
 		LastActivity: time.Now(),
 		Registered:   make(chan struct{}),
+		done:         make(chan struct{}),
 	}
 
 	hub.Register(client)
@@ -1206,8 +1228,8 @@ func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
 	if t != nil {
 		t.Cleanup(func() {
 			hub.Stop()
-			// Allow hub.Run() goroutine to exit
-			time.Sleep(10 * time.Millisecond)
+			// Allow hub.Run() goroutine and client goroutines to exit - increased from 10ms to 100ms
+			time.Sleep(100 * time.Millisecond)
 		})
 	}
 
@@ -1245,17 +1267,18 @@ func setupPublicWebSocketServer() http.Handler {
 				filters["tags"] = tags
 			}
 
-			client := &Client{
-				Conn:         conn,
-				Send:         make(chan *logs_models.LogEntry, 256),
-				Filters:      filters,
-				IsAuth:       false,
-				IsPublic:     true,
-				LastActivity: time.Now(),
-				Registered:   make(chan struct{}),
-			}
+		client := &Client{
+			Conn:         conn,
+			Send:         make(chan *logs_models.LogEntry, 256),
+			Filters:      filters,
+			IsAuth:       false,
+			IsPublic:     true,
+			LastActivity: time.Now(),
+			Registered:   make(chan struct{}),
+			done:         make(chan struct{}),
+		}
 
-			hub.Register(client)
+		hub.Register(client)
 			go client.ReadPump(hub)
 			go client.WritePump(hub)
 

@@ -46,7 +46,9 @@ type Client struct {
 	// has been added to the active clients map. Tests wait on this
 	// to ensure registration is complete before sending messages.
 	Registered chan struct{}
-	mu         sync.Mutex
+	// done channel signals WritePump to exit gracefully
+	done   chan struct{}
+	mu     sync.Mutex
 	// writeMu serializes concurrent writes to the websocket connection
 	writeMu  sync.Mutex
 	IsAuth   bool
@@ -374,23 +376,32 @@ func (c *Client) WritePump(hub *WebSocketHub) {
 		if err := c.Conn.Close(); err != nil {
 			log.Printf("Error closing WebSocket connection: %v", err)
 		}
+		// Unregister when write pump exits
+		hub.unregister <- c
 	}()
 
-	for log := range c.Send {
-		// Serialize writes to avoid concurrent WriteMessage/WriteJSON calls
-		c.writeMu.Lock()
-		if err := c.Conn.WriteJSON(log); err != nil {
+	for {
+		select {
+		case log, ok := <-c.Send:
+			if !ok {
+				// Send channel closed, exit gracefully
+				return
+			}
+			// Serialize writes to avoid concurrent WriteMessage/WriteJSON calls
+			c.writeMu.Lock()
+			if err := c.Conn.WriteJSON(log); err != nil {
+				c.writeMu.Unlock()
+				return
+			}
 			c.writeMu.Unlock()
-			break
+			c.mu.Lock()
+			c.LastActivity = time.Now()
+			c.mu.Unlock()
+		case <-c.done:
+			// Client disconnected, exit gracefully
+			return
 		}
-		c.writeMu.Unlock()
-		c.mu.Lock()
-		c.LastActivity = time.Now()
-		c.mu.Unlock()
 	}
-
-	// Unregister when write pump exits
-	hub.unregister <- c
 }
 
 // ReadPump reads messages from the WebSocket connection.
@@ -398,9 +409,13 @@ func (c *Client) WritePump(hub *WebSocketHub) {
 // for heartbeat responses. It closes when the connection is lost.
 func (c *Client) ReadPump(hub *WebSocketHub) {
 	defer func() {
+		// Close done channel to signal WritePump to exit
+		close(c.done)
 		if err := c.Conn.Close(); err != nil {
 			log.Printf("Error closing WebSocket connection: %v", err)
 		}
+		// Unregister when read pump exits
+		hub.unregister <- c
 	}()
 
 	if err := c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
@@ -430,7 +445,4 @@ func (c *Client) ReadPump(hub *WebSocketHub) {
 			break
 		}
 	}
-
-	// Unregister when read pump exits
-	hub.unregister <- c
 }

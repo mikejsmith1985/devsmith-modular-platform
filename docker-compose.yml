@@ -68,23 +68,51 @@ services:
         condition: service_healthy
       analytics:
         condition: service_healthy
+      frontend:
+        condition: service_healthy
     networks:
       - devsmith-network
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+        VITE_API_URL: http://localhost:3000
+    container_name: devsmith-frontend
+    ports:
+      - "5173:80"
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
   portal:
     build:
       context: .
       dockerfile: cmd/portal/Dockerfile
     ports:
-      - "8080:8080"
+      - "3001:3001"
     environment:
-      - PORT=8080
+      - PORT=3001
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REDIS_URL=redis:6379
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
-      - REDIRECT_URI=http://localhost:3000/auth/github/callback
+      - REDIRECT_URI=http://localhost:3000/auth/callback
       - ENABLE_TEST_AUTH=true
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker
@@ -98,17 +126,26 @@ services:
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portal.rule=Host(`localhost`) && PathPrefix(`/`)"
-      - "traefik.http.routers.portal.entrypoints=web"
-      - "traefik.http.routers.portal.priority=1"
-      - "traefik.http.services.portal.loadbalancer.server.port=8080"
+      # Portal API - higher priority than frontend
+      - "traefik.http.routers.portal-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/portal`)"
+      - "traefik.http.routers.portal-api.entrypoints=web"
+      - "traefik.http.routers.portal-api.priority=100"
+      - "traefik.http.routers.portal-api.service=portal"
+      # Auth endpoints (GitHub OAuth) - highest priority
+      # SPECIFIC: Only Portal's OAuth routes, not React's /auth/callback
+      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth/github`)"
+      - "traefik.http.routers.portal-auth.entrypoints=web"
+      - "traefik.http.routers.portal-auth.priority=200"
+      - "traefik.http.routers.portal-auth.service=portal"
+      # Service definition with health check
+      - "traefik.http.services.portal.loadbalancer.server.port=3001"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.portal.loadbalancer.healthcheck.interval=10s"
   review:
@@ -147,12 +184,13 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.review.rule=Host(`localhost`) && PathPrefix(`/review`)"
+      - "traefik.http.routers.review.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/review`)"
       - "traefik.http.routers.review.entrypoints=web"
-      - "traefik.http.routers.review.priority=10"
-      - "traefik.http.routers.review.middlewares=review-stripprefix"
-      - "traefik.http.middlewares.review-stripprefix.stripprefix.prefixes=/review"
+      - "traefik.http.routers.review.priority=100"
+      - "traefik.http.routers.review.service=review"
       - "traefik.http.services.review.loadbalancer.server.port=8081"
+      - "traefik.http.services.review.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.review.loadbalancer.healthcheck.interval=10s"
   logs:
     build:
       context: .
@@ -182,12 +220,13 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.logs.rule=Host(`localhost`) && PathPrefix(`/logs`)"
+      - "traefik.http.routers.logs.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/logs`)"
       - "traefik.http.routers.logs.entrypoints=web"
-      - "traefik.http.routers.logs.priority=10"
-      - "traefik.http.routers.logs.middlewares=logs-stripprefix"
-      - "traefik.http.middlewares.logs-stripprefix.stripprefix.prefixes=/logs"
+      - "traefik.http.routers.logs.priority=100"
+      - "traefik.http.routers.logs.service=logs"
       - "traefik.http.services.logs.loadbalancer.server.port=8082"
+      - "traefik.http.services.logs.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.logs.loadbalancer.healthcheck.interval=10s"
   analytics:
     build:
       context: .
@@ -218,12 +257,13 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.analytics.rule=Host(`localhost`) && PathPrefix(`/analytics`)"
+      - "traefik.http.routers.analytics.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/analytics`)"
       - "traefik.http.routers.analytics.entrypoints=web"
-      - "traefik.http.routers.analytics.priority=10"
-      - "traefik.http.routers.analytics.middlewares=analytics-stripprefix"
-      - "traefik.http.middlewares.analytics-stripprefix.stripprefix.prefixes=/analytics"
+      - "traefik.http.routers.analytics.priority=100"
+      - "traefik.http.routers.analytics.service=analytics"
       - "traefik.http.services.analytics.loadbalancer.server.port=8083"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.interval=10s"
 
   maildev:
     image: maildev/maildev:latest

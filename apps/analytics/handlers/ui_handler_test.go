@@ -86,7 +86,7 @@ func TestDashboardHandler_ContainsScripts(t *testing.T) {
 	// Check for required script tags
 	assert.Contains(t, body, "chart.js", "Should include Chart.js library")
 	assert.Contains(t, body, "analytics.js", "Should include analytics.js script")
-	assert.Contains(t, body, "tailwindcss", "Should include Tailwind CSS")
+	assert.Contains(t, body, "devsmith-theme.css", "Should include devsmith-theme.css")
 	assert.Contains(t, body, "alpinejs", "Should include Alpine.js for interactivity")
 }
 

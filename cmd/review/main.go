@@ -286,7 +286,7 @@ func main() {
 	router.GET("/api/review/models", uiHandler.GetAvailableModels) // Model list is public
 
 	// Home/landing page - REQUIRES authentication via Redis session (SSO with Portal)
-	// Note: Traefik strips /review prefix, so these routes handle requests after stripping
+	// Note: WITH stripprefix, Traefik strips /review so we only handle /
 	router.GET("/", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
 
 	// Protected endpoints group (require JWT authentication with Redis session validation)

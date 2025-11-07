@@ -48,13 +48,31 @@ func RegisterAuthRoutesWithSession(router *gin.Engine, dbConn *sql.DB, store *se
 
 // RegisterGitHubRoutes registers GitHub-related authentication routes
 func RegisterGitHubRoutes(router *gin.Engine) {
-	log.Println("[DEBUG] Registering authentication routes")
+	log.Println("[DEBUG] Registering authentication routes with /api/portal/auth prefix")
 
-	router.GET("/auth/github/login", HandleGitHubOAuthLogin)
-	router.GET("/auth/github/callback", HandleGitHubOAuthCallbackWithSession)
-	router.GET("/auth/login", HandleAuthLogin)
-	router.GET("/auth/github/dashboard", HandleGitHubDashboard)
-	router.POST("/auth/logout", HandleLogout)
+	// Create auth group with correct prefix
+	authGroup := router.Group("/api/portal/auth")
+	{
+		authGroup.GET("/github/login", HandleGitHubOAuthLogin)
+		authGroup.GET("/github/callback", HandleGitHubOAuthCallbackWithSession)
+		authGroup.GET("/login", HandleAuthLogin)
+		authGroup.GET("/github/dashboard", HandleGitHubDashboard)
+		authGroup.POST("/logout", HandleLogout)
+	}
+
+	// Legacy routes for backward compatibility (redirect to new paths)
+	router.GET("/auth/github/login", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/api/portal/auth/github/login")
+	})
+	router.GET("/auth/github/callback", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/api/portal/auth/github/callback")
+	})
+	router.GET("/auth/login", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/api/portal/auth/login")
+	})
+	router.POST("/auth/logout", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/api/portal/auth/logout")
+	})
 
 	// Test authentication endpoint - only enabled when ENABLE_TEST_AUTH=true
 	if os.Getenv("ENABLE_TEST_AUTH") == "true" {
@@ -183,7 +201,8 @@ func HandleGitHubOAuthCallback(c *gin.Context) {
 	log.Printf("[DEBUG] Step 1: Received callback code=%s", code)
 	log.Printf("[DEBUG] Step 2: Exchanging code for token...")
 
-	accessToken, err := exchangeCodeForToken(code)
+	// Legacy non-PKCE flow (no code_verifier)
+	accessToken, err := exchangeCodeForToken(code, "")
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code for token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate"})
@@ -310,15 +329,210 @@ func SetTestUserDefaults(user *UserInfo) {
 	}
 }
 
+// TokenRequest represents the PKCE token exchange request
+type TokenRequest struct {
+	Code         string `json:"code" binding:"required"`
+	State        string `json:"state" binding:"required"`
+	CodeVerifier string `json:"code_verifier" binding:"required"`
+}
+
 // RegisterTokenRoutes registers token-related routes
 func RegisterTokenRoutes(router *gin.Engine) {
-	router.POST("/auth/token", func(c *gin.Context) {
-		// Token generation logic
+	authGroup := router.Group("/api/portal/auth")
+	{
+		authGroup.POST("/token", HandleTokenExchange)
+		authGroup.GET("/me", HandleGetCurrentUser)
+	}
+}
+
+// HandleTokenExchange handles PKCE token exchange
+// POST /api/portal/auth/token
+func HandleTokenExchange(c *gin.Context) {
+	var req TokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[ERROR] Invalid token request: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	log.Printf("[DEBUG] PKCE token exchange - code=%s, state=%s", req.Code, req.State)
+
+	// Validate OAuth config
+	if err := validateOAuthConfig(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "GitHub OAuth not configured"})
+		return
+	}
+
+	// Exchange code for access token with PKCE code_verifier
+	// RFC 7636: code_verifier MUST be sent to token endpoint
+	accessToken, err := exchangeCodeForToken(req.Code, req.CodeVerifier)
+	if err != nil {
+		log.Printf("[ERROR] Failed to exchange code: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to authenticate"})
+		return
+	}
+
+	// Fetch user info
+	user, err := FetchUserInfo(accessToken)
+	if err != nil {
+		log.Printf("[ERROR] Failed to fetch user: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to fetch user info"})
+		return
+	}
+
+	log.Printf("[DEBUG] User authenticated: %s (ID: %d)", user.Login, user.ID)
+
+	// Create Redis session
+	sess := &session.Session{
+		UserID:         int(user.ID),
+		GitHubUsername: user.Login,
+		GitHubToken:    accessToken,
+		Metadata: map[string]interface{}{
+			"email":      user.Email,
+			"avatar_url": user.AvatarURL,
+			"name":       user.Name,
+			"github_id":  int(user.ID),
+		},
+	}
+
+	if sessionStore == nil {
+		log.Printf("[ERROR] Session store not initialized")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session management error"})
+		return
+	}
+
+	sessionID, err := sessionStore.Create(c.Request.Context(), sess)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create session: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
+		return
+	}
+
+	// Generate JWT
+	claims := jwt.MapClaims{
+		"session_id": sessionID,
+		"exp":        time.Now().Add(7 * 24 * time.Hour).Unix(),
+		"iat":        time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtSecret := security.GetJWTSecret()
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		log.Printf("[ERROR] JWT generation failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to issue token"})
+		return
+	}
+
+	log.Printf("[DEBUG] Token exchange successful, session: %s", sessionID)
+
+	// Set httpOnly cookie
+	SetSecureJWTCookie(c, tokenString)
+
+	// Return token to frontend (for localStorage)
+	c.JSON(http.StatusOK, gin.H{
+		"token": tokenString,
+		"user": gin.H{
+			"username":   user.Login,
+			"email":      user.Email,
+			"avatar_url": user.AvatarURL,
+			"github_id":  user.ID,
+		},
 	})
 }
 
+// HandleGetCurrentUser validates JWT token and returns current user info
+// GET /api/portal/auth/me
+func HandleGetCurrentUser(c *gin.Context) {
+	// Extract token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		log.Printf("[DEBUG] No Authorization header provided")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No authorization token provided"})
+		return
+	}
+
+	// Remove "Bearer " prefix
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		log.Printf("[DEBUG] Invalid Authorization header format (missing Bearer prefix)")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
+		return
+	}
+
+	// Parse and validate JWT
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return security.GetJWTSecret(), nil
+	})
+
+	if err != nil {
+		log.Printf("[ERROR] JWT validation failed: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+		return
+	}
+
+	if !token.Valid {
+		log.Printf("[ERROR] JWT token invalid")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	// Extract claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		log.Printf("[ERROR] Failed to extract JWT claims")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+		return
+	}
+
+	// Get session_id from claims
+	sessionID, ok := claims["session_id"].(string)
+	if !ok {
+		log.Printf("[ERROR] No session_id in JWT claims")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token: missing session_id"})
+		return
+	}
+
+	// Retrieve session from Redis
+	if sessionStore == nil {
+		log.Printf("[ERROR] Session store not initialized")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Session store unavailable"})
+		return
+	}
+
+	sess, err := sessionStore.Get(c.Request.Context(), sessionID)
+	if err != nil {
+		log.Printf("[ERROR] Failed to retrieve session %s: %v", sessionID, err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session not found or expired"})
+		return
+	}
+
+	// Return user info from session metadata
+	c.JSON(http.StatusOK, gin.H{
+		"username":   sess.GitHubUsername,
+		"email":      sess.Metadata["email"],
+		"avatar_url": sess.Metadata["avatar_url"],
+		"github_id":  sess.Metadata["github_id"],
+	})
+}
+
+func validateOAuthConfig() error {
+	required := []string{"GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "REDIRECT_URI"}
+	for _, key := range required {
+		if os.Getenv(key) == "" {
+			return fmt.Errorf("%s environment variable not set", key)
+		}
+	}
+	return nil
+}
+
 // exchangeCodeForToken exchanges the authorization code for an access token
-func exchangeCodeForToken(code string) (string, error) {
+// RFC 7636: For PKCE flow, code_verifier MUST be included
+func exchangeCodeForToken(code string, codeVerifier string) (string, error) {
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
 	clientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
 	redirectURI := os.Getenv("REDIRECT_URI")
@@ -333,6 +547,14 @@ func exchangeCodeForToken(code string) (string, error) {
 	q.Add("client_secret", clientSecret)
 	q.Add("code", code)
 	q.Add("redirect_uri", redirectURI)
+
+	// RFC 7636: Include code_verifier for PKCE flow
+	// GitHub requires this when code_challenge was sent in authorization request
+	if codeVerifier != "" {
+		q.Add("code_verifier", codeVerifier)
+		log.Printf("[DEBUG] Including code_verifier in token exchange (PKCE)")
+	}
+
 	tokenReq.URL.RawQuery = q.Encode()
 	tokenReq.Header.Set("Accept", "application/json")
 	resp, err := http.DefaultClient.Do(tokenReq)
@@ -511,8 +733,8 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	log.Printf("[DEBUG] Step 1: Received callback code=%s", code)
 
-	// Exchange code for access token
-	accessToken, err := exchangeCodeForToken(code)
+	// Exchange code for access token (legacy non-PKCE flow)
+	accessToken, err := exchangeCodeForToken(code, "")
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code for token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate"})
@@ -568,9 +790,16 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] Step 5: JWT created, setting cookie and redirecting")
+	log.Printf("[DEBUG] Step 5: JWT created, setting cookie and redirecting to React callback")
+
+	// Set httpOnly cookie for security
 	SetSecureJWTCookie(c, tokenString)
-	c.Redirect(http.StatusFound, "/dashboard")
+
+	// Redirect to React frontend callback route with token in URL
+	// This allows React to store token in localStorage for API calls
+	redirectURL := "http://localhost:3000/auth/callback?token=" + tokenString
+	log.Printf("[DEBUG] Redirecting to: %s", redirectURL)
+	c.Redirect(http.StatusFound, redirectURL)
 }
 
 // HandleLogout logs out the user by deleting their session

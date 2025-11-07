@@ -623,3 +623,43 @@ func (r *LogRepository) BulkInsert(ctx context.Context, entries []*LogEntry) (in
 
 	return insertedCount, nil
 }
+
+// GetLogStatsByLevel returns the count of logs grouped by level for the React frontend StatCards.
+func (r *LogRepository) GetLogStatsByLevel(ctx context.Context) (map[string]int, error) {
+	query := `
+		SELECT 
+			LOWER(level) as level,
+			COUNT(*) as count
+		FROM logs.entries
+		GROUP BY LOWER(level)
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query log stats: %w", err)
+	}
+	defer rows.Close()
+
+	stats := map[string]int{
+		"debug":    0,
+		"info":     0,
+		"warning":  0,
+		"error":    0,
+		"critical": 0,
+	}
+
+	for rows.Next() {
+		var level string
+		var count int
+		if err := rows.Scan(&level, &count); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		stats[level] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return stats, nil
+}

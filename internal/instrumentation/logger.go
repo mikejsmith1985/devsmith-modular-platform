@@ -146,9 +146,9 @@ func (l *ServiceInstrumentationLogger) sendAsync(logEntry map[string]interface{}
 		// Logging disabled for this service; do nothing
 		return
 	}
-	// Circular dependency prevention for logs service
-	if l.serviceName == "logs" && logEntry["event_type"] == "log_entry_ingested" {
-		// Don't re-log the logs service's own log ingestion events
+	// Circular dependency prevention for logs service - NEVER log internal /api/logs requests
+	if l.serviceName == "logs" {
+		// Skip ALL logging operations to prevent deadlock (logs service should NEVER log to itself)
 		return
 	}
 

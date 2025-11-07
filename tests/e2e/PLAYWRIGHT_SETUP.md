@@ -12,8 +12,10 @@ GITHUB_TEST_USERNAME=YOUR_GITHUB_USERNAME_HERE
 GITHUB_TEST_PASSWORD=YOUR_GITHUB_PASSWORD_HERE
 
 # Already configured (OAuth app credentials)
-GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
-GITHUB_CLIENT_SECRET=3646316980e7f068a7a4d0bc21de510869251dc7
+```env
+GITHUB_CLIENT_ID=your_github_client_id_here
+GITHUB_CLIENT_SECRET=your_github_client_secret_here
+```
 BASE_URL=http://localhost:3000
 LOGGING_API=http://localhost:3000/api/logs
 ```

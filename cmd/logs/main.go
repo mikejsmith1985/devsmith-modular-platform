@@ -203,6 +203,21 @@ func main() {
 		resthandlers.GetDashboardStats(validationAgg)(c)
 	})
 
+	// React Frontend Stats API - Log counts by level for StatCards
+	router.GET("/api/logs/v1/stats", func(c *gin.Context) {
+		// Add timeout to prevent hanging on DB deadlock/self-logging loop
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		stats, err := logRepo.GetLogStatsByLevel(ctx)
+		if err != nil {
+			logger.WithError(err).Error("Failed to fetch log stats")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch statistics"})
+			return
+		}
+		c.JSON(http.StatusOK, stats)
+	})
+
 	// Validation analytics endpoints
 	router.GET("/api/logs/validations/top-errors", func(c *gin.Context) {
 		resthandlers.GetTopErrors(validationAgg)(c)
