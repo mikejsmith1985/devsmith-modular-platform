@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/auth.fixture';
 
 test.describe('React Frontend - Core Functionality', () => {
   test('should render login page with GitHub OAuth button', async ({ page }) => {
@@ -24,22 +24,20 @@ test.describe('React Frontend - Core Functionality', () => {
     expect(styles.color).toBeTruthy();
   });
 
-  test('should have proper SPA routing (no page reloads)', async ({ page }) => {
-    await page.goto('http://localhost:3000/');
+  test('should have proper SPA routing (no page reloads)', async ({ authenticatedPage }) => {
+    // Use authenticated page fixture
+    await authenticatedPage.goto('http://localhost:3000/');
     
-    // Mock authentication (for testing routing only)
-    await page.evaluate(() => {
-      localStorage.setItem('devsmith_token', 'mock_jwt_token');
-    });
-    
-    await page.goto('http://localhost:3000/dashboard');
+    // Wait for dashboard to load
+    await authenticatedPage.waitForURL(/\/(dashboard)?$/);
     
     // Check navigation without page reload
     let reloaded = false;
-    page.on('load', () => { reloaded = true; });
+    authenticatedPage.on('load', () => { reloaded = true; });
     
-    await page.click('text=Logs');
-    await page.waitForURL(/\/logs/);
+    // Find and click Logs navigation link
+    await authenticatedPage.click('a[href="/logs"], button:has-text("Logs")');
+    await authenticatedPage.waitForURL(/\/logs/);
     
     // SPA should not reload the page
     expect(reloaded).toBe(false);
@@ -47,19 +45,14 @@ test.describe('React Frontend - Core Functionality', () => {
 });
 
 test.describe('React Frontend - API Integration', () => {
-  test('should fetch and display log statistics', async ({ page }) => {
-    // Mock authentication
-    await page.goto('http://localhost:3000/');
-    await page.evaluate(() => {
-      localStorage.setItem('devsmith_token', 'mock_jwt_token');
-    });
-    
-    // Navigate to logs page
-    await page.goto('http://localhost:3000/logs');
+  test('should fetch and display log statistics', async ({ authenticatedPage }) => {
+    // Navigate to logs page (already authenticated)
+    await authenticatedPage.goto('http://localhost:3000/logs');
     
     // Wait for API call to complete
-    const response = await page.waitForResponse(
-      (response) => response.url().includes('/api/logs/v1/stats')
+    const response = await authenticatedPage.waitForResponse(
+      (response) => response.url().includes('/api/logs/v1/stats'),
+      { timeout: 10000 }
     );
     
     expect(response.status()).toBe(200);
@@ -73,23 +66,18 @@ test.describe('React Frontend - API Integration', () => {
     expect(data).toHaveProperty('critical');
   });
 
-  test('StatCards should render with real data', async ({ page }) => {
-    await page.goto('http://localhost:3000/');
-    await page.evaluate(() => {
-      localStorage.setItem('devsmith_token', 'mock_jwt_token');
-    });
-    
-    await page.goto('http://localhost:3000/logs');
+  test('StatCards should render with real data', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('http://localhost:3000/logs');
     
     // Wait for StatCards to load
-    await page.waitForSelector('.stat-card', { timeout: 5000 });
+    await authenticatedPage.waitForSelector('.stat-card', { timeout: 5000 });
     
     // Check all 5 StatCards are present
-    const statCards = await page.locator('.stat-card').count();
+    const statCards = await authenticatedPage.locator('.stat-card').count();
     expect(statCards).toBe(5);
     
     // Verify each card has a count
-    const debugCount = await page.locator('.stat-card:has-text("Debug")').textContent();
+    const debugCount = await authenticatedPage.locator('.stat-card:has-text("Debug")').textContent();
     expect(debugCount).toMatch(/\d+/);
   });
 });

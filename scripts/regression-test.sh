@@ -77,14 +77,22 @@ record_test() {
 check_service() {
     local url="$1"
     local service_name="$2"
+    local max_retries=3
+    local retry_delay=2
     
-    # 20s timeout to accommodate slow Ollama health checks
-    if timeout 20 curl -sf "$url" > /dev/null 2>&1; then
-        return 0
-    else
-        log_error "Service $service_name not responding at $url"
-        return 1
-    fi
+    for i in $(seq 1 $max_retries); do
+        # 20s timeout to accommodate slow Ollama health checks
+        if timeout 20 curl -sf "$url" > /dev/null 2>&1; then
+            return 0
+        fi
+        
+        if [ $i -lt $max_retries ]; then
+            sleep $retry_delay
+        fi
+    done
+    
+    log_error "Service $service_name not responding at $url after $max_retries attempts"
+    return 1
 }
 
 # Take screenshot using Playwright
@@ -183,10 +191,11 @@ else
     record_test "Portal Title Visible" "fail" "DevSmith title not found" ""
 fi
 
-if echo "$PORTAL_HTML" | grep -q "Login\|Sign in"; then
-    record_test "Portal Login Button Visible" "pass" "Login button found" ""
+# Portal is now a React SPA - check for React root element
+if echo "$PORTAL_HTML" | grep -q '<div id="root"></div>'; then
+    record_test "Portal React App Loaded" "pass" "React SPA structure found" ""
 else
-    record_test "Portal Login Button Visible" "fail" "Login button not found" ""
+    record_test "Portal React App Loaded" "fail" "React SPA structure not found" ""
 fi
 
 # ============================================================================
@@ -248,12 +257,12 @@ fi
 
 log_info "━━━ TEST 5: API Health Endpoints ━━━"
 
-# Portal health
-PORTAL_HEALTH=$(curl -s "$BASE_URL/health" || echo '{}')
+# Portal health - now served by frontend container
+PORTAL_HEALTH=$(curl -s "http://localhost:3001/health" || echo '{}')
 if echo "$PORTAL_HEALTH" | jq -e '.status' > /dev/null 2>&1; then
-    record_test "Portal Health Endpoint" "pass" "Health check passed" ""
+    record_test "Portal API Health Endpoint" "pass" "Portal API health check passed" ""
 else
-    record_test "Portal Health Endpoint" "fail" "Health check failed or invalid JSON" ""
+    record_test "Portal API Health Endpoint" "fail" "Portal API health check failed or invalid JSON" ""
 fi
 
 # Review health
