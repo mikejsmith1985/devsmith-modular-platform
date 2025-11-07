@@ -391,6 +391,7 @@ func HandleTokenExchange(c *gin.Context) {
 			"email":      user.Email,
 			"avatar_url": user.AvatarURL,
 			"name":       user.Name,
+			"github_id":  int(user.ID),
 		},
 	}
 

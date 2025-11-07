@@ -85,9 +85,9 @@ export default function OAuthCallback() {
         sessionStorage.removeItem('oauth_state');
         console.log('[PKCE] PKCE data cleared from sessionStorage');
         
-        // Redirect to dashboard
+        // Redirect to dashboard with page reload to trigger AuthContext
         console.log('[PKCE] Redirecting to dashboard');
-        navigate('/');
+        window.location.href = '/';
       } catch (err) {
         console.error('[PKCE] Token exchange error:', err);
         setError(`Failed to complete authentication: ${err.message}`);
