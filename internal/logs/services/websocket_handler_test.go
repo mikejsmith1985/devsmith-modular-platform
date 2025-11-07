@@ -105,7 +105,10 @@ func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	// Add authentication header (required now)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -1150,7 +1153,25 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 }
 
 // handleWebSocketLogsConnection upgrades HTTP connection to WebSocket and sets up client
+// This mimics the production handler logic, including authentication check
 func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *WebSocketHub) {
+	// Check authentication (production behavior)
+	authHeader := r.Header.Get("Authorization")
+	isAuthenticated := false
+	
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		// Validate token - reject expired or invalid tokens
+		// For tests: "valid_jwt_token_for_testing" is valid, "expired_token" and empty are invalid
+		isAuthenticated = token == "valid_jwt_token_for_testing"
+	}
+
+	// Require authentication - reject unauthenticated connections (production behavior)
+	if !isAuthenticated {
+		http.Error(w, `{"error":"Authentication required"}`, http.StatusUnauthorized)
+		return
+	}
+
 	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -1172,8 +1193,8 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 		Conn:         conn,
 		Send:         make(chan *logs_models.LogEntry, 256),
 		Filters:      filters,
-		IsAuth:       false,
-		IsPublic:     true,
+		IsAuth:       true, // Always true since we rejected unauthenticated above
+		IsPublic:     false,
 		LastActivity: time.Now(),
 		Registered:   make(chan struct{}),
 		done:         make(chan struct{}),
