@@ -180,9 +180,9 @@ func FileTreeNode(node review_models.TreeNode, sessionID int64, depth int) templ
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(templ.KV("padding-left", templ.SafeCSSProperty(string(depth*20)+"px")))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(templ.KV("padding-left", templ.SafeCSSProperty(fmt.Sprintf("%dpx", depth*20))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/components/file_tree.templ`, Line: 60, Col: 150}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/components/file_tree.templ`, Line: 60, Col: 158}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -226,9 +226,9 @@ func FileTreeNode(node review_models.TreeNode, sessionID int64, depth int) templ
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs("/review/sessions/" + string(sessionID) + "/files")
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/review/sessions/%d/files", sessionID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/components/file_tree.templ`, Line: 84, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/components/file_tree.templ`, Line: 84, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
