@@ -68,7 +68,9 @@ func TestWebSocketHandler_EndpointExists(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -86,7 +88,9 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR&service=review&tags=critical"
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -133,7 +137,9 @@ func TestWebSocketHandler_FiltersLogsByService(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?service=portal"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -155,7 +161,9 @@ func TestWebSocketHandler_FiltersByTags(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?tags=critical"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -175,7 +183,9 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR&service=review&tags=critical"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -302,7 +312,9 @@ func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -319,7 +331,9 @@ func TestWebSocketHandler_DisconnectsOnNoPong(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -360,7 +374,9 @@ func TestWebSocketHandler_ResetsHeartbeatOnActivity(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -386,12 +402,14 @@ func TestWebSocketHandler_ClientReconnectsAutomatically(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn1, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn1, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	conn1.Close()
 
 	time.Sleep(100 * time.Millisecond)
-	conn2, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn2, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 
 	assert.NoError(t, err, "Should reconnect after disconnect")
 	if conn2 != nil {
@@ -460,7 +478,9 @@ func TestWebSocketHandler_DropsSlowConsumers(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -491,7 +511,9 @@ func TestWebSocketHandler_QueuesMessagesForFastConsumers(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -525,7 +547,9 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -577,10 +601,12 @@ func TestWebSocketHandler_BroadcastsViaPubSub(t *testing.T) {
 
 	wsURL1 := "ws" + strings.TrimPrefix(server1.URL, "http") + wsLogsPath
 	wsURL2 := "ws" + strings.TrimPrefix(server2.URL, "http") + wsLogsPath
-	conn1, _, err := websocket.DefaultDialer.Dial(wsURL1, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn1, _, err := websocket.DefaultDialer.Dial(wsURL1, header)
 	require.NoError(t, err)
 	defer conn1.Close()
-	conn2, _, err := websocket.DefaultDialer.Dial(wsURL2, nil)
+	conn2, _, err := websocket.DefaultDialer.Dial(wsURL2, header)
 	require.NoError(t, err)
 	defer conn2.Close()
 
@@ -650,7 +676,9 @@ func TestWebSocketHandler_Supports100ConcurrentConnections(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+			header := http.Header{}
+			header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+			conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 			if err == nil {
 				mu.Lock()
 				connections[idx] = conn
@@ -741,7 +769,9 @@ func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -767,7 +797,9 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 	require.NoError(t, err)
 	defer conn.Close()
 
@@ -800,11 +832,13 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn1, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn1, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	defer conn1.Close()
-	conn2, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn2, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	defer conn2.Close()
-	conn3, _, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn3, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	defer conn3.Close()
 
 	hub := currentTestHub
@@ -871,7 +905,9 @@ func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -896,7 +932,9 @@ func TestWebSocketHandler_CloseConnectionOnDisconnect(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -916,11 +954,13 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp1 != nil && resp1.Body != nil {
 		resp1.Body.Close()
 	}
-	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp2 != nil && resp2.Body != nil {
 		resp2.Body.Close()
 	}
@@ -1063,10 +1103,10 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 		}
 		messageCount++
 	}
-	
+
 	// Wait for sender goroutine to finish
 	<-done
-	
+
 	assert.Greater(t, messageCount, 10, "Should receive many messages in high-frequency stream")
 }
 
@@ -1158,7 +1198,7 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 	// Check authentication (production behavior)
 	authHeader := r.Header.Get("Authorization")
 	isAuthenticated := false
-	
+
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 		// Validate token - reject expired or invalid tokens
@@ -1212,7 +1252,7 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 	case <-time.After(200 * time.Millisecond):
 		// timed out; continue anyway
 	}
-	
+
 	// Note: Client cleanup happens automatically when connection closes
 	// ReadPump and WritePump will exit when conn.ReadMessage/WriteMessage fail
 }
@@ -1267,18 +1307,18 @@ func setupPublicWebSocketServer() http.Handler {
 				filters["tags"] = tags
 			}
 
-		client := &Client{
-			Conn:         conn,
-			Send:         make(chan *logs_models.LogEntry, 256),
-			Filters:      filters,
-			IsAuth:       false,
-			IsPublic:     true,
-			LastActivity: time.Now(),
-			Registered:   make(chan struct{}),
-			done:         make(chan struct{}),
-		}
+			client := &Client{
+				Conn:         conn,
+				Send:         make(chan *logs_models.LogEntry, 256),
+				Filters:      filters,
+				IsAuth:       false,
+				IsPublic:     true,
+				LastActivity: time.Now(),
+				Registered:   make(chan struct{}),
+				done:         make(chan struct{}),
+			}
 
-		hub.Register(client)
+			hub.Register(client)
 			go client.ReadPump(hub)
 			go client.WritePump(hub)
 
