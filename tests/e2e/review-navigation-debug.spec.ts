@@ -22,7 +22,7 @@ test.describe('Review Navigation Flow - With Auth', () => {
       // For now, we'll set a mock JWT cookie to simulate being logged in
       // In real scenario, you'd go through OAuth flow
       
-      const mockJWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZXhwIjo5OTk5OTk5OTk5fQ.test';
+      const mockJWT = 'test-mock-jwt-token-for-e2e-testing';
       await context.addCookies([{
         name: 'devsmith_token',
         value: mockJWT,

@@ -104,13 +104,14 @@ test.describe('React Frontend - Authentication Flow', () => {
     // Mock successful OAuth callback
     await page.evaluate(() => {
       // Simulate token storage after GitHub OAuth
-      localStorage.setItem('devsmith_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock');
+      // Using generic JWT-like format for testing (not a real secret)
+      localStorage.setItem('devsmith_token', 'test.jwt.token');
     });
     
     // Verify token is stored
     const token = await page.evaluate(() => localStorage.getItem('devsmith_token'));
     expect(token).toBeTruthy();
-    expect(token).toMatch(/^eyJ/); // JWT format
+    expect(token).toContain('test'); // Mock token format
   });
 });
 
