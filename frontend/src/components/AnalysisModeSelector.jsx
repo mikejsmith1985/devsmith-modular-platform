@@ -46,23 +46,27 @@ export default function AnalysisModeSelector({ selectedMode, onModeSelect, disab
         {Object.entries(analysisModesConfig).map(([mode, config]) => (
           <div key={mode} className="col-md-2 col-sm-4 col-6">
             <div 
-              className={`card h-100 cursor-pointer ${
-                selectedMode === mode ? `border-${config.color} border-2` : 'border-light'
+              className={`frosted-card h-100 cursor-pointer ${
+                selectedMode === mode ? 'border-primary border-3' : ''
               } ${disabled ? 'opacity-50' : ''}`}
               onClick={() => !disabled && onModeSelect(mode)}
               style={{ 
                 cursor: disabled ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                padding: '0.75rem'
               }}
             >
-              <div className="card-body p-2 text-center">
+              <div className="text-center">
                 <div className="fs-4 mb-1">{config.icon}</div>
-                <h6 className={`card-title mb-1 ${
-                  selectedMode === mode ? `text-${config.color}` : ''
+                <h6 className={`mb-1 ${
+                  selectedMode === mode ? 'text-primary' : ''
                 }`}>
                   {config.name}
                 </h6>
-                <small className="text-muted">{config.description}</small>
+                <small style={{ 
+                  color: 'var(--bs-gray-300)',
+                  opacity: 0.9
+                }}>{config.description}</small>
               </div>
             </div>
           </div>
@@ -72,7 +76,10 @@ export default function AnalysisModeSelector({ selectedMode, onModeSelect, disab
       {/* Show selected mode purpose */}
       {selectedMode && (
         <div className="mt-2">
-          <small className="text-muted">
+          <small style={{ 
+            color: 'var(--bs-gray-200)',
+            opacity: 0.95
+          }}>
             <strong>{analysisModesConfig[selectedMode].name}:</strong>{' '}
             {analysisModesConfig[selectedMode].purpose}
           </small>

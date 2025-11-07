@@ -48,27 +48,27 @@ export const reviewApi = {
   // Run analysis in different modes
   runPreview: (sessionId, code, model) => apiRequest('/api/review/modes/preview', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, code, model }),
+    body: JSON.stringify({ pasted_code: code, model }),
   }),
   
   runSkim: (sessionId, code, model) => apiRequest('/api/review/modes/skim', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, code, model }),
+    body: JSON.stringify({ pasted_code: code, model }),
   }),
   
   runScan: (sessionId, code, model, query) => apiRequest('/api/review/modes/scan', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, code, model, query }),
+    body: JSON.stringify({ pasted_code: code, model, query }),
   }),
   
   runDetailed: (sessionId, code, model) => apiRequest('/api/review/modes/detailed', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, code, model }),
+    body: JSON.stringify({ pasted_code: code, model }),
   }),
   
   runCritical: (sessionId, code, model) => apiRequest('/api/review/modes/critical', {
     method: 'POST',
-    body: JSON.stringify({ session_id: sessionId, code, model }),
+    body: JSON.stringify({ pasted_code: code, model }),
   }),
 };
 

@@ -12,32 +12,41 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
         setLoading(true);
         const response = await reviewApi.getModels();
         
+        let modelList = [];
         if (Array.isArray(response)) {
-          setModels(response);
-          // Auto-select first model if none selected
-          if (!selectedModel && response.length > 0) {
-            onModelSelect(response[0].name || response[0]);
-          }
+          modelList = response;
         } else if (response.models && Array.isArray(response.models)) {
-          setModels(response.models);
-          if (!selectedModel && response.models.length > 0) {
-            onModelSelect(response.models[0].name || response.models[0]);
-          }
+          modelList = response.models;
         } else {
           console.warn('Unexpected models response format:', response);
-          setModels([]);
+        }
+
+        setModels(modelList);
+        
+        // Always default to mistral:7b-instruct if no model selected
+        if (!selectedModel && modelList.length > 0) {
+          const recommendedModel = modelList.find(m => 
+            (m.name || m) === 'mistral:7b-instruct'
+          );
+          if (recommendedModel) {
+            onModelSelect(recommendedModel.name || recommendedModel);
+          } else {
+            // Fallback to first model if mistral not found
+            onModelSelect(modelList[0].name || modelList[0]);
+          }
         }
       } catch (err) {
         console.error('Failed to load models:', err);
         setError(err.message);
-        // Fallback to default models
+        // Fallback to default models with recommended first
         const defaultModels = [
-          { name: 'deepseek-coder:6.7b', description: 'Recommended for most users' },
-          { name: 'deepseek-coder:1.5b', description: 'Faster, lower resource usage' }
+          { name: 'mistral:7b-instruct', description: 'Fast, General (Recommended)' },
+          { name: 'qwen2.5-coder:7b-instruct-q4_K_M', description: 'Qwen coder model' },
+          { name: 'qwen2.5-coder:7b-instruct-q5_K_M', description: 'Qwen coder model' }
         ];
         setModels(defaultModels);
         if (!selectedModel) {
-          onModelSelect(defaultModels[0].name);
+          onModelSelect('mistral:7b-instruct');
         }
       } finally {
         setLoading(false);

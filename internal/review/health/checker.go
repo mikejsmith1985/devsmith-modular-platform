@@ -4,7 +4,9 @@ package review_health
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -128,23 +130,39 @@ func (h *ServiceHealthChecker) checkOllamaConnectivity(ctx context.Context) Comp
 		Name: "ollama_connectivity",
 	}
 
-	// Simple connectivity test with minimal prompt
-	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Fast connectivity test using /api/tags endpoint instead of generation
+	testCtx, cancel := context.WithTimeout(ctx, 2*time.Second) // Reduced timeout
 	defer cancel()
 
-	// Ensure the model context is provided to the adapter so the underlying
-	// Ollama client receives a model name instead of an empty string.
-	model := os.Getenv("OLLAMA_MODEL")
-	if model != "" {
-		testCtx = context.WithValue(testCtx, "model", model)
+	// Get Ollama endpoint from environment or use default
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://localhost:11434"
 	}
 
-	_, err := h.ollamaClient.Generate(testCtx, "test")
+	// Make simple GET request to /api/tags (much faster than generation)
+	req, err := http.NewRequestWithContext(testCtx, "GET", ollamaEndpoint+"/api/tags", nil)
+	if err != nil {
+		comp.Status = HealthStatusUnhealthy
+		comp.Message = fmt.Sprintf("Failed to create health check request: %v", err)
+		comp.ResponseTime = time.Since(start)
+		return comp
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	comp.ResponseTime = time.Since(start)
 
 	if err != nil {
 		comp.Status = HealthStatusUnhealthy
 		comp.Message = fmt.Sprintf("Ollama service unreachable: %v", err)
+		return comp
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		comp.Status = HealthStatusUnhealthy
+		comp.Message = fmt.Sprintf("Ollama returned HTTP %d", resp.StatusCode)
 		return comp
 	}
 
@@ -153,38 +171,89 @@ func (h *ServiceHealthChecker) checkOllamaConnectivity(ctx context.Context) Comp
 	return comp
 }
 
-// checkOllamaModel verifies the required model (mistral:7b-instruct) is available.
+// checkOllamaModel verifies the required model is available.
 func (h *ServiceHealthChecker) checkOllamaModel(ctx context.Context) ComponentHealth {
 	start := time.Now()
-	comp := ComponentHealth{
-		Name: "ollama_model",
-		Metadata: map[string]string{
-			"required_model": "mistral:7b-instruct",
-		},
-	}
 
-	// Try to generate with the specific model
-	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	// Explicitly set the required model into context so adapter forwards it
+	// Get required model from environment or use default
 	required := os.Getenv("OLLAMA_MODEL")
 	if required == "" {
 		required = "mistral:7b-instruct"
 	}
-	testCtx = context.WithValue(testCtx, "model", required)
 
-	_, err := h.ollamaClient.Generate(testCtx, "test")
+	comp := ComponentHealth{
+		Name: "ollama_model",
+		Metadata: map[string]string{
+			"required_model": required,
+		},
+	}
+
+	// Fast model check using /api/tags instead of generation
+	testCtx, cancel := context.WithTimeout(ctx, 2*time.Second) // Reduced timeout
+	defer cancel()
+
+	// Get Ollama endpoint from environment or use default
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://localhost:11434"
+	}
+
+	// Make request to /api/tags to list available models
+	req, err := http.NewRequestWithContext(testCtx, "GET", ollamaEndpoint+"/api/tags", nil)
+	if err != nil {
+		comp.Status = HealthStatusUnhealthy
+		comp.Message = fmt.Sprintf("Failed to create model check request: %v", err)
+		comp.ResponseTime = time.Since(start)
+		return comp
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	comp.ResponseTime = time.Since(start)
 
 	if err != nil {
 		comp.Status = HealthStatusUnhealthy
-		comp.Message = fmt.Sprintf("Model not available: %v", err)
+		comp.Message = fmt.Sprintf("Failed to check available models: %v", err)
+		return comp
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		comp.Status = HealthStatusUnhealthy
+		comp.Message = fmt.Sprintf("Model check returned HTTP %d", resp.StatusCode)
+		return comp
+	}
+
+	// Parse the tags response to check if our model is available
+	var tagsResp struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tagsResp); err != nil {
+		comp.Status = HealthStatusDegraded
+		comp.Message = fmt.Sprintf("Failed to parse models list: %v", err)
+		return comp
+	}
+
+	// Check if required model is in the list
+	modelFound := false
+	for _, model := range tagsResp.Models {
+		if model.Name == required {
+			modelFound = true
+			break
+		}
+	}
+
+	if !modelFound {
+		comp.Status = HealthStatusDegraded
+		comp.Message = fmt.Sprintf("Required model '%s' not found in available models", required)
 		return comp
 	}
 
 	comp.Status = HealthStatusHealthy
-	comp.Message = "Model mistral:7b-instruct is available"
+	comp.Message = fmt.Sprintf("Model %s is available", required)
 	return comp
 }
 

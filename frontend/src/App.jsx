@@ -18,7 +18,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/callback" element={<OAuthCallback />} />
+          <Route path="/auth/github/callback" element={<OAuthCallback />} />
           <Route
             path="/"
             element={

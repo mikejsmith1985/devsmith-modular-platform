@@ -20,6 +20,7 @@ import (
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/monitoring"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/sirupsen/logrus"
 )
@@ -241,6 +242,20 @@ func main() {
 	router.POST("/api/logs/analyze", analysisHandler.AnalyzeLog)
 	router.POST("/api/logs/classify", analysisHandler.ClassifyLog)
 
+	// Health Monitoring Dashboard - Real-time metrics and alerts
+	metricsCollector := monitoring.NewSQLMetricsCollector(dbConn)
+	monitoringHandler := internal_logs_handlers.NewMonitoringHandler(metricsCollector)
+
+	router.GET("/api/logs/monitoring/metrics", monitoringHandler.GetMetrics)
+	router.GET("/api/logs/monitoring/alerts", monitoringHandler.GetAlerts)
+	router.GET("/api/logs/monitoring/stats", monitoringHandler.GetStats)
+
+	// Start Alert Engine - Background monitoring and alerting
+	alertThresholds := monitoring.DefaultAlertThresholds()
+	alertEngine := monitoring.NewAlertEngine(dbConn, alertThresholds, 1*time.Minute, log.Default())
+	alertEngine.Start()
+	defer alertEngine.Stop()
+
 	// Initialize WebSocket hub
 	hub := logs_services.NewWebSocketHub()
 	go hub.Run()
@@ -416,6 +431,56 @@ ON logs.entries(severity_score DESC, created_at DESC);
 COMMENT ON COLUMN logs.entries.issue_type IS 'Categorized error type: db_connection, auth_failure, null_pointer, rate_limit, network_timeout, unknown';
 COMMENT ON COLUMN logs.entries.ai_analysis IS 'Cached AI analysis result with root cause, suggested fix, and fix steps';
 COMMENT ON COLUMN logs.entries.severity_score IS 'Severity rating from AI analysis: 1-5 (1=info, 5=critical)';
+
+-- Phase 4: Health Monitoring Dashboard & Alert Engine
+-- Create monitoring schema for health metrics and alerts
+CREATE SCHEMA IF NOT EXISTS monitoring;
+
+-- Store API call metrics for error rate and response time analysis
+CREATE TABLE IF NOT EXISTS monitoring.api_metrics (
+    id BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    method VARCHAR(10) NOT NULL,
+    endpoint VARCHAR(500) NOT NULL,
+    status_code INTEGER NOT NULL,
+    response_time_ms INTEGER NOT NULL,
+    payload_size_bytes INTEGER DEFAULT 0,
+    user_id INTEGER,
+    error_type VARCHAR(100),
+    error_message TEXT,
+    service_name VARCHAR(50) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_metrics_timestamp ON monitoring.api_metrics(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_api_metrics_errors ON monitoring.api_metrics(timestamp, status_code) WHERE status_code >= 400;
+CREATE INDEX IF NOT EXISTS idx_api_metrics_service ON monitoring.api_metrics(service_name, timestamp DESC);
+
+-- Store detected alerts from alert engine
+CREATE TABLE IF NOT EXISTS monitoring.alerts (
+    id BIGSERIAL PRIMARY KEY,
+    alert_type VARCHAR(50) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    value FLOAT,
+    threshold FLOAT,
+    service_name VARCHAR(50),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_active ON monitoring.alerts(created_at DESC) WHERE resolved_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_alerts_service ON monitoring.alerts(service_name, created_at DESC);
+
+-- Add service column to health_checks table for service health monitoring
+ALTER TABLE logs.health_checks 
+ADD COLUMN IF NOT EXISTS service VARCHAR(50);
+
+CREATE INDEX IF NOT EXISTS idx_health_checks_service ON logs.health_checks(service, timestamp DESC);
+
+COMMENT ON SCHEMA monitoring IS 'Health monitoring metrics and alerts for real-time dashboard';
+COMMENT ON TABLE monitoring.api_metrics IS 'API call metrics for error rate and response time analysis';
+COMMENT ON TABLE monitoring.alerts IS 'Detected alerts from alert engine evaluation';
 `
 
 	if _, err := db.Exec(migrationSQL); err != nil {

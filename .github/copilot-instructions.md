@@ -73,6 +73,22 @@ bash scripts/regression-test.sh
 
 ## 🚨 CRITICAL RULES (Never Violate)
 
+### Rule 0.5: NEVER Tell User to "Hard Refresh Browser"
+
+**❌ FORBIDDEN**: "Please do a hard refresh" / "Clear your browser cache" / "Ctrl+Shift+R"
+
+**Why**: Mike refreshes constantly during development. Browser cache is NEVER the root cause.
+
+**Real Problems**:
+- Docker container serving old files → Fix: `docker-compose up -d --build --force-recreate`
+- Frontend not rebuilt → Fix: `npm run build` then rebuild container
+- Backend using old environment variables → Fix: Restart service with updated docker-compose.yml
+
+**If you suspect caching**:
+1. Check what files Docker container is actually serving: `docker exec <container> ls /path/to/files`
+2. Compare with source files: `diff source_file container_file`
+3. Rebuild container if mismatch: `docker-compose up -d --build --force-recreate <service>`
+
 ### Rule 1: NEVER Work on `development` or `main` Branch
 ```bash
 # ❌ WRONG
