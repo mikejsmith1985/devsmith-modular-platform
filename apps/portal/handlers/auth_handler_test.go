@@ -105,17 +105,17 @@ func TestRegisterTokenRoutes(t *testing.T) {
 	// Assert
 	t.Run("Token route registered", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodPost, "/auth/token", http.NoBody)
+		req, _ := http.NewRequest(http.MethodPost, "/api/portal/auth/token", http.NoBody)
 		r.ServeHTTP(w, req)
-		assert.NotEqual(t, http.StatusNotFound, w.Code, "Route /auth/token should be registered")
+		assert.NotEqual(t, http.StatusNotFound, w.Code, "Route /api/portal/auth/token should be registered")
 	})
 
 	t.Run("Token route responds", func(t *testing.T) {
-		// Placeholder for token endpoint behavior
+		// Placeholder for token endpoint behavior - expects 400 for missing body
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodPost, "/auth/token", http.NoBody)
+		req, _ := http.NewRequest(http.MethodPost, "/api/portal/auth/token", http.NoBody)
 		r.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusOK, w.Code, "Token route should respond with 200 OK")
+		assert.Equal(t, http.StatusBadRequest, w.Code, "Token route should respond with 400 for empty body")
 	})
 }
 
@@ -269,7 +269,7 @@ func TestExchangeCodeForToken(t *testing.T) {
 	// Mock HTTP client
 	mockTransport := &mockTransport{
 		responses: map[string]*http.Response{
-			"https://github.com/login/oauth/access_token?client_id=test-client-id&client_secret=test-client-secret&code=test-code&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback": {
+			"https://github.com/login/oauth/access_token?client_id=test-client-id&client_secret=test-client-secret&code=test-code&code_verifier=test-code-verifier&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback": {
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(bytes.NewBufferString(`{"access_token":"test-access-token","token_type":"Bearer","scope":"repo"}`)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
