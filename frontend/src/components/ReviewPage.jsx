@@ -58,6 +58,11 @@ export default function ReviewPage() {
   // GitHub import modal state
   const [showImportModal, setShowImportModal] = useState(false);
   const [repoInfo, setRepoInfo] = useState(null); // Stores current repo info
+  
+  // FileTreeBrowser state for Full Browser mode
+  const [treeData, setTreeData] = useState(null);
+  const [showTree, setShowTree] = useState(false);
+  const [selectedTreeFiles, setSelectedTreeFiles] = useState([]);
 
   // Refs for managing focus
   const codeEditorRef = useRef(null);
@@ -257,12 +262,139 @@ export default function ReviewPage() {
     } else {
       // Full Browser Mode - Show tree in FileTreeBrowser
       console.log('Full tree data:', data);
-      // TODO: Wire FileTreeBrowser component to display tree
-      // FileTreeBrowser will handle file selection → file fetch → open in FileTabs
+      
+      // Store tree structure for FileTreeBrowser
+      if (data.tree && Array.isArray(data.tree)) {
+        setTreeData(data.tree);
+        setShowTree(true);
+        
+        // Store repo info for file fetching
+        setRepoInfo(repo);
+        
+        // Clear any existing files
+        setFiles([]);
+        setActiveFileId(null);
+      } else {
+        console.error('Invalid tree data received:', data);
+        setError('Failed to load repository tree');
+      }
     }
     
-    // Clear any errors
+    // Close modal and clear any errors
+    setShowImportModal(false);
     setError(null);
+  };
+
+  /**
+   * Handle file selection from FileTreeBrowser
+   */
+  const handleTreeFileSelect = async (file, isMultiSelect) => {
+    if (file.type === 'directory') {
+      // Don't select directories
+      return;
+    }
+
+    if (isMultiSelect) {
+      // Multi-select mode (Ctrl/Cmd click)
+      setSelectedTreeFiles(prev => {
+        const isAlreadySelected = prev.some(f => f.path === file.path);
+        if (isAlreadySelected) {
+          return prev.filter(f => f.path !== file.path);
+        } else {
+          return [...prev, file];
+        }
+      });
+    } else {
+      // Single select - fetch and open file
+      await fetchAndOpenFile(file.path);
+    }
+  };
+
+  /**
+   * Fetch file content from GitHub and open in FileTabs
+   */
+  const fetchAndOpenFile = async (filePath) => {
+    // Check if file already open
+    const existingFile = files.find(f => f.path === filePath);
+    if (existingFile) {
+      setActiveFileId(existingFile.id);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Fetch file content from GitHub API
+      const fileData = await reviewApi.githubGetFile(
+        repoInfo.url,
+        filePath,
+        repoInfo.branch
+      );
+      
+      // Detect language from extension or response
+      const fileName = filePath.split('/').pop();
+      const extension = fileName.split('.').pop().toLowerCase();
+      const languageMap = {
+        'js': 'javascript',
+        'jsx': 'javascript',
+        'ts': 'typescript',
+        'tsx': 'typescript',
+        'go': 'go',
+        'py': 'python',
+        'java': 'java',
+        'c': 'c',
+        'cpp': 'cpp',
+        'cs': 'csharp',
+        'html': 'html',
+        'css': 'css',
+        'scss': 'scss',
+        'json': 'json',
+        'xml': 'xml',
+        'yaml': 'yaml',
+        'yml': 'yaml',
+        'md': 'markdown',
+        'sql': 'sql',
+        'sh': 'shell',
+        'bash': 'shell',
+        'rs': 'rust',
+        'rb': 'ruby',
+        'php': 'php'
+      };
+      
+      // Create new file tab
+      const newFile = {
+        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: fileName,
+        language: fileData.language || languageMap[extension] || 'plaintext',
+        content: fileData.content,
+        hasUnsavedChanges: false,
+        path: filePath,
+        repoInfo
+      };
+      
+      // Add to files and activate
+      setFiles(prev => [...prev, newFile]);
+      setActiveFileId(newFile.id);
+      
+    } catch (err) {
+      console.error('Failed to fetch file:', err);
+      setError(`Failed to load file: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handle batch analysis of selected files from tree
+   */
+  const handleFilesAnalyze = async (selectedFiles) => {
+    console.log('Analyzing selected files:', selectedFiles);
+    // TODO: Implement batch file analysis
+    // For now, just open the files
+    for (const file of selectedFiles) {
+      await fetchAndOpenFile(file.path);
+    }
+    setSelectedTreeFiles([]);
   };
 
   const handleAnalyze = async () => {
@@ -485,10 +617,44 @@ export default function ReviewPage() {
         </div>
       </div>
 
-      {/* Main 2-Pane Layout */}
+      {/* Main Layout - 2-Pane or 3-Pane (with file tree) */}
       <div className="row g-3">
+        {/* File Tree Sidebar - Only visible in Full Browser mode */}
+        {showTree && treeData && (
+          <div className="col-md-3">
+            <div className="frosted-card h-100" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">
+                  <i className="bi bi-folder-tree me-2"></i>
+                  Repository Files
+                </h6>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => {
+                    setShowTree(false);
+                    setTreeData(null);
+                    setSelectedTreeFiles([]);
+                  }}
+                  title="Close file tree"
+                >
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              </div>
+              <div className="flex-grow-1 overflow-auto">
+                <FileTreeBrowser
+                  treeData={treeData}
+                  selectedFiles={selectedTreeFiles}
+                  onFileSelect={handleTreeFileSelect}
+                  onFilesAnalyze={handleFilesAnalyze}
+                  loading={loading}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Left Pane - Code Editor */}
-        <div className="col-md-6">
+        <div className={showTree ? "col-md-5" : "col-md-6"}>
           <div className="frosted-card h-100" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
               <h6 className="mb-0">
@@ -531,7 +697,7 @@ export default function ReviewPage() {
         </div>
 
         {/* Right Pane - Analysis Output */}
-        <div className="col-md-6">
+        <div className={showTree ? "col-md-4" : "col-md-6"}>
           <AnalysisOutput 
             result={analysisResult}
             loading={loading}
