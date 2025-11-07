@@ -10,7 +10,7 @@
    - `code_challenge` parameter is present (43 chars, base64URL)
    - `code_challenge_method=S256`
    - `state` parameter is present (random string)
-   - `client_id=Ov23liaV4He3p1k7VziT`
+   - `client_id=YOUR_GITHUB_CLIENT_ID` (from GitHub OAuth App settings)
 
 ## Test 2: SessionStorage
 

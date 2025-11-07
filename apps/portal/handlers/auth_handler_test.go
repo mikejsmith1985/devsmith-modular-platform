@@ -278,8 +278,8 @@ func TestExchangeCodeForToken(t *testing.T) {
 	// Add logging to debug the response body
 	log.Printf("Mock response body: %s", `{"access_token":"test-access-token","token_type":"Bearer","scope":"repo"}`)
 
-	// Call the function
-	accessToken, err := exchangeCodeForToken("test-code")
+	// Call the function (updated for PKCE - now requires code_verifier)
+	accessToken, err := exchangeCodeForToken("test-code", "test-code-verifier")
 
 	// Assertions
 	if err != nil {

@@ -1,6 +1,34 @@
 package templates
 
-import "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+)
+
+// Helper functions for file tree rendering
+func getFileName(path string) string {
+	return filepath.Base(path)
+}
+
+func getFileExtension(path string) string {
+	ext := filepath.Ext(path)
+	return strings.TrimPrefix(ext, ".")
+}
+
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
+}
 
 // FileTreeData contains data for rendering the file tree
 type FileTreeData struct {
