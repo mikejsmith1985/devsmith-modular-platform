@@ -989,14 +989,18 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp1 != nil && resp1.Body != nil {
 		resp1.Body.Close()
 	}
 	defer conn1.Close()
 	// Use base path for second connection so query parameters are correct
 	wsURLBase := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURLBase+"?level=INFO", nil)
+	header2 := http.Header{}
+	header2.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURLBase+"?level=INFO", header2)
 	if resp2 != nil && resp2.Body != nil {
 		resp2.Body.Close()
 	}
@@ -1034,7 +1038,9 @@ func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -1055,7 +1061,9 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -1116,7 +1124,9 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
@@ -1143,7 +1153,9 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 	defer server.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, nil)
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
