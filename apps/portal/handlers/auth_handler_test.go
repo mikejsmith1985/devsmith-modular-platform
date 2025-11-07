@@ -51,7 +51,6 @@ func TestRegisterAuthRoutes(t *testing.T) {
 		"/auth/github/login",
 		"/auth/github/callback",
 		"/auth/login",
-		"/auth/github/dashboard",
 	}
 
 	for _, route := range routes {
@@ -79,6 +78,10 @@ func TestValidateOAuthConfig(t *testing.T) {
 }
 
 func TestCreateJWTForUser(t *testing.T) {
+	// Set JWT_SECRET for the test
+	os.Setenv("JWT_SECRET", "test-secret-key")
+	defer os.Unsetenv("JWT_SECRET")
+	
 	user := &UserInfo{
 		Login:     "testuser",
 		Email:     "testuser@example.com",

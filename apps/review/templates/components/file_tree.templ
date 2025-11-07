@@ -27,7 +27,8 @@ func formatFileSize(size int64) string {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
+	units := []rune{'K', 'M', 'G', 'T', 'P', 'E'}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), units[exp])
 }
 
 // FileTreeData contains data for rendering the file tree
