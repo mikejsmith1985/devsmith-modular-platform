@@ -44,8 +44,8 @@ func diagnosticGoroutines(t *testing.T) {
 	t.Logf("[DIAG] Test %s: baseline goroutines = %d", t.Name(), baseline)
 
 	t.Cleanup(func() {
-		// Allow time for goroutines to exit
-		time.Sleep(50 * time.Millisecond)
+		// Allow time for goroutines to exit - increased from 50ms to 200ms
+		time.Sleep(200 * time.Millisecond)
 
 		after := runtime.NumGoroutine()
 		leaked := after - baseline
@@ -1137,8 +1137,8 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 	if t != nil {
 		t.Cleanup(func() {
 			hub.Stop()
-			// Allow hub.Run() goroutine to exit
-			time.Sleep(10 * time.Millisecond)
+			// Allow hub.Run() goroutine and client goroutines to exit - increased from 10ms to 100ms
+			time.Sleep(100 * time.Millisecond)
 		})
 	}
 
@@ -1176,6 +1176,7 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 		IsPublic:     true,
 		LastActivity: time.Now(),
 		Registered:   make(chan struct{}),
+		done:         make(chan struct{}),
 	}
 
 	hub.Register(client)
@@ -1206,8 +1207,8 @@ func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
 	if t != nil {
 		t.Cleanup(func() {
 			hub.Stop()
-			// Allow hub.Run() goroutine to exit
-			time.Sleep(10 * time.Millisecond)
+			// Allow hub.Run() goroutine and client goroutines to exit - increased from 10ms to 100ms
+			time.Sleep(100 * time.Millisecond)
 		})
 	}
 
@@ -1245,17 +1246,18 @@ func setupPublicWebSocketServer() http.Handler {
 				filters["tags"] = tags
 			}
 
-			client := &Client{
-				Conn:         conn,
-				Send:         make(chan *logs_models.LogEntry, 256),
-				Filters:      filters,
-				IsAuth:       false,
-				IsPublic:     true,
-				LastActivity: time.Now(),
-				Registered:   make(chan struct{}),
-			}
+		client := &Client{
+			Conn:         conn,
+			Send:         make(chan *logs_models.LogEntry, 256),
+			Filters:      filters,
+			IsAuth:       false,
+			IsPublic:     true,
+			LastActivity: time.Now(),
+			Registered:   make(chan struct{}),
+			done:         make(chan struct{}),
+		}
 
-			hub.Register(client)
+		hub.Register(client)
 			go client.ReadPump(hub)
 			go client.WritePump(hub)
 

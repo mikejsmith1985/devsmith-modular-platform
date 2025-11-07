@@ -69,6 +69,8 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		LastActivity: time.Now(),
 		// Initialized so the hub can signal registration completion.
 		Registered: make(chan struct{}),
+		// done channel signals WritePump to exit when ReadPump detects disconnect
+		done: make(chan struct{}),
 	}
 
 	// Register client with hub and start message pumps
