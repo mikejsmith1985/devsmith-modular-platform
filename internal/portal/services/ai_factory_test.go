@@ -208,7 +208,9 @@ func TestClientFactory_GetClientForApp_ReturnsErrorOnDecryptionFailure(t *testin
 	// Assert
 	require.Error(t, err, "Should return error on decryption failure")
 	assert.Nil(t, client)
-	assert.Contains(t, err.Error(), "failed to decrypt API key")
+	assert.Contains(t, err.Error(), "failed to create Anthropic client")
+	assert.Contains(t, err.Error(), "user 1")
+	assert.Contains(t, err.Error(), "app review")
 }
 
 // Mock implementations for testing
