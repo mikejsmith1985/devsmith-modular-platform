@@ -279,7 +279,8 @@ func main() {
 	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient, multiFileAnalyzer)
 
 	// Initialize GitHub handler for Phase 1 GitHub integration (tree, file, quick-scan endpoints)
-	githubHandler := review_handlers.NewGitHubHandler(reviewLogger)
+	// Pass previewService so Quick Scan can run AI analysis
+	githubHandler := review_handlers.NewGitHubHandler(reviewLogger, previewService)
 
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")

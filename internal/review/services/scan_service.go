@@ -35,19 +35,23 @@ func NewScanService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 // AnalyzeScan performs Scan Mode analysis for the given query and code.
 // Returns a ScanModeOutput with matches and summary, or an error if analysis fails.
 // Parameter order: query first (what to find), code second (where to search).
-func (s *ScanService) AnalyzeScan(ctx context.Context, query string, code string) (*review_models.ScanModeOutput, error) {
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
+func (s *ScanService) AnalyzeScan(ctx context.Context, query, code, userMode, outputMode string) (*review_models.ScanModeOutput, error) {
 	// Start tracing span
 	tracer := otel.Tracer("devsmith-review")
 	ctx, span := tracer.Start(ctx, "ScanService.AnalyzeScan",
 		trace.WithAttributes(
 			attribute.String("query", query),
 			attribute.Int("code_length", len(code)),
+			attribute.String("user_mode", userMode),
+			attribute.String("output_mode", outputMode),
 		),
 	)
 	defer span.End()
 
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeScan called", "correlation_id", correlationID, "query", query, "code_length", len(code))
+	s.logger.Info("AnalyzeScan called", "correlation_id", correlationID, "query", query, "code_length", len(code), "user_mode", userMode, "output_mode", outputMode)
 
 	if query == "" {
 		s.logger.Warn("AnalyzeScan: empty query", "correlation_id", correlationID)
@@ -61,8 +65,8 @@ func (s *ScanService) AnalyzeScan(ctx context.Context, query string, code string
 		return nil, err
 	}
 
-	// Build prompt using template
-	prompt := BuildScanPrompt(code, query)
+	// Build prompt using template with user/output modes
+	prompt := BuildScanPrompt(code, query, userMode, outputMode)
 	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
 
 	start := time.Now()

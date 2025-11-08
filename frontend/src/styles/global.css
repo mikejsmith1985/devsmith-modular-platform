@@ -18,8 +18,7 @@ body.dark-mode .navbar {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  border: 2px solid rgba(99, 102, 241, 0.1);
   box-shadow: 
     0 10px 30px rgba(99, 102, 241, 0.15),
     0 4px 12px rgba(0, 0, 0, 0.1),
@@ -28,40 +27,25 @@ body.dark-mode .navbar {
   position: relative;
 }
 
-/* Gradient border frame - only visible on card border, not filling content */
-.frosted-card::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899, #6366f1);
-  border-radius: 18px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: -1;
-  pointer-events: none; /* Don't interfere with content interaction */
-}
-
+/* Gradient border frame on hover - border only, not background */
 .frosted-card:hover {
   transform: translateY(-6px);
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.98)),
+    linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899, #6366f1);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   box-shadow: 
     0 20px 50px rgba(99, 102, 241, 0.25),
     0 8px 20px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/* Show gradient border frame on hover */
-.frosted-card:hover::before {
-  opacity: 1;
-}
-
 /* Dark mode with dramatic contrast */
 body.dark-mode .frosted-card {
   background: rgba(30, 33, 48, 0.98);
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  border: 2px solid rgba(139, 92, 246, 0.2);
   box-shadow: 
     0 10px 30px rgba(139, 92, 246, 0.2),
     0 4px 12px rgba(0, 0, 0, 0.4),
@@ -69,15 +53,17 @@ body.dark-mode .frosted-card {
 }
 
 body.dark-mode .frosted-card:hover {
+  transform: translateY(-6px);
+  border: 2px solid transparent;
+  background-image:
+    linear-gradient(rgba(30, 33, 48, 0.98), rgba(30, 33, 48, 0.98)),
+    linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899, #6366f1);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
   box-shadow: 
     0 20px 50px rgba(139, 92, 246, 0.3),
     0 8px 20px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-/* Override duplicate styles */
-body.dark-mode .frosted-card:hover {
-  transform: translateY(-6px);
 }
 
 /* Stat Card Layouts */

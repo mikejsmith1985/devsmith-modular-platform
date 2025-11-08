@@ -31,22 +31,26 @@ func NewPreviewService(ollamaClient OllamaClientInterface, logger logger.Interfa
 
 // AnalyzePreview performs Preview Mode analysis for the given code.
 // Returns rapid structural assessment.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
 // Returns error if analysis fails.
-func (s *PreviewService) AnalyzePreview(ctx context.Context, code string) (*review_models.PreviewModeOutput, error) {
+func (s *PreviewService) AnalyzePreview(ctx context.Context, code, userMode, outputMode string) (*review_models.PreviewModeOutput, error) {
 	// Start tracing span
 	tracer := otel.Tracer("devsmith-review")
 	ctx, span := tracer.Start(ctx, "PreviewService.AnalyzePreview",
 		trace.WithAttributes(
 			attribute.Int("code_length", len(code)),
+			attribute.String("user_mode", userMode),
+			attribute.String("output_mode", outputMode),
 		),
 	)
 	defer span.End()
 
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzePreview called", "correlation_id", correlationID, "code_length", len(code))
+	s.logger.Info("AnalyzePreview called", "correlation_id", correlationID, "code_length", len(code), "user_mode", userMode, "output_mode", outputMode)
 
-	// Build prompt using template
-	prompt := BuildPreviewPrompt(code)
+	// Build prompt using template with user/output modes
+	prompt := BuildPreviewPrompt(code, userMode, outputMode)
 	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
 
 	start := time.Now()

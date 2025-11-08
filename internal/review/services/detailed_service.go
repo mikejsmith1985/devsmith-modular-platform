@@ -36,20 +36,24 @@ func NewDetailedService(ollama OllamaClientInterface, repo AnalysisRepositoryInt
 
 // AnalyzeDetailed performs a line-by-line analysis of code in Detailed Mode.
 // Returns DetailedModeOutput with line explanations, algorithm analysis, and complexity assessment.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
 // Returns error if analysis fails.
-func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, code string) (*review_models.DetailedModeOutput, error) {
+func (s *DetailedService) AnalyzeDetailed(ctx context.Context, code, target, userMode, outputMode string) (*review_models.DetailedModeOutput, error) {
 	// Start tracing span
 	tracer := otel.Tracer("devsmith-review")
 	ctx, span := tracer.Start(ctx, "DetailedService.AnalyzeDetailed",
 		trace.WithAttributes(
-			attribute.String("filename", filename),
+			attribute.String("target", target),
 			attribute.Int("code_length", len(code)),
+			attribute.String("user_mode", userMode),
+			attribute.String("output_mode", outputMode),
 		),
 	)
 	defer span.End()
 
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "filename", filename, "code_length", len(code))
+	s.logger.Info("AnalyzeDetailed called", "correlation_id", correlationID, "target", target, "code_length", len(code), "user_mode", userMode, "output_mode", outputMode)
 
 	if code == "" {
 		s.logger.Error("DetailedService: code empty", "correlation_id", correlationID)
@@ -63,8 +67,8 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 		return nil, err
 	}
 
-	// Build prompt using template
-	prompt := BuildDetailedPrompt(code, filename)
+	// Build prompt using template with user/output modes
+	prompt := BuildDetailedPrompt(code, target, userMode, outputMode)
 	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
 
 	start := time.Now()
@@ -102,7 +106,7 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 			if uerr := json.Unmarshal([]byte(repaired), &output); uerr == nil {
 				s.logger.Info("DetailedService: repaired AI response and parsed successfully", "correlation_id", correlationID)
 				// persist repaired analysis for caching/inspection
-				_ = s.maybePersistAnalysis(ctx, filename, prompt, repaired, resp)
+				_ = s.maybePersistAnalysis(ctx, target, prompt, repaired, resp)
 				span.SetAttributes(attribute.Bool("error", false))
 				span.SetAttributes(attribute.Int("line_explanations_count", len(output.LineExplanations)))
 				return &output, nil
@@ -126,7 +130,7 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 			HTTPStatus: http.StatusBadGateway,
 		}
 		// persist the original raw response for short-term troubleshooting
-		_ = s.maybePersistAnalysis(ctx, filename, prompt, resp, resp)
+		_ = s.maybePersistAnalysis(ctx, target, prompt, resp, resp)
 		span.RecordError(extractErrWrapped)
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, extractErrWrapped
@@ -141,7 +145,7 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 		if repairErr == nil {
 			if uerr := json.Unmarshal([]byte(repaired), &output); uerr == nil {
 				s.logger.Info("DetailedService: repaired AI output and parsed successfully", "correlation_id", correlationID)
-				_ = s.maybePersistAnalysis(ctx, filename, prompt, repaired, resp)
+				_ = s.maybePersistAnalysis(ctx, target, prompt, repaired, resp)
 				span.SetAttributes(attribute.Bool("error", false))
 				span.SetAttributes(attribute.Int("line_explanations_count", len(output.LineExplanations)))
 				return &output, nil
@@ -163,7 +167,7 @@ func (s *DetailedService) AnalyzeDetailed(ctx context.Context, filename string, 
 			HTTPStatus: http.StatusBadGateway,
 		}
 		// persist the problematic JSON for troubleshooting
-		_ = s.maybePersistAnalysis(ctx, filename, prompt, jsonStr, resp)
+		_ = s.maybePersistAnalysis(ctx, target, prompt, jsonStr, resp)
 		span.RecordError(parseErr)
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, parseErr

@@ -46,29 +46,29 @@ export const reviewApi = {
   }),
   
   // Run analysis in different modes
-  runPreview: (sessionId, code, model) => apiRequest('/api/review/modes/preview', {
+  runPreview: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/preview', {
     method: 'POST',
-    body: JSON.stringify({ pasted_code: code, model }),
+    body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
   }),
   
-  runSkim: (sessionId, code, model) => apiRequest('/api/review/modes/skim', {
+  runSkim: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/skim', {
     method: 'POST',
-    body: JSON.stringify({ pasted_code: code, model }),
+    body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
   }),
   
-  runScan: (sessionId, code, model, query) => apiRequest('/api/review/modes/scan', {
+  runScan: (sessionId, code, model, query, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/scan', {
     method: 'POST',
-    body: JSON.stringify({ pasted_code: code, model, query }),
+    body: JSON.stringify({ pasted_code: code, model, query, user_mode: userMode, output_mode: outputMode }),
   }),
   
-  runDetailed: (sessionId, code, model) => apiRequest('/api/review/modes/detailed', {
+  runDetailed: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/detailed', {
     method: 'POST',
-    body: JSON.stringify({ pasted_code: code, model }),
+    body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
   }),
   
-  runCritical: (sessionId, code, model) => apiRequest('/api/review/modes/critical', {
+  runCritical: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/critical', {
     method: 'POST',
-    body: JSON.stringify({ pasted_code: code, model }),
+    body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
   }),
 
   // GitHub Integration API endpoints (Phase 1)

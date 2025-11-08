@@ -55,6 +55,10 @@ export default function ReviewPage() {
   const [error, setError] = useState(null);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   
+  // User Experience Modes (NEW)
+  const [userMode, setUserMode] = useState('intermediate'); // beginner, novice, intermediate, expert
+  const [outputMode, setOutputMode] = useState('quick'); // quick, full_learn
+  
   // GitHub import modal state
   const [showImportModal, setShowImportModal] = useState(false);
   const [repoInfo, setRepoInfo] = useState(null); // Stores current repo info
@@ -422,20 +426,20 @@ export default function ReviewPage() {
       let result;
       switch (selectedMode) {
         case 'preview':
-          result = await reviewApi.runPreview(sessionId, code, selectedModel);
+          result = await reviewApi.runPreview(sessionId, code, selectedModel, userMode, outputMode);
           break;
         case 'skim':
-          result = await reviewApi.runSkim(sessionId, code, selectedModel);
+          result = await reviewApi.runSkim(sessionId, code, selectedModel, userMode, outputMode);
           break;
         case 'scan':
           // Pass scan query to API for context-aware search
-          result = await reviewApi.runScan(sessionId, code, selectedModel, scanQuery);
+          result = await reviewApi.runScan(sessionId, code, selectedModel, scanQuery, userMode, outputMode);
           break;
         case 'detailed':
-          result = await reviewApi.runDetailed(sessionId, code, selectedModel);
+          result = await reviewApi.runDetailed(sessionId, code, selectedModel, userMode, outputMode);
           break;
         case 'critical':
-          result = await reviewApi.runCritical(sessionId, code, selectedModel);
+          result = await reviewApi.runCritical(sessionId, code, selectedModel, userMode, outputMode);
           break;
         default:
           throw new Error(`Unknown analysis mode: ${selectedMode}`);
@@ -576,17 +580,81 @@ export default function ReviewPage() {
 
       {/* Model Selection and Controls */}
       <div className="row mb-3">
-        <div className="col-md-4">
+        <div className="col-md-3">
           <ModelSelector 
             selectedModel={selectedModel}
             onModelSelect={setSelectedModel}
             disabled={loading}
           />
         </div>
-        <div className="col-md-8">
+        <div className="col-md-3">
+          {/* User Mode Selector */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-person-circle me-2"></i>
+              <strong>Experience Level</strong>
+            </label>
+            <select 
+              className="form-select"
+              value={userMode}
+              onChange={(e) => setUserMode(e.target.value)}
+              disabled={loading}
+            >
+              <option value="beginner">🎓 Beginner (Detailed with analogies)</option>
+              <option value="novice">📚 Novice (&lt;2 years)</option>
+              <option value="intermediate">⚡ Intermediate (3-5 years)</option>
+              <option value="expert">🚀 Expert (Concise bullets)</option>
+            </select>
+            <small className="text-muted d-block mt-1">
+              Adjusts explanation depth and technical terminology
+            </small>
+          </div>
+        </div>
+        <div className="col-md-3">
+          {/* Output Mode Toggle */}
+          <div className="mb-3">
+            <label className="form-label">
+              <i className="bi bi-lightbulb me-2"></i>
+              <strong>Learning Style</strong>
+            </label>
+            <div className="btn-group w-100" role="group">
+              <input 
+                type="radio" 
+                className="btn-check" 
+                name="outputMode" 
+                id="outputQuick" 
+                value="quick"
+                checked={outputMode === 'quick'}
+                onChange={(e) => setOutputMode(e.target.value)}
+                disabled={loading}
+              />
+              <label className="btn btn-outline-primary" htmlFor="outputQuick">
+                Quick Learn
+              </label>
+              
+              <input 
+                type="radio" 
+                className="btn-check" 
+                name="outputMode" 
+                id="outputFull" 
+                value="full_learn"
+                checked={outputMode === 'full_learn'}
+                onChange={(e) => setOutputMode(e.target.value)}
+                disabled={loading}
+              />
+              <label className="btn btn-outline-primary" htmlFor="outputFull">
+                Full Learn
+              </label>
+            </div>
+            <small className="text-muted d-block mt-1">
+              {outputMode === 'full_learn' ? '🧠 Shows AI reasoning process' : '⚡ Just the analysis'}
+            </small>
+          </div>
+        </div>
+        <div className="col-md-3">
           <div className="d-flex gap-2 align-items-end h-100">
             <button 
-              className="btn btn-primary"
+              className="btn btn-primary flex-grow-1"
               onClick={handleAnalyze}
               disabled={loading || !code.trim() || !selectedModel}
             >
@@ -599,15 +667,23 @@ export default function ReviewPage() {
                 'Analyze Code'
               )}
             </button>
+          </div>
+        </div>
+      </div>
+      
+      {/* Secondary Controls Row */}
+      <div className="row mb-3">
+        <div className="col-md-12">
+          <div className="d-flex gap-2">
             <button 
-              className="btn btn-outline-secondary"
+              className="btn btn-outline-secondary btn-sm"
               onClick={resetToDefault}
               disabled={loading}
             >
               Reset to Example
             </button>
             <button 
-              className="btn btn-outline-danger"
+              className="btn btn-outline-danger btn-sm"
               onClick={clearCode}
               disabled={loading}
             >

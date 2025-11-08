@@ -15,17 +15,21 @@ import (
 // Preview mode provides rapid structural assessment of code.
 type PreviewAnalyzer interface {
 	// AnalyzePreview performs structural analysis on the provided code.
+	// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+	// outputMode: quick (concise), full (includes reasoning trace)
 	// Returns PreviewModeOutput or an error if analysis fails.
 	// MUST NOT return mock data - fail fast if AI unavailable.
-	AnalyzePreview(ctx context.Context, code string) (*review_models.PreviewModeOutput, error)
+	AnalyzePreview(ctx context.Context, code, userMode, outputMode string) (*review_models.PreviewModeOutput, error)
 }
 
 // SkimAnalyzer defines the contract for Skim mode analysis.
 // Skim mode focuses on abstractions and high-level understanding.
 type SkimAnalyzer interface {
 	// AnalyzeSkim performs abstraction-focused analysis on the provided code.
+	// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+	// outputMode: quick (concise), full (includes reasoning trace)
 	// Returns SkimModeOutput or an error if analysis fails.
-	AnalyzeSkim(ctx context.Context, code string) (*review_models.SkimModeOutput, error)
+	AnalyzeSkim(ctx context.Context, code, userMode, outputMode string) (*review_models.SkimModeOutput, error)
 }
 
 // ScanAnalyzer defines the contract for Scan mode analysis.
@@ -34,8 +38,10 @@ type ScanAnalyzer interface {
 	// AnalyzeScan searches for specific patterns or information in code.
 	// query: the search term or pattern
 	// code: the code to search within
+	// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+	// outputMode: quick (concise), full (includes reasoning trace)
 	// Returns ScanModeOutput or an error if analysis fails.
-	AnalyzeScan(ctx context.Context, query string, code string) (*review_models.ScanModeOutput, error)
+	AnalyzeScan(ctx context.Context, query, code, userMode, outputMode string) (*review_models.ScanModeOutput, error)
 }
 
 // DetailedAnalyzer defines the contract for Detailed mode analysis.
@@ -44,8 +50,10 @@ type DetailedAnalyzer interface {
 	// AnalyzeDetailed performs comprehensive line-by-line analysis.
 	// code: the code to analyze
 	// target: specific function/method/section to focus on (optional)
+	// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+	// outputMode: quick (concise), full (includes reasoning trace)
 	// Returns DetailedModeOutput or an error if analysis fails.
-	AnalyzeDetailed(ctx context.Context, code string, target string) (*review_models.DetailedModeOutput, error)
+	AnalyzeDetailed(ctx context.Context, code, target, userMode, outputMode string) (*review_models.DetailedModeOutput, error)
 }
 
 // CriticalAnalyzer defines the contract for Critical mode analysis.

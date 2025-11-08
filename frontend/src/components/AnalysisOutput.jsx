@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { analysisModesConfig } from './AnalysisModeSelector';
-import DetailedAnalysisView from './DetailedAnalysisView';
 
 export default function AnalysisOutput({ 
   result, 
@@ -10,7 +8,6 @@ export default function AnalysisOutput({
   mode = 'preview',
   onRetry = null 
 }) {
-  const [viewMode, setViewMode] = useState('markdown'); // 'markdown' or 'raw'
   const [fontSize, setFontSize] = useState('medium'); // 'xsmall', 'small', 'medium', 'large', 'xlarge'
 
   const fontSizes = {
@@ -76,32 +73,6 @@ export default function AnalysisOutput({
       </div>
     );
   }
-
-  // Convert result to markdown-friendly format (for Formatted view)
-  const formatAsMarkdown = (text) => {
-    if (!text) return '';
-    
-    if (typeof text === 'string') {
-      // Clean up the text
-      let cleaned = text.replace(/<[^>]*>/g, ''); // Remove HTML tags
-      
-      // Convert common patterns to markdown
-      cleaned = cleaned.replace(/\*\*Note:\*\*/g, '> **📌 Note:**');
-      cleaned = cleaned.replace(/\*\*Important:\*\*/g, '> **⚠️ Important:**');
-      cleaned = cleaned.replace(/\*\*Tip:\*\*/g, '> **💡 Tip:**');
-      
-      // Ensure proper line breaks
-      cleaned = cleaned.replace(/\n\n/g, '\n\n');
-      
-      return cleaned;
-    }
-    
-    if (typeof text === 'object') {
-      return JSON.stringify(text, null, 2);
-    }
-    
-    return String(text);
-  };
 
   // Get the raw, unformatted result (for Raw view)
   const getRawText = () => {
@@ -177,44 +148,10 @@ export default function AnalysisOutput({
     return String(result);
   };
 
-  const markdownText = formatAsMarkdown(result);
-  const rawText = getRawText();
-
   return (
     <div className="analysis-output frosted-card h-100" style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Tab Navigation */}
-      <div className="border-bottom d-flex align-items-center justify-content-between px-3">
-        <ul className="nav nav-tabs border-0" role="tablist">
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${viewMode === 'markdown' ? 'active' : ''}`}
-              onClick={() => setViewMode('markdown')}
-              type="button"
-              style={{
-                borderTopLeftRadius: '16px',
-                borderBottom: viewMode === 'markdown' ? '3px solid #6366f1' : 'none'
-              }}
-            >
-              <i className="bi bi-markdown me-2"></i>
-              Formatted
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${viewMode === 'raw' ? 'active' : ''}`}
-              onClick={() => setViewMode('raw')}
-              type="button"
-              style={{
-                borderBottom: viewMode === 'raw' ? '3px solid #6366f1' : 'none'
-              }}
-            >
-              <i className="bi bi-code-slash me-2"></i>
-              Raw
-            </button>
-          </li>
-        </ul>
-        
-        {/* Font Size Selector */}
+      {/* Font Size Selector - Top Right */}
+      <div className="border-bottom d-flex align-items-center justify-content-end px-3 py-2">
         <div className="d-flex align-items-center gap-2">
           <span style={{ 
             fontSize: '0.875rem', 
@@ -274,81 +211,21 @@ export default function AnalysisOutput({
         </div>
       </div>
 
-      {/* Content Area - with flex-grow and overflow scroll */}
+      {/* Content Area - Left Justified, Raw Output */}
       <div className="p-4 flex-grow-1" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
-        {/* Use special view for Detailed mode */}
-        {mode === 'detailed' && viewMode === 'markdown' ? (
-          <DetailedAnalysisView 
-            analysis={getRawText()} 
-            fontSize={fontSize}
-          />
-        ) : viewMode === 'markdown' ? (
-          <div className="markdown-content" style={{ 
-            lineHeight: '1.8',
-            fontSize: fontSizes[fontSize],
-            wordWrap: 'break-word',
-            overflowWrap: 'break-word',
-            textAlign: 'left'
-          }}>
-            <ReactMarkdown
-              components={{
-                // Custom rendering for better readability
-                h1: ({node, ...props}) => <h1 className="mb-3 mt-4" {...props} />,
-                h2: ({node, ...props}) => <h2 className="mb-3 mt-4" {...props} />,
-                h3: ({node, ...props}) => <h3 className="mb-2 mt-3" {...props} />,
-                h4: ({node, ...props}) => <h4 className="mb-2 mt-3" {...props} />,
-                p: ({node, ...props}) => <p className="mb-3" style={{ wordWrap: 'break-word' }} {...props} />,
-                ul: ({node, ...props}) => <ul className="mb-3" style={{ paddingLeft: '1.5rem' }} {...props} />,
-                ol: ({node, ...props}) => <ol className="mb-3" style={{ paddingLeft: '1.5rem' }} {...props} />,
-                li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                code: ({node, inline, ...props}) => 
-                  inline ? (
-                    <code className="px-2 py-1 rounded" style={{ 
-                      background: 'rgba(99, 102, 241, 0.1)',
-                      color: '#6366f1',
-                      fontSize: '0.9em',
-                      wordWrap: 'break-word'
-                    }} {...props} />
-                  ) : (
-                    <pre className="p-3 rounded mb-3" style={{ 
-                      background: 'rgba(0, 0, 0, 0.05)',
-                      overflowX: 'auto',
-                      whiteSpace: 'pre-wrap',
-                      wordWrap: 'break-word'
-                    }}>
-                      <code {...props} />
-                    </pre>
-                  ),
-                blockquote: ({node, ...props}) => (
-                  <blockquote className="border-start border-4 border-primary ps-3 mb-3" 
-                    style={{ 
-                      background: 'rgba(99, 102, 241, 0.05)',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '0.25rem'
-                    }} 
-                    {...props} 
-                  />
-                ),
-              }}
-            >
-              {markdownText}
-            </ReactMarkdown>
-          </div>
-        ) : (
-          <pre className="mb-0" style={{ 
-            whiteSpace: 'pre-wrap', 
-            wordBreak: 'break-word',
-            lineHeight: '1.6',
-            fontSize: fontSizes[fontSize],
-            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
-            overflowX: 'hidden',
-            textAlign: 'left',
-            margin: 0,
-            padding: 0
-          }}>
-            {rawText}
-          </pre>
-        )}
+        <pre className="mb-0" style={{ 
+          whiteSpace: 'pre-wrap', 
+          wordBreak: 'break-word',
+          lineHeight: '1.6',
+          fontSize: fontSizes[fontSize],
+          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+          overflowX: 'hidden',
+          textAlign: 'left',
+          margin: 0,
+          padding: 0
+        }}>
+          {getRawText()}
+        </pre>
       </div>
     </div>
   );

@@ -9,19 +9,22 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-github/v57/github"
+	review_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 	"golang.org/x/oauth2"
 )
 
 // GitHubHandler handles GitHub repository integration endpoints
 type GitHubHandler struct {
-	logger *logger.Logger
+	logger         *logger.Logger
+	previewService review_services.PreviewAnalyzer
 }
 
 // NewGitHubHandler creates a new GitHub handler
-func NewGitHubHandler(logger *logger.Logger) *GitHubHandler {
+func NewGitHubHandler(logger *logger.Logger, previewService review_services.PreviewAnalyzer) *GitHubHandler {
 	return &GitHubHandler{
-		logger: logger,
+		logger:         logger,
+		previewService: previewService,
 	}
 }
 
@@ -82,7 +85,7 @@ func (h *GitHubHandler) GetRepoTree(c *gin.Context) {
 	}
 
 	// Get GitHub token from session
-	token, exists := c.Get("github_access_token")
+	token, exists := c.Get("github_token")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "GitHub authentication required"})
 		return
@@ -137,6 +140,15 @@ func (h *GitHubHandler) GetRepoFile(c *gin.Context) {
 		return
 	}
 
+	// Normalize path: remove leading slash if present
+	path = strings.TrimPrefix(path, "/")
+
+	h.logger.Info("Fetching file from GitHub",
+		"url", repoURL,
+		"path", path,
+		"branch", branch,
+	)
+
 	// Parse owner and repo from URL
 	owner, repo, err := parseGitHubURL(repoURL)
 	if err != nil {
@@ -145,7 +157,7 @@ func (h *GitHubHandler) GetRepoFile(c *gin.Context) {
 	}
 
 	// Get GitHub token from session
-	token, exists := c.Get("github_access_token")
+	token, exists := c.Get("github_token")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "GitHub authentication required"})
 		return
@@ -209,7 +221,7 @@ func (h *GitHubHandler) QuickRepoScan(c *gin.Context) {
 	}
 
 	// Get GitHub token from session
-	token, exists := c.Get("github_access_token")
+	token, exists := c.Get("github_token")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "GitHub authentication required"})
 		return
@@ -229,44 +241,80 @@ func (h *GitHubHandler) QuickRepoScan(c *gin.Context) {
 		branch = repository.GetDefaultBranch()
 	}
 
-	// Core files to fetch for quick scan
-	coreFiles := []string{
-		"README.md",
-		"README.rst",
-		"README.txt",
-		"package.json",
-		"go.mod",
-		"requirements.txt",
-		"Cargo.toml",
-		"pom.xml",
-		"build.gradle",
-		"LICENSE",
-		"CONTRIBUTING.md",
-		".gitignore",
-		"docker-compose.yml",
-		"Dockerfile",
-		"Makefile",
-		"main.go",
-		"cmd/main.go",
-		"index.js",
-		"src/index.js",
-		"app.js",
-		"src/app.js",
-		"main.py",
-		"app.py",
-		"__init__.py",
-		"main.rs",
-		"lib.rs",
+	// Get repository tree to find actual core files
+	tree, _, err := client.Git.GetTree(c.Request.Context(), owner, repo, branch, true)
+	if err != nil {
+		h.logger.Error("Failed to get repository tree", "error", err)
+		handleGitHubError(c, err)
+		return
 	}
 
-	// Fetch available core files
+	// Core file patterns to search for
+	corePatterns := []string{
+		"README.md", "README.rst", "README.txt", "README",
+		"package.json", "package-lock.json",
+		"go.mod", "go.sum",
+		"requirements.txt", "Pipfile", "pyproject.toml",
+		"Cargo.toml", "Cargo.lock",
+		"pom.xml", "build.gradle", "build.gradle.kts",
+		"LICENSE", "LICENSE.md", "LICENSE.txt",
+		"CONTRIBUTING.md",
+		".gitignore",
+		"docker-compose.yml", "docker-compose.yaml",
+		"Dockerfile",
+		"Makefile",
+	}
+
+	// Entry point patterns
+	entryPatterns := []string{
+		"main.go", "app.go",
+		"index.js", "app.js", "server.js",
+		"main.py", "app.py", "__main__.py",
+		"main.rs", "lib.rs",
+		"Main.java", "Program.cs",
+		"index.html",
+	}
+
+	// Find matching core files in tree
+	var coreFilePaths []string
+	for _, entry := range tree.Entries {
+		if entry.GetType() != "blob" {
+			continue
+		}
+
+		path := entry.GetPath()
+		name := getFileName(path)
+
+		// Check if matches core pattern
+		for _, pattern := range corePatterns {
+			if name == pattern || path == pattern {
+				coreFilePaths = append(coreFilePaths, path)
+				break
+			}
+		}
+
+		// Check if matches entry point pattern
+		for _, pattern := range entryPatterns {
+			if name == pattern || strings.HasSuffix(path, "/"+pattern) {
+				coreFilePaths = append(coreFilePaths, path)
+				break
+			}
+		}
+	}
+
+	// Limit to first 10 files to avoid huge responses
+	if len(coreFilePaths) > 10 {
+		coreFilePaths = coreFilePaths[:10]
+	}
+
+	// Fetch file contents
 	var files []*FileResponse
 	opts := &github.RepositoryContentGetOptions{Ref: branch}
 
-	for _, path := range coreFiles {
+	for _, path := range coreFilePaths {
 		fileContent, _, _, err := client.Repositories.GetContents(c.Request.Context(), owner, repo, path, opts)
 		if err != nil {
-			// File doesn't exist, skip it
+			h.logger.Warn("Failed to fetch core file", "error", err, "path", path)
 			continue
 		}
 
@@ -294,11 +342,53 @@ func (h *GitHubHandler) QuickRepoScan(c *gin.Context) {
 		return
 	}
 
-	// TODO: Call AI Preview Mode analysis on fetched files
-	// For now, return basic analysis structure
+	// Combine file contents for Preview Mode analysis
+	var combinedContent strings.Builder
+	combinedContent.WriteString(fmt.Sprintf("# Repository: %s/%s (branch: %s)\n\n", owner, repo, branch))
+
+	for _, file := range files {
+		combinedContent.WriteString(fmt.Sprintf("## File: %s\n", file.Path))
+		combinedContent.WriteString(fmt.Sprintf("```%s\n", file.Language))
+		combinedContent.WriteString(file.Content)
+		combinedContent.WriteString("\n```\n\n")
+	}
+
+	// Call Preview Mode AI analysis with default modes (intermediate/quick)
+	// Extract user_mode and output_mode from query params if provided
+	userMode := c.DefaultQuery("user_mode", "intermediate")
+	outputMode := c.DefaultQuery("output_mode", "quick")
+
+	result, err := h.previewService.AnalyzePreview(c.Request.Context(), combinedContent.String(), userMode, outputMode)
+	if err != nil {
+		h.logger.Error("Preview analysis failed for quick scan", "error", err)
+		// Fall back to basic response if AI analysis fails
+		analysis := map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("AI analysis failed: %v", err),
+		}
+		response := &QuickScanResponse{
+			Owner:        owner,
+			Repo:         repo,
+			Branch:       branch,
+			Files:        files,
+			Analysis:     analysis,
+			FetchedAt:    time.Now(),
+			FilesFetched: len(files),
+		}
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// Convert PreviewModeOutput to map for response
 	analysis := map[string]interface{}{
-		"status":  "pending",
-		"message": "AI analysis will be implemented in next phase",
+		"summary":            result.Summary,
+		"file_tree":          result.FileTree,
+		"bounded_contexts":   result.BoundedContexts,
+		"tech_stack":         result.TechStack,
+		"architecture_style": result.ArchitectureStyle,
+		"entry_points":       result.EntryPoints,
+		"external_deps":      result.ExternalDeps,
+		"stats":              result.Stats,
 	}
 
 	response := &QuickScanResponse{
@@ -358,10 +448,18 @@ func buildTreeStructure(entries []*github.TreeEntry) []*TreeNode {
 
 	// First pass: create all nodes
 	for _, entry := range entries {
+		// Convert GitHub type to frontend-friendly type
+		nodeType := entry.GetType()
+		if nodeType == "blob" {
+			nodeType = "file"
+		} else if nodeType == "tree" {
+			nodeType = "directory"
+		}
+
 		node := &TreeNode{
 			Name: getFileName(entry.GetPath()),
 			Path: entry.GetPath(),
-			Type: entry.GetType(),
+			Type: nodeType,
 			Size: entry.GetSize(),
 		}
 

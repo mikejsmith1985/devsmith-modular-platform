@@ -23,15 +23,15 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
 
         setModels(modelList);
         
-        // Always default to mistral:7b-instruct if no model selected
+        // Always default to deepseek-coder-v2:16b-lite-instruct-q4_K_M if no model selected
         if (!selectedModel && modelList.length > 0) {
           const recommendedModel = modelList.find(m => 
-            (m.name || m) === 'mistral:7b-instruct'
+            (m.name || m) === 'deepseek-coder-v2:16b-lite-instruct-q4_K_M'
           );
           if (recommendedModel) {
             onModelSelect(recommendedModel.name || recommendedModel);
           } else {
-            // Fallback to first model if mistral not found
+            // Fallback to first model if deepseek not found
             onModelSelect(modelList[0].name || modelList[0]);
           }
         }
@@ -40,13 +40,14 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
         setError(err.message);
         // Fallback to default models with recommended first
         const defaultModels = [
-          { name: 'mistral:7b-instruct', description: 'Fast, General (Recommended)' },
-          { name: 'qwen2.5-coder:7b-instruct-q4_K_M', description: 'Qwen coder model' },
-          { name: 'qwen2.5-coder:7b-instruct-q5_K_M', description: 'Qwen coder model' }
+          { name: 'deepseek-coder-v2:16b-lite-instruct-q4_K_M', description: 'DeepSeek Coder V2 16B (Recommended)' },
+          { name: 'qwen2.5-coder:14b-instruct-q4_K_M', description: 'Qwen 2.5 Coder 14B' },
+          { name: 'codellama:13b-instruct-q4_K_M', description: 'CodeLlama 13B' },
+          { name: 'mistral:7b-instruct', description: 'Mistral 7B (Legacy)' }
         ];
         setModels(defaultModels);
         if (!selectedModel) {
-          onModelSelect('mistral:7b-instruct');
+          onModelSelect('deepseek-coder-v2:16b-lite-instruct-q4_K_M');
         }
       } finally {
         setLoading(false);

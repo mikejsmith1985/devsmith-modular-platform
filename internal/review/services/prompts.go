@@ -6,13 +6,47 @@ import "fmt"
 
 // BuildPreviewPrompt creates a prompt for Preview Mode analysis
 // Preview: Quick structural assessment (2-3 minutes)
-func BuildPreviewPrompt(code string) string {
-	return fmt.Sprintf(`Analyze this code in PREVIEW mode - provide a quick structural overview.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
+func BuildPreviewPrompt(code, userMode, outputMode string) string {
+	// Set default values if not provided
+	if userMode == "" {
+		userMode = "intermediate"
+	}
+	if outputMode == "" {
+		outputMode = "quick"
+	}
 
-CODE:
-%s
+	// Adjust tone based on user experience level
+	var toneGuidance string
+	switch userMode {
+	case "beginner":
+		toneGuidance = "Use simple, non-technical language with analogies. Explain concepts as if teaching someone new to programming. For example, describe 'bounded contexts' as 'separate areas of responsibility' and 'entry points' as 'starting locations where code execution begins'."
+	case "novice":
+		toneGuidance = "Use clear language with some technical terms, but explain them briefly. Assume basic programming knowledge but not advanced architecture concepts."
+	case "expert":
+		toneGuidance = "Use precise technical terminology. Be concise and assume deep understanding of software architecture patterns."
+	default: // intermediate
+		toneGuidance = "Balance technical accuracy with clarity. Use standard software engineering terms without excessive jargon."
+	}
 
-Return a JSON object with ONLY these fields (no extra fields):
+	// Add reasoning trace for full mode
+	var reasoningSection string
+	if outputMode == "full" {
+		reasoningSection = `,
+  "reasoning_trace": {
+    "analysis_approach": "How you analyzed the code structure",
+    "key_observations": ["What patterns or structures you noticed first"],
+    "confidence_level": "High/Medium/Low - how certain you are about the analysis"
+  }`
+	}
+
+	return fmt.Sprintf(`YOU MUST RESPOND WITH ONLY VALID JSON. NO TEXT BEFORE OR AFTER THE JSON. START YOUR RESPONSE WITH { AND END WITH }
+
+TONE GUIDANCE: %s
+
+Analyze this code and return ONLY this JSON structure:
+
 {
   "file_tree": [
     {
@@ -20,12 +54,6 @@ Return a JSON object with ONLY these fields (no extra fields):
       "type": "file",
       "path": "main.go",
       "description": "Entry point with main function"
-    },
-    {
-      "name": "handler.go",
-      "type": "file",
-      "path": "handler.go",
-      "description": "HTTP request handlers"
     }
   ],
   "bounded_contexts": ["authentication", "user management"],
@@ -40,26 +68,65 @@ Return a JSON object with ONLY these fields (no extra fields):
     "total_interfaces": 3,
     "total_tests": 15
   },
-  "summary": "Brief 1-2 sentence summary of what this code does"
+  "summary": "Brief 1-2 sentence summary"%s
 }
 
-IMPORTANT:
-- Be concise and high-level
-- Don't dive into implementation details
-- Focus on structure and context
+CODE TO ANALYZE:
+%s
+
+CRITICAL RULES:
+- Your ENTIRE response must be valid JSON
+- Do NOT write "Based on the code" or any explanatory text
+- Do NOT use markdown code blocks
+- Do NOT add comments or explanations
+- START with { and END with }
 - file_tree items MUST have name, type, path, and description fields
-- Return ONLY valid JSON, no markdown or explanation`, code)
+- Adjust description complexity based on tone guidance above`, toneGuidance, reasoningSection, code)
 }
 
 // BuildSkimPrompt creates a prompt for Skim Mode analysis
 // Skim: Abstract overview without implementation details (5-7 minutes)
-func BuildSkimPrompt(code string) string {
-	return fmt.Sprintf(`Analyze this code in SKIM mode - extract key abstractions without diving into implementations.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
+func BuildSkimPrompt(code, userMode, outputMode string) string {
+	// Set default values if not provided
+	if userMode == "" {
+		userMode = "intermediate"
+	}
+	if outputMode == "" {
+		outputMode = "quick"
+	}
 
-CODE:
-%s
+	// Adjust tone based on user experience level
+	var toneGuidance string
+	switch userMode {
+	case "beginner":
+		toneGuidance = "Use simple language with everyday analogies. Explain 'functions' as 'actions the code can perform', 'interfaces' as 'contracts that define what something must do', and 'workflows' as 'step-by-step processes'. Avoid jargon."
+	case "novice":
+		toneGuidance = "Use clear language with basic technical terms. Explain what functions and interfaces do, not just list them. Assume some programming background."
+	case "expert":
+		toneGuidance = "Use precise technical terminology. Focus on architectural patterns, design decisions, and abstractions. Be concise."
+	default: // intermediate
+		toneGuidance = "Use standard software engineering terminology with clear, practical descriptions."
+	}
 
-Return a JSON object with ONLY these fields matching this exact structure:
+	// Add reasoning trace for full mode
+	var reasoningSection string
+	if outputMode == "full" {
+		reasoningSection = `,
+  "reasoning_trace": {
+    "abstraction_identification": "How you identified key abstractions",
+    "pattern_recognition": "What design patterns you noticed",
+    "confidence_level": "High/Medium/Low"
+  }`
+	}
+
+	return fmt.Sprintf(`YOU MUST RESPOND WITH ONLY VALID JSON. NO TEXT BEFORE OR AFTER THE JSON. START YOUR RESPONSE WITH { AND END WITH }
+
+TONE GUIDANCE: %s
+
+Analyze this code and return ONLY this JSON structure:
+
 {
   "functions": [
     {
@@ -86,29 +153,66 @@ Return a JSON object with ONLY these fields matching this exact structure:
       "steps": ["1. Validate input data", "2. Check if user exists", "3. Store in database", "4. Return created user"]
     }
   ],
-  "summary": "Brief overview of what this code provides at a high level"
+  "summary": "Brief overview of what this code provides"%s
 }
 
-IMPORTANT:
+CODE TO ANALYZE:
+%s
+
+CRITICAL RULES:
+- Your ENTIRE response must be valid JSON
+- Do NOT write "The code appears to" or any explanatory text
+- Do NOT use markdown code blocks
+- Do NOT add comments or explanations
+- START with { and END with }
 - For functions: include name, full signature, and brief description
 - For interfaces: describe purpose and list method signatures
-- For data_models: explain purpose and list field names with types
-- For workflows: name the workflow and list sequential steps
-- Don't explain implementation details or line-by-line logic
-- Return ONLY valid JSON matching the structure above`, code)
+- Adjust description complexity based on tone guidance above`, toneGuidance, reasoningSection, code)
 }
 
 // BuildScanPrompt creates a prompt for Scan Mode analysis
 // Scan: Targeted pattern search (3-5 minutes)
-func BuildScanPrompt(code, query string) string {
-	return fmt.Sprintf(`Analyze this code for Scan mode - find specific patterns/information matching the query.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
+func BuildScanPrompt(code, query, userMode, outputMode string) string {
+	// Set default values if not provided
+	if userMode == "" {
+		userMode = "intermediate"
+	}
+	if outputMode == "" {
+		outputMode = "quick"
+	}
 
-QUERY: "%s"
+	// Adjust tone based on user experience level
+	var toneGuidance string
+	switch userMode {
+	case "beginner":
+		toneGuidance = "Explain why each match is relevant using simple terms. Use analogies like 'this code is like a gatekeeper checking IDs' for authentication. Avoid technical jargon."
+	case "novice":
+		toneGuidance = "Explain the relevance of each match clearly. Use basic technical terms but keep explanations practical and concrete."
+	case "expert":
+		toneGuidance = "Be precise and technical. Focus on pattern recognition, architectural implications, and code quality aspects of each match."
+	default: // intermediate
+		toneGuidance = "Explain match relevance using clear software engineering terminology. Balance detail with conciseness."
+	}
 
-CODE:
-%s
+	// Add reasoning trace for full mode
+	var reasoningSection string
+	if outputMode == "full" {
+		reasoningSection = `,
+  "reasoning_trace": {
+    "search_strategy": "How you approached finding matches",
+    "filtering_logic": "Why you included/excluded certain results",
+    "confidence_level": "High/Medium/Low"
+  }`
+	}
 
-Return a JSON object with ONLY these fields:
+	return fmt.Sprintf(`YOU MUST RESPOND WITH ONLY VALID JSON. NO TEXT BEFORE OR AFTER THE JSON. START YOUR RESPONSE WITH { AND END WITH }
+
+TONE GUIDANCE: %s
+
+Find patterns matching this query and return ONLY this JSON structure:
+
 {
   "query": "%s",
   "matches": [
@@ -121,47 +225,82 @@ Return a JSON object with ONLY these fields:
     }
   ],
   "total_matches": 3,
-  "summary": "Found 3 matches for query '%s' in the codebase"
+  "summary": "Found 3 matches for query in the codebase"%s
 }
 
-IMPORTANT:
-- Find code related to the query
-- Provide line numbers where possible
+QUERY: "%s"
+
+CODE TO ANALYZE:
+%s
+
+CRITICAL RULES:
+- Your ENTIRE response must be valid JSON
+- Do NOT write "Based on the query" or any explanatory text
+- Do NOT use markdown code blocks
+- Do NOT add comments or explanations
+- START with { and END with }
 - Relevance score 0.0-1.0 (1.0 = perfect match)
-- Return ONLY valid JSON`, query, code, query, query)
+- Adjust reason explanations based on tone guidance above`, toneGuidance, query, reasoningSection, query, code)
 }
 
 // BuildDetailedPrompt creates a prompt for Detailed Mode analysis
 // Detailed: Line-by-line understanding (10-15 minutes)
-func BuildDetailedPrompt(code, filename string) string {
-	return fmt.Sprintf(`Analyze this code in DETAILED mode - provide comprehensive line-by-line explanation with algorithm analysis.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
+func BuildDetailedPrompt(code, filename, userMode, outputMode string) string {
+	// Set default values if not provided
+	if userMode == "" {
+		userMode = "intermediate"
+	}
+	if outputMode == "" {
+		outputMode = "quick"
+	}
 
-FILE: %s
-CODE:
-%s
+	// Adjust tone based on user experience level
+	var toneGuidance string
+	switch userMode {
+	case "beginner":
+		toneGuidance = "Use detailed analogies for every concept. For example, explain loops as 'repeating the same task until a condition is met, like checking each item in a shopping cart'. Explain variables as 'named boxes that store information'. Avoid assuming any prior knowledge."
+	case "novice":
+		toneGuidance = "Explain each line clearly with practical examples. Use analogies where helpful but introduce technical terms. Assume basic programming knowledge but explain intermediate concepts."
+	case "expert":
+		toneGuidance = "Focus on algorithmic complexity, design patterns, optimization opportunities, and subtle implementation details. Be concise and technical."
+	default: // intermediate
+		toneGuidance = "Provide clear technical explanations. Explain the 'why' not just the 'what'. Balance detail with readability."
+	}
 
-Return a JSON object with these fields in this EXACT structure:
+	// Add reasoning trace for full mode
+	var reasoningSection string
+	if outputMode == "full" {
+		reasoningSection = `,
+  "reasoning_trace": {
+    "analysis_method": "How you approached understanding this code",
+    "key_insights": ["Important patterns or techniques you identified"],
+    "complexity_assessment": "Why you rated complexity the way you did",
+    "confidence_level": "High/Medium/Low"
+  }`
+	}
+
+	return fmt.Sprintf(`YOU MUST RESPOND WITH ONLY VALID JSON. NO TEXT BEFORE OR AFTER THE JSON. START YOUR RESPONSE WITH { AND END WITH }
+
+TONE GUIDANCE: %s
+
+Analyze this code and return ONLY this JSON structure:
+
 {
   "line_explanations": [
     {
       "line_number": 1,
       "code": "func BinarySearch(arr []int, target int) int {",
-      "explanation": "Function declaration that takes a sorted array and target value, returns index or -1",
+      "explanation": "Function declaration that takes a sorted array and target value",
       "variables": "arr: input array, target: value to find"
-    },
-    {
-      "line_number": 2,
-      "code": "left, right := 0, len(arr)-1",
-      "explanation": "Initialize pointers to search boundaries",
-      "variables": "left=0, right=len(arr)-1"
     }
   ],
-  "algorithm_summary": "This implements binary search algorithm, which efficiently finds a target value by repeatedly dividing the search space in half",
-  "complexity": "Time: O(log n) - halves search space each iteration. Space: O(1) - only uses constant extra space",
+  "algorithm_summary": "Binary search algorithm implementation",
+  "complexity": "Time: O(log n), Space: O(1)",
   "edge_cases": [
     "Empty array: returns -1",
-    "Target not found: returns -1",
-    "Array with one element: checks element and returns 0 or -1"
+    "Target not found: returns -1"
   ],
   "variable_tracking": [
     {
@@ -170,51 +309,31 @@ Return a JSON object with these fields in this EXACT structure:
         "left": "0",
         "right": "len(arr)-1"
       }
-    },
-    {
-      "line_number": 5,
-      "variables": {
-        "left": "0",
-        "right": "4",
-        "mid": "2"
-      }
     }
   ],
   "control_flow": [
     {
       "type": "loop",
       "line_number": 3,
-      "description": "While loop continues until left exceeds right",
-      "children": ["condition_check", "binary_search_logic"]
-    },
-    {
-      "type": "if",
-      "line_number": 5,
-      "description": "Check if middle element matches target",
-      "children": ["return_mid", "check_less_than", "check_greater_than"]
+      "description": "While loop continues until left exceeds right"
     }
   ],
-  "summary": "Binary search implementation with O(log n) complexity"
+  "summary": "Binary search implementation"%s
 }
 
-CRITICAL INSTRUCTIONS:
-1. line_explanations is the PRIMARY OUTPUT - explain EVERY significant line
-2. For each line, include:
-   - What the code does
-   - Why it's needed
-   - Current state of variables at that point
-3. algorithm_summary: explain the overall algorithm/pattern used
-4. complexity: provide time and space complexity analysis
-5. edge_cases: identify boundary conditions and special cases
-6. variable_tracking: show variable values at key execution points
-7. control_flow: map out if/else branches, loops, function calls
-8. summary: brief 1-sentence overview (LEAST important field)
+FILE: %s
 
-IMPORTANT:
-- Focus on building complete mental model of code execution
-- Explain logic flow, not just syntax
-- Track how data changes through execution
-- Return ONLY valid JSON matching structure above`, filename, code)
+CODE TO ANALYZE:
+%s
+
+CRITICAL RULES:
+- Your ENTIRE response must be valid JSON
+- Do NOT write "This code" or any explanatory text
+- Do NOT use markdown code blocks
+- Do NOT add comments or explanations
+- START with { and END with }
+- line_explanations is the PRIMARY OUTPUT - explain EVERY significant line
+- Adjust explanation depth and language based on tone guidance above`, toneGuidance, reasoningSection, filename, code)
 }
 
 // BuildCriticalPrompt creates a prompt for Critical Mode analysis
