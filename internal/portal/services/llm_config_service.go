@@ -53,10 +53,10 @@ func (s *LLMConfigService) validateConfigOwnership(
 		return nil, fmt.Errorf("%s: %w", errFailedToFindConfig, err)
 	}
 	if config == nil {
-		return nil, fmt.Errorf(errConfigNotFound)
+		return nil, fmt.Errorf("%s", errConfigNotFound)
 	}
 	if config.UserID != userID {
-		return nil, fmt.Errorf(errPermissionDenied)
+		return nil, fmt.Errorf("%s", errPermissionDenied)
 	}
 	return config, nil
 }
@@ -130,10 +130,14 @@ func (s *LLMConfigService) UpdateConfig(
 
 	// Apply updates
 	if provider, ok := updates["provider"]; ok {
-		existing.Provider = provider.(string)
+		if providerStr, ok := provider.(string); ok {
+			existing.Provider = providerStr
+		}
 	}
 	if model, ok := updates["model_name"]; ok {
-		existing.ModelName = model.(string)
+		if modelStr, ok := model.(string); ok {
+			existing.ModelName = modelStr
+		}
 	}
 	if endpoint, ok := updates["endpoint"]; ok {
 		if endpointStr, ok := endpoint.(string); ok && endpointStr != "" {
@@ -141,20 +145,23 @@ func (s *LLMConfigService) UpdateConfig(
 		}
 	}
 	if isDefault, ok := updates["is_default"]; ok {
-		existing.IsDefault = isDefault.(bool)
+		if isDefaultBool, ok := isDefault.(bool); ok {
+			existing.IsDefault = isDefaultBool
+		}
 	}
 
 	// Handle API key update with re-encryption
 	if apiKey, ok := updates["api_key"]; ok {
-		apiKeyStr := apiKey.(string)
-		if existing.Provider != "ollama" && apiKeyStr != "" {
-			encrypted, err := s.encryption.EncryptAPIKey(apiKeyStr, userID)
-			if err != nil {
-				return fmt.Errorf("%s: %w", errFailedToEncrypt, err)
+		if apiKeyStr, ok := apiKey.(string); ok {
+			if existing.Provider != "ollama" && apiKeyStr != "" {
+				encrypted, err := s.encryption.EncryptAPIKey(apiKeyStr, userID)
+				if err != nil {
+					return fmt.Errorf("%s: %w", errFailedToEncrypt, err)
+				}
+				existing.APIKeyEncrypted = sql.NullString{String: encrypted, Valid: true}
+			} else {
+				existing.APIKeyEncrypted = sql.NullString{Valid: false}
 			}
-			existing.APIKeyEncrypted = sql.NullString{String: encrypted, Valid: true}
-		} else {
-			existing.APIKeyEncrypted = sql.NullString{Valid: false}
 		}
 	}
 
@@ -221,10 +228,10 @@ func (s *LLMConfigService) GetEffectiveConfig(
 	appName string,
 ) (*portal_repositories.LLMConfig, error) {
 	// Priority 1: Check app-specific preference
-	appPref, err := s.repo.GetAppPreference(ctx, userID, appName)
-	if err == nil && appPref != nil {
-		config, err := s.repo.FindByID(ctx, appPref.LLMConfigID)
-		if err == nil && config != nil {
+	appPref, appErr := s.repo.GetAppPreference(ctx, userID, appName)
+	if appErr == nil && appPref != nil {
+		config, configErr := s.repo.FindByID(ctx, appPref.LLMConfigID)
+		if configErr == nil && config != nil {
 			return config, nil
 		}
 	}

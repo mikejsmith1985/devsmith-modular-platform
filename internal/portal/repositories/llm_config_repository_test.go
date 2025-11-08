@@ -1,6 +1,5 @@
-// +build integration
-
 //go:build integration
+// +build integration
 
 package portal_repositories
 
