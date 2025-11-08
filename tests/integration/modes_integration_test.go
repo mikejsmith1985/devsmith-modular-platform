@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,7 +25,7 @@ type MockAIResponse struct {
 // TestPreviewEndpoint_BeginnerFull tests POST /api/review/modes/preview with beginner + full
 func TestPreviewEndpoint_BeginnerFull(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup and AI mocking")
-	
+
 	// Request body
 	reqBody := map[string]interface{}{
 		"code":        "package main\n\nfunc main() {}",
@@ -49,11 +48,11 @@ func TestPreviewEndpoint_BeginnerFull(t *testing.T) {
 
 	// Assertions
 	// assert.Equal(t, http.StatusOK, w.Code)
-	// 
+	//
 	// var response map[string]interface{}
 	// err = json.Unmarshal(w.Body.Bytes(), &response)
 	// require.NoError(t, err)
-	// 
+	//
 	// assert.NotEmpty(t, response["summary"])
 	// assert.Contains(t, response, "reasoning_trace") // Full mode should have reasoning
 }
@@ -61,7 +60,7 @@ func TestPreviewEndpoint_BeginnerFull(t *testing.T) {
 // TestPreviewEndpoint_ExpertQuick tests POST /api/review/modes/preview with expert + quick
 func TestPreviewEndpoint_ExpertQuick(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup and AI mocking")
-	
+
 	reqBody := map[string]interface{}{
 		"code":        "func Process() { return }",
 		"user_mode":   "expert",
@@ -79,11 +78,11 @@ func TestPreviewEndpoint_ExpertQuick(t *testing.T) {
 
 	// Assertions
 	// assert.Equal(t, http.StatusOK, w.Code)
-	// 
+	//
 	// var response map[string]interface{}
 	// err = json.Unmarshal(w.Body.Bytes(), &response)
 	// require.NoError(t, err)
-	// 
+	//
 	// assert.NotEmpty(t, response["summary"])
 	// assert.NotContains(t, response, "reasoning_trace") // Quick mode should NOT have reasoning
 }
@@ -91,7 +90,7 @@ func TestPreviewEndpoint_ExpertQuick(t *testing.T) {
 // TestSkimEndpoint_DefaultModes tests POST /api/review/modes/skim with no modes specified
 func TestSkimEndpoint_DefaultModes(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup and AI mocking")
-	
+
 	reqBody := map[string]interface{}{
 		"code": "func Test() {}",
 		// No user_mode or output_mode - should default to intermediate/quick
@@ -114,7 +113,7 @@ func TestSkimEndpoint_DefaultModes(t *testing.T) {
 // TestScanEndpoint_WithQuery tests POST /api/review/modes/scan
 func TestScanEndpoint_WithQuery(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup and AI mocking")
-	
+
 	reqBody := map[string]interface{}{
 		"code":        "SELECT * FROM users",
 		"query":       "SQL queries",
@@ -139,15 +138,15 @@ func TestScanEndpoint_WithQuery(t *testing.T) {
 // TestDetailedEndpoint_FileUpload tests POST /api/review/modes/detailed with multipart file
 func TestDetailedEndpoint_FileUpload(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup and AI mocking")
-	
+
 	// TODO: Create multipart form with file upload
 	// body := &bytes.Buffer{}
 	// writer := multipart.NewWriter(body)
-	// 
+	//
 	// part, err := writer.CreateFormFile("pasted_code", "test.go")
 	// require.NoError(t, err)
 	// part.Write([]byte("package main"))
-	// 
+	//
 	// writer.WriteField("user_mode", "expert")
 	// writer.WriteField("output_mode", "full")
 	// writer.Close()
@@ -166,7 +165,7 @@ func TestDetailedEndpoint_FileUpload(t *testing.T) {
 // TestInvalidMode_Returns400 tests that invalid modes return proper error
 func TestInvalidMode_Returns400(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup")
-	
+
 	reqBody := map[string]interface{}{
 		"code":        "test",
 		"user_mode":   "invalid_mode",
@@ -191,7 +190,7 @@ func TestInvalidMode_Returns400(t *testing.T) {
 // TestMissingCodeField_Returns400 tests validation
 func TestMissingCodeField_Returns400(t *testing.T) {
 	t.Skip("TODO: Integration test - requires router setup")
-	
+
 	reqBody := map[string]interface{}{
 		// Missing "code" field
 		"user_mode": "beginner",

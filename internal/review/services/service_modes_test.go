@@ -16,11 +16,11 @@ func TestPreviewService_PassesModesToPromptBuilder(t *testing.T) {
 	// contains the expected tone guidance based on modes
 
 	tests := []struct {
-		name                  string
-		userMode              string
-		outputMode            string
-		expectInPrompt        string // What we expect to find in the generated prompt
-		expectNotInPrompt     string // What should NOT be in the prompt
+		name              string
+		userMode          string
+		outputMode        string
+		expectInPrompt    string // What we expect to find in the generated prompt
+		expectNotInPrompt string // What should NOT be in the prompt
 	}{
 		{
 			name:              "Beginner mode includes simple language guidance",
@@ -62,8 +62,8 @@ func TestPreviewService_PassesModesToPromptBuilder(t *testing.T) {
 
 			// Verify expected content
 			if tt.expectInPrompt != "" {
-				assert.Contains(t, prompt, tt.expectInPrompt, 
-					"Prompt should contain '%s' for %s + %s", 
+				assert.Contains(t, prompt, tt.expectInPrompt,
+					"Prompt should contain '%s' for %s + %s",
 					tt.expectInPrompt, tt.userMode, tt.outputMode)
 			}
 
@@ -83,9 +83,9 @@ func TestPreviewService_PassesModesToPromptBuilder(t *testing.T) {
 // TestSkimService_PassesModesToPromptBuilder validates Skim service mode passing
 func TestSkimService_PassesModesToPromptBuilder(t *testing.T) {
 	tests := []struct {
-		name           string
-		userMode       string
-		outputMode     string
+		name            string
+		userMode        string
+		outputMode      string
 		shouldHaveTrace bool
 	}{
 		{"Beginner + Quick", "beginner", "quick", false},
@@ -214,14 +214,14 @@ func TestServiceModeConsistency(t *testing.T) {
 		for i, prompt := range prompts {
 			assert.Contains(t, prompt, "reasoning_trace",
 				"%s service should include reasoning_trace for Full mode", names[i])
-			
+
 			// Check for beginner-friendly language markers (different for each service)
 			lowerPrompt := strings.ToLower(prompt)
-			hasBeginner := strings.Contains(lowerPrompt, "analog") || 
-						  strings.Contains(lowerPrompt, "simple") ||
-						  strings.Contains(lowerPrompt, "as if teaching") ||
-						  strings.Contains(lowerPrompt, "avoid jargon") ||
-						  strings.Contains(lowerPrompt, "avoid assuming")
+			hasBeginner := strings.Contains(lowerPrompt, "analog") ||
+				strings.Contains(lowerPrompt, "simple") ||
+				strings.Contains(lowerPrompt, "as if teaching") ||
+				strings.Contains(lowerPrompt, "avoid jargon") ||
+				strings.Contains(lowerPrompt, "avoid assuming")
 			assert.True(t, hasBeginner,
 				"%s service should include beginner-friendly language guidance", names[i])
 		}

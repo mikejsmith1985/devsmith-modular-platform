@@ -178,7 +178,8 @@ func (h *ReviewHandler) GetSkimAnalysis(c *gin.Context) {
 	}
 
 	// TODO: Get code from request body or session. For now, pass empty code.
-	output, err := h.skimService.AnalyzeSkim(c.Request.Context(), "")
+	// Use default modes: intermediate (user) and quick (output)
+	output, err := h.skimService.AnalyzeSkim(c.Request.Context(), "", "intermediate", "quick")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

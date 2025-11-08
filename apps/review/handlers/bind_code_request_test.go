@@ -16,14 +16,14 @@ import (
 // createTestHandler creates a minimal UIHandler for testing bindCodeRequest
 func createTestHandler(t *testing.T) *UIHandler {
 	t.Helper()
-	
+
 	// Create minimal logger for testing
 	testLogger, err := logger.NewLogger(&logger.Config{
 		ServiceName: "review-test",
 		LogLevel:    "info",
 	})
 	require.NoError(t, err)
-	
+
 	return &UIHandler{
 		logger: testLogger,
 		// Other fields can be nil for bindCodeRequest tests
@@ -109,9 +109,9 @@ func TestBindCodeRequest_FormDataWithModes(t *testing.T) {
 		{
 			name: "Form with both modes",
 			formFields: map[string]string{
-				"pasted_code":  "test code",
-				"user_mode":    "beginner",
-				"output_mode":  "full",
+				"pasted_code": "test code",
+				"user_mode":   "beginner",
+				"output_mode": "full",
 			},
 			expectedUserMode:   "beginner",
 			expectedOutputMode: "full",
