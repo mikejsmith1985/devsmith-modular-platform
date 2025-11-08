@@ -203,7 +203,7 @@ func TestCreateConfig_RepositoryFails(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, config)
-	assert.Contains(t, err.Error(), "failed to create config")
+	assert.Contains(t, err.Error(), "failed to save config")
 }
 
 // TestUpdateConfig_ReencryptsAPIKey verifies API key updates require re-encryption

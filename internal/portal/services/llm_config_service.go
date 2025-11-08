@@ -10,6 +10,20 @@ import (
 	portal_repositories "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/repositories"
 )
 
+// Error messages for configuration validation
+const (
+	errConfigNotFound      = "config not found"
+	errPermissionDenied    = "permission denied: config does not belong to user"
+	errFailedToFindConfig  = "failed to find config"
+	errFailedToEncrypt     = "failed to encrypt API key"
+	errFailedToSaveConfig  = "failed to save config"
+	errFailedToUpdateConfig = "failed to update config"
+	errFailedToDeleteConfig = "failed to delete config"
+	errFailedToSetDefault   = "failed to set default config"
+	errFailedToSetPref      = "failed to set app preference"
+	errFailedToListConfigs  = "failed to list configs"
+)
+
 // LLMConfigService provides business logic for managing LLM configurations
 type LLMConfigService struct {
 	repo       portal_repositories.LLMConfigRepository
@@ -25,6 +39,26 @@ func NewLLMConfigService(
 		repo:       repo,
 		encryption: encryption,
 	}
+}
+
+// validateConfigOwnership checks if a config exists and belongs to the specified user
+// Returns nil if validation passes, error otherwise
+func (s *LLMConfigService) validateConfigOwnership(
+	ctx context.Context,
+	configID string,
+	userID int,
+) (*portal_repositories.LLMConfig, error) {
+	config, err := s.repo.FindByID(ctx, configID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errFailedToFindConfig, err)
+	}
+	if config == nil {
+		return nil, fmt.Errorf(errConfigNotFound)
+	}
+	if config.UserID != userID {
+		return nil, fmt.Errorf(errPermissionDenied)
+	}
+	return config, nil
 }
 
 // CreateConfig creates a new LLM configuration for a user
@@ -63,7 +97,7 @@ func (s *LLMConfigService) CreateConfig(
 	if provider != "ollama" && apiKey != "" {
 		encrypted, err := s.encryption.EncryptAPIKey(apiKey, userID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt API key: %w", err)
+			return nil, fmt.Errorf("%s: %w", errFailedToEncrypt, err)
 		}
 		config.APIKeyEncrypted = sql.NullString{String: encrypted, Valid: true}
 	} else {
@@ -73,7 +107,7 @@ func (s *LLMConfigService) CreateConfig(
 
 	// Save to repository
 	if err := s.repo.Create(ctx, config); err != nil {
-		return nil, fmt.Errorf("failed to create config: %w", err)
+		return nil, fmt.Errorf("%s: %w", errFailedToSaveConfig, err)
 	}
 
 	return config, nil
@@ -88,15 +122,10 @@ func (s *LLMConfigService) UpdateConfig(
 	configID string,
 	updates map[string]interface{},
 ) error {
-	// Fetch existing config
-	existing, err := s.repo.FindByID(ctx, configID)
-	if err != nil {
-		return fmt.Errorf("failed to find config: %w", err)
-	}
-
 	// Validate ownership
-	if existing.UserID != userID {
-		return fmt.Errorf("permission denied: config does not belong to user")
+	existing, err := s.validateConfigOwnership(ctx, configID, userID)
+	if err != nil {
+		return err
 	}
 
 	// Apply updates
@@ -121,7 +150,7 @@ func (s *LLMConfigService) UpdateConfig(
 		if existing.Provider != "ollama" && apiKeyStr != "" {
 			encrypted, err := s.encryption.EncryptAPIKey(apiKeyStr, userID)
 			if err != nil {
-				return fmt.Errorf("failed to encrypt API key: %w", err)
+				return fmt.Errorf("%s: %w", errFailedToEncrypt, err)
 			}
 			existing.APIKeyEncrypted = sql.NullString{String: encrypted, Valid: true}
 		} else {
@@ -134,7 +163,7 @@ func (s *LLMConfigService) UpdateConfig(
 
 	// Save to repository
 	if err := s.repo.Update(ctx, existing); err != nil {
-		return fmt.Errorf("failed to update config: %w", err)
+		return fmt.Errorf("%s: %w", errFailedToUpdateConfig, err)
 	}
 
 	return nil
@@ -148,22 +177,13 @@ func (s *LLMConfigService) DeleteConfig(
 	configID string,
 ) error {
 	// Validate ownership before deletion
-	config, err := s.repo.FindByID(ctx, configID)
-	if err != nil {
-		return fmt.Errorf("failed to find config: %w", err)
-	}
-	if config == nil {
-		return fmt.Errorf("config not found")
-	}
-
-	// Validate ownership
-	if config.UserID != userID {
-		return fmt.Errorf("permission denied: config does not belong to user")
+	if _, err := s.validateConfigOwnership(ctx, configID, userID); err != nil {
+		return err
 	}
 
 	// Delete from repository
 	if err := s.repo.Delete(ctx, configID); err != nil {
-		return fmt.Errorf("failed to delete config: %w", err)
+		return fmt.Errorf("%s: %w", errFailedToDeleteConfig, err)
 	}
 
 	return nil
@@ -177,22 +197,14 @@ func (s *LLMConfigService) SetDefaultConfig(
 	configID string,
 ) error {
 	// Validate ownership before setting default
-	config, err := s.repo.FindByID(ctx, configID)
-	if err != nil {
-		return fmt.Errorf("failed to find config: %w", err)
-	}
-	if config == nil {
-		return fmt.Errorf("config not found")
-	}
-
-	// Validate ownership
-	if config.UserID != userID {
-		return fmt.Errorf("permission denied: config does not belong to user")
+	// Validate ownership before setting default
+	if _, err := s.validateConfigOwnership(ctx, configID, userID); err != nil {
+		return err
 	}
 
 	// Set as default via repository
 	if err := s.repo.SetDefault(ctx, userID, configID); err != nil {
-		return fmt.Errorf("failed to set default config: %w", err)
+		return fmt.Errorf("%s: %w", errFailedToSetDefault, err)
 	}
 
 	return nil
@@ -248,17 +260,8 @@ func (s *LLMConfigService) SetAppPreference(
 	configID string,
 ) error {
 	// Validate config exists and belongs to user
-	config, err := s.repo.FindByID(ctx, configID)
-	if err != nil {
-		return fmt.Errorf("failed to find config: %w", err)
-	}
-	if config == nil {
-		return fmt.Errorf("config not found")
-	}
-
-	// Validate ownership
-	if config.UserID != userID {
-		return fmt.Errorf("permission denied: config does not belong to user")
+	if _, err := s.validateConfigOwnership(ctx, configID, userID); err != nil {
+		return err
 	}
 
 	// Set app preference via repository
@@ -276,7 +279,7 @@ func (s *LLMConfigService) ListUserConfigs(
 ) ([]*portal_repositories.LLMConfig, error) {
 	configs, err := s.repo.FindByUser(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list user configs: %w", err)
+		return nil, fmt.Errorf("%s: %w", errFailedToListConfigs, err)
 	}
 	return configs, nil
 }
