@@ -17,6 +17,7 @@ type PromptTemplateRepositoryInterface interface {
 	DeleteUserCustom(ctx context.Context, userID int, mode, userLevel, outputMode string) error
 	SaveExecution(ctx context.Context, execution *review_models.PromptExecution) error
 	GetExecutionHistory(ctx context.Context, userID int, limit int) ([]*review_models.PromptExecution, error)
+	UpdateExecutionRating(ctx context.Context, executionID int64, userID int, rating int) error
 }
 
 // SQL query constants for maintainability
@@ -69,12 +70,17 @@ const (
 		RETURNING id, created_at`
 
 	queryGetExecutionHistory = `
-		SELECT id, template_id, user_id, rendered_prompt, response, 
-		       model_used, latency_ms, tokens_used, user_rating, created_at
+		SELECT id, template_id, user_id, rendered_prompt, response, model_used, 
+		       latency_ms, tokens_used, user_rating, created_at
 		FROM review.prompt_executions
 		WHERE user_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2`
+
+	queryUpdateExecutionRating = `
+		UPDATE review.prompt_executions
+		SET user_rating = $3
+		WHERE id = $1 AND user_id = $2`
 )
 
 // PromptTemplateRepository handles database operations for prompt templates
@@ -273,4 +279,28 @@ func (r *PromptTemplateRepository) GetExecutionHistory(
 	}
 
 	return executions, nil
+}
+
+// UpdateExecutionRating updates the user rating for a specific prompt execution
+func (r *PromptTemplateRepository) UpdateExecutionRating(
+	ctx context.Context,
+	executionID int64,
+	userID int,
+	rating int,
+) error {
+	result, err := r.db.ExecContext(ctx, queryUpdateExecutionRating, executionID, userID, rating)
+	if err != nil {
+		return fmt.Errorf("failed to update execution rating: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("execution not found or does not belong to user")
+	}
+
+	return nil
 }

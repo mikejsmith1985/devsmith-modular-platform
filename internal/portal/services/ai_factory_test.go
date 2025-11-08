@@ -234,6 +234,11 @@ type MockEncryptionService struct {
 	onDecrypt     func(encrypted string, userID int)
 }
 
+func (m *MockEncryptionService) EncryptAPIKey(apiKey string, userID int) (string, error) {
+	// For ai_factory tests, we don't need encryption, just return the key as-is
+	return "encrypted-" + apiKey, nil
+}
+
 func (m *MockEncryptionService) DecryptAPIKey(encrypted string, userID int) (string, error) {
 	if m.onDecrypt != nil {
 		m.onDecrypt(encrypted, userID)

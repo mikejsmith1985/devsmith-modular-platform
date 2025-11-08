@@ -71,7 +71,25 @@ bash scripts/regression-test.sh
 
 ---
 
-## 🚨 CRITICAL RULES (Never Violate)
+## � Communication Guidelines
+
+### Chat Response Length
+- **Maximum 150 words** for in-chat summaries and status updates
+- Keep responses concise and actionable
+- Use bullet points for clarity
+- Link to files/documentation instead of repeating content
+- Exception: Error explanations may exceed limit if necessary for debugging
+
+### Documentation Philosophy
+- **Update existing plan documents directly** (e.g., MULTI_LLM_IMPLEMENTATION_PLAN.md)
+- **DO NOT create redundant summary documents** after each phase
+- **DO NOT create separate completion summaries** - updates go in the plan
+- Changes should be tracked in the main implementation plan, not scattered across multiple files
+- Only create new documentation when absolutely necessary (new features, new subsystems)
+
+---
+
+## �🚨 CRITICAL RULES (Never Violate)
 
 ### Rule 0.5: NEVER Tell User to "Hard Refresh Browser"
 
@@ -316,10 +334,11 @@ Use this checklist for EVERY feature:
 - [ ] Embed screenshots in verification document
 
 ### Phase 8: Documentation (10 minutes)
-- [ ] Update relevant .md files
+- [ ] Update implementation plan documents (e.g., MULTI_LLM_IMPLEMENTATION_PLAN.md)
 - [ ] Add code comments where complex logic exists
 - [ ] Update API documentation if endpoints changed
 - [ ] Log any errors encountered to ERROR_LOG.md
+- [ ] **DO NOT** create separate summary documents - updates go directly into plan documents
 
 ### Phase 9: Pre-Push Validation (5 minutes)
 - [ ] Run pre-push checks manually: `bash scripts/hooks/pre-push`

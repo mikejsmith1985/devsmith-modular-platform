@@ -22,12 +22,12 @@ const (
 
 // Error messages
 const (
-	ErrMissingVariable     = "missing variable value for %s"
-	ErrMissingRequired     = "missing required variable %s for mode %s"
-	ErrNoDefault           = "no default prompt found for mode=%s, userLevel=%s, outputMode=%s"
-	ErrTemplateIDRequired  = "template_id is required"
-	ErrUserIDRequired      = "user_id is required"
-	ErrModelUsedRequired   = "model_used is required"
+	ErrMissingVariable    = "missing variable value for %s"
+	ErrMissingRequired    = "missing required variable %s for mode %s"
+	ErrNoDefault          = "no default prompt found for mode=%s, userLevel=%s, outputMode=%s"
+	ErrTemplateIDRequired = "template_id is required"
+	ErrUserIDRequired     = "user_id is required"
+	ErrModelUsedRequired  = "model_used is required"
 )
 
 // Variable extraction regex pattern
@@ -190,6 +190,18 @@ func (s *PromptTemplateService) ExtractVariables(text string) []string {
 	}
 
 	return result
+}
+
+// GetExecutionHistory retrieves the user's prompt execution history.
+// Returns up to 'limit' most recent executions ordered by creation date (descending).
+func (s *PromptTemplateService) GetExecutionHistory(ctx context.Context, userID int, limit int) ([]*review_models.PromptExecution, error) {
+	return s.repo.GetExecutionHistory(ctx, userID, limit)
+}
+
+// RateExecution updates the rating for a specific prompt execution.
+// Returns an error if the execution doesn't belong to the user or doesn't exist.
+func (s *PromptTemplateService) RateExecution(ctx context.Context, userID int, executionID int64, rating int) error {
+	return s.repo.UpdateExecutionRating(ctx, executionID, userID, rating)
 }
 
 // getRequiredVariables returns the required variables for a given reading mode.

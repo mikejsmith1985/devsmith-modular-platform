@@ -88,12 +88,12 @@ func (m *MockLLMConfigRepository) GetAllAppPreferences(ctx context.Context, user
 	return args.Get(0).([]*portal_repositories.AppLLMPreference), args.Error(1)
 }
 
-// MockEncryptionServiceForService extends basic encryption mock for service tests
+// MockEncryptionServiceForService mocks the encryption service for service layer tests
 type MockEncryptionServiceForService struct {
 	mock.Mock
 }
 
-func (m *MockEncryptionServiceForService) EncryptAPIKey(plaintext string, userID string) (string, error) {
+func (m *MockEncryptionServiceForService) EncryptAPIKey(plaintext string, userID int) (string, error) {
 	args := m.Called(plaintext, userID)
 	return args.String(0), args.Error(1)
 }
@@ -116,7 +116,7 @@ func TestCreateConfig_Success(t *testing.T) {
 	apiKey := "test-api-key-123"
 
 	// Mock encryption service
-	mockEncryption.On("EncryptAPIKey", apiKey, "123").Return("encrypted-key-123", nil)
+	mockEncryption.On("EncryptAPIKey", apiKey, 123).Return("encrypted-key-123", nil)
 
 	// Mock repository - capture the config being created
 	mockRepo.On("Create", ctx, mock.MatchedBy(func(cfg *portal_repositories.LLMConfig) bool {
@@ -167,7 +167,7 @@ func TestCreateConfig_OllamaNoEncryption(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, "ollama", config.Provider)
-	assert.False(t, config.APIKeyEncrypted.Valid) // NULL = no encryption
+	assert.False(t, config.APIKeyEncrypted.Valid)      // NULL = no encryption
 	mockEncryption.AssertNotCalled(t, "EncryptAPIKey") // Encryption not called for Ollama
 	mockRepo.AssertExpectations(t)
 }
@@ -179,7 +179,7 @@ func TestCreateConfig_EncryptionFails(t *testing.T) {
 	service := NewLLMConfigService(mockRepo, mockEncryption)
 
 	ctx := context.Background()
-	mockEncryption.On("EncryptAPIKey", "test-key", "123").Return("", fmt.Errorf("encryption error"))
+	mockEncryption.On("EncryptAPIKey", "test-key", 123).Return("", fmt.Errorf("encryption error"))
 
 	config, err := service.CreateConfig(ctx, 123, "anthropic", "claude", "test-key", false, "")
 
@@ -196,7 +196,7 @@ func TestCreateConfig_RepositoryFails(t *testing.T) {
 	service := NewLLMConfigService(mockRepo, mockEncryption)
 
 	ctx := context.Background()
-	mockEncryption.On("EncryptAPIKey", "test-key", "123").Return("encrypted", nil)
+	mockEncryption.On("EncryptAPIKey", "test-key", 123).Return("encrypted", nil)
 	mockRepo.On("Create", ctx, mock.Anything).Return(fmt.Errorf("repository error"))
 
 	config, err := service.CreateConfig(ctx, 123, "anthropic", "claude", "test-key", false, "")
@@ -227,7 +227,7 @@ func TestUpdateConfig_ReencryptsAPIKey(t *testing.T) {
 	}
 
 	mockRepo.On("FindByID", ctx, configID).Return(existingConfig, nil)
-	mockEncryption.On("EncryptAPIKey", newAPIKey, "123").Return("new-encrypted-key", nil)
+	mockEncryption.On("EncryptAPIKey", newAPIKey, 123).Return("new-encrypted-key", nil)
 	mockRepo.On("Update", ctx, mock.MatchedBy(func(cfg *portal_repositories.LLMConfig) bool {
 		return cfg.ID == configID &&
 			cfg.APIKeyEncrypted.String == "new-encrypted-key"

@@ -15,14 +15,14 @@ func TestCreateLLMConfig_Success(t *testing.T) {
 	repo := NewLLMConfigRepository(nil) // Will fail - no implementation yet
 
 	config := &LLMConfig{
-		UserID:           1,
-		Provider:         "anthropic",
-		ModelName:        "claude-3-5-sonnet-20241022",
-		APIKeyEncrypted:  sql.NullString{String: "encrypted_key_abc123", Valid: true},
-		APIEndpoint:      sql.NullString{String: "https://api.anthropic.com", Valid: true},
-		IsDefault:        true,
-		MaxTokens:        4096,
-		Temperature:      0.7,
+		UserID:          1,
+		Provider:        "anthropic",
+		ModelName:       "claude-3-5-sonnet-20241022",
+		APIKeyEncrypted: sql.NullString{String: "encrypted_key_abc123", Valid: true},
+		APIEndpoint:     sql.NullString{String: "https://api.anthropic.com", Valid: true},
+		IsDefault:       true,
+		MaxTokens:       4096,
+		Temperature:     0.7,
 	}
 
 	// Act

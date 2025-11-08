@@ -68,6 +68,7 @@ type LLMConfigServiceInterface interface {
 
 // EncryptionServiceInterface defines methods for API key encryption/decryption
 type EncryptionServiceInterface interface {
+	EncryptAPIKey(apiKey string, userID int) (string, error)
 	DecryptAPIKey(encrypted string, userID int) (string, error)
 }
 
