@@ -34,22 +34,26 @@ func NewSkimService(ollamaClient OllamaClientInterface, analysisRepo AnalysisRep
 
 // AnalyzeSkim performs Skim Mode analysis for the given code.
 // Returns function signatures, interfaces, data models WITHOUT implementation details.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
 // Returns error if analysis fails.
-func (s *SkimService) AnalyzeSkim(ctx context.Context, code string) (*review_models.SkimModeOutput, error) {
+func (s *SkimService) AnalyzeSkim(ctx context.Context, code, userMode, outputMode string) (*review_models.SkimModeOutput, error) {
 	// Start tracing span
 	tracer := otel.Tracer("devsmith-review")
 	ctx, span := tracer.Start(ctx, "SkimService.AnalyzeSkim",
 		trace.WithAttributes(
 			attribute.Int("code_length", len(code)),
+			attribute.String("user_mode", userMode),
+			attribute.String("output_mode", outputMode),
 		),
 	)
 	defer span.End()
 
 	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzeSkim called", "correlation_id", correlationID, "code_length", len(code))
+	s.logger.Info("AnalyzeSkim called", "correlation_id", correlationID, "code_length", len(code), "user_mode", userMode, "output_mode", outputMode)
 
-	// Build prompt using template
-	prompt := BuildSkimPrompt(code)
+	// Build prompt using template with user/output modes
+	prompt := BuildSkimPrompt(code, userMode, outputMode)
 	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
 
 	start := time.Now()

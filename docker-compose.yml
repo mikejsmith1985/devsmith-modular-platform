@@ -112,7 +112,7 @@ services:
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
-      - REDIRECT_URI=http://localhost:3000/auth/callback
+      - REDIRECT_URI=http://localhost:3000/auth/github/callback
       - ENABLE_TEST_AUTH=true
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker
@@ -133,17 +133,11 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      # Portal API - higher priority than frontend
+      # Portal API - only /api/portal routes go to backend
       - "traefik.http.routers.portal-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/portal`)"
       - "traefik.http.routers.portal-api.entrypoints=web"
       - "traefik.http.routers.portal-api.priority=100"
       - "traefik.http.routers.portal-api.service=portal"
-      # Auth endpoints (GitHub OAuth) - highest priority
-      # SPECIFIC: Only Portal's OAuth routes, not React's /auth/callback
-      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth/github`)"
-      - "traefik.http.routers.portal-auth.entrypoints=web"
-      - "traefik.http.routers.portal-auth.priority=200"
-      - "traefik.http.routers.portal-auth.service=portal"
       # Service definition with health check
       - "traefik.http.services.portal.loadbalancer.server.port=3001"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"

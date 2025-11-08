@@ -278,6 +278,10 @@ func main() {
 	// Initialize GitHub session handler for repository integration
 	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient, multiFileAnalyzer)
 
+	// Initialize GitHub handler for Phase 1 GitHub integration (tree, file, quick-scan endpoints)
+	// Pass previewService so Quick Scan can run AI analysis
+	githubHandler := review_handlers.NewGitHubHandler(reviewLogger, previewService)
+
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")
 	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
@@ -326,6 +330,11 @@ func main() {
 		protected.DELETE("/api/review/files/:tab_id", githubSessionHandler.CloseFile)
 		protected.PATCH("/api/review/sessions/:id/files/activate", githubSessionHandler.SetActiveTab)
 		protected.POST("/api/review/sessions/:id/analyze", githubSessionHandler.AnalyzeMultipleFiles)
+
+		// GitHub Phase 1 endpoints (tree, file, quick-scan)
+		protected.GET("/api/review/github/tree", githubHandler.GetRepoTree)
+		protected.GET("/api/review/github/file", githubHandler.GetRepoFile)
+		protected.GET("/api/review/github/quick-scan", githubHandler.QuickRepoScan)
 	}
 	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)            // Delete session (HTMX, replaces sessionHandler.DeleteSession)
 	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)       // Session statistics

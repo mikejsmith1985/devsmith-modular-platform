@@ -61,6 +61,8 @@ func NewUIHandler(
 type CodeRequest struct {
 	PastedCode string `form:"pasted_code" json:"pasted_code" binding:"required"`
 	Model      string `form:"model" json:"model"`
+	UserMode   string `form:"user_mode" json:"user_mode"`     // beginner, novice, intermediate, expert
+	OutputMode string `form:"output_mode" json:"output_mode"` // quick, full
 }
 
 // bindCodeRequest binds code from JSON or form data using Gin's binding
@@ -82,14 +84,34 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 					if m := c.PostForm("model"); m != "" {
 						req.Model = m
 					}
+					// try to bind user_mode (optional)
+					if um := c.PostForm("user_mode"); um != "" {
+						req.UserMode = um
+					}
+					// try to bind output_mode (optional)
+					if om := c.PostForm("output_mode"); om != "" {
+						req.OutputMode = om
+					}
 					h.logger.Info("Code request bound from uploaded file",
 						"code_length", len(req.PastedCode),
 						"filename", fileHeader.Filename,
-						"content-type", c.GetHeader("Content-Type"))
+						"content-type", c.GetHeader("Content-Type"),
+						"user_mode", req.UserMode,
+						"output_mode", req.OutputMode)
 
 					// Default model if not provided
 					if req.Model == "" {
 						req.Model = "mistral:7b-instruct"
+					}
+
+					// Default user_mode if not provided
+					if req.UserMode == "" {
+						req.UserMode = "intermediate"
+					}
+
+					// Default output_mode if not provided
+					if req.OutputMode == "" {
+						req.OutputMode = "quick"
 					}
 
 					return &req, true
@@ -109,9 +131,21 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 		req.Model = "mistral:7b-instruct"
 	}
 
+	// Default user_mode if not provided (defaults to intermediate)
+	if req.UserMode == "" {
+		req.UserMode = "intermediate"
+	}
+
+	// Default output_mode if not provided (defaults to quick)
+	if req.OutputMode == "" {
+		req.OutputMode = "quick"
+	}
+
 	h.logger.Info("Code request bound successfully",
 		"code_length", len(req.PastedCode),
-		"model", req.Model)
+		"model", req.Model,
+		"user_mode", req.UserMode,
+		"output_mode", req.OutputMode)
 
 	return &req, true
 }
@@ -558,9 +592,9 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 	// TODO: Pass model to service via context for Ollama override
 	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
-	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode)
+	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
-		h.logger.Error("Preview analysis failed", "error", err.Error(), "model", req.Model)
+		h.logger.Error("Preview analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)
 		h.renderError(c, err, "Preview analysis failed")
 		return
 	}
@@ -599,9 +633,9 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	result, err := h.skimService.AnalyzeSkim(ctx, req.PastedCode)
+	result, err := h.skimService.AnalyzeSkim(ctx, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
-		h.logger.Error("Skim analysis failed", "error", err.Error(), "model", req.Model)
+		h.logger.Error("Skim analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)
 		h.renderError(c, err, "Skim analysis failed")
 		return
 	}
@@ -676,9 +710,9 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode)
+	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
-		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model)
+		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)
 		h.renderError(c, err, "Scan analysis failed")
 		return
 	}
@@ -728,9 +762,9 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	result, err := h.detailedService.AnalyzeDetailed(ctx, filename, req.PastedCode)
+	result, err := h.detailedService.AnalyzeDetailed(ctx, req.PastedCode, filename, req.UserMode, req.OutputMode)
 	if err != nil {
-		h.logger.Error("Detailed analysis failed", "error", err.Error(), "model", req.Model)
+		h.logger.Error("Detailed analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)
 		h.renderError(c, err, "Detailed analysis failed")
 		return
 	}

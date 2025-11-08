@@ -38,8 +38,8 @@ function StatCard({ level, count }) {
 
   return (
     <div className="col-md-6 col-lg mb-3">
-      <div className="card h-100" style={{ backgroundColor: config.bgColor }}>
-        <div className="card-body text-center">
+      <div className="frosted-card h-100" style={{ backgroundColor: config.bgColor }}>
+        <div className="text-center p-4">
           <i className={`bi ${config.icon} text-${config.color}`} style={{ fontSize: '2.5rem' }}></i>
           <h3 className="mt-3 mb-0">{count.toLocaleString()}</h3>
           <p className={`text-${config.color} fw-bold mb-0`}>{config.label}</p>

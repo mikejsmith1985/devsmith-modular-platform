@@ -72,8 +72,8 @@ func RegisterPreviewModeButtonHandler(router *gin.Engine, previewService *review
 			return
 		}
 
-		// Call preview service
-		result, err := previewService.AnalyzePreview(c.Request.Context(), req.Code)
+		// Call preview service with default modes for test
+		result, err := previewService.AnalyzePreview(c.Request.Context(), req.Code, "intermediate", "quick")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Analysis failed"})
 			return

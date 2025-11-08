@@ -370,6 +370,8 @@ func (h *GitHubSessionHandler) SetActiveTab(c *gin.Context) {
 type MultiFileAnalysisRequest struct {
 	FilePaths   []string `json:"file_paths" binding:"required,min=2"`
 	ReadingMode string   `json:"reading_mode" binding:"required"`
+	UserMode    string   `json:"user_mode"`   // beginner, novice, intermediate, expert
+	OutputMode  string   `json:"output_mode"` // quick, full
 }
 
 // AnalyzeMultipleFiles analyzes multiple files together
