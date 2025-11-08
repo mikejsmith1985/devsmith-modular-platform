@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
+import AddLLMConfigModal from '../components/AddLLMConfigModal';
 
 /**
  * LLMConfigPage Component
@@ -86,13 +87,27 @@ export default function LLMConfigPage() {
   
   const handleSetAppPreference = async (appName, configId) => {
     try {
-      await api.put(`/api/portal/app-llm-preferences/${appName}`, { config_id: configId });
+      await api.put(`/api/portal/app-llm-preferences/${appName}`, {
+        config_id: configId || null
+      });
       await loadAppPreferences();
     } catch (err) {
       console.error('Failed to set app preference:', err);
-      alert('Failed to update app preference');
+      alert('Failed to update preference: ' + (err.response?.data?.error || err.message));
     }
   };
+
+  const handleSaveConfig = async (configData) => {
+    try {
+      await loadConfigs();
+      setShowAddModal(false);
+      setEditingConfig(null);
+    } catch (err) {
+      console.error('Error refreshing configs:', err);
+    }
+  };
+
+  useEffect(() => {
 
   return (
     <div className="container mt-4">
@@ -347,34 +362,17 @@ export default function LLMConfigPage() {
         </div>
       )}
 
-      {/* Add/Edit Modal - TODO: Create separate component in Task 5.3 */}
-      {showAddModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  {editingConfig ? 'Edit' : 'Add'} AI Model
-                </h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingConfig(null);
-                  }}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="alert alert-info">
-                  <i className="bi bi-info-circle me-2"></i>
-                  Task 5.3: Add/Edit modal component will be implemented next.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add/Edit Modal */}
+      <AddLLMConfigModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingConfig(null);
+        }}
+        onSave={handleSaveConfig}
+        editingConfig={editingConfig}
+      />
     </div>
   );
 }
+export default LLMConfigPage;
