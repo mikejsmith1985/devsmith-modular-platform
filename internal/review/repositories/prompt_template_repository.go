@@ -9,6 +9,16 @@ import (
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
+// PromptTemplateRepositoryInterface defines the interface for prompt template operations
+type PromptTemplateRepositoryInterface interface {
+	FindByUserAndMode(ctx context.Context, userID int, mode, userLevel, outputMode string) (*review_models.PromptTemplate, error)
+	FindDefaultByMode(ctx context.Context, mode, userLevel, outputMode string) (*review_models.PromptTemplate, error)
+	Upsert(ctx context.Context, template *review_models.PromptTemplate) (*review_models.PromptTemplate, error)
+	DeleteUserCustom(ctx context.Context, userID int, mode, userLevel, outputMode string) error
+	SaveExecution(ctx context.Context, execution *review_models.PromptExecution) error
+	GetExecutionHistory(ctx context.Context, userID int, limit int) ([]*review_models.PromptExecution, error)
+}
+
 // SQL query constants for maintainability
 const (
 	selectPromptFields = `id, user_id, mode, user_level, output_mode, prompt_text, 
