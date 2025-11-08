@@ -17,19 +17,32 @@ import (
 
 const (
 	// Argon2 parameters for key derivation
-	argon2Time    = 1
-	argon2Memory  = 64 * 1024 // 64 MB
-	argon2Threads = 4
-	argon2KeyLen  = 32 // 256 bits for AES-256
-	saltLength    = 16 // 128 bits
+	// These values balance security and performance for API key encryption
+	argon2Time    = 1         // Number of iterations
+	argon2Memory  = 64 * 1024 // 64 MB memory cost
+	argon2Threads = 4         // Number of parallel threads
+	argon2KeyLen  = 32        // 256 bits for AES-256
+	saltLength    = 16        // 128 bits for salt
 )
 
-// EncryptionService handles encryption/decryption of sensitive data
+var (
+	// ErrMasterKeyNotSet is returned when ENCRYPTION_MASTER_KEY environment variable is not configured
+	ErrMasterKeyNotSet = errors.New("ENCRYPTION_MASTER_KEY environment variable not set")
+
+	// ErrCiphertextTooShort is returned when the encrypted data is invalid
+	ErrCiphertextTooShort = errors.New("ciphertext too short - invalid encrypted data")
+
+	// ErrDecryptionFailed is returned when decryption fails (wrong key or corrupted data)
+	ErrDecryptionFailed = errors.New("decryption failed - authentication failed or wrong user key")
+)
+
+// EncryptionService handles encryption/decryption of sensitive data using AES-256-GCM.
+// Each user's data is encrypted with a unique key derived from the master key and user ID.
 type EncryptionService struct {
 	masterKey []byte
 }
 
-// NewEncryptionService creates a new encryption service
+// NewEncryptionService creates a new encryption service using the ENCRYPTION_MASTER_KEY environment variable.
 func NewEncryptionService() *EncryptionService {
 	masterKey := os.Getenv("ENCRYPTION_MASTER_KEY")
 	return &EncryptionService{
@@ -37,15 +50,26 @@ func NewEncryptionService() *EncryptionService {
 	}
 }
 
-// ValidateMasterKey checks if the master key is configured
+// ValidateMasterKey checks if the master key is configured.
+// Returns ErrMasterKeyNotSet if the ENCRYPTION_MASTER_KEY environment variable is not set.
 func (s *EncryptionService) ValidateMasterKey() error {
 	if len(s.masterKey) == 0 {
-		return errors.New("ENCRYPTION_MASTER_KEY environment variable not set")
+		return ErrMasterKeyNotSet
 	}
 	return nil
 }
 
-// EncryptAPIKey encrypts an API key using AES-256-GCM with user-specific key derivation
+// EncryptAPIKey encrypts an API key using AES-256-GCM with user-specific key derivation.
+// The same API key will produce different ciphertext each time due to random nonce generation.
+// Each user's data is encrypted with a unique key, preventing cross-user data access.
+//
+// Parameters:
+//   - apiKey: The plaintext API key to encrypt
+//   - userID: The user ID (used for key derivation)
+//
+// Returns:
+//   - Base64-encoded ciphertext
+//   - Error if master key is not set or encryption fails
 func (s *EncryptionService) EncryptAPIKey(apiKey string, userID int) (string, error) {
 	if err := s.ValidateMasterKey(); err != nil {
 		return "", err
@@ -83,7 +107,19 @@ func (s *EncryptionService) EncryptAPIKey(apiKey string, userID int) (string, er
 	return encoded, nil
 }
 
-// DecryptAPIKey decrypts an API key using the user-specific key
+// DecryptAPIKey decrypts an API key using the user-specific key.
+// This will only succeed if:
+// 1. The correct master key is set
+// 2. The correct user ID is provided (same as when encrypted)
+// 3. The ciphertext has not been corrupted
+//
+// Parameters:
+//   - encrypted: Base64-encoded ciphertext (output from EncryptAPIKey)
+//   - userID: The user ID (must match the ID used during encryption)
+//
+// Returns:
+//   - The plaintext API key
+//   - Error if decryption fails (ErrDecryptionFailed) or invalid input
 func (s *EncryptionService) DecryptAPIKey(encrypted string, userID int) (string, error) {
 	if err := s.ValidateMasterKey(); err != nil {
 		return "", err
@@ -114,7 +150,7 @@ func (s *EncryptionService) DecryptAPIKey(encrypted string, userID int) (string,
 	// Extract nonce from ciphertext
 	nonceSize := gcm.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return "", errors.New("ciphertext too short")
+		return "", ErrCiphertextTooShort
 	}
 
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
@@ -122,14 +158,15 @@ func (s *EncryptionService) DecryptAPIKey(encrypted string, userID int) (string,
 	// Decrypt
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", fmt.Errorf("authentication failed: %w", err)
+		return "", fmt.Errorf("%w: %v", ErrDecryptionFailed, err)
 	}
 
 	return string(plaintext), nil
 }
 
-// generateUserSalt creates a deterministic salt based on user ID
-// This ensures the same user always gets the same encryption key
+// generateUserSalt creates a deterministic salt based on user ID.
+// This ensures the same user always gets the same encryption key, while different
+// users have different keys (preventing cross-user data access).
 func (s *EncryptionService) generateUserSalt(userID int) []byte {
 	// Use user ID as part of salt to ensure each user has different encryption
 	userIDStr := strconv.Itoa(userID)
