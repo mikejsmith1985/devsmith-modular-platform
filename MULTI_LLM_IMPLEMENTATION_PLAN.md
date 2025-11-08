@@ -12,13 +12,13 @@
 | Phase | Tasks | Status | Completion |
 |-------|-------|--------|------------|
 | **Phase 1: Database Schema & Migrations** | 3/3 | ✅ Complete | 100% |
-| **Phase 2: Backend Services - Prompt Management** | 1/3 | 🔄 In Progress | 33% |
+| **Phase 2: Backend Services - Prompt Management** | 2/3 | 🔄 In Progress | 67% |
 | **Phase 3: Multi-LLM Infrastructure** | 0/4 | ⏳ Pending | 0% |
 | **Phase 4: Frontend Implementation** | 0/3 | ⏳ Pending | 0% |
 | **Phase 5: Integration & Testing** | 0/2 | ⏳ Pending | 0% |
-| **TOTAL** | 4/15 | 🔄 In Progress | 27% |
+| **TOTAL** | 5/15 | 🔄 In Progress | 33% |
 
-**Current Task:** Task 2.2 - Prompt Template Service (RED phase)
+**Current Task:** Task 2.3 - Prompt API Endpoints (RED phase)
 
 ---
 
@@ -365,38 +365,52 @@ type PromptTemplateRepository interface {
 
 ---
 
-#### Task 2.2: Prompt Template Service 🔄 **NEXT**
+#### Task 2.2: Prompt Template Service ✅ **COMPLETE**
 - **File:** `internal/review/services/prompt_template_service.go`
+- **Test File:** `internal/review/services/prompt_template_service_test.go`
+- **Commit:** ca92fb7
 
-**TDD Steps:**
-1. RED: Write tests for GetEffectivePrompt, SaveCustomPrompt, FactoryReset, RenderPrompt
-2. GREEN: Implement service logic
-3. REFACTOR: Add validation, error handling
+**TDD Completion:**
+- ✅ **RED Phase:** 14 comprehensive test cases written
+- ✅ **GREEN Phase:** All 6 methods implemented, 14/14 tests passing
+- ✅ **REFACTOR Phase:** Constants extracted, godoc added, helper method created
 
-**Methods:**
-```go
-type PromptTemplateService interface {
-    GetEffectivePrompt(ctx context.Context, userID int, mode, userLevel, outputMode string) (*models.PromptTemplate, error)
-    SaveCustomPrompt(ctx context.Context, userID int, mode, userLevel, outputMode, promptText string) (*models.PromptTemplate, error)
-    FactoryReset(ctx context.Context, userID int, mode, userLevel, outputMode string) error
-    RenderPrompt(template *models.PromptTemplate, variables map[string]string) (string, error)
-    LogExecution(ctx context.Context, execution *models.PromptExecution) error
-}
-```
+**Implemented Methods:**
+1. `GetEffectivePrompt` - Returns user custom or falls back to system default
+2. `SaveCustomPrompt` - Validates variables and creates/updates custom prompts
+3. `FactoryReset` - Deletes user customizations
+4. `RenderPrompt` - Substitutes variables in templates
+5. `LogExecution` - Records prompt usage with validation
+6. `ExtractVariables` - Regex-based variable extraction (deduplicated)
+
+**Test Coverage:**
+- 93.3% coverage for SaveCustomPrompt (critical path)
+- 100% coverage for GetEffectivePrompt, FactoryReset, RenderPrompt, ExtractVariables
+- 71.4% coverage for LogExecution
+- Used ElementsMatch for non-deterministic map ordering
+- MockPromptTemplateRepository for isolation testing
 
 **Tests:**
 - ✅ GetEffectivePrompt returns user custom over system default
 - ✅ GetEffectivePrompt falls back to system default if no custom
-- ✅ SaveCustomPrompt validates required variables present
+- ✅ GetEffectivePrompt errors if no default exists
+- ✅ SaveCustomPrompt validates required variables ({{code}} for all, {{query}} for scan)
 - ✅ SaveCustomPrompt creates unique ID per user/mode combo
+- ✅ SaveCustomPrompt success creates template
 - ✅ FactoryReset deletes user custom, leaves system default intact
+- ✅ FactoryReset handles delete errors
 - ✅ RenderPrompt substitutes all variables correctly
 - ✅ RenderPrompt errors if variable missing
+- ✅ RenderPrompt handles empty variables
 - ✅ LogExecution records prompt usage
+- ✅ LogExecution validates required fields (template_id, user_id, model_used)
+- ✅ ExtractVariables finds single, multiple, duplicate, and no variables
+
+**Status:** ✅ **TASK 2.2 COMPLETE** (RED → GREEN → REFACTOR cycle complete, 14/14 tests passing)
 
 ---
 
-#### Task 2.3: Prompt API Endpoints
+#### Task 2.3: Prompt API Endpoints 🔄 **NEXT**
 - **File:** `internal/review/handlers/prompt_handler.go`
 
 **Endpoints:**
