@@ -61,6 +61,11 @@ func (m *MockPromptTemplateRepository) GetExecutionHistory(ctx context.Context, 
 	return args.Get(0).([]*review_models.PromptExecution), args.Error(1)
 }
 
+func (m *MockPromptTemplateRepository) UpdateExecutionRating(ctx context.Context, executionID int64, userID int, rating int) error {
+	args := m.Called(ctx, executionID, userID, rating)
+	return args.Error(0)
+}
+
 // Test: GetEffectivePrompt returns user custom over system default
 func TestPromptTemplateService_GetEffectivePrompt_UserCustom(t *testing.T) {
 	repo := new(MockPromptTemplateRepository)

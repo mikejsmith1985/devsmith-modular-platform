@@ -9,6 +9,7 @@ import AnalysisOutput from './AnalysisOutput';
 import FileTabs from './FileTabs';
 import FileTreeBrowser from './FileTreeBrowser';
 import RepoImportModal from './RepoImportModal';
+import PromptEditorModal from './PromptEditorModal';
 import { reviewApi } from '../utils/api';
 
 // Default code for demonstration
@@ -58,6 +59,10 @@ export default function ReviewPage() {
   // User Experience Modes (NEW)
   const [userMode, setUserMode] = useState('intermediate'); // beginner, novice, intermediate, expert
   const [outputMode, setOutputMode] = useState('quick'); // quick, full_learn
+  
+  // Prompt Editor Modal state (Phase 4, Task 4.2)
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [promptEditorMode, setPromptEditorMode] = useState('preview'); // Which mode's prompt to edit
   
   // GitHub import modal state
   const [showImportModal, setShowImportModal] = useState(false);
@@ -166,6 +171,17 @@ export default function ReviewPage() {
         ? { ...file, name: newName, language: detectedLanguage, hasUnsavedChanges: true }
         : file
     ));
+  };
+
+  // Handle Details button click - opens prompt editor modal (Phase 4, Task 4.2)
+  const handleDetailsClick = (mode) => {
+    setPromptEditorMode(mode);
+    setShowPromptEditor(true);
+  };
+
+  // Handle prompt editor modal close
+  const handlePromptEditorClose = () => {
+    setShowPromptEditor(false);
   };
 
   // Handle GitHub import success
@@ -459,16 +475,39 @@ export default function ReviewPage() {
     handleAnalyze();
   };
 
+  /**
+   * Clear active file content
+   * Clears the content of currently active file, analysis results, and errors
+   */
   const clearCode = () => {
-    setCode('');
+    setFiles(prevFiles => prevFiles.map(file => 
+      file.id === activeFileId 
+        ? { ...file, content: '', hasUnsavedChanges: false }
+        : file
+    ));
     setAnalysisResult(null);
     setError(null);
   };
 
+  /**
+   * Reset to default example
+   * Replaces all files with single default example file
+   */
   const resetToDefault = () => {
-    setCode(defaultCode);
+    const newFileId = `file_${Date.now()}`;
+    setFiles([{
+      id: newFileId,
+      name: 'info.txt',
+      language: 'plaintext',
+      content: defaultCode,
+      hasUnsavedChanges: false,
+      path: null
+    }]);
+    setActiveFileId(newFileId);
     setAnalysisResult(null);
     setError(null);
+    setTreeData(null);
+    setShowTree(false);
   };
 
   return (
@@ -539,6 +578,7 @@ export default function ReviewPage() {
           <AnalysisModeSelector 
             selectedMode={selectedMode}
             onModeSelect={setSelectedMode}
+            onDetailsClick={handleDetailsClick}
             disabled={loading}
           />
         </div>
@@ -806,6 +846,15 @@ export default function ReviewPage() {
         show={showImportModal}
         onClose={() => setShowImportModal(false)}
         onSuccess={handleGitHubImportSuccess}
+      />
+
+      {/* Prompt Editor Modal (Phase 4, Task 4.2) */}
+      <PromptEditorModal 
+        isOpen={showPromptEditor}
+        onClose={handlePromptEditorClose}
+        mode={promptEditorMode}
+        userLevel={userMode}
+        outputMode={outputMode}
       />
     </div>
   );

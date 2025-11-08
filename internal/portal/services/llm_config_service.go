@@ -12,11 +12,11 @@ import (
 
 // Error messages for configuration validation
 const (
-	errConfigNotFound      = "config not found"
-	errPermissionDenied    = "permission denied: config does not belong to user"
-	errFailedToFindConfig  = "failed to find config"
-	errFailedToEncrypt     = "failed to encrypt API key"
-	errFailedToSaveConfig  = "failed to save config"
+	errConfigNotFound       = "config not found"
+	errPermissionDenied     = "permission denied: config does not belong to user"
+	errFailedToFindConfig   = "failed to find config"
+	errFailedToEncrypt      = "failed to encrypt API key"
+	errFailedToSaveConfig   = "failed to save config"
 	errFailedToUpdateConfig = "failed to update config"
 	errFailedToDeleteConfig = "failed to delete config"
 	errFailedToSetDefault   = "failed to set default config"
