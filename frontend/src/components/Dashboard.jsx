@@ -96,6 +96,23 @@ export default function Dashboard() {
             </p>
           </div>
         </div>
+
+        <div className="col-md-6 col-lg-3 mb-4">
+          <Link to="/llm-config" className="text-decoration-none">
+            <div className="frosted-card p-4 text-center h-100 card shadow-sm">
+              <div className="card-body p-0">
+                <i className="bi bi-robot mb-3 me-2" style={{fontSize: '3rem', color: '#10b981'}}></i>
+                <h5 className="card-title mb-3">AI Model Management</h5>
+                <p className="card-text mb-3" style={{fontSize: '0.9rem'}}>
+                  Configure AI models and API keys for each app
+                </p>
+                <span className="btn btn-primary btn-sm">
+                  Manage Models
+                </span>
+              </div>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );
