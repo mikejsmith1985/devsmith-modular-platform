@@ -1,4 +1,9 @@
 // Package providers contains AI provider implementations for different services.
+//
+// Architecture Note: DeepSeek is an API-based provider (unlike local Ollama).
+// API keys are encrypted at rest using AES-256-GCM encryption (see internal/portal/services/encryption_service.go).
+// The factory/service layer decrypts API keys before passing them to this client.
+// Local providers like Ollama do not require API keys or encryption.
 package providers
 
 import (
@@ -14,7 +19,9 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 )
 
-// DeepSeekClient implements the Provider interface for DeepSeek models
+// DeepSeekClient implements the Provider interface for DeepSeek models.
+// This client requires an API key for authentication, unlike local models (Ollama).
+// API keys should be encrypted when stored in the database using AES-256-GCM.
 type DeepSeekClient struct {
 	httpClient *http.Client
 	apiKey     string
@@ -67,7 +74,10 @@ var deepseekModels = map[string]deepseekPricing{
 	},
 }
 
-// NewDeepSeekClient creates a new DeepSeek AI client
+// NewDeepSeekClient creates a new DeepSeek AI client.
+// Note: apiKey should be decrypted before passing to this constructor.
+// API keys are stored encrypted in the database and decrypted by the
+// factory/service layer before creating the client.
 func NewDeepSeekClient(apiKey, model string) *DeepSeekClient {
 	return &DeepSeekClient{
 		apiKey:     apiKey,
