@@ -6,7 +6,7 @@ import StatCards from './StatCards';
 import MonitoringDashboard from './MonitoringDashboard';
 import ModelSelector from './ModelSelector';
 
-export default function LogsPage() {
+export default function HealthPage() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('logs');
@@ -144,6 +144,9 @@ export default function LogsPage() {
             <i className="bi bi-arrow-left me-2"></i>
             Back to Dashboard
           </Link>
+          <Link to="/health" className="navbar-brand">
+            Health
+          </Link>
           <div className="d-flex align-items-center">
             <div className="me-3">
               <ModelSelector
@@ -175,8 +178,8 @@ export default function LogsPage() {
           <div className="frosted-card p-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h2 className="mb-0">
-                <i className="bi bi-journal-text text-primary me-2"></i>
-                Logs Dashboard
+                <i className="bi bi-heart-pulse text-primary me-2"></i>
+                Health
               </h2>
             </div>
             

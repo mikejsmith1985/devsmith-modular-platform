@@ -52,12 +52,12 @@ export default function Dashboard() {
 
       <div className="row">
         <div className="col-md-6 col-lg-3 mb-4">
-          <Link to="/logs" className="text-decoration-none">
+          <Link to="/health" className="text-decoration-none">
             <div className="frosted-card p-4 text-center h-100">
-              <i className="bi bi-journal-text mb-3" style={{fontSize: '3.3rem', color: '#06b6d4'}}></i>
-              <h5 className="mb-3">Logs</h5>
+              <i className="bi bi-heart-pulse mb-3" style={{fontSize: '3.3rem', color: '#06b6d4'}}></i>
+              <h5 className="mb-3">Health</h5>
               <p className="mb-0" style={{fontSize: '0.9rem'}}>
-                View and analyze application logs with real-time monitoring
+                System Health monitoring, service logs, and diagnostics
               </p>
             </div>
           </Link>

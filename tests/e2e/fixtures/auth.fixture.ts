@@ -127,6 +127,13 @@ export const test = base.extend<AuthFixtures>({
       throw new Error('Cookie was not set on context');
     }
 
+    // CRITICAL: Also set token in localStorage for React app
+    // The frontend AuthContext checks localStorage, not cookies
+    await page.goto('http://localhost:3000');
+    await page.evaluate((token) => {
+      localStorage.setItem('devsmith_token', token);
+    }, tokenValue);
+
     // Provide authenticated page to test
     await use(page);
 

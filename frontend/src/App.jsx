@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
-import LogsPage from './components/LogsPage';
+import HealthPage from './components/HealthPage';
 import ReviewPage from './components/ReviewPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import LLMConfigPage from './pages/LLMConfigPage';
@@ -37,10 +37,10 @@ export default function App() {
             }
           />
           <Route
-            path="/logs"
+            path="/health"
             element={
               <ProtectedRoute>
-                <LogsPage />
+                <HealthPage />
               </ProtectedRoute>
             }
           />

@@ -94,7 +94,7 @@ services:
       start_period: 5s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.frontend.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && !PathPrefix(`/api`) && !PathPrefix(`/auth`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.priority=2147483647"  # Max priority to override Traefik dashboard
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
