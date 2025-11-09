@@ -22,7 +22,7 @@ func TestRedisStore_Create(t *testing.T) {
 	session := &Session{
 		UserID:         123,
 		GitHubUsername: "testuser",
-		GitHubToken:    "gho_test123",
+		GitHubToken:    "gho_test123", // ggignore - test token
 		Metadata:       map[string]interface{}{"ip": "127.0.0.1"},
 	}
 
@@ -46,7 +46,7 @@ func TestRedisStore_GetAndUpdate(t *testing.T) {
 	original := &Session{
 		UserID:         456,
 		GitHubUsername: "anotheruser",
-		GitHubToken:    "gho_test456",
+		GitHubToken:    "gho_test456", // ggignore - test token
 	}
 
 	sessionID, err := store.Create(context.Background(), original)
