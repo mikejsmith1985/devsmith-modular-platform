@@ -59,14 +59,9 @@ jobs:
           fi
           echo "✓ Bundle size acceptable"
 
-      - name: Test build in Docker
-        run: |
-          docker-compose up -d --build frontend
-          sleep 5
-          curl -f http://localhost:5173/ || (echo "Frontend not accessible in Docker" && exit 1)
-          echo "✓ Frontend serves correctly in Docker"
-          docker-compose down
-
+      # Docker serving test removed - redundant with smoke-test.yml
+      # GitHub Actions runners don't have docker-compose v1 installed
+      
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
