@@ -27,7 +27,7 @@ USER appuser
 COPY apps/portal/templates/ ./templates/
 COPY apps/portal/static/ ./static/
 COPY --from=frontend-builder /frontend/dist ./dist/
-EXPOSE 8080
+EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-	CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+	CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 CMD ["./portal"]
