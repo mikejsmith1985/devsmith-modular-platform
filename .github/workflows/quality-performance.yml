@@ -226,10 +226,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate OpenAPI spec
-        uses: char0n/swagger-editor-validate@v1
-        with:
-          definition-file: docs/openapi-review.yaml
+      # Removed: char0n/swagger-editor-validate - Puppeteer sandbox issues in GitHub Actions
+      # Using Spectral CLI only for OpenAPI validation
 
       - name: Check for OpenAPI linting issues
         uses: stoplightio/spectral-action@latest
