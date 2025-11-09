@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../utils/api';
+import { apiRequest } from '../utils/api';
 
 const PROVIDERS = [
   { value: 'anthropic', label: 'Anthropic (Claude)' },
@@ -12,8 +12,9 @@ const PROVIDERS = [
 const MODELS_BY_PROVIDER = {
   anthropic: [
     'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
+    'claude-3-5-sonnet-20240620',
     'claude-3-opus-20240229',
+    'claude-3-5-haiku-20241022',
     'claude-3-sonnet-20240229',
     'claude-3-haiku-20240307'
   ],
@@ -43,15 +44,38 @@ const MODELS_BY_PROVIDER = {
   ]
 };
 
+// Max token limits by model
+const MODEL_MAX_TOKENS = {
+  'claude-3-5-sonnet-20241022': 8192,
+  'claude-3-5-sonnet-20240620': 8192,
+  'claude-3-opus-20240229': 4096,
+  'claude-3-5-haiku-20241022': 8192,
+  'claude-3-sonnet-20240229': 4096,
+  'claude-3-haiku-20240307': 4096,
+  'gpt-4-turbo-preview': 4096,
+  'gpt-4': 8192,
+  'gpt-3.5-turbo': 4096,
+  'gpt-4-32k': 32768,
+  'llama3.1:70b': 128000,
+  'llama3.1:8b': 128000,
+  'deepseek-coder-v2:16b': 128000,
+  'qwen2.5-coder:7b': 32768,
+  'codellama:13b': 16384,
+  'deepseek-chat': 64000,
+  'deepseek-coder': 64000,
+  'mistral-large': 32768,
+  'mistral-medium': 32768,
+  'mistral-small': 32768,
+  'codestral-latest': 32768
+};
+
 function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
   const [formData, setFormData] = useState({
     name: '',
-    provider_type: 'anthropic',
-    model_name: '',
+    provider: 'anthropic',
+    model: '',
     api_key: '',
-    custom_endpoint: '',
-    temperature: 0.7,
-    max_tokens: 4096,
+    endpoint: '',
     is_default: false
   });
 
@@ -59,31 +83,28 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [errors, setErrors] = useState({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Populate form when editing
   useEffect(() => {
     if (editingConfig) {
       setFormData({
         name: editingConfig.name || '',
-        provider_type: editingConfig.provider_type || 'anthropic',
-        model_name: editingConfig.model_name || '',
+        provider: editingConfig.provider || 'anthropic',
+        model: editingConfig.model || '',
         api_key: '', // Never pre-fill API key for security
-        custom_endpoint: editingConfig.custom_endpoint || '',
-        temperature: editingConfig.temperature || 0.7,
-        max_tokens: editingConfig.max_tokens || 4096,
+        endpoint: editingConfig.endpoint || '',
         is_default: editingConfig.is_default || false
       });
-      setAvailableModels(MODELS_BY_PROVIDER[editingConfig.provider_type] || []);
+      setAvailableModels(MODELS_BY_PROVIDER[editingConfig.provider] || []);
     } else {
       // Reset form for new config
       setFormData({
         name: '',
-        provider_type: 'anthropic',
-        model_name: '',
+        provider: 'anthropic',
+        model: '',
         api_key: '',
-        custom_endpoint: '',
-        temperature: 0.7,
-        max_tokens: 4096,
+        endpoint: '',
         is_default: false
       });
       setAvailableModels(MODELS_BY_PROVIDER.anthropic);
@@ -96,8 +117,8 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
   const handleProviderChange = (provider) => {
     setFormData(prev => ({
       ...prev,
-      provider_type: provider,
-      model_name: '' // Reset model when provider changes
+      provider: provider,
+      model: '' // Reset model when provider changes
     }));
     setAvailableModels(MODELS_BY_PROVIDER[provider] || []);
   };
@@ -121,21 +142,13 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
       newErrors.name = 'Name is required';
     }
 
-    if (!formData.model_name) {
-      newErrors.model_name = 'Model is required';
+    if (!formData.model) {
+      newErrors.model = 'Model is required';
     }
 
     // API key required for non-Ollama providers
-    if (formData.provider_type !== 'ollama' && !formData.api_key && !editingConfig) {
+    if (formData.provider !== 'ollama' && !formData.api_key && !editingConfig) {
       newErrors.api_key = 'API key is required';
-    }
-
-    if (formData.temperature < 0 || formData.temperature > 2) {
-      newErrors.temperature = 'Temperature must be between 0 and 2';
-    }
-
-    if (formData.max_tokens < 1 || formData.max_tokens > 100000) {
-      newErrors.max_tokens = 'Max tokens must be between 1 and 100000';
     }
 
     setErrors(newErrors);
@@ -151,21 +164,24 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
     setTestResult(null);
 
     try {
-      const response = await api.post('/api/portal/llm-configs/test', {
-        provider_type: formData.provider_type,
-        model_name: formData.model_name,
-        api_key: formData.api_key || undefined,
-        custom_endpoint: formData.custom_endpoint || undefined
+      const response = await apiRequest('/api/portal/llm-configs/test', {
+        method: 'POST',
+        body: JSON.stringify({
+          provider: formData.provider,
+          model: formData.model,
+          api_key: formData.api_key || undefined,
+          endpoint: formData.endpoint || undefined
+        })
       });
 
       setTestResult({
         success: true,
-        message: response.data?.message || 'Connection successful!'
+        message: response?.message || 'Connection successful!'
       });
     } catch (err) {
       setTestResult({
         success: false,
-        message: err.response?.data?.error || 'Connection failed'
+        message: err.message || 'Connection failed'
       });
     } finally {
       setTestingConnection(false);
@@ -188,17 +204,23 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
         if (!updateData.api_key) {
           delete updateData.api_key;
         }
-        response = await api.put(`/api/portal/llm-configs/${editingConfig.id}`, updateData);
+        response = await apiRequest(`/api/portal/llm-configs/${editingConfig.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(updateData)
+        });
       } else {
         // Create new config
-        response = await api.post('/api/portal/llm-configs', formData);
+        response = await apiRequest('/api/portal/llm-configs', {
+          method: 'POST',
+          body: JSON.stringify(formData)
+        });
       }
 
-      onSave(response.data);
+      onSave(response);
       onClose();
     } catch (err) {
       console.error('Failed to save config:', err);
-      alert('Failed to save configuration: ' + (err.response?.data?.error || err.message));
+      alert('Failed to save configuration: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -206,8 +228,8 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
     return null;
   }
 
-  const isFormValid = formData.name.trim() && formData.model_name && 
-    (formData.provider_type === 'ollama' || formData.api_key || editingConfig);
+  const isFormValid = formData.name.trim() && formData.model && 
+    (formData.provider === 'ollama' || formData.api_key || editingConfig);
 
   return (
     <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="dialog">
@@ -253,8 +275,8 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
                 <select
                   className="form-select"
                   id="provider"
-                  name="provider_type"
-                  value={formData.provider_type}
+                  name="provider"
+                  value={formData.provider}
                   onChange={(e) => handleProviderChange(e.target.value)}
                   required
                 >
@@ -272,10 +294,10 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
                   Model <span className="text-danger">*</span>
                 </label>
                 <select
-                  className={`form-select ${errors.model_name ? 'is-invalid' : ''}`}
+                  className={`form-select ${errors.model ? 'is-invalid' : ''}`}
                   id="model"
-                  name="model_name"
-                  value={formData.model_name}
+                  name="model"
+                  value={formData.model}
                   onChange={handleInputChange}
                   required
                 >
@@ -286,11 +308,11 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
                     </option>
                   ))}
                 </select>
-                {errors.model_name && <div className="invalid-feedback">{errors.model_name}</div>}
+                {errors.model && <div className="invalid-feedback">{errors.model}</div>}
               </div>
 
               {/* API Key Field (hidden for Ollama) */}
-              {formData.provider_type !== 'ollama' && (
+              {formData.provider !== 'ollama' && (
                 <div className="mb-3">
                   <label htmlFor="api-key" className="form-label">
                     API Key {!editingConfig && <span className="text-danger">*</span>}
@@ -323,8 +345,8 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
                   type="url"
                   className="form-control"
                   id="endpoint"
-                  name="custom_endpoint"
-                  value={formData.custom_endpoint}
+                  name="endpoint"
+                  value={formData.endpoint}
                   onChange={handleInputChange}
                   placeholder="https://api.example.com/v1"
                 />
@@ -334,77 +356,34 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
               </div>
 
               {/* Advanced Settings */}
-              <div className="accordion mb-3" id="advancedSettings">
-                <div className="accordion-item">
-                  <h2 className="accordion-header">
-                    <button 
-                      className="accordion-button collapsed" 
-                      type="button" 
-                      data-bs-toggle="collapse" 
-                      data-bs-target="#advancedCollapse"
-                      aria-expanded="false"
-                    >
-                      Advanced Settings
-                    </button>
-                  </h2>
-                  <div id="advancedCollapse" className="accordion-collapse collapse">
-                    <div className="accordion-body">
-                      {/* Temperature */}
-                      <div className="mb-3">
-                        <label htmlFor="temperature" className="form-label">
-                          Temperature: {formData.temperature}
-                        </label>
-                        <input
-                          type="range"
-                          className="form-range"
-                          id="temperature"
-                          name="temperature"
-                          min="0"
-                          max="2"
-                          step="0.1"
-                          value={formData.temperature}
-                          onChange={handleInputChange}
-                        />
-                        <small className="form-text text-muted">
-                          Controls randomness (0 = deterministic, 2 = very creative)
-                        </small>
-                      </div>
-
-                      {/* Max Tokens */}
-                      <div className="mb-3">
-                        <label htmlFor="max-tokens" className="form-label">
-                          Max Tokens
-                        </label>
-                        <input
-                          type="number"
-                          className={`form-control ${errors.max_tokens ? 'is-invalid' : ''}`}
-                          id="max-tokens"
-                          name="max_tokens"
-                          value={formData.max_tokens}
-                          onChange={handleInputChange}
-                          min="1"
-                          max="100000"
-                        />
-                        {errors.max_tokens && <div className="invalid-feedback">{errors.max_tokens}</div>}
-                      </div>
-
-                      {/* Set as Default */}
-                      <div className="form-check">
-                        <input
-                          type="checkbox"
-                          className="form-check-input"
-                          id="is-default"
-                          name="is_default"
-                          checked={formData.is_default}
-                          onChange={handleInputChange}
-                        />
-                        <label className="form-check-label" htmlFor="is-default">
-                          Set as default configuration
-                        </label>
-                      </div>
+              <div className="mb-3">
+                <button 
+                  type="button"
+                  className="btn btn-link p-0 text-decoration-none d-flex align-items-center"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  <i className={`bi bi-chevron-${showAdvanced ? 'down' : 'right'} me-2`}></i>
+                  Advanced Settings
+                </button>
+                
+                {showAdvanced && (
+                  <div className="mt-3 ps-4 border-start">
+                    {/* Set as Default */}
+                    <div className="form-check">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="is-default"
+                        name="is_default"
+                        checked={formData.is_default}
+                        onChange={handleInputChange}
+                      />
+                      <label className="form-check-label" htmlFor="is-default">
+                        Set as default configuration
+                      </label>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Test Connection Result */}

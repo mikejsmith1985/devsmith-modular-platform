@@ -74,8 +74,8 @@ export const test = base.extend<AuthFixtures>({
    * - Portal service running with test auth endpoint
    */
   authenticatedPage: async ({ page, testUser }, use) => {
-    // Call test auth endpoint to create session
-    const response = await page.request.post('http://localhost:3000/auth/test-login', {
+    // Call test auth endpoint to create session - use page.request for proper cookie handling
+    const response = await page.context().request.post('http://localhost:3000/auth/test-login', {
       data: testUser,
       headers: {
         'Content-Type': 'application/json'
@@ -83,8 +83,9 @@ export const test = base.extend<AuthFixtures>({
     });
 
     // Verify session created successfully
-    if (response.status() !== 200) {
-      throw new Error(`Failed to create test session: ${response.status()} ${await response.text()}`);
+    if (!response.ok()) {
+      const text = await response.text();
+      throw new Error(`Failed to create test session: ${response.status()} ${text}`);
     }
 
     const data = await response.json();
@@ -115,16 +116,23 @@ export const test = base.extend<AuthFixtures>({
       domain: 'localhost',
       path: '/',
       httpOnly: true,
-      sameSite: 'Strict',
+      sameSite: 'Lax',  // Changed from Strict to Lax for better compatibility
       expires: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days
     }]);
+
+    // Verify cookie was set
+    const cookies = await page.context().cookies();
+    const devsmithCookie = cookies.find(c => c.name === 'devsmith_token');
+    if (!devsmithCookie) {
+      throw new Error('Cookie was not set on context');
+    }
 
     // Provide authenticated page to test
     await use(page);
 
     // Cleanup: Logout after test completes
     try {
-      await page.goto('http://localhost:3000/auth/logout');
+      await page.goto('http://localhost:3000/auth/logout', { timeout: 5000 });
     } catch (error) {
       // Ignore logout errors (session might already be expired)
       console.log('Logout cleanup error (ignored):', error);

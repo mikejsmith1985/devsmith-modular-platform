@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { reviewApi } from '../utils/api';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * Phase 4, Task 4.1: Prompt Editor Modal Component
@@ -79,6 +80,9 @@ export default function PromptEditorModal({
   userLevel = 'intermediate', 
   outputMode = 'quick' 
 }) {
+  // Theme
+  const { isDarkMode } = useTheme();
+  
   // State management
   const [promptText, setPromptText] = useState('');
   const [originalPrompt, setOriginalPrompt] = useState('');
@@ -282,9 +286,9 @@ export default function PromptEditorModal({
       {/* Main Modal */}
       <div className="modal show d-block prompt-editor-modal" tabIndex="-1" role="dialog">
         <div className="modal-dialog modal-lg" role="document">
-          <div className="modal-content">
+          <div className={`modal-content ${isDarkMode ? 'bg-dark text-light' : ''}`}>
             {/* Header */}
-            <div className="modal-header">
+            <div className={`modal-header ${isDarkMode ? 'border-secondary' : ''}`}>
               <h5 className="modal-title">
                 Edit Prompt - {mode.charAt(0).toUpperCase() + mode.slice(1)} Mode
               </h5>
@@ -296,7 +300,7 @@ export default function PromptEditorModal({
                 )}
                 <button 
                   type="button" 
-                  className="btn-close" 
+                  className={`btn-close ${isDarkMode ? 'btn-close-white' : ''}`}
                   onClick={handleCancel}
                   disabled={loading}
                 />
@@ -304,7 +308,7 @@ export default function PromptEditorModal({
             </div>
 
             {/* Body */}
-            <div className="modal-body">
+            <div className={`modal-body ${isDarkMode ? 'bg-dark' : ''}`}>
               {error && (
                 <div className="alert alert-danger alert-dismissible fade show" role="alert">
                   {error}
@@ -332,9 +336,9 @@ export default function PromptEditorModal({
               ) : (
                 <>
                   {/* Variable Reference Panel */}
-                  <div className="card mb-3 variable-reference-panel">
+                  <div className={`card mb-3 variable-reference-panel ${isDarkMode ? 'bg-dark border-secondary' : ''}`}>
                     <div 
-                      className="card-header d-flex justify-content-between align-items-center"
+                      className={`card-header d-flex justify-content-between align-items-center ${isDarkMode ? 'bg-dark border-secondary text-light' : ''}`}
                       style={{ cursor: 'pointer' }}
                       onClick={() => setVariablesPanelExpanded(!variablesPanelExpanded)}
                     >
@@ -343,14 +347,14 @@ export default function PromptEditorModal({
                         Available Variables
                       </span>
                       <button 
-                        className="btn btn-sm btn-link expand-btn"
+                        className={`btn btn-sm btn-link expand-btn ${isDarkMode ? 'text-light' : ''}`}
                         type="button"
                       >
                         <i className={`bi bi-chevron-${variablesPanelExpanded ? 'up' : 'down'}`}></i>
                       </button>
                     </div>
                     {variablesPanelExpanded && (
-                      <div className="card-body">
+                      <div className={`card-body ${isDarkMode ? 'bg-dark text-light' : ''}`}>
                         <div className="row">
                           {variables.map((variable, index) => (
                             <div key={index} className="col-md-6 mb-2">
@@ -376,7 +380,7 @@ export default function PromptEditorModal({
                     <textarea
                       id="prompt-text"
                       name="prompt"
-                      className="form-control font-monospace"
+                      className={`form-control font-monospace ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
                       rows="12"
                       value={promptText}
                       onChange={handlePromptChange}
@@ -394,8 +398,8 @@ export default function PromptEditorModal({
                   </div>
 
                   {/* Prompt Preview with Syntax Highlighting */}
-                  <div className="card bg-light">
-                    <div className="card-body">
+                  <div className={`card ${isDarkMode ? 'bg-dark border-secondary' : 'bg-light'}`}>
+                    <div className={`card-body ${isDarkMode ? 'text-light' : ''}`}>
                       <h6 className="card-title">Preview</h6>
                       <div className="font-monospace" style={{ fontSize: '13px', whiteSpace: 'pre-wrap' }}>
                         {highlightVariables(promptText).map((part, index) => (
@@ -413,7 +417,7 @@ export default function PromptEditorModal({
             </div>
 
             {/* Footer */}
-            <div className="modal-footer d-flex justify-content-between">
+            <div className={`modal-footer d-flex justify-content-between ${isDarkMode ? 'border-secondary' : ''}`}>
               <div>
                 {canReset && (
                   <button
@@ -468,17 +472,17 @@ export default function PromptEditorModal({
         <>
           <div className="modal show d-block" tabIndex="-1" role="dialog" style={{ zIndex: 1060 }}>
             <div className="modal-dialog modal-dialog-centered" role="document">
-              <div className="modal-content">
-                <div className="modal-header">
+              <div className={`modal-content ${isDarkMode ? 'bg-dark text-light' : ''}`}>
+                <div className={`modal-header ${isDarkMode ? 'border-secondary' : ''}`}>
                   <h5 className="modal-title">Confirm Factory Reset</h5>
                   <button 
                     type="button" 
-                    className="btn-close" 
+                    className={`btn-close ${isDarkMode ? 'btn-close-white' : ''}`}
                     onClick={() => setShowResetConfirm(false)}
                     disabled={loading}
                   />
                 </div>
-                <div className="modal-body">
+                <div className={`modal-body ${isDarkMode ? 'bg-dark' : ''}`}>
                   <p>
                     Are you sure you want to reset this prompt to the system default?
                   </p>
@@ -487,7 +491,7 @@ export default function PromptEditorModal({
                     This will permanently delete your custom prompt for this mode.
                   </p>
                 </div>
-                <div className="modal-footer">
+                <div className={`modal-footer ${isDarkMode ? 'border-secondary' : ''}`}>
                   <button
                     type="button"
                     className="btn btn-secondary"

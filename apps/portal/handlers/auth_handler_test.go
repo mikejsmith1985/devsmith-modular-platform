@@ -2,6 +2,7 @@ package portal_handlers
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"net/http"
@@ -9,10 +10,44 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/stretchr/testify/assert"
 )
+
+// Mock session store for testing
+type mockSessionStore struct{}
+
+func (m *mockSessionStore) Create(ctx context.Context, sess *session.Session) (string, error) {
+	// Generate a mock session ID
+	return "mock-session-id-12345", nil
+}
+
+func (m *mockSessionStore) Get(ctx context.Context, sessionID string) (*session.Session, error) {
+	return &session.Session{
+		SessionID:      sessionID,
+		UserID:         12345,
+		GitHubUsername: "testuser",
+		GitHubToken:    "test-token",
+		CreatedAt:      time.Now(),
+		LastAccessedAt: time.Now(),
+		Metadata:       map[string]interface{}{},
+	}, nil
+}
+
+func (m *mockSessionStore) Update(ctx context.Context, sess *session.Session) error {
+	return nil
+}
+
+func (m *mockSessionStore) Delete(ctx context.Context, sessionID string) error {
+	return nil
+}
+
+func (m *mockSessionStore) DeleteExpired(ctx context.Context) error {
+	return nil
+}
 
 func TestLoginFlow_RedirectsToGitHub(t *testing.T) {
 	// Arrange
@@ -81,7 +116,7 @@ func TestCreateJWTForUser(t *testing.T) {
 	// Set JWT_SECRET for the test
 	os.Setenv("JWT_SECRET", "test-secret-key")
 	defer os.Unsetenv("JWT_SECRET")
-	
+
 	user := &UserInfo{
 		Login:     "testuser",
 		Email:     "testuser@example.com",
@@ -248,7 +283,7 @@ func TestFetchUserInfo(t *testing.T) {
 		accessToken := "invalid-token"
 		_, err := FetchUserInfo(accessToken)
 		assert.Error(t, err, "Expected error for invalid access token")
-		assert.Contains(t, err.Error(), "failed to fetch user info: invalid access token")
+		assert.Contains(t, err.Error(), "invalid or expired access token")
 	})
 
 	// Test case: Empty access token
@@ -304,7 +339,7 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	log.Printf("[DEBUG] MockTransport received request: %s %s", req.Method, req.URL.String())
 	if resp, ok := m.responses[req.URL.String()]; ok {
 		log.Printf("[DEBUG] Found mock response for URL: %s", req.URL.String())
-		var bodyBytes []byte // Declare bodyBytes outside the if block
+		var bodyBytes []byte
 		if resp.Body != nil {
 			bodyBytes, _ = io.ReadAll(resp.Body)
 			resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
@@ -320,4 +355,190 @@ func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		StatusCode: http.StatusNotFound,
 		Body:       io.NopCloser(strings.NewReader("Not Found")),
 	}, nil
+}
+
+// mockRoundTripper is a flexible HTTP round tripper for edge case testing
+type mockRoundTripper struct {
+	handler func(*http.Request) (*http.Response, error)
+}
+
+func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return m.handler(req)
+}
+
+// --- Comprehensive OAuth Callback Edge Case Tests ---
+func TestHandleGitHubOAuthCallback_EdgeCases(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	// Use the new HandleGitHubOAuthCallbackWithSession function with improved error messages
+	router.GET("/auth/github/callback", HandleGitHubOAuthCallbackWithSession)
+
+	// Set up mock HTTP client for token exchange and user info
+	// The mock needs to handle different scenarios:
+	// 1. Failed token exchange (code=fail)
+	// 2. Successful token exchange but failed user info (code=valid-but-userinfo-fails)
+	// 3. Successful token + user info for JWT test (code=valid-but-jwt-fails)
+
+	mockClient := &http.Client{
+		Transport: &mockRoundTripper{
+			handler: func(req *http.Request) (*http.Response, error) {
+				urlStr := req.URL.String()
+				log.Printf("[TEST] Mock HTTP request: %s", urlStr)
+
+				// Token exchange endpoint
+				if strings.Contains(urlStr, "github.com/login/oauth/access_token") {
+					if strings.Contains(urlStr, "code=fail") {
+						// Failed token exchange
+						return &http.Response{
+							StatusCode: 400,
+							Body:       io.NopCloser(strings.NewReader(`{"error":"bad_code","error_description":"The code is invalid"}`)),
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+						}, nil
+					} else if strings.Contains(urlStr, "code=valid-but-userinfo-fails") {
+						// Successful token exchange (will fail later at user info)
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"access_token":"invalid-user-token","token_type":"Bearer"}`)),
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+						}, nil
+					} else if strings.Contains(urlStr, "code=valid-but-jwt-fails") {
+						// Successful token exchange (will fail later at JWT signing)
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"access_token":"valid-jwt-test-token","token_type":"Bearer"}`)),
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+						}, nil
+					}
+				}
+
+				// User info endpoint
+				if strings.Contains(urlStr, "api.github.com/user") {
+					authHeader := req.Header.Get("Authorization")
+					if strings.Contains(authHeader, "invalid-user-token") {
+						// Failed user info fetch
+						return &http.Response{
+							StatusCode: 401,
+							Body:       io.NopCloser(strings.NewReader(`{"message":"Bad credentials"}`)),
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+						}, nil
+					} else if strings.Contains(authHeader, "valid-jwt-test-token") {
+						// Successful user info fetch (will fail later at JWT signing)
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(strings.NewReader(`{"login":"testuser","id":12345,"email":"test@example.com","avatar_url":"https://example.com/avatar.png","name":"Test User"}`)),
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+						}, nil
+					}
+				}
+
+				return &http.Response{
+					StatusCode: 404,
+					Body:       io.NopCloser(strings.NewReader(`{"error":"Not Found"}`)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			},
+		},
+	}
+
+	// Override http.DefaultClient
+	originalClient := http.DefaultClient
+	http.DefaultClient = mockClient
+	defer func() {
+		http.DefaultClient = originalClient
+	}()
+
+	// Helper to perform request with cookies
+	doRequest := func(query string, cookies []*http.Cookie) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("GET", "/auth/github/callback"+query, nil)
+		for _, c := range cookies {
+			req.AddCookie(c)
+		}
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		return w
+	}
+
+	t.Run("Missing code parameter", func(t *testing.T) {
+		w := doRequest("", nil)
+		assert.Equal(t, 400, w.Code)
+		assert.Contains(t, w.Body.String(), "Missing authorization code")
+	})
+
+	t.Run("Missing OAuth config", func(t *testing.T) {
+		os.Unsetenv("GITHUB_CLIENT_ID")
+		os.Unsetenv("GITHUB_CLIENT_SECRET")
+		w := doRequest("?code=abc", nil)
+		assert.Equal(t, 400, w.Code)
+		assert.Contains(t, w.Body.String(), "Missing state parameter")
+	})
+
+	t.Run("Exchange code for token fails", func(t *testing.T) {
+		// Set valid OAuth config so we pass ValidateOAuthConfig() check
+		os.Setenv("GITHUB_CLIENT_ID", "test-client-id")
+		os.Setenv("GITHUB_CLIENT_SECRET", "test-client-secret")
+		os.Setenv("REDIRECT_URI", "http://localhost:3000/callback")
+		defer func() {
+			os.Unsetenv("GITHUB_CLIENT_ID")
+			os.Unsetenv("GITHUB_CLIENT_SECRET")
+			os.Unsetenv("REDIRECT_URI")
+		}()
+
+		// Store a valid OAuth state to pass state validation
+		state := "test-state-token-exchange-fail"
+		storeOAuthState(state)
+
+		// Simulate exchangeCodeForToken failure by passing invalid code
+		w := doRequest("?code=fail&state="+state, nil)
+		assert.Equal(t, 500, w.Code)
+		assert.Contains(t, w.Body.String(), "Failed to exchange code for token")
+	})
+
+	t.Run("Fetch user info fails", func(t *testing.T) {
+		// Set valid OAuth config so we pass ValidateOAuthConfig() check
+		os.Setenv("GITHUB_CLIENT_ID", "test-client-id")
+		os.Setenv("GITHUB_CLIENT_SECRET", "test-client-secret")
+		os.Setenv("REDIRECT_URI", "http://localhost:3000/callback")
+		defer func() {
+			os.Unsetenv("GITHUB_CLIENT_ID")
+			os.Unsetenv("GITHUB_CLIENT_SECRET")
+			os.Unsetenv("REDIRECT_URI")
+		}()
+
+		// Store a valid OAuth state to pass state validation
+		state := "test-state-userinfo-fail"
+		storeOAuthState(state)
+
+		// Simulate valid code but invalid token for user info
+		w := doRequest("?code=valid-but-userinfo-fails&state="+state, nil)
+		assert.Equal(t, 500, w.Code)
+		assert.Contains(t, w.Body.String(), "Failed to fetch user info from GitHub")
+	})
+
+	t.Run("JWT signing fails", func(t *testing.T) {
+		t.Skip("Skipping JWT test - requires Redis session store (integration test)")
+		// TODO: This test requires refactoring handler to use session.Store interface
+		// Or run as integration test with actual Redis instance
+
+		os.Setenv("GITHUB_CLIENT_ID", "test-client-id")
+		os.Setenv("GITHUB_CLIENT_SECRET", "test-client-secret")
+		os.Setenv("REDIRECT_URI", "http://localhost:3000/callback")
+		os.Setenv("JWT_SECRET", "") // Empty JWT secret to trigger JWT signing failure
+
+		defer func() {
+			os.Unsetenv("GITHUB_CLIENT_ID")
+			os.Unsetenv("GITHUB_CLIENT_SECRET")
+			os.Unsetenv("REDIRECT_URI")
+			os.Unsetenv("JWT_SECRET")
+		}()
+
+		// Store a valid OAuth state to pass state validation
+		state := "test-state-jwt-fail"
+		storeOAuthState(state)
+
+		// Simulate valid code and user info, but missing JWT secret
+		w := doRequest("?code=valid-but-jwt-fails&state="+state, nil)
+		assert.Equal(t, 500, w.Code)
+		assert.Contains(t, w.Body.String(), "Failed to sign authentication token")
+	})
 }

@@ -1,0 +1,18 @@
+# Development override for forcing fresh builds with no Docker cache
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev-nocache.yml up -d --build frontend
+#
+# This ensures you ALWAYS get the latest code changes without Docker layer caching confusion
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      no_cache: true  # Force rebuild every time
+      args:
+        VITE_GITHUB_CLIENT_ID: ${VITE_GITHUB_CLIENT_ID}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        # Add build timestamp as arg to bust cache
+        BUILD_TIMESTAMP: "${BUILD_TIMESTAMP:-$(date +%s)}"

@@ -54,7 +54,7 @@ export default function Dashboard() {
         <div className="col-md-6 col-lg-3 mb-4">
           <Link to="/logs" className="text-decoration-none">
             <div className="frosted-card p-4 text-center h-100">
-              <i className="bi bi-journal-text mb-3" style={{fontSize: '3rem', color: '#06b6d4'}}></i>
+              <i className="bi bi-journal-text mb-3" style={{fontSize: '3.3rem', color: '#06b6d4'}}></i>
               <h5 className="mb-3">Logs</h5>
               <p className="mb-0" style={{fontSize: '0.9rem'}}>
                 View and analyze application logs with real-time monitoring
@@ -66,7 +66,7 @@ export default function Dashboard() {
         <div className="col-md-6 col-lg-3 mb-4">
           <Link to="/review" className="text-decoration-none">
             <div className="frosted-card p-4 text-center h-100">
-              <i className="bi bi-code-square mb-3" style={{fontSize: '3rem', color: '#8b5cf6'}}></i>
+              <i className="bi bi-code-square mb-3" style={{fontSize: '3.3rem', color: '#8b5cf6'}}></i>
               <h5 className="mb-3">Code Review</h5>
               <p className="mb-0" style={{fontSize: '0.9rem'}}>
                 AI-powered code review with five reading modes
@@ -78,7 +78,7 @@ export default function Dashboard() {
         <div className="col-md-6 col-lg-3 mb-4">
           <Link to="/analytics" className="text-decoration-none">
             <div className="frosted-card p-4 text-center h-100">
-              <i className="bi bi-graph-up mb-3" style={{fontSize: '3rem', color: '#06b6d4'}}></i>
+              <i className="bi bi-graph-up mb-3" style={{fontSize: '3.3rem', color: '#06b6d4'}}></i>
               <h5 className="mb-3">Analytics</h5>
               <p className="mb-0" style={{fontSize: '0.9rem'}}>
                 Analyze trends and patterns in your data
@@ -88,28 +88,13 @@ export default function Dashboard() {
         </div>
 
         <div className="col-md-6 col-lg-3 mb-4">
-          <div className="frosted-card p-4 text-center h-100 opacity-75" style={{cursor: 'not-allowed'}}>
-            <i className="bi bi-hammer mb-3" style={{fontSize: '3rem', color: '#f59e0b'}}></i>
-            <h5 className="mb-3">Build</h5>
-            <p className="mb-0" style={{fontSize: '0.9rem'}}>
-              Terminal interface and autonomous coding (Coming Soon)
-            </p>
-          </div>
-        </div>
-
-        <div className="col-md-6 col-lg-3 mb-4">
           <Link to="/llm-config" className="text-decoration-none">
-            <div className="frosted-card p-4 text-center h-100 card shadow-sm">
-              <div className="card-body p-0">
-                <i className="bi bi-robot mb-3 me-2" style={{fontSize: '3rem', color: '#10b981'}}></i>
-                <h5 className="card-title mb-3">AI Model Management</h5>
-                <p className="card-text mb-3" style={{fontSize: '0.9rem'}}>
-                  Configure AI models and API keys for each app
-                </p>
-                <span className="btn btn-primary btn-sm">
-                  Manage Models
-                </span>
-              </div>
+            <div className="frosted-card p-4 text-center h-100">
+              <i className="bi bi-robot mb-3" style={{fontSize: '3.3rem', color: '#10b981'}}></i>
+              <h5 className="mb-3">AI Factory</h5>
+              <p className="mb-0" style={{fontSize: '0.9rem'}}>
+                Configure AI models and API keys for each app
+              </p>
             </div>
           </Link>
         </div>

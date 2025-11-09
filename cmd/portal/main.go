@@ -20,6 +20,9 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/middleware"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/handlers"
+	portal_repositories "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/repositories"
+	portal_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
 
@@ -58,24 +61,13 @@ func main() {
 		c.Next()
 	})
 
-	// Health check endpoint (required for Docker health checks)
 	router.GET("/health", func(c *gin.Context) {
-		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
-			"status": "healthy",
-		})
 		c.JSON(http.StatusOK, gin.H{
-			"service": "portal",
 			"status":  "healthy",
+			"service": "portal",
+			"version": "1.0.0",
 		})
-	})
-
-	// Root endpoint: render login page
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.html", nil)
-	})
-
-	// Database connection
+	}) // Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	dbConn, err := sql.Open("pgx", dbURL)
 	if err != nil {
@@ -118,6 +110,11 @@ func main() {
 	}()
 	log.Printf("Redis session store initialized at %s", redisURL)
 
+	// Initialize LLM configuration services
+	encryptionService := portal_services.NewEncryptionService()
+	llmConfigRepo := portal_repositories.NewLLMConfigRepository(dbConn)
+	llmConfigService := portal_services.NewLLMConfigService(llmConfigRepo, encryptionService)
+
 	// Register authentication routes (pass session store)
 	handlers.RegisterAuthRoutesWithSession(router, dbConn, sessionStore)
 
@@ -131,32 +128,42 @@ func main() {
 	authenticated.GET("/dashboard/logs", handlers.LogsDashboardHandler)
 	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
 
-	// Load templates (path works in both local dev and Docker)
-	templatePath := "apps/portal/templates/*.html"
-	if _, err := os.Stat("./templates"); err == nil {
-		// Running in Docker container
-		templatePath = "./templates/*.html"
-	}
-	router.LoadHTMLGlob(templatePath)
-	router.GET("/login", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.html", nil)
-	})
+	// Register LLM configuration routes (requires authentication)
+	apiAuthenticated := router.Group("/api/portal")
+	apiAuthenticated.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
+	portal_handlers.RegisterLLMConfigRoutes(apiAuthenticated, llmConfigService)
 
 	// Serve static files (path works in both local dev and Docker)
 	staticPath := "apps/portal/static"
-	if _, err := os.Stat("./static"); err == nil {
+	if _, err = os.Stat("./static"); err == nil {
 		// Running in Docker container
 		staticPath = "./static"
 	}
 	router.Static("/static", staticPath)
 
-	// Custom 404 handler
-	router.NoRoute(func(c *gin.Context) {
-		log.Printf("404 Not Found: %s", c.Request.URL.Path)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
-	})
+	// Serve React SPA (built frontend)
+	frontendPath := "frontend/dist"
+	if _, err = os.Stat("./dist"); err == nil {
+		// Running in Docker container
+		frontendPath = "./dist"
+	}
 
-	// Validate required OAuth environment variables
+	// Serve React assets (JS, CSS, etc.)
+	router.Static("/assets", frontendPath+"/assets")
+
+	// Serve React index.html for all non-API routes (SPA catch-all)
+	// This MUST be last, as it catches all remaining routes
+	router.NoRoute(func(c *gin.Context) {
+		// If it's an API call, return 404 JSON
+		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+			log.Printf("404 Not Found (API): %s", c.Request.URL.Path)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+			return
+		}
+		// Otherwise, serve React app (for client-side routing)
+		log.Printf("Serving React SPA for route: %s", c.Request.URL.Path)
+		c.File(frontendPath + "/index.html")
+	}) // Validate required OAuth environment variables
 	if err := validateOAuthEnvironment(); err != nil {
 		log.Printf("FATAL: %v", err)
 		if closeErr := dbConn.Close(); closeErr != nil {

@@ -77,15 +77,17 @@ func (s *LLMConfigService) CreateConfig(
 	configID := uuid.New().String()
 	now := time.Now()
 
-	// Create config struct
+	// Create config struct with defaults
 	config := &portal_repositories.LLMConfig{
-		ID:        configID,
-		UserID:    userID,
-		Provider:  provider,
-		ModelName: model,
-		IsDefault: isDefault,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:          configID,
+		UserID:      userID,
+		Provider:    provider,
+		ModelName:   model,
+		IsDefault:   isDefault,
+		MaxTokens:   4096, // Default max tokens
+		Temperature: 0.7,  // Default temperature
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	// Set endpoint if provided
@@ -146,7 +148,18 @@ func (s *LLMConfigService) UpdateConfig(
 	}
 	if isDefault, ok := updates["is_default"]; ok {
 		if isDefaultBool, ok := isDefault.(bool); ok {
-			existing.IsDefault = isDefaultBool
+			// If setting this config as default, use the SetDefault method which
+			// handles unsetting other configs atomically in a transaction
+			if isDefaultBool {
+				if err := s.repo.SetDefault(ctx, userID, configID); err != nil {
+					return fmt.Errorf("failed to set as default: %w", err)
+				}
+				// SetDefault already updated the database, so we just update the in-memory object
+				existing.IsDefault = true
+			} else {
+				// If explicitly setting is_default to false, just update this config
+				existing.IsDefault = false
+			}
 		}
 	}
 

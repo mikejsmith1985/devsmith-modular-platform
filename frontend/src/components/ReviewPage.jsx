@@ -58,7 +58,7 @@ export default function ReviewPage() {
   
   // User Experience Modes (NEW)
   const [userMode, setUserMode] = useState('intermediate'); // beginner, novice, intermediate, expert
-  const [outputMode, setOutputMode] = useState('quick'); // quick, full_learn
+  const [outputMode, setOutputMode] = useState('quick'); // quick, detailed, comprehensive (maps to database output_mode values)
   
   // Prompt Editor Modal state (Phase 4, Task 4.2)
   const [showPromptEditor, setShowPromptEditor] = useState(false);
@@ -558,14 +558,6 @@ export default function ReviewPage() {
                   </small>
                 </div>
               )}
-              <button 
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowImportModal(true)}
-                disabled={loading}
-              >
-                <i className="bi bi-github me-2"></i>
-                Import from GitHub
-              </button>
               <small className="text-muted">Session: {sessionId}</small>
             </div>
           </div>
@@ -635,7 +627,12 @@ export default function ReviewPage() {
               <strong>Experience Level</strong>
             </label>
             <select 
-              className="form-select"
+              className={`form-select ${isDarkMode ? 'bg-dark text-light border-secondary' : ''}`}
+              style={isDarkMode ? { 
+                backgroundColor: '#1a1d2e',
+                color: '#e0e7ff',
+                borderColor: '#4a5568'
+              } : {}}
               value={userMode}
               onChange={(e) => setUserMode(e.target.value)}
               disabled={loading}
@@ -676,18 +673,18 @@ export default function ReviewPage() {
                 type="radio" 
                 className="btn-check" 
                 name="outputMode" 
-                id="outputFull" 
-                value="full_learn"
-                checked={outputMode === 'full_learn'}
+                id="outputDetailed" 
+                value="detailed"
+                checked={outputMode === 'detailed'}
                 onChange={(e) => setOutputMode(e.target.value)}
                 disabled={loading}
               />
-              <label className="btn btn-outline-primary" htmlFor="outputFull">
+              <label className="btn btn-outline-primary" htmlFor="outputDetailed">
                 Full Learn
               </label>
             </div>
             <small className="text-muted d-block mt-1">
-              {outputMode === 'full_learn' ? '🧠 Shows AI reasoning process' : '⚡ Just the analysis'}
+              {outputMode === 'detailed' ? '🧠 Shows AI reasoning process' : '⚡ Just the analysis'}
             </small>
           </div>
         </div>
@@ -728,6 +725,14 @@ export default function ReviewPage() {
               disabled={loading}
             >
               Clear
+            </button>
+            <button 
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowImportModal(true)}
+              disabled={loading}
+            >
+              <i className="bi bi-github me-2"></i>
+              Import from GitHub
             </button>
           </div>
         </div>

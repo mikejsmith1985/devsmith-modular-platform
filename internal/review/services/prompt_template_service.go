@@ -3,6 +3,7 @@ package review_services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -52,7 +53,8 @@ func NewPromptTemplateService(repo repositories.PromptTemplateRepositoryInterfac
 func (s *PromptTemplateService) GetEffectivePrompt(ctx context.Context, userID int, mode, userLevel, outputMode string) (*review_models.PromptTemplate, error) {
 	// Try to get user custom first
 	userPrompt, err := s.repo.FindByUserAndMode(ctx, userID, mode, userLevel, outputMode)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
+		// Real database error (not just "no rows found")
 		return nil, fmt.Errorf("error fetching user prompt: %w", err)
 	}
 
@@ -62,7 +64,8 @@ func (s *PromptTemplateService) GetEffectivePrompt(ctx context.Context, userID i
 
 	// Fall back to system default
 	defaultPrompt, err := s.repo.FindDefaultByMode(ctx, mode, userLevel, outputMode)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
+		// Real database error (not just "no rows found")
 		return nil, fmt.Errorf("error fetching default prompt: %w", err)
 	}
 

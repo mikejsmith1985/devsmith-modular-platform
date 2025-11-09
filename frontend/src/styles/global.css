@@ -91,6 +91,27 @@ body.dark-mode .stat-card-vertical {
   color: #e4e4e7;
 }
 
+/* Table Dark Mode */
+body.dark-mode .table {
+  color: #e4e4e7;
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+body.dark-mode .table thead th {
+  background: rgba(45, 49, 72, 0.95);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #e4e4e7;
+}
+
+body.dark-mode .table tbody tr {
+  background: rgba(30, 33, 48, 0.98);
+  border-color: rgba(139, 92, 246, 0.1);
+}
+
+body.dark-mode .table-hover tbody tr:hover {
+  background: rgba(45, 49, 72, 0.95);
+}
+
 .stat-card-vertical .stat-icon {
   width: 70px;
   height: 70px;
@@ -191,4 +212,31 @@ body.dark-mode .theme-toggle:hover {
 .bi {
   display: inline-block;
   vertical-align: middle;
+}
+
+/* Apple-style Toggle Switch */
+.form-switch .form-check-input {
+  width: 3em;
+  height: 1.5em;
+  cursor: pointer;
+  background-color: #d1d5db;
+  border: none;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.form-switch .form-check-input:checked {
+  background-color: #10b981 !important;
+  border-color: #10b981 !important;
+}
+
+.form-switch .form-check-input:focus {
+  box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25);
+}
+
+body.dark-mode .form-switch .form-check-input {
+  background-color: #4b5563;
+}
+
+body.dark-mode .form-switch .form-check-input:checked {
+  background-color: #10b981 !important;
 }

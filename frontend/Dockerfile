@@ -13,17 +13,17 @@ ARG VITE_API_URL=http://localhost:3000
 ENV VITE_GITHUB_CLIENT_ID=$VITE_GITHUB_CLIENT_ID
 ENV VITE_API_URL=$VITE_API_URL
 
-# Copy package files
+# Copy package files first (for better layer caching)
 COPY package.json package-lock.json* ./
 
-# Install dependencies
+# Install dependencies (cached unless package files change)
 RUN npm ci
 
-# Copy source code
+# Copy source code (this layer changes frequently)
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application with timestamp to prevent caching
+RUN npm run build && echo "Build completed at $(date)" > /app/dist/.build-timestamp
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
@@ -45,9 +45,14 @@ server {
     # SPA routing - try files first, then fallback to index.html
     location / {
         try_files \$uri \$uri/ /index.html;
+        
+        # NEVER cache HTML files (they reference hashed assets)
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
     }
 
-    # Cache static assets
+    # Cache hashed static assets aggressively (filenames change = cache busted)
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
