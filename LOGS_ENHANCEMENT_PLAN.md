@@ -220,10 +220,43 @@ import MonitoringDashboard from './MonitoringDashboard';
 #### 0.6 Update Service Names (Optional)
 **Goal:** Internal consistency (logs service can remain "logs" internally)
 
+**Status:** 🔴 TODO - Deferred until service naming patterns are established
+
 **Files to update (if time permits):**
 - Backend: `cmd/logs/main.go` (add comment: "// Health app backend")
 - Docker: `docker-compose.yml` (add label: "devsmith.app=health")
 - No functional changes needed - just documentation
+
+**Note:** This task is logged for future implementation once we determine the service naming conventions across the platform.
+
+---
+
+## 📋 Implementation Clarifications
+
+### Testing Approach (Phase 0)
+- **E2E tests**: Playwright tests for navigation changes, tab switching, and "Coming Soon" placeholders
+- **Component tests**: React component tests for HealthPage tabs and routing
+- **Coverage**: Both E2E and component tests required per TDD guidelines
+
+### Backward Compatibility
+- `/logs` URL will redirect to `/health` for bookmarks and deep links
+- Existing API endpoints remain at `/api/logs/*` (backend internal naming)
+- No breaking changes to backend services
+
+### Git Workflow
+- Current branch: `review-rebuild` (documentation only)
+- After PR merge: Create `feature/phase0-health-rename` from `development`
+- Follow TDD: RED → GREEN → REFACTOR cycle
+- Use pre-push hook for validation before pushing
+
+### Implementation Scope
+Phase 0 includes tasks 0.1-0.5:
+- ✅ 0.1: Rename "Logs" card to "Health" in Dashboard (remove Analytics card)
+- ✅ 0.2: Update routing (`/logs` → `/health` with redirect)
+- ✅ 0.3: Rename LogsPage.jsx → HealthPage.jsx
+- ✅ 0.4: Add tab navigation (Logs/Monitoring/Analytics tabs)
+- ✅ 0.5: Remove MonitoringDashboard import
+- 🔴 0.6: Deferred - Service name updates (see TODO above)
 
 ---
 
