@@ -1,0 +1,21 @@
+version: 2
+
+# Paths to exclude from scanning
+paths-ignore:
+  - "**/*test*.go"
+  - "**/*_test.go"
+  - "**/test_*.go"
+  - "tests/**"
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "test-results/**"
+  - "**/testdata/**"
+
+# Specific secrets to ignore (test tokens)
+matches-ignore:
+  - name: Test GitHub OAuth tokens
+    match: gho_test\d+
+  - name: Test client IDs
+    match: test-client-id
+  - name: Test client secrets
+    match: test-client-secret
