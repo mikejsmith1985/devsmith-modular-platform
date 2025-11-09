@@ -329,8 +329,8 @@ func TestSeeds_DefaultPrompts(t *testing.T) {
 
 	for rows.Next() {
 		var id, mode, promptText, variables string
-		err := rows.Scan(&id, &mode, &promptText, &variables)
-		require.NoError(t, err)
+		scanErr := rows.Scan(&id, &mode, &promptText, &variables)
+		require.NoError(t, scanErr)
 
 		assert.NotEmpty(t, promptText, fmt.Sprintf("Prompt %s should have text", id))
 		assert.Contains(t, promptText, "{{code}}", fmt.Sprintf("Prompt %s should contain {{code}} variable", id))
@@ -367,6 +367,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 	ctx := context.Background()
 	_, err = db.ExecContext(ctx, "DROP SCHEMA IF EXISTS review CASCADE")
 	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, "DROP SCHEMA IF EXISTS portal CASCADE")
+	require.NoError(t, err)
 	_, err = db.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS portal")
 	require.NoError(t, err)
 
@@ -384,8 +386,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func teardownTestDB(t *testing.T, db *sql.DB) {
+func teardownTestDB(_ *testing.T, db *sql.DB) {
 	if db != nil {
+		// Clean up test data and schemas
+		_, _ = db.Exec("DROP SCHEMA IF EXISTS review CASCADE")
+		_, _ = db.Exec("DROP SCHEMA IF EXISTS portal CASCADE")
+		_, _ = db.Exec("DROP TABLE IF EXISTS public.llm_configs CASCADE")
 		db.Close()
 	}
 }
