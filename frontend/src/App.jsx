@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import LogsPage from './components/LogsPage';
 import ReviewPage from './components/ReviewPage';
 import AnalyticsPage from './components/AnalyticsPage';
+import LLMConfigPage from './pages/LLMConfigPage';
 import LoginPage from './components/LoginPage';
 import OAuthCallback from './components/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -21,6 +22,14 @@ export default function App() {
           <Route path="/auth/github/callback" element={<OAuthCallback />} />
           <Route
             path="/"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/portal"
             element={
               <ProtectedRoute>
                 <Dashboard />
@@ -48,6 +57,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/llm-config"
+            element={
+              <ProtectedRoute>
+                <LLMConfigPage />
               </ProtectedRoute>
             }
           />

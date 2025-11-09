@@ -38,7 +38,7 @@ const analysisModesConfig = {
   }
 };
 
-export default function AnalysisModeSelector({ selectedMode, onModeSelect, disabled = false }) {
+export default function AnalysisModeSelector({ selectedMode, onModeSelect, onDetailsClick, disabled = false }) {
   return (
     <div className="analysis-mode-selector mb-3">
       <h6 className="mb-2">Analysis Mode:</h6>
@@ -46,27 +46,50 @@ export default function AnalysisModeSelector({ selectedMode, onModeSelect, disab
         {Object.entries(analysisModesConfig).map(([mode, config]) => (
           <div key={mode} className="col-md-2 col-sm-4 col-6">
             <div 
-              className={`frosted-card h-100 cursor-pointer ${
+              className={`frosted-card h-100 mode-card ${mode} ${
                 selectedMode === mode ? 'border-primary border-3' : ''
               } ${disabled ? 'opacity-50' : ''}`}
-              onClick={() => !disabled && onModeSelect(mode)}
               style={{ 
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
-                padding: '0.75rem'
+                padding: '0.75rem',
+                position: 'relative'
               }}
             >
-              <div className="text-center">
-                <div className="fs-4 mb-1">{config.icon}</div>
-                <h6 className={`mb-1 ${
-                  selectedMode === mode ? 'text-primary' : ''
-                }`}>
-                  {config.name}
-                </h6>
-                <small style={{ 
-                  color: 'var(--bs-gray-300)',
-                  opacity: 0.9
-                }}>{config.description}</small>
+              {/* Mode card content - clickable area */}
+              <div 
+                onClick={() => !disabled && onModeSelect(mode)}
+                style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+              >
+                <div className="text-center">
+                  <div className="fs-4 mb-1">{config.icon}</div>
+                  <h6 className={`mb-1 ${
+                    selectedMode === mode ? 'text-primary' : ''
+                  }`}>
+                    {config.name}
+                  </h6>
+                  <small style={{ 
+                    color: 'var(--bs-gray-300)',
+                    opacity: 0.9
+                  }}>{config.description}</small>
+                </div>
+              </div>
+
+              {/* Details button - separate from mode selection */}
+              <div className="mt-2 text-center">
+                <button
+                  className="btn btn-sm btn-outline-primary btn-details"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent mode selection
+                    onDetailsClick && onDetailsClick(mode);
+                  }}
+                  disabled={disabled}
+                  title={`View and customize ${config.name} mode prompt`}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                >
+                  <i className="bi bi-file-text me-1"></i>
+                  Details
+                </button>
               </div>
             </div>
           </div>

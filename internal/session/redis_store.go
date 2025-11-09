@@ -159,3 +159,31 @@ func (s *RedisStore) RefreshTTL(ctx context.Context, sessionID string) error {
 	}
 	return nil
 }
+
+// StoreOAuthState stores an OAuth state parameter in Redis with expiration
+func (s *RedisStore) StoreOAuthState(ctx context.Context, state string, ttl time.Duration) error {
+	key := fmt.Sprintf("oauth_state:%s", state)
+	if err := s.client.Set(ctx, key, "valid", ttl).Err(); err != nil {
+		return fmt.Errorf("redis set oauth state: %w", err)
+	}
+	return nil
+}
+
+// ValidateOAuthState checks if an OAuth state exists in Redis and deletes it (one-time use)
+func (s *RedisStore) ValidateOAuthState(ctx context.Context, state string) (bool, error) {
+	key := fmt.Sprintf("oauth_state:%s", state)
+
+	// Check if state exists
+	val, err := s.client.Get(ctx, key).Result()
+	if err != nil {
+		return false, nil // State doesn't exist or error occurred
+	}
+
+	if val != "valid" {
+		return false, nil
+	}
+
+	// Delete state (one-time use for CSRF protection)
+	s.client.Del(ctx, key)
+	return true, nil
+}

@@ -149,36 +149,41 @@ jobs:
           path: benchmark-results.txt
           retention-days: 30
 
-  # Job 4: Playwright E2E Smoke Tests
-  e2e-smoke:
-    name: E2E Smoke Tests (Playwright)
+  # Job 4: Architecture-Aware E2E Tests
+  # NOTE: Smoke tests moved to separate workflow (smoke-test.yml)
+  # This job now focuses on accessibility testing with proper architecture
+  e2e-accessibility:
+    name: E2E Accessibility Tests
     runs-on: ubuntu-latest
     needs: [unit-tests]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: devsmith
-          POSTGRES_PASSWORD: devsmith
-          POSTGRES_DB: devsmith
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          POSTGRES_USER=devsmith
+          POSTGRES_PASSWORD=devsmith123
+          POSTGRES_DB=devsmith
+          DATABASE_URL=postgresql://devsmith:devsmith123@postgres:5432/devsmith
+          REDIS_URL=redis://redis:6379
+          GITHUB_CLIENT_ID=test_client_id
+          GITHUB_CLIENT_SECRET=test_client_secret
+          ENABLE_TEST_AUTH=true
+          JWT_SECRET=test_jwt_secret_for_ci
+          ENVIRONMENT=ci
+          EOF
+
+      - name: Start services with docker-compose
+        run: |
+          docker-compose up -d --build
+          echo "Waiting for services to be healthy..."
+          timeout 120 bash -c 'while [ $(docker-compose ps --format json | jq -r ".[] | select(.Health == \"healthy\") | .Name" | wc -l) -lt 6 ]; do sleep 5; done'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -187,42 +192,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          go mod download
-          npm ci
-
-      - name: Build services
-        run: |
-          go build -o bin/portal ./cmd/portal
-          go build -o bin/review ./cmd/review
-          go build -o bin/logs ./cmd/logs
-          go build -o bin/analytics ./cmd/analytics
-
-      - name: Start services in background
-        env:
-          DATABASE_URL: postgres://devsmith:devsmith@localhost:5432/devsmith?sslmode=disable
-          PORT: 8080
-          LOGS_SERVICE_URL: http://localhost:8082/api/logs
-          ENABLE_TEST_AUTH: "true"
-        run: |
-          echo "Starting Portal service..."
-          ./bin/portal &
-          PORTAL_PID=$!
-          echo "PORTAL_PID=$PORTAL_PID" >> $GITHUB_ENV
-          
-          echo "Starting Logs service..."
-          PORT=8082 ./bin/logs &
-          LOGS_PID=$!
-          echo "LOGS_PID=$LOGS_PID" >> $GITHUB_ENV
-          
-          echo "Waiting for services to be ready..."
-          sleep 10
+        run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run smoke tests only
-        run: npx playwright test tests/e2e/verify-review-works.spec.ts
+      - name: Run accessibility tests via Traefik gateway
+        run: npx playwright test tests/e2e/review/accessibility.spec.ts
+        env:
+          BASE_URL: http://localhost:3000
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -239,77 +217,6 @@ jobs:
           if [ -n "$LOGS_PID" ]; then kill $LOGS_PID || true; fi
 
   # Job 5: Accessibility Tests (axe-core)
-  accessibility:
-    name: Accessibility Tests (axe-core)
-    runs-on: ubuntu-latest
-    needs: [unit-tests]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: devsmith
-          POSTGRES_PASSWORD: devsmith
-          POSTGRES_DB: devsmith
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          go mod download
-          npm ci
-
-      - name: Build services
-        run: |
-          go build -o bin/portal ./cmd/portal
-          go build -o bin/review ./cmd/review
-          go build -o bin/logs ./cmd/logs
-
-      - name: Start services in background
-        env:
-          DATABASE_URL: postgres://devsmith:devsmith@localhost:5432/devsmith?sslmode=disable
-          PORT: 8080
-          ENABLE_TEST_AUTH: "true"
-        run: |
-          ./bin/portal &
-          PORT=8082 ./bin/logs &
-          sleep 10
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Run accessibility tests
-        run: npx playwright test tests/e2e/review/accessibility.spec.ts
-
-      - name: Upload accessibility report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: accessibility-report
-          path: playwright-report/
-          retention-days: 30
-
   # Job 5: OpenAPI Validation
   openapi:
     name: OpenAPI Spec Validation
@@ -319,10 +226,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate OpenAPI spec
-        uses: char0n/swagger-editor-validate@v1
-        with:
-          definition-file: docs/openapi-review.yaml
+      # Removed: char0n/swagger-editor-validate - Puppeteer sandbox issues in GitHub Actions
+      # Using Spectral CLI only for OpenAPI validation
 
       - name: Check for OpenAPI linting issues
         uses: stoplightio/spectral-action@latest
@@ -333,7 +238,7 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, benchmarks, e2e-smoke, accessibility, openapi]
+    needs: [unit-tests, integration-tests, benchmarks, e2e-accessibility, openapi]
     if: always()
 
     steps:
@@ -342,15 +247,13 @@ jobs:
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "Integration Tests: ${{ needs.integration-tests.result }}"
           echo "Benchmarks: ${{ needs.benchmarks.result }}"
-          echo "E2E Smoke: ${{ needs.e2e-smoke.result }}"
-          echo "Accessibility: ${{ needs.accessibility.result }}"
+          echo "E2E Accessibility: ${{ needs.e2e-accessibility.result }}"
           echo "OpenAPI: ${{ needs.openapi.result }}"
 
           # Benchmarks are informational only (don't block)
           if [ "${{ needs.unit-tests.result }}" != "success" ] || \
              [ "${{ needs.integration-tests.result }}" != "success" ] || \
-             [ "${{ needs.e2e-smoke.result }}" != "success" ] || \
-             [ "${{ needs.accessibility.result }}" != "success" ] || \
+             [ "${{ needs.e2e-accessibility.result }}" != "success" ] || \
              [ "${{ needs.openapi.result }}" != "success" ]; then
             echo "❌ Quality gate failed"
             exit 1

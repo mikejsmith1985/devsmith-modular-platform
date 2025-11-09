@@ -10,7 +10,7 @@ class ApiError extends Error {
 }
 
 // Generic API fetch with error handling
-async function apiRequest(endpoint, options = {}) {
+export async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   
   const defaultOptions = {
@@ -89,6 +89,39 @@ export const reviewApi = {
     const params = new URLSearchParams({ url, branch });
     return apiRequest(`/api/review/github/quick-scan?${params.toString()}`);
   },
+
+  // Prompt Management API endpoints (Phase 4)
+  // Get effective prompt (user custom or system default)
+  getPrompt: (mode, userLevel = 'intermediate', outputMode = 'quick') => {
+    const params = new URLSearchParams({ mode, user_level: userLevel, output_mode: outputMode });
+    return apiRequest(`/api/review/prompts?${params.toString()}`);
+  },
+  
+  // Save custom prompt
+  savePrompt: (data) => apiRequest('/api/review/prompts', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
+  // Factory reset to system default
+  resetPrompt: (mode, userLevel = 'intermediate', outputMode = 'quick') => {
+    const params = new URLSearchParams({ mode, user_level: userLevel, output_mode: outputMode });
+    return apiRequest(`/api/review/prompts?${params.toString()}`, {
+      method: 'DELETE',
+    });
+  },
+  
+  // Get prompt execution history
+  getPromptHistory: (limit = 50) => {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return apiRequest(`/api/review/prompts/history?${params.toString()}`);
+  },
+  
+  // Rate prompt execution
+  rateExecution: (executionId, rating) => apiRequest(`/api/review/prompts/${executionId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ rating }),
+  }),
 };
 
 // Logs API endpoints

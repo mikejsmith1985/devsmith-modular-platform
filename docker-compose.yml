@@ -96,7 +96,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && !PathPrefix(`/api`)"
       - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.routers.frontend.priority=2147483647"  # Max priority to override Traefik dashboard
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
   portal:
@@ -112,6 +112,7 @@ services:
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-dev-encryption-key-32-chars-min}
       - REDIRECT_URI=http://localhost:3000/auth/github/callback
       - ENABLE_TEST_AUTH=true
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
@@ -133,11 +134,31 @@ services:
       start_period: 20s
     labels:
       - "traefik.enable=true"
-      # Portal API - only /api/portal routes go to backend
+      # Portal API - /api/portal routes go to backend
       - "traefik.http.routers.portal-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/portal`)"
       - "traefik.http.routers.portal-api.entrypoints=web"
       - "traefik.http.routers.portal-api.priority=100"
       - "traefik.http.routers.portal-api.service=portal"
+      # Portal Auth - /auth routes go to backend
+      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.portal-auth.entrypoints=web"
+      - "traefik.http.routers.portal-auth.priority=99"
+      - "traefik.http.routers.portal-auth.service=portal"
+      # Portal Assets - /assets for React JS/CSS
+      - "traefik.http.routers.portal-assets.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/assets`)"
+      - "traefik.http.routers.portal-assets.entrypoints=web"
+      - "traefik.http.routers.portal-assets.priority=98"
+      - "traefik.http.routers.portal-assets.service=portal"
+      # Portal Static - /static for legacy static files
+      - "traefik.http.routers.portal-static.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/static`)"
+      - "traefik.http.routers.portal-static.entrypoints=web"
+      - "traefik.http.routers.portal-static.priority=97"
+      - "traefik.http.routers.portal-static.service=portal"
+      # Portal Root - catch-all for React SPA (lowest priority)
+      - "traefik.http.routers.portal-root.rule=Host(`localhost`) || Host(`127.0.0.1`)"
+      - "traefik.http.routers.portal-root.entrypoints=web"
+      - "traefik.http.routers.portal-root.priority=1"
+      - "traefik.http.routers.portal-root.service=portal"
       # Service definition with health check
       - "traefik.http.services.portal.loadbalancer.server.port=3001"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"

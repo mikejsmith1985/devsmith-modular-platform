@@ -135,6 +135,7 @@ func main() {
 	// Repository and service setup
 	analysisRepo := review_db.NewAnalysisRepository(sqlDB)
 	githubRepo := review_db.NewGitHubRepository(sqlDB)
+	promptRepo := review_db.NewPromptTemplateRepository(sqlDB)
 
 	// Start retention job for troubleshooting analysis captures (default 14 days)
 	retentionDays := 14
@@ -282,6 +283,10 @@ func main() {
 	// Pass previewService so Quick Scan can run AI analysis
 	githubHandler := review_handlers.NewGitHubHandler(reviewLogger, previewService)
 
+	// Initialize prompt template service and handler for prompt management
+	promptService := review_services.NewPromptTemplateService(promptRepo)
+	promptHandler := review_handlers.NewPromptHandler(promptService)
+
 	// Serve static files (CSS, JS) from apps/review/static
 	router.Static("/static", "./apps/review/static")
 	reviewLogger.Info("Static files configured", "path", "/static", "dir", "./apps/review/static")
@@ -335,6 +340,12 @@ func main() {
 		protected.GET("/api/review/github/tree", githubHandler.GetRepoTree)
 		protected.GET("/api/review/github/file", githubHandler.GetRepoFile)
 		protected.GET("/api/review/github/quick-scan", githubHandler.QuickRepoScan)
+
+		// Prompt template endpoints (Issue #2 - Details button)
+		protected.GET("/api/review/prompts", promptHandler.GetPrompt)
+		protected.PUT("/api/review/prompts", promptHandler.SavePrompt)
+		protected.DELETE("/api/review/prompts", promptHandler.ResetPrompt)
+		protected.GET("/api/review/prompts/history", promptHandler.GetHistory)
 	}
 	router.DELETE("/api/review/sessions/:id", uiHandler.DeleteSessionHTMX)            // Delete session (HTMX, replaces sessionHandler.DeleteSession)
 	router.GET("/api/review/sessions/:id/stats", uiHandler.GetSessionStatsHTMX)       // Session statistics

@@ -1,0 +1,55 @@
+#!/bin/bash
+# rebuild-frontend.sh - Rebuild frontend with NO CACHE to ensure fresh deployment
+#
+# This script:
+# 1. Forces Docker to rebuild without using cached layers
+# 2. Removes old container completely
+# 3. Restarts Traefik to clear routing cache
+# 4. Verifies the new code is actually deployed
+
+set -e
+
+echo "🔨 Rebuilding frontend with NO CACHE..."
+
+# Stop and remove old container
+docker-compose down frontend
+
+# Force rebuild with no cache
+docker-compose build --no-cache frontend
+
+# Start the new container
+docker-compose up -d frontend
+
+# Give it a moment to start
+sleep 3
+
+# Restart Traefik to clear any routing cache
+echo "🔄 Restarting Traefik to clear routing cache..."
+docker-compose restart traefik
+sleep 2
+
+# Verify deployment
+echo ""
+echo "✅ Verifying deployment..."
+echo "Frontend container:"
+docker-compose ps frontend
+
+echo ""
+echo "JavaScript bundle hash:"
+DIRECT_HASH=$(curl -s http://localhost:5173/ | grep -o 'index-[^"]*\.js' | head -1)
+GATEWAY_HASH=$(curl -s http://localhost:3000/ | grep -o 'index-[^"]*\.js' | head -1)
+
+echo "  Direct (port 5173): $DIRECT_HASH"
+echo "  Gateway (port 3000): $GATEWAY_HASH"
+
+if [ "$DIRECT_HASH" = "$GATEWAY_HASH" ]; then
+    echo "✅ SUCCESS! Both hashes match - deployment is fresh!"
+else
+    echo "❌ WARNING! Hash mismatch - gateway may be cached"
+    echo "   Try: curl -H 'Cache-Control: no-cache' http://localhost:3000/"
+fi
+
+echo ""
+echo "🌐 Frontend is available at:"
+echo "   http://localhost:3000 (through gateway - ALWAYS USE THIS)"
+echo "   http://localhost:5173 (direct - for debugging only)"
