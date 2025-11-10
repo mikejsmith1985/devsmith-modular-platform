@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
@@ -9,11 +9,17 @@ import LLMConfigPage from './pages/LLMConfigPage';
 import LoginPage from './components/LoginPage';
 import OAuthCallback from './components/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
+import { setupGlobalErrorHandlers } from './utils/logger';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './index.css';
 
 export default function App() {
+  // Set up global error handlers on app mount
+  useEffect(() => {
+    setupGlobalErrorHandlers();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -44,7 +50,6 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/logs" element={<Navigate to="/health" replace />} />
           <Route
             path="/review"
             element={

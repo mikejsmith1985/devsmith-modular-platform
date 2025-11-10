@@ -255,6 +255,16 @@ func main() {
 
 	log.Println("AI insights service initialized - ready for log analysis")
 
+	// Phase 3: Smart Tagging System - Initialize tag management
+	tagsHandler := internal_logs_handlers.NewTagsHandler(logRepo)
+
+	// Tag management endpoints
+	router.GET("/api/logs/tags", tagsHandler.GetAvailableTags)             // Get all unique tags with counts
+	router.POST("/api/logs/:id/tags", tagsHandler.AddTagToLog)             // Add manual tag to log entry
+	router.DELETE("/api/logs/:id/tags/:tag", tagsHandler.RemoveTagFromLog) // Remove tag from log entry
+
+	log.Println("Tag management service initialized - 3 endpoints registered (auto-tagging + manual)")
+
 	// Health Monitoring Dashboard - Real-time metrics and alerts
 	metricsCollector := monitoring.NewSQLMetricsCollector(dbConn)
 	monitoringHandler := internal_logs_handlers.NewMonitoringHandler(metricsCollector)

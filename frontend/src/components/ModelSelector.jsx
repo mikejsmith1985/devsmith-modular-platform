@@ -14,6 +14,7 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
         setLoading(true);
         // Use AI Factory endpoint instead of ollama list
         const response = await apiRequest('/api/portal/llm-configs');
+        console.log('AI Factory response:', response);
         
         let modelList = [];
         if (Array.isArray(response)) {
@@ -36,6 +37,7 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
         }
 
         setModels(modelList);
+        console.log('Models loaded from AI Factory:', modelList);
         
         // Auto-select default model from AI Factory
         if (!selectedModel && modelList.length > 0) {
@@ -54,13 +56,13 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
         setError(err.message);
         // Fallback to default models with recommended first
         const defaultModels = [
-          { name: 'deepseek-coder-v2:16b-lite-instruct-q4_K_M', description: 'DeepSeek Coder V2 16B (Recommended)', provider: 'Ollama' },
-          { name: 'qwen2.5-coder:14b-instruct-q4_K_M', description: 'Qwen 2.5 Coder 14B', provider: 'Ollama' },
-          { name: 'codellama:13b-instruct-q4_K_M', description: 'CodeLlama 13B', provider: 'Ollama' }
+          { name: 'qwen2.5-coder:7b-instruct-q4_K_M', description: 'Qwen 2.5 Coder 7B (Recommended for 8GB VRAM)', provider: 'Ollama', isDefault: true },
+          { name: 'mistral:7b-instruct', description: 'Mistral 7B', provider: 'Ollama' },
+          { name: 'deepseek-coder-v2:16b-lite-instruct-q4_K_M', description: 'DeepSeek Coder V2 16B (Requires 16GB+ VRAM)', provider: 'Ollama' }
         ];
         setModels(defaultModels);
         if (!selectedModel) {
-          onModelSelect('deepseek-coder-v2:16b-lite-instruct-q4_K_M');
+          onModelSelect('qwen2.5-coder:7b-instruct-q4_K_M');
         }
       } finally {
         setLoading(false);
@@ -71,6 +73,7 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
   }, [selectedModel, onModelSelect]);
 
   const handleModelChange = (e) => {
+    console.log('Model selected:', e.target.value);
     if (onModelSelect) {
       onModelSelect(e.target.value);
     }

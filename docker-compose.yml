@@ -152,6 +152,7 @@ services:
       - "traefik.http.routers.portal-auth.entrypoints=web"
       - "traefik.http.routers.portal-auth.priority=99"
       - "traefik.http.routers.portal-auth.service=portal"
+      - "traefik.http.routers.portal-auth.middlewares=html-nocache@docker"
       # Portal Assets - /assets for React JS/CSS
       - "traefik.http.routers.portal-assets.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/assets`)"
       - "traefik.http.routers.portal-assets.entrypoints=web"

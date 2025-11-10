@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import { Modal } from 'react-bootstrap';
 import StatCards from './StatCards';
 import ModelSelector from './ModelSelector';
+import TagFilter from './TagFilter';
+import { logError, logWarning, logInfo } from '../utils/logger';
 
 export default function HealthPage() {
   const { user, logout } = useAuth();
@@ -32,9 +34,18 @@ export default function HealthPage() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  
+  // Phase 3: Smart Tagging System
+  const [availableTags, setAvailableTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState([]);
+  
+  // Phase 3: Manual Tag Management
+  const [newTagInput, setNewTagInput] = useState('');
+  const [addingTag, setAddingTag] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchAvailableTags(); // Phase 3: Load available tags
     
     // Auto-refresh every 5 seconds if enabled
     if (autoRefresh && activeTab === 'logs') {
@@ -45,7 +56,8 @@ export default function HealthPage() {
 
   useEffect(() => {
     applyFilters();
-  }, [logs, filters]);
+  }, [logs, filters, selectedTags]); // Depend on actual values, not the callback
+
 
   const fetchData = async () => {
     try {
@@ -87,7 +99,37 @@ export default function HealthPage() {
     }
   };
 
-  const applyFilters = () => {
+  // Phase 3: Fetch available tags
+  const fetchAvailableTags = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/logs/tags', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTags(data.tags || []);
+      }
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  };
+
+  // Phase 3: Toggle tag selection
+  const handleTagToggle = (tag) => {
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
+  };
+
+
+  const applyFilters = useCallback(() => {
     let filtered = [...logs];
     
     // Filter by level
@@ -109,8 +151,16 @@ export default function HealthPage() {
       );
     }
     
+    // Phase 3: Filter by tags (AND logic - log must have ALL selected tags)
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(log => {
+        if (!log.tags || log.tags.length === 0) return false;
+        return selectedTags.every(tag => log.tags.includes(tag));
+      });
+    }
+    
     setFilteredLogs(filtered);
-  };
+  }, [logs, filters, selectedTags]);
 
   const getUniqueServices = () => {
     const services = new Set(logs.map(log => log.service));
@@ -164,19 +214,37 @@ export default function HealthPage() {
   const fetchExistingInsights = async (logId) => {
     try {
       const response = await fetch(`/api/logs/${logId}/insights`);
+      console.log('GET /insights response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('GET /insights data:', data);
         setAiInsights(data);
+        
+        logInfo('Fetched existing AI insights', {
+          log_id: logId,
+          action: 'fetch_insights_success'
+        });
       }
       // If 404, no insights exist yet (that's okay)
     } catch (error) {
       console.error('Error fetching existing insights:', error);
+      logWarning('Failed to fetch existing insights', {
+        log_id: logId,
+        error: error.message,
+        action: 'fetch_insights_error'
+      });
     }
   };
 
   const generateAIInsights = async (logId) => {
     setLoadingInsights(true);
     try {
+      logInfo('Generating AI insights', {
+        log_id: logId,
+        model: selectedModel,
+        action: 'generate_insights_start'
+      });
+
       // Call backend to generate AI insights
       const response = await fetch(`/api/logs/${logId}/insights`, {
         method: 'POST',
@@ -189,13 +257,43 @@ export default function HealthPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to generate insights: ${response.statusText}`);
+        const errorText = await response.text();
+        const error = new Error(`Failed to generate insights: ${response.statusText}`);
+        
+        // Log the error with full context
+        logError(error, {
+          log_id: logId,
+          model: selectedModel,
+          status_code: response.status,
+          response_body: errorText,
+          action: 'generate_insights_failed'
+        });
+        
+        throw error;
       }
 
       const data = await response.json();
+      console.log('POST /insights response:', data);
       setAiInsights(data);
+      console.log('State updated with insights:', data);
+      
+      logInfo('AI insights generated successfully', {
+        log_id: logId,
+        model: selectedModel,
+        action: 'generate_insights_success'
+      });
     } catch (error) {
       console.error('Error generating AI insights:', error);
+      
+      // Log to backend if not already logged
+      if (!error.logged) {
+        logError(error, {
+          log_id: logId,
+          model: selectedModel,
+          action: 'generate_insights_error'
+        });
+      }
+      
       setAiInsights({
         analysis: `Error: ${error.message}`,
         root_cause: null,
@@ -203,6 +301,88 @@ export default function HealthPage() {
       });
     } finally {
       setLoadingInsights(false);
+    }
+  };
+
+  // Phase 3: Add tag to log entry
+  const handleAddTag = async (logId, tag) => {
+    if (!tag || tag.trim() === '') return;
+    
+    setAddingTag(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/logs/${logId}/tags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
+        },
+        body: JSON.stringify({ tag: tag.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add tag');
+      }
+
+      // Update the selected log with new tag
+      const updatedLog = {
+        ...selectedLog,
+        tags: [...(selectedLog.tags || []), tag.trim()]
+      };
+      setSelectedLog(updatedLog);
+
+      // Update the log in the main list
+      setLogs(prevLogs =>
+        prevLogs.map(log =>
+          log.id === logId ? updatedLog : log
+        )
+      );
+
+      // Refresh available tags
+      await fetchAvailableTags();
+
+      // Clear input
+      setNewTagInput('');
+    } catch (error) {
+      console.error('Error adding tag:', error);
+      alert(`Failed to add tag: ${error.message}`);
+    } finally {
+      setAddingTag(false);
+    }
+  };
+
+  // Phase 3: Remove tag from log entry
+  const handleRemoveTag = async (logId, tag) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/logs/${logId}/tags/${encodeURIComponent(tag)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove tag');
+      }
+
+      // Update the selected log without the removed tag
+      const updatedLog = {
+        ...selectedLog,
+        tags: (selectedLog.tags || []).filter(t => t !== tag)
+      };
+      setSelectedLog(updatedLog);
+
+      // Update the log in the main list
+      setLogs(prevLogs =>
+        prevLogs.map(log =>
+          log.id === logId ? updatedLog : log
+        )
+      );
+
+      // Refresh available tags
+      await fetchAvailableTags();
+    } catch (error) {
+      console.error('Error removing tag:', error);
+      alert(`Failed to remove tag: ${error.message}`);
     }
   };
 
@@ -330,13 +510,31 @@ export default function HealthPage() {
 
           {!loading && !error && (
             <>
-              <StatCards stats={stats} />
+              {/* Phase 1: Card-Based Dashboard Layout */}
+              <div className="row g-3">
+                {/* Left Column: Main Logs Feed (8 columns) */}
+                <div className="col-lg-8">
+                  {/* Stats Cards - Horizontal on main column */}
+                  <div className="mb-3">
+                    <StatCards 
+                      stats={stats} 
+                      selectedLevel={filters.level === 'all' ? null : filters.level}
+                      onLevelClick={(level) => {
+                        setFilters({ 
+                          ...filters, 
+                          level: filters.level === level ? 'all' : level 
+                        });
+                      }}
+                    />
+                  </div>
 
-              <div className="row mt-4">
-                <div className="col-12">
+                  {/* Logs Feed Card */}
                   <div className="frosted-card p-4">
                     <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h5 className="mb-0">Recent Logs ({filteredLogs.length})</h5>
+                      <h5 className="mb-0">
+                        <i className="bi bi-list-ul me-2"></i>
+                        Logs Feed ({filteredLogs.length})
+                      </h5>
                       <div className="d-flex gap-2 align-items-center">
                         <div className="form-check form-switch">
                           <input
@@ -363,23 +561,9 @@ export default function HealthPage() {
 
                     {/* Filters */}
                     <div className="row mb-3">
-                      <div className="col-md-3">
+                      <div className="col-md-4">
                         <select
-                          className="form-select form-select-sm"
-                          value={filters.level}
-                          onChange={(e) => setFilters({ ...filters, level: e.target.value })}
-                        >
-                          <option value="all">All Levels</option>
-                          <option value="debug">Debug</option>
-                          <option value="info">Info</option>
-                          <option value="warning">Warning</option>
-                          <option value="error">Error</option>
-                          <option value="critical">Critical</option>
-                        </select>
-                      </div>
-                      <div className="col-md-3">
-                        <select
-                          className="form-select form-select-sm"
+                          className="form-select form-select-sm bg-dark text-light border-secondary"
                           value={filters.service}
                           onChange={(e) => setFilters({ ...filters, service: e.target.value })}
                         >
@@ -389,15 +573,24 @@ export default function HealthPage() {
                           ))}
                         </select>
                       </div>
-                      <div className="col-md-6">
+                      <div className="col-md-8">
                         <input
                           type="text"
-                          className="form-control form-control-sm"
+                          className="form-control form-control-sm bg-dark text-light border-secondary"
                           placeholder="Search logs..."
                           value={filters.search}
                           onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                         />
                       </div>
+                    </div>
+
+                    {/* Phase 3: Tag Filter */}
+                    <div className="mb-3">
+                      <TagFilter
+                        availableTags={availableTags}
+                        selectedTags={selectedTags}
+                        onTagToggle={handleTagToggle}
+                      />
                     </div>
 
                     {/* Logs Cards */}
@@ -477,6 +670,135 @@ export default function HealthPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Right Column: Quick Info Sidebar (4 columns) */}
+                <div className="col-lg-4">
+                  {/* Quick Stats Card */}
+                  <div className="frosted-card p-3 mb-3">
+                    <h6 className="mb-3">
+                      <i className="bi bi-speedometer2 me-2"></i>
+                      Quick Stats
+                    </h6>
+                    <div className="d-flex flex-column gap-2">
+                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(99, 102, 241, 0.05)' }}>
+                        <span className="small">Total Logs</span>
+                        <strong>{logs.length}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(220, 38, 38, 0.05)' }}>
+                        <span className="small">Errors</span>
+                        <strong className="text-danger">{stats.error + stats.critical}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(234, 179, 8, 0.05)' }}>
+                        <span className="small">Warnings</span>
+                        <strong className="text-warning">{stats.warning}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)' }}>
+                        <span className="small">Success</span>
+                        <strong className="text-success">{stats.info + stats.debug}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active Filters Card */}
+                  {(filters.level !== 'all' || filters.service !== 'all' || filters.search || selectedTags.length > 0) && (
+                    <div className="frosted-card p-3 mb-3">
+                      <h6 className="mb-3">
+                        <i className="bi bi-funnel me-2"></i>
+                        Active Filters
+                      </h6>
+                      <div className="d-flex flex-column gap-2">
+                        {filters.level !== 'all' && (
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="small">Level:</span>
+                            <span className={`badge bg-${getLevelColor(filters.level)}`}>
+                              {filters.level.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        {filters.service !== 'all' && (
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="small">Service:</span>
+                            <code className="small text-primary">{filters.service}</code>
+                          </div>
+                        )}
+                        {filters.search && (
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="small">Search:</span>
+                            <code className="small">{filters.search}</code>
+                          </div>
+                        )}
+                        {selectedTags.length > 0 && (
+                          <div className="d-flex flex-column gap-1">
+                            <span className="small">Tags:</span>
+                            <div className="d-flex flex-wrap gap-1">
+                              {selectedTags.map(tag => (
+                                <span key={tag} className="badge bg-secondary small">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <button 
+                          className="btn btn-sm btn-outline-secondary mt-2"
+                          onClick={() => {
+                            setFilters({ level: 'all', service: 'all', search: '' });
+                            setSelectedTags([]);
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Clear All
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Critical Events Card */}
+                  <div className="frosted-card p-3">
+                    <h6 className="mb-3">
+                      <i className="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                      Critical Events
+                    </h6>
+                    <div className="d-flex flex-column gap-2">
+                      {logs.filter(log => log.level === 'error' || log.level === 'critical')
+                        .slice(0, 5)
+                        .map(log => (
+                          <div 
+                            key={log.id}
+                            className="p-2 rounded"
+                            style={{ 
+                              backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                              borderLeft: '3px solid var(--bs-danger)',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => handleViewDetails(log)}
+                          >
+                            <div className="d-flex justify-content-between align-items-start mb-1">
+                              <small className="text-muted">{formatTimestamp(log.created_at)}</small>
+                              <span className={`badge badge-sm bg-${getLevelColor(log.level)}`}>
+                                {log.level}
+                              </span>
+                            </div>
+                            <div className="small" style={{ 
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical'
+                            }}>
+                              {log.message}
+                            </div>
+                          </div>
+                        ))}
+                      {logs.filter(log => log.level === 'error' || log.level === 'critical').length === 0 && (
+                        <div className="text-center py-3 text-muted small">
+                          <i className="bi bi-check-circle me-1"></i>
+                          No critical events
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -552,17 +874,75 @@ export default function HealthPage() {
               </div>
             )}
 
-            {/* Tags Section */}
-            {selectedLog.tags && selectedLog.tags.length > 0 && (
-              <div className="mb-3">
+            {/* Tags Section - Phase 3: Enhanced with Manual Management */}
+            <div className="mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-2">
                 <strong>Tags:</strong>
-                <div className="mt-2">
-                  {selectedLog.tags.map((tag, idx) => (
-                    <span key={idx} className="badge bg-secondary me-2">{tag}</span>
-                  ))}
-                </div>
               </div>
-            )}
+              
+              {/* Display existing tags with remove button */}
+              <div className="mb-2">
+                {selectedLog.tags && selectedLog.tags.length > 0 ? (
+                  <div className="d-flex flex-wrap gap-2">
+                    {selectedLog.tags.map((tag, idx) => (
+                      <span 
+                        key={idx} 
+                        className="badge bg-secondary d-flex align-items-center"
+                        style={{ fontSize: '0.9rem' }}
+                      >
+                        {tag}
+                        <button
+                          className="btn-close btn-close-white ms-2"
+                          style={{ fontSize: '0.6rem' }}
+                          onClick={() => handleRemoveTag(selectedLog.id, tag)}
+                          title="Remove tag"
+                          aria-label={`Remove ${tag} tag`}
+                        ></button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-muted small">No tags yet</div>
+                )}
+              </div>
+
+              {/* Add new tag input */}
+              <div className="input-group input-group-sm">
+                <input
+                  type="text"
+                  className={`form-control ${theme === 'dark' ? 'bg-dark text-light border-secondary' : ''}`}
+                  placeholder="Add a tag (e.g., investigated, resolved)"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddTag(selectedLog.id, newTagInput);
+                    }
+                  }}
+                  disabled={addingTag}
+                />
+                <button
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => handleAddTag(selectedLog.id, newTagInput)}
+                  disabled={addingTag || !newTagInput.trim()}
+                >
+                  {addingTag ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1"></span>
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-plus-circle me-1"></i>
+                      Add Tag
+                    </>
+                  )}
+                </button>
+              </div>
+              <small className="text-muted">
+                Tags help categorize and filter logs. Press Enter or click Add Tag.
+              </small>
+            </div>
 
             {/* AI Insights Section */}
             <div className="mb-3">

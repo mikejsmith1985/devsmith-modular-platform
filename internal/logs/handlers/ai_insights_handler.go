@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
 
 // AIInsightsHandler handles AI insights API requests
@@ -34,7 +34,18 @@ func (h *AIInsightsHandler) GenerateInsights(c *gin.Context) {
 		Model string `json:"model" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Model is required"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body - model parameter is required",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Additional validation: check if model is empty string
+	if req.Model == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Model parameter cannot be empty",
+		})
 		return
 	}
 
