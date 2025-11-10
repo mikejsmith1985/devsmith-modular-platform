@@ -242,6 +242,19 @@ func main() {
 	router.POST("/api/logs/analyze", analysisHandler.AnalyzeLog)
 	router.POST("/api/logs/classify", analysisHandler.ClassifyLog)
 
+	// Phase 2: AI Insights - Initialize AI insights services
+	aiInsightsRepo := logs_db.NewAIInsightsRepository(dbConn)
+	ollamaAdapter := logs_services.NewOllamaAdapter(ollamaClient)
+	logRepoAdapter := logs_services.NewLogRepositoryAdapter(logRepo)
+	aiInsightsService := logs_services.NewAIInsightsService(ollamaAdapter, logRepoAdapter, aiInsightsRepo)
+	aiInsightsHandler := internal_logs_handlers.NewAIInsightsHandler(aiInsightsService)
+
+	// AI insights endpoints
+	router.POST("/api/logs/:id/insights", aiInsightsHandler.GenerateInsights)
+	router.GET("/api/logs/:id/insights", aiInsightsHandler.GetInsights)
+
+	log.Println("AI insights service initialized - ready for log analysis")
+
 	// Health Monitoring Dashboard - Real-time metrics and alerts
 	metricsCollector := monitoring.NewSQLMetricsCollector(dbConn)
 	monitoringHandler := internal_logs_handlers.NewMonitoringHandler(metricsCollector)

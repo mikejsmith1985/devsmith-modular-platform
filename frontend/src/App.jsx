@@ -44,6 +44,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/logs" element={<Navigate to="/health" replace />} />
           <Route
             path="/review"
             element={

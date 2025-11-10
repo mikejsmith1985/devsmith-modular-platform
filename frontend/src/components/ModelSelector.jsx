@@ -24,6 +24,13 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
             provider: config.provider,
             isDefault: config.is_default
           }));
+          
+          // Sort models: default first, then alphabetically by display name
+          modelList.sort((a, b) => {
+            if (a.isDefault && !b.isDefault) return -1;
+            if (!a.isDefault && b.isDefault) return 1;
+            return a.displayName.localeCompare(b.displayName);
+          });
         } else {
           console.warn('Unexpected AI Factory response format:', response);
         }
