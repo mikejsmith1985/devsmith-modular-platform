@@ -12,7 +12,7 @@ services:
       dockerfile: Dockerfile
       no_cache: true  # Force rebuild every time
       args:
-        VITE_GITHUB_CLIENT_ID: ${VITE_GITHUB_CLIENT_ID}
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        VITE_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}  # Must match main docker-compose.yml
+        VITE_API_URL: http://localhost:3000
         # Add build timestamp as arg to bust cache
         BUILD_TIMESTAMP: "${BUILD_TIMESTAMP:-$(date +%s)}"

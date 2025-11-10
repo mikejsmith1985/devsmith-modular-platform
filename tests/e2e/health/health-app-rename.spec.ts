@@ -14,8 +14,14 @@ import { test, expect } from '../fixtures/auth.fixture';
 test.describe('Phase 0: Health App Rename', () => {
   
   test.beforeEach(async ({ authenticatedPage }) => {
-    // Navigate to dashboard
-    await authenticatedPage.goto('http://localhost:3000');
+    // Clear browser cache to ensure fresh page load
+    const context = authenticatedPage.context();
+    await context.clearCookies();
+    await context.clearPermissions();
+    
+    // Navigate to dashboard with cache-busting parameter
+    const timestamp = Date.now();
+    await authenticatedPage.goto(`http://localhost:3000?cb=${timestamp}`);
     
     // Wait for dashboard to load
     await authenticatedPage.waitForLoadState('networkidle');

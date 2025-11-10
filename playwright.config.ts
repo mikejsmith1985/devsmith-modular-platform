@@ -66,7 +66,13 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: 10000,
-    extraHTTPHeaders: getAuthHeader(),
+    extraHTTPHeaders: {
+      ...getAuthHeader(),
+      // Force fresh content, bypass all caches
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    },
     // Add no-sandbox flags for CI environments (GitHub Actions)
     launchOptions: process.env.CI ? {
       args: ['--no-sandbox', '--disable-setuid-sandbox']

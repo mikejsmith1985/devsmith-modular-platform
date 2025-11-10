@@ -1,10 +1,38 @@
 # Health App Enhancement Plan
 
-**Document Version:** 2.0  
+**Document Version:** 2.1  
 **Created:** 2025-11-09  
-**Updated:** 2025-11-09  
-**Status:** 📋 Ready for Implementation  
+**Updated:** 2025-11-10  
+**Status:** ⏸️ PAUSED - Blocked by Cache/Hash Crisis  
 **Estimated Time:** 2-3 hours total
+
+---
+
+## ⚠️ CRITICAL BLOCKER
+
+**Status:** Implementation PAUSED due to architectural cache invalidation issue
+
+**Problem:**
+- Browser/Playwright caching old HTML with stale JS hash references
+- User experiencing blank screen on login
+- Tests stuck at 3/5 passing (HealthPage not rendering)
+- Multiple rebuild cycles not solving issue
+
+**Resolution Required:**
+- Implement **CACHE_SOLUTION_ARCHITECTURE.md** in new chat session
+- Apply Traefik middleware + meta tag + Playwright context fixes
+- Verify user can login (no blank screen)
+- Verify tests pass 5/5 GREEN
+- **THEN** resume Health app enhancements
+
+**Next Action:**
+1. ✅ Create new chat session
+2. ✅ Reference CACHE_SOLUTION_ARCHITECTURE.md
+3. ✅ Implement infrastructure-level cache solution
+4. ✅ Achieve 5/5 GREEN tests
+5. ⏸️ Return to this document for Phase 0 implementation
+
+---
 
 ---
 
@@ -64,14 +92,21 @@ Transform the **Logs app → Health app** with unified platform observability:
 ✅ Dark mode toggle in navbar  
 ✅ Model selector in navbar  
 
-### What Needs Improvement
-❌ App is called "Logs" instead of "Health"  
-❌ Table rows are plain - need card-based layout  
-❌ No AI insights available  
-❌ No smart tagging system  
-❌ Dark mode theming incomplete (modals, cards)  
-❌ Model selector shows alphabetical, not default first  
-❌ Monitoring and Analytics tabs show empty content (need "Coming Soon" placeholders)  
+### What's Broken (CRITICAL)
+❌ User gets blank screen on login (JS bundle 404)
+❌ Tests failing 2/5 (HealthPage not rendering)
+❌ Browser/Playwright caching old HTML with stale JS hash
+❌ Container has `index-BuElp3Z2.js`, browser requests `index-CTtGzSLX.js`
+❌ Multiple rebuild cycles not solving cache issue
+
+### What Needs Improvement (AFTER CACHE FIX)
+⏸️ App is called "Logs" instead of "Health"  
+⏸️ Table rows are plain - need card-based layout  
+⏸️ No AI insights available  
+⏸️ No smart tagging system  
+⏸️ Dark mode theming incomplete (modals, cards)  
+⏸️ Model selector shows alphabetical, not default first  
+⏸️ Monitoring and Analytics tabs show empty content (need "Coming Soon" placeholders)  
 
 ---
 
@@ -80,7 +115,28 @@ Transform the **Logs app → Health app** with unified platform observability:
 ### **Phase 0: App Rename & Navigation**
 **Priority:** CRITICAL (Do First)  
 **Time:** 15-20 minutes  
-**Status:** 🔴 Not Started
+**Status:** ⏸️ BLOCKED - Awaiting cache solution implementation
+
+**Blocker:** Cannot proceed with Phase 0 until cache/hash crisis resolved:
+- User cannot access application (blank screen on login)
+- Tests failing 2/5 (HealthPage not rendering due to JS 404)
+- Browser/Playwright serving cached HTML with old JS hash references
+
+**Dependencies:**
+1. ✅ CACHE_SOLUTION_ARCHITECTURE.md must be implemented first
+2. ✅ User must be able to login without blank screen
+3. ✅ Tests must achieve 5/5 GREEN baseline
+4. ⏸️ Then proceed with Phase 0 rename tasks
+
+**Why Blocked:**
+- Renaming LogsPage → HealthPage requires tests to pass
+- Cannot validate rename if tests are failing due to cache issues
+- Risk of confusing cache problems with rename implementation bugs
+- Elite architect approach: Fix foundation before building
+
+---
+
+**Original Phase 0 Tasks** (TO BE IMPLEMENTED AFTER CACHE FIX):
 
 #### 0.1 Rename App in Portal Dashboard
 **Goal:** Update Portal to show "Health" instead of "Logs"
@@ -1096,23 +1152,42 @@ const handleTagToggle = (tag) => {
 
 ## 🚀 Next Steps
 
-1. **Review this document** in the editor
-2. **Start new chat** with context:
-   - "Implement Phase 0 of LOGS_ENHANCEMENT_PLAN.md (Health app rename)"
-   - Or "Implement Phase 1 of LOGS_ENHANCEMENT_PLAN.md (Card layout)"
-   - Or "Implement all phases of LOGS_ENHANCEMENT_PLAN.md"
+### Immediate Actions (NEW CHAT SESSION REQUIRED)
 
-3. **Implementation order:**
-   - **Phase 0** (App rename and tab structure) - MUST DO FIRST
-   - **Phase 1** (Core UX - card layout, modal, default model fix)
-   - **Phase 2** (AI insights)
-   - **Phase 3** (Smart tags)
+1. **✅ Create New Chat Session**
+   - Context: "Implement CACHE_SOLUTION_ARCHITECTURE.md"
+   - Goal: Fix blank screen / cache/hash crisis
+   - Target: 5/5 GREEN tests, user can login
 
-4. **After Phase 0:** User should see:
-   - Portal dashboard with "Health" card (no "Analytics" card)
-   - Health page with three tabs
-   - Monitoring and Analytics tabs showing "Coming Soon"
-   - Logs tab showing existing functionality (table view until Phase 1)
+2. **✅ Implement Cache Solution (Phase 1-3 from CACHE_SOLUTION_ARCHITECTURE.md)**
+   - Phase 1: Traefik middleware + HTML meta tags (30 min)
+   - Phase 2: Playwright fresh context per test (15 min)
+   - Phase 3: Verification + documentation (15 min)
+
+3. **✅ Verify Success Criteria**
+   - User can login without blank screen
+   - Tests pass 5/5 GREEN
+   - No manual cache clearing required
+   - Platform-wide solution (not just Health app)
+
+4. **⏸️ THEN Return to Health App Implementation**
+   - Start with: "Implement Phase 0 of LOGS_ENHANCEMENT_PLAN.md"
+   - Prerequisites: Cache solution complete, 5/5 GREEN baseline
+   - Fresh start with clean foundation
+
+### Health App Implementation Order (AFTER CACHE FIX)
+
+1. **Phase 0** (App rename and tab structure) - MUST DO FIRST
+   - Rename "Logs" → "Health" in Portal dashboard
+   - Update routing `/logs` → `/health`
+   - Add three-tab navigation (Logs/Monitoring/Analytics)
+   - Remove MonitoringDashboard component
+
+2. **Phase 1** (Logs tab UX) - Card layout, detail modal, default model fix
+
+3. **Phase 2** (AI insights) - Generate insights, cache results
+
+4. **Phase 3** (Smart tags) - Auto-tagging, filtering UI
 
 ---
 

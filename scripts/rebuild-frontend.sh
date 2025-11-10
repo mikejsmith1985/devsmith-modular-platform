@@ -11,20 +11,32 @@ set -e
 
 echo "🔨 Rebuilding frontend with NO CACHE..."
 
-# Stop and remove old container
+# Step 1: Clean old build artifacts in frontend/dist
+echo "  1️⃣  Cleaning old builds..."
+rm -rf frontend/dist
+
+# Step 2: Build frontend fresh
+echo "  2️⃣  Building frontend..."
+cd frontend && npm run build && cd ..
+
+# Step 3: Stop and remove old container
+echo "  3️⃣  Stopping old container..."
 docker-compose down frontend
 
-# Force rebuild with no cache
-docker-compose build --no-cache frontend
+# Step 4: Force rebuild with no cache using dev-nocache override
+echo "  4️⃣  Rebuilding Docker container (no cache)..."
+export BUILD_TIMESTAMP=$(date +%s)
+docker-compose -f docker-compose.yml -f docker-compose.dev-nocache.yml build frontend
 
-# Start the new container
+# Step 5: Start the new container
+echo "  5️⃣  Starting new container..."
 docker-compose up -d frontend
 
 # Give it a moment to start
 sleep 3
 
 # Restart Traefik to clear any routing cache
-echo "🔄 Restarting Traefik to clear routing cache..."
+echo "  6️⃣  Restarting Traefik to clear routing cache..."
 docker-compose restart traefik
 sleep 2
 
@@ -53,3 +65,10 @@ echo ""
 echo "🌐 Frontend is available at:"
 echo "   http://localhost:3000 (through gateway - ALWAYS USE THIS)"
 echo "   http://localhost:5173 (direct - for debugging only)"
+echo ""
+echo "⚠️  IMPORTANT: If you still see old code in browser:"
+echo "   1. Hard refresh: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)"
+echo "   2. Or clear browser cache: Ctrl+Shift+Delete"
+echo "   3. Or use incognito/private window"
+echo "   4. Or add cache buster: http://localhost:3000/?cb=$(date +%s)"
+echo ""

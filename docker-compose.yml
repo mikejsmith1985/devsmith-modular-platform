@@ -81,6 +81,7 @@ services:
       args:
         VITE_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
         VITE_API_URL: http://localhost:3000
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-1731272400}
     container_name: devsmith-frontend
     ports:
       - "5173:80"
@@ -98,6 +99,13 @@ services:
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.priority=2147483647"  # Max priority to override Traefik dashboard
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      # Traefik Middleware - Layer 1: Infrastructure-level cache invalidation
+      # Reference: CACHE_SOLUTION_ARCHITECTURE.md
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, max-age=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Pragma=no-cache"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Expires=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.X-Cache-Invalidate=always"
+      - "traefik.http.routers.frontend.middlewares=html-nocache@docker"
 
   portal:
     build:
