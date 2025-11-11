@@ -1071,9 +1071,9 @@ export default function HealthPage() {
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => generateAIInsights(selectedLog.id)}
-                  disabled={loadingInsights}
+                  disabled={loadingInsights || isGenerating}
                 >
-                  {loadingInsights ? (
+                  {(loadingInsights || isGenerating) ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2"></span>
                       Analyzing...
