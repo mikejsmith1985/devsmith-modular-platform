@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -336,8 +337,9 @@ func HandleGitHubOAuthLogin(c *gin.Context) {
 
 	// Add prompt=consent to force GitHub to re-prompt for authorization
 	// This prevents stale state issues when GitHub caches previous authorizations
+	// URL-encode the state parameter to preserve = padding through GitHub redirect
 	redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=read:user%%20user:email&prompt=consent",
-		clientID, state)
+		clientID, url.QueryEscape(state))
 
 	log.Printf("[OAUTH] Step 2: Redirecting to GitHub with state=%s (forced consent)", state)
 	c.Redirect(http.StatusFound, redirectURL)
