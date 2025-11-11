@@ -212,17 +212,9 @@ const fetchAvailableTags = async () => {
   const applyFilters = useCallback(() => {
     let filtered = [...logs];
     
-    // Phase 4 Fix: Normalize all level comparisons to uppercase for consistency
-    if (filters.level !== 'all') {
-      filtered = filtered.filter(log => 
-        log.level.toUpperCase() === filters.level.toUpperCase()
-      );
-    }
-    
-    // Filter by service
-    if (filters.service !== 'all') {
-      filtered = filtered.filter(log => log.service === filters.service);
-    }
+    // NOTE: Level and service filtering already handled by backend API
+    // Backend filters: /api/logs?level=${filters.level}&service=${filters.service}
+    // Frontend only needs to filter by search terms and tags (not handled by backend)
     
     // Filter by search term
     if (filters.search) {
