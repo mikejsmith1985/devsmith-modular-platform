@@ -12,16 +12,16 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
     const loadModels = async () => {
       try {
         setLoading(true);
-        // Use AI Factory endpoint instead of ollama list
+        // Use AI Factory endpoint (Portal LLM configs)
         const response = await apiRequest('/api/portal/llm-configs');
-        console.log('AI Factory response:', response);
+        console.log('LLM configs response:', response);
         
         let modelList = [];
         if (Array.isArray(response)) {
-          // Transform AI Factory configs to model selector format
+          // Transform Portal LLM configs to model selector format
           modelList = response.map(config => ({
-            name: config.model_name,
-            displayName: config.display_name || config.model_name,
+            name: config.model || config.model_name,                    // Backend uses "model", fallback to "model_name"
+            displayName: config.name || config.display_name || config.model || config.model_name,  // Backend computes "name" field
             provider: config.provider,
             isDefault: config.is_default
           }));
@@ -33,13 +33,13 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
             return a.displayName.localeCompare(b.displayName);
           });
         } else {
-          console.warn('Unexpected AI Factory response format:', response);
+          console.warn('Unexpected LLM configs response format:', response);
         }
 
         setModels(modelList);
-        console.log('Models loaded from AI Factory:', modelList);
+        console.log('Models loaded from Portal:', modelList);
         
-        // Auto-select default model from AI Factory
+        // Auto-select default model from Portal
         if (!selectedModel && modelList.length > 0) {
           const defaultModel = modelList.find(m => m.isDefault);
           if (defaultModel) {
@@ -52,13 +52,13 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
           }
         }
       } catch (err) {
-        console.error('Failed to load AI Factory models:', err);
+        console.error('Failed to load Portal LLM configs:', err);
         setError(err.message);
         // Fallback to default models with recommended first
         const defaultModels = [
-          { name: 'qwen2.5-coder:7b-instruct-q4_K_M', description: 'Qwen 2.5 Coder 7B (Recommended for 8GB VRAM)', provider: 'Ollama', isDefault: true },
-          { name: 'mistral:7b-instruct', description: 'Mistral 7B', provider: 'Ollama' },
-          { name: 'deepseek-coder-v2:16b-lite-instruct-q4_K_M', description: 'DeepSeek Coder V2 16B (Requires 16GB+ VRAM)', provider: 'Ollama' }
+          { name: 'qwen2.5-coder:7b-instruct-q4_K_M', displayName: 'Qwen 2.5 Coder 7B (Recommended for 8GB VRAM)', provider: 'Ollama', isDefault: true },
+          { name: 'mistral:7b-instruct', displayName: 'Mistral 7B', provider: 'Ollama' },
+          { name: 'deepseek-coder-v2:16b-lite-instruct-q4_K_M', displayName: 'DeepSeek Coder V2 16B (Requires 16GB+ VRAM)', provider: 'Ollama' }
         ];
         setModels(defaultModels);
         if (!selectedModel) {

@@ -25,7 +25,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/github/callback" element={<OAuthCallback />} />
+          <Route path="/oauth/pkce-callback" element={<OAuthCallback />} />
           <Route
             path="/"
             element={

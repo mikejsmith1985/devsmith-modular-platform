@@ -7,6 +7,7 @@ import StatCards from './StatCards';
 import ModelSelector from './ModelSelector';
 import TagFilter from './TagFilter';
 import { logError, logWarning, logInfo } from '../utils/logger';
+import { apiRequest } from '../utils/api';
 
 export default function HealthPage() {
   const { user, logout } = useAuth();
@@ -28,7 +29,7 @@ export default function HealthPage() {
     service: 'all',
     search: ''
   });
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);  // OFF by default - Phase 1 fix
   const [selectedModel, setSelectedModel] = useState('');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
@@ -47,9 +48,10 @@ export default function HealthPage() {
     fetchData();
     fetchAvailableTags(); // Phase 3: Load available tags
     
-    // Auto-refresh every 5 seconds if enabled
+    // Auto-refresh every 60 seconds (only if explicitly enabled)
+    // Disabled by default for better performance
     if (autoRefresh && activeTab === 'logs') {
-      const interval = setInterval(fetchData, 5000);
+      const interval = setInterval(() => fetchData(true), 60000); // 60s interval, background refresh
       return () => clearInterval(interval);
     }
   }, [autoRefresh, activeTab]);
@@ -59,40 +61,25 @@ export default function HealthPage() {
   }, [logs, filters, selectedTags]); // Depend on actual values, not the callback
 
 
-  const fetchData = async () => {
+  const fetchData = async (isBackgroundRefresh = false) => {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not during background refresh
+      if (!isBackgroundRefresh) {
+        setLoading(true);
+      }
       
-      // Fetch both stats and logs in parallel
-      const [statsResponse, logsResponse] = await Promise.all([
-        fetch('http://localhost:3000/api/logs/v1/stats', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
-          }
-        }),
-        fetch('http://localhost:3000/api/logs?limit=100', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
-          }
-        })
+      // Fetch both stats and logs in parallel using apiRequest
+      const [statsData, logsData] = await Promise.all([
+        apiRequest('/api/logs/v1/stats'),
+        apiRequest('/api/logs?limit=100')
       ]);
-
-      if (!statsResponse.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-      
-      if (!logsResponse.ok) {
-        throw new Error('Failed to fetch logs');
-      }
-
-      const statsData = await statsResponse.json();
-      const logsData = await logsResponse.json();
       
       setStats(statsData);
       setLogs(logsData.entries || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching data:', err);
+      logError('Health page data fetch failed', { error: err.message });
       setError(err.message);
     } finally {
       setLoading(false);
@@ -102,18 +89,11 @@ export default function HealthPage() {
   // Phase 3: Fetch available tags
   const fetchAvailableTags = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/logs/tags', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableTags(data.tags || []);
-      }
+      const data = await apiRequest('/api/logs/tags');
+      setAvailableTags(data.tags || []);
     } catch (error) {
       console.error('Error fetching tags:', error);
+      logWarning('Failed to fetch log tags', { error: error.message });
     }
   };
 
@@ -245,8 +225,13 @@ export default function HealthPage() {
         action: 'generate_insights_start'
       });
 
+      // Create abort controller for 60 second timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
       // Call backend to generate AI insights
       const response = await fetch(`/api/logs/${logId}/insights`, {
+        signal: controller.signal,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -255,6 +240,8 @@ export default function HealthPage() {
           model: selectedModel
         })
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -285,20 +272,41 @@ export default function HealthPage() {
     } catch (error) {
       console.error('Error generating AI insights:', error);
       
-      // Log to backend if not already logged
-      if (!error.logged) {
-        logError(error, {
+      // Check if it was a timeout
+      if (error.name === 'AbortError') {
+        const timeoutMsg = 'AI analysis timed out after 60 seconds. Try a smaller/faster model or retry when server is less busy.';
+        
+        logError(new Error(timeoutMsg), {
           log_id: logId,
           model: selectedModel,
-          action: 'generate_insights_error'
+          action: 'generate_insights_timeout'
+        });
+        
+        setAiInsights({
+          analysis: `⏱️ ${timeoutMsg}`,
+          root_cause: 'Request exceeded 60 second timeout limit',
+          suggestions: [
+            'Try a smaller model like qwen2.5-coder:7b-instruct-q4_K_M',
+            'Check server logs for model loading issues',
+            'Retry in a few minutes when server is less busy'
+          ]
+        });
+      } else {
+        // Log to backend if not already logged
+        if (!error.logged) {
+          logError(error, {
+            log_id: logId,
+            model: selectedModel,
+            action: 'generate_insights_error'
+          });
+        }
+        
+        setAiInsights({
+          analysis: `Error: ${error.message}`,
+          root_cause: null,
+          suggestions: []
         });
       }
-      
-      setAiInsights({
-        analysis: `Error: ${error.message}`,
-        root_cause: null,
-        suggestions: []
-      });
     } finally {
       setLoadingInsights(false);
     }
@@ -310,18 +318,10 @@ export default function HealthPage() {
     
     setAddingTag(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/logs/${logId}/tags`, {
+      await apiRequest(`/api/logs/${logId}/tags`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
-        },
-        body: JSON.stringify({ tag: tag.trim() })
+        body: { tag: tag.trim() }
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to add tag');
-      }
 
       // Update the selected log with new tag
       const updatedLog = {
@@ -353,16 +353,9 @@ export default function HealthPage() {
   // Phase 3: Remove tag from log entry
   const handleRemoveTag = async (logId, tag) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/logs/${logId}/tags/${encodeURIComponent(tag)}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('devsmith_token')}`
-        }
+      await apiRequest(`/api/logs/${logId}/tags/${encodeURIComponent(tag)}`, {
+        method: 'DELETE'
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to remove tag');
-      }
 
       // Update the selected log without the removed tag
       const updatedLog = {
@@ -382,6 +375,11 @@ export default function HealthPage() {
       await fetchAvailableTags();
     } catch (error) {
       console.error('Error removing tag:', error);
+      logError(error, {
+        log_id: logId,
+        tag,
+        action: 'remove_tag_failed'
+      });
       alert(`Failed to remove tag: ${error.message}`);
     }
   };

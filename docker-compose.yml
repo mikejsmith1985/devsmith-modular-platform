@@ -121,7 +121,7 @@ services:
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-dev-encryption-key-32-chars-min}
-      - REDIRECT_URI=http://localhost:3000/auth/github/callback
+      - REDIRECT_URI=http://localhost:3000/oauth/pkce-callback
       - ENABLE_TEST_AUTH=true
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker

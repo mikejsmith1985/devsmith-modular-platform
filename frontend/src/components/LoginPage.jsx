@@ -41,7 +41,7 @@ export default function LoginPage() {
       // Build GitHub OAuth URL with PKCE
       const params = new URLSearchParams({
         client_id: clientId,
-        redirect_uri: window.location.origin + '/auth/github/callback',
+        redirect_uri: window.location.origin + '/oauth/pkce-callback',
         scope: 'user:email read:user',
         state: encryptedState, // Contains encrypted verifier + timestamp + nonce
         code_challenge: codeChallenge,
