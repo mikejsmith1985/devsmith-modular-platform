@@ -204,6 +204,9 @@ func (r *LogEntryRepository) Create(ctx context.Context, entry *logs_models.LogE
 		metadataBytes = []byte("{}")
 	}
 
+	// Phase 2: Normalize level to uppercase to prevent mixed case corruption
+	entry.Level = strings.ToUpper(entry.Level)
+
 	query := `INSERT INTO logs.log_entries (user_id, service, level, message, metadata) 
 	         VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`
 
