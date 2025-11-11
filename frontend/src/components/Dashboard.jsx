@@ -86,6 +86,18 @@ export default function Dashboard() {
             </div>
           </Link>
         </div>
+
+        <div className="col-md-6 col-lg-3 mb-4">
+          <Link to="/projects" className="text-decoration-none">
+            <div className="frosted-card p-4 text-center h-100">
+              <i className="bi bi-folder2-open mb-3" style={{fontSize: '3.3rem', color: '#f59e0b'}}></i>
+              <h5 className="mb-3">Projects</h5>
+              <p className="mb-0" style={{fontSize: '0.9rem'}}>
+                Manage cross-repo logging projects and API keys
+              </p>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );

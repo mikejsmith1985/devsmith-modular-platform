@@ -6,6 +6,7 @@ import HealthPage from './components/HealthPage';
 import ReviewPage from './components/ReviewPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import LLMConfigPage from './pages/LLMConfigPage';
+import ProjectsPage from './pages/ProjectsPage';
 import LoginPage from './components/LoginPage';
 import OAuthCallback from './components/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -71,6 +72,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <LLMConfigPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />

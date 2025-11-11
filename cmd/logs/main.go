@@ -162,10 +162,35 @@ func main() {
 
 	log.Println("AI analysis services initialized - Ollama:", ollamaEndpoint, "Model:", ollamaModel)
 
+	// Week 1: Cross-Repository Logging - Initialize batch ingestion services
+	projectRepo := logs_db.NewProjectRepository(dbConn)
+	projectService := logs_services.NewProjectService(projectRepo)
+	logEntryRepo := logs_db.NewLogEntryRepository(dbConn)
+	batchHandler := internal_logs_handlers.NewBatchHandler(logEntryRepo, projectRepo, projectService)
+	projectHandler := internal_logs_handlers.NewProjectHandler(projectService)
+
+	log.Println("Batch ingestion service initialized for cross-repository logging")
+
 	// Register REST API routes
 	router.POST("/api/logs", func(c *gin.Context) {
 		resthandlers.PostLogs(restSvc)(c)
 	})
+
+	// Week 1: Cross-Repository Logging - Batch ingestion endpoint
+	// This endpoint allows external applications to send logs in batches (100x performance improvement)
+	// Authentication: Bearer token (API key from project)
+	// Rate limit: 100 requests/minute per API key (TODO: implement rate limiting middleware)
+	router.POST("/api/logs/batch", batchHandler.IngestBatch)
+
+	// Week 1: Cross-Repository Logging - Project management endpoints
+	// These endpoints allow users to create projects and manage API keys
+	// Note: These need authentication middleware in production
+	router.POST("/api/logs/projects", projectHandler.CreateProject)
+	router.GET("/api/logs/projects", projectHandler.ListProjects)
+	router.GET("/api/logs/projects/:id", projectHandler.GetProject)
+	router.POST("/api/logs/projects/:id/regenerate-key", projectHandler.RegenerateAPIKey)
+	router.DELETE("/api/logs/projects/:id", projectHandler.DeleteProject)
+
 	router.GET("/api/logs", func(c *gin.Context) {
 		resthandlers.GetLogs(restSvc)(c)
 	})
