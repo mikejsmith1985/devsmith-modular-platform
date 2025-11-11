@@ -35,6 +35,7 @@ export default function HealthPage() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);  // Phase 4: Prevent concurrent AI requests
   
   // Phase 3: WebSocket connection state
   const [wsConnected, setWsConnected] = useState(false);
@@ -182,9 +183,11 @@ export default function HealthPage() {
   const applyFilters = useCallback(() => {
     let filtered = [...logs];
     
-    // Filter by level
+    // Phase 4 Fix: Normalize all level comparisons to uppercase for consistency
     if (filters.level !== 'all') {
-      filtered = filtered.filter(log => log.level.toLowerCase() === filters.level.toLowerCase());
+      filtered = filtered.filter(log => 
+        log.level.toUpperCase() === filters.level.toUpperCase()
+      );
     }
     
     // Filter by service
@@ -263,20 +266,22 @@ export default function HealthPage() {
 
   const fetchExistingInsights = async (logId) => {
     try {
-      const response = await fetch(`/api/logs/${logId}/insights`);
-      console.log('GET /insights response status:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('GET /insights data:', data);
-        setAiInsights(data);
-        
-        logInfo('Fetched existing AI insights', {
-          log_id: logId,
-          action: 'fetch_insights_success'
-        });
-      }
-      // If 404, no insights exist yet (that's okay)
+      // Phase 4 Fix: Use apiRequest() for connection pooling
+      const data = await apiRequest(`/api/logs/${logId}/insights`);
+      console.log('GET /insights data:', data);
+      setAiInsights(data);
+      
+      logInfo('Fetched existing AI insights', {
+        log_id: logId,
+        action: 'fetch_insights_success'
+      });
     } catch (error) {
+      // If 404, no insights exist yet (that's okay, no need to log)
+      if (error.status === 404) {
+        console.log('No existing insights found for log', logId);
+        return;
+      }
+      
       console.error('Error fetching existing insights:', error);
       logWarning('Failed to fetch existing insights', {
         log_id: logId,
@@ -287,7 +292,15 @@ export default function HealthPage() {
   };
 
   const generateAIInsights = async (logId) => {
+    // Phase 4 Fix: Prevent concurrent AI requests (debouncing)
+    if (isGenerating) {
+      console.log('Already generating insights, ignoring duplicate request');
+      return;
+    }
+    
     setLoadingInsights(true);
+    setIsGenerating(true);
+    
     try {
       logInfo('Generating AI insights', {
         log_id: logId,
@@ -295,41 +308,18 @@ export default function HealthPage() {
         action: 'generate_insights_start'
       });
 
-      // Create abort controller for 60 second timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      // Call backend to generate AI insights
-      const response = await fetch(`/api/logs/${logId}/insights`, {
-        signal: controller.signal,
+      // Phase 4 Fix: Use apiRequest() for connection pooling and timeout handling
+      const data = await apiRequest(`/api/logs/${logId}/insights`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: selectedModel
-        })
+        }),
+        timeout: 60000  // 60 second timeout
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        const error = new Error(`Failed to generate insights: ${response.statusText}`);
-        
-        // Log the error with full context
-        logError(error, {
-          log_id: logId,
-          model: selectedModel,
-          status_code: response.status,
-          response_body: errorText,
-          action: 'generate_insights_failed'
-        });
-        
-        throw error;
-      }
-
-      const data = await response.json();
       console.log('POST /insights response:', data);
       setAiInsights(data);
       console.log('State updated with insights:', data);
@@ -343,7 +333,7 @@ export default function HealthPage() {
       console.error('Error generating AI insights:', error);
       
       // Check if it was a timeout
-      if (error.name === 'AbortError') {
+      if (error.name === 'AbortError' || error.message?.includes('timeout')) {
         const timeoutMsg = 'AI analysis timed out after 60 seconds. Try a smaller/faster model or retry when server is less busy.';
         
         logError(new Error(timeoutMsg), {
@@ -358,27 +348,32 @@ export default function HealthPage() {
           suggestions: [
             'Try a smaller model like qwen2.5-coder:7b-instruct-q4_K_M',
             'Check server logs for model loading issues',
-            'Retry in a few minutes when server is less busy'
+            'Retry when server is less busy'
           ]
         });
       } else {
-        // Log to backend if not already logged
-        if (!error.logged) {
-          logError(error, {
-            log_id: logId,
-            model: selectedModel,
-            action: 'generate_insights_error'
-          });
-        }
+        // Log the actual error with full context
+        logError(error, {
+          log_id: logId,
+          model: selectedModel,
+          status_code: error.status,
+          error_message: error.message,
+          action: 'generate_insights_failed'
+        });
         
         setAiInsights({
-          analysis: `Error: ${error.message}`,
-          root_cause: null,
-          suggestions: []
+          analysis: `❌ Failed to generate insights: ${error.message}`,
+          root_cause: 'AI service error',
+          suggestions: [
+            'Check that the AI model is running',
+            'Verify model name is correct',
+            'Check server logs for details'
+          ]
         });
       }
     } finally {
       setLoadingInsights(false);
+      setIsGenerating(false);  // Phase 4: Re-enable after completion
     }
   };
 
