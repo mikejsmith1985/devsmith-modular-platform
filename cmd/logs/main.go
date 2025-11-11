@@ -285,14 +285,12 @@ func main() {
 	alertEngine.Start()
 	defer alertEngine.Stop()
 
-	// TODO: Re-enable after frontend WebSocket implementation (Phase 3)
-	// WebSocket hub temporarily disabled to prevent memory leak
-	// See HEALTH_APP_ROOT_CAUSE_ANALYSIS.md for details
-	// hub := logs_services.NewWebSocketHub()
-	// go hub.Run()
+	// Phase 3: WebSocket hub re-enabled with frontend connection
+	hub := logs_services.NewWebSocketHub()
+	go hub.Run()
 
-	// Register WebSocket routes (temporarily disabled)
-	// logs_services.RegisterWebSocketRoutes(router, hub)
+	// Register WebSocket routes
+	logs_services.RegisterWebSocketRoutes(router, hub)
 
 	// Health check endpoint (system-wide diagnostics)
 	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)

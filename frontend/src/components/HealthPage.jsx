@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
@@ -36,6 +36,10 @@ export default function HealthPage() {
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   
+  // Phase 3: WebSocket connection state
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef(null);
+  
   // Phase 3: Smart Tagging System
   const [availableTags, setAvailableTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState([]);
@@ -47,14 +51,80 @@ export default function HealthPage() {
   useEffect(() => {
     fetchData();
     fetchAvailableTags(); // Phase 3: Load available tags
-    
-    // Auto-refresh every 60 seconds (only if explicitly enabled)
-    // Disabled by default for better performance
-    if (autoRefresh && activeTab === 'logs') {
-      const interval = setInterval(() => fetchData(true), 60000); // 60s interval, background refresh
-      return () => clearInterval(interval);
+  }, [activeTab]); // Remove autoRefresh from dependencies - WebSocket handles updates
+
+  // Phase 3: WebSocket connection management
+  useEffect(() => {
+    if (!autoRefresh) {
+      // Disconnect WebSocket when auto-refresh OFF
+      if (wsRef.current) {
+        console.log('WebSocket: Disconnecting (auto-refresh disabled)');
+        wsRef.current.close();
+        wsRef.current = null;
+        setWsConnected(false);
+      }
+      return;
     }
-  }, [autoRefresh, activeTab]);
+
+    // Connect WebSocket when auto-refresh ON
+    const connectWebSocket = () => {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
+      
+      console.log('WebSocket: Connecting to', wsUrl);
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('WebSocket: Connected');
+        setWsConnected(true);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const newLog = JSON.parse(event.data);
+          console.log('WebSocket: Received log', newLog);
+          
+          // Add new log to the top of the list (limit to 100)
+          setLogs(prev => [newLog, ...prev].slice(0, 100));
+          
+          // Update stats incrementally
+          setStats(prev => ({
+            ...prev,
+            [newLog.level.toLowerCase()]: (prev[newLog.level.toLowerCase()] || 0) + 1
+          }));
+        } catch (error) {
+          console.error('WebSocket: Failed to parse message', error);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket: Error', error);
+        setWsConnected(false);
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket: Closed');
+        setWsConnected(false);
+        
+        // Reconnect after 5 seconds if auto-refresh still enabled
+        if (autoRefresh) {
+          console.log('WebSocket: Reconnecting in 5s...');
+          setTimeout(connectWebSocket, 5000);
+        }
+      };
+      
+      wsRef.current = ws;
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (wsRef.current) {
+        console.log('WebSocket: Cleanup - closing connection');
+        wsRef.current.close();
+      }
+    };
+  }, [autoRefresh]);
 
   useEffect(() => {
     applyFilters();
@@ -534,6 +604,13 @@ export default function HealthPage() {
                         Logs Feed ({filteredLogs.length})
                       </h5>
                       <div className="d-flex gap-2 align-items-center">
+                        {/* Phase 3: WebSocket connection status indicator */}
+                        {autoRefresh && (
+                          <span className={`badge ${wsConnected ? 'bg-success' : 'bg-secondary'}`}>
+                            <i className={`bi bi-${wsConnected ? 'check-circle' : 'x-circle'} me-1`}></i>
+                            {wsConnected ? 'Connected' : 'Disconnected'}
+                          </span>
+                        )}
                         <div className="form-check form-switch">
                           <input
                             className="form-check-input"
