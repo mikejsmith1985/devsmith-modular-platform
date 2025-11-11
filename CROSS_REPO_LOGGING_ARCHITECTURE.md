@@ -1071,15 +1071,15 @@ services:
 - [ ] Update log queries to filter by project
 - [ ] Register routes in cmd/logs/main.go
 
-### Sample Files (Week 2) ✅ 75% Complete
+### Sample Files (Week 2) ✅ 90% Complete
 - [x] JavaScript sample (docs/integrations/javascript/logger.js) - ✅ 147 lines, buffer + batch + retry
 - [x] Python sample (docs/integrations/python/logger.py) - ✅ 143 lines, threading + requests + atexit
 - [x] Go sample (docs/integrations/go/logger.go) - ✅ 226 lines, goroutine + mutex + http.Client
 - [x] Quick Start guide (docs/QUICK_START_CROSS_REPO.md) - ✅ Complete with examples for all 3 languages
 - [x] Testing guide (docs/integrations/TEST_SAMPLES.md) - ✅ Complete with validation scripts
-- [ ] Express.js framework example (Week 2 - next)
-- [ ] Flask framework example (Week 2 - next)
-- [ ] Gin framework example (Week 2 - next)
+- [x] Express.js framework example - ✅ 180 lines, middleware factory + error handler + timing
+- [x] Flask framework example - ✅ 240 lines, extension class + hooks + decorator pattern
+- [x] Gin framework example - ✅ 230 lines, middleware + panic recovery + response capture
 
 ### Frontend (Week 3)
 - [ ] Project management page
