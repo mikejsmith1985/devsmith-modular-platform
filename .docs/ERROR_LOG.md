@@ -130,14 +130,16 @@ docker exec devsmith-modular-platform-redis-1 redis-cli KEYS "oauth_state:*"
 **Prevention**: 
 1. **Always use `prompt=consent` in OAuth flows** during development to prevent GitHub from caching authorizations across container rebuilds
 2. **DO NOT blame browser cache** - GitHub OAuth authorizations are cached SERVER-SIDE by GitHub (copilot-instructions.md Rule 0.5)
-3. **State format validation** - If callback state doesn't match generated format (e.g., missing `=` padding), it's from a different OAuth session
-4. **Redis state verification** - Check `KEYS oauth_state:*` to see what states are actually stored vs what callback receives
-5. **User revocation option** - Document that users can manually revoke app at https://github.com/settings/connections/applications/Ov23liaV4He3p1k7VziT
+3. **Passkey authentication caveat**: GitHub passkeys/security keys can bypass `prompt=consent` and return cached authorizations with stale state parameters
+4. **State format validation** - If callback state doesn't match generated format (e.g., missing `=` padding), it's from a different OAuth session
+5. **Redis state verification** - Check `KEYS oauth_state:*` to see what states are actually stored vs what callback receives
+6. **User revocation option** - Document that users can manually revoke app at https://github.com/settings/connections/applications/Ov23liaV4He3p1k7VziT
+7. **URL-encode OAuth state** - Always use `url.QueryEscape(state)` to preserve base64 `=` padding through GitHub redirect
 
-**Time Lost**: 90 minutes (initial investigation blamed non-existent browser cache issue, then architectural analysis, then proper OAuth flow trace)  
+**Time Lost**: 120 minutes (initial investigation blamed non-existent browser cache issue, then architectural analysis, OAuth flow trace, URL encoding fix, passkey authentication discovery)  
 **Logged to Platform**: ❌ NO (Logs app not yet ingesting Portal errors)  
 **Related Issue**: Phase 0 Health App feature branch (OAuth authentication)  
-**Tags**: oauth, github, authentication, state-validation, cached-authorization, redis, session-management
+**Tags**: oauth, github, authentication, state-validation, cached-authorization, redis, session-management, url-encoding, passkey-authentication
 
 ---
 

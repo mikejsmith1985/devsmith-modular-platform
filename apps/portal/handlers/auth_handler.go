@@ -1024,10 +1024,17 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	if !validateOAuthState(state) {
 		log.Printf("[WARN] OAuth state validation failed: received=%s", state)
+		
+		// Check if this might be from a cached GitHub authorization (passkey logins)
+		log.Println("[INFO] State validation failed - this may be from a cached GitHub authorization.")
+		log.Println("[INFO] If you use passkeys/security keys, GitHub may bypass consent and return stale state.")
+		log.Println("[INFO] Solution: Revoke app at https://github.com/settings/applications")
+		
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error":   "Invalid OAuth state parameter",
-			"details": "Security validation failed. This may indicate a CSRF attack, expired session, or browser issue.",
-			"action":  "Please try logging in again. If this persists, try clearing your browser cookies with error code: OAUTH_STATE_INVALID",
+			"details": "Security validation failed. If you're using passkeys or security keys for GitHub login, GitHub may have returned a cached authorization from before the server was updated.",
+			"action":  "Please revoke this app at https://github.com/settings/applications, then try logging in again. Error code: OAUTH_STATE_INVALID",
+			"passkey_note": "Passkey logins can cause GitHub to bypass the consent screen and return stale authorization codes.",
 		})
 		return
 	}
