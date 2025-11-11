@@ -13,6 +13,9 @@ class ApiError extends Error {
 export async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  // Extract timeout from options (default: no timeout)
+  const { timeout, ...fetchOptions } = options;
+  
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
@@ -20,18 +23,55 @@ export async function apiRequest(endpoint, options = {}) {
     credentials: 'include', // Include cookies for session auth
   };
 
-  const response = await fetch(url, { ...defaultOptions, ...options });
+  // Setup AbortController for timeout handling
+  const controller = new AbortController();
+  const signal = controller.signal;
   
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new ApiError(`HTTP ${response.status}: ${errorText}`, response.status);
-  }
+  let timeoutId;
+  
+  try {
+    // Set timeout if specified
+    if (timeout) {
+      timeoutId = setTimeout(() => {
+        controller.abort();
+      }, timeout);
+    }
 
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return response.json();
+    const response = await fetch(url, { 
+      ...defaultOptions, 
+      ...fetchOptions,
+      signal  // Pass abort signal to fetch
+    });
+    
+    // Clear timeout on successful response
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ApiError(`HTTP ${response.status}: ${errorText}`, response.status);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    return response.text();
+  } catch (error) {
+    // Clear timeout on error
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    
+    // Handle abort/timeout error
+    if (error.name === 'AbortError') {
+      throw new ApiError(`Request timeout after ${timeout}ms`, 408);
+    }
+    
+    // Re-throw other errors
+    throw error;
   }
-  return response.text();
 }
 
 // Review API endpoints
@@ -46,29 +86,35 @@ export const reviewApi = {
   }),
   
   // Run analysis in different modes
+  // All AI analysis requests have 60-second timeout to prevent browser hangs
   runPreview: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/preview', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runSkim: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/skim', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runScan: (sessionId, code, model, query, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/scan', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, query, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runDetailed: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/detailed', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runCritical: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/critical', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
 
   // GitHub Integration API endpoints (Phase 1)

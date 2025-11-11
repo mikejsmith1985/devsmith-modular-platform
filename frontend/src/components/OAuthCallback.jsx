@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { decryptVerifier } from '../utils/pkce';
 
 export default function OAuthCallback() {
   const [searchParams] = useSearchParams();
@@ -12,11 +13,11 @@ export default function OAuthCallback() {
   useEffect(() => {
     console.log('[OAuthCallback] useEffect triggered');
     const code = searchParams.get('code');
-    const state = searchParams.get('state');
+    const encryptedState = searchParams.get('state');
     const errorParam = searchParams.get('error');
 
     console.log('[OAuthCallback] Code from URL:', code);
-    console.log('[OAuthCallback] State from URL:', state);
+    console.log('[OAuthCallback] Encrypted state from URL:', encryptedState);
     console.log('[OAuthCallback] Error from URL:', errorParam);
 
     if (errorParam) {
@@ -33,36 +34,29 @@ export default function OAuthCallback() {
       return;
     }
 
-    // Validate state (CSRF protection)
-    const storedState = sessionStorage.getItem('oauth_state');
-    if (!state || state !== storedState) {
-      console.error('[PKCE] State mismatch - possible CSRF attack');
-      console.error('[PKCE] Expected:', storedState, 'Received:', state);
-      setError('Security validation failed. Please try again.');
-      sessionStorage.clear(); // Clear PKCE data
-      setTimeout(() => navigate('/login'), 3000);
-      return;
-    }
-
-    // Get PKCE verifier
-    const codeVerifier = sessionStorage.getItem('pkce_code_verifier');
-    if (!codeVerifier) {
-      console.error('[PKCE] Missing code verifier');
+    if (!encryptedState) {
+      console.error('[PKCE] Missing encrypted state parameter');
       setError('Security validation failed. Please try again.');
       setTimeout(() => navigate('/login'), 3000);
       return;
     }
 
-    // Exchange code for token (send verifier to backend)
+    // Exchange code for token (decrypt verifier from state)
     const exchangeCodeForToken = async () => {
       try {
+        console.log('[PKCE] Decrypting verifier from state...');
+        
+        // Decrypt verifier from state (validates timestamp automatically)
+        const codeVerifier = await decryptVerifier(encryptedState);
+        console.log('[PKCE] Verifier decrypted successfully');
+        
         console.log('[PKCE] Exchanging code for token...');
         const response = await fetch('/api/portal/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code,
-            state,
+            state: encryptedState, // Send for audit logging
             code_verifier: codeVerifier,
           }),
         });
@@ -80,18 +74,23 @@ export default function OAuthCallback() {
         localStorage.setItem('devsmith_token', data.token);
         console.log('[PKCE] Token stored in localStorage');
         
-        // Clear PKCE data
-        sessionStorage.removeItem('pkce_code_verifier');
-        sessionStorage.removeItem('oauth_state');
-        console.log('[PKCE] PKCE data cleared from sessionStorage');
-        
         // Redirect to dashboard with page reload to trigger AuthContext
         console.log('[PKCE] Redirecting to dashboard');
         window.location.href = '/';
       } catch (err) {
         console.error('[PKCE] Token exchange error:', err);
-        setError(`Failed to complete authentication: ${err.message}`);
-        sessionStorage.clear();
+        
+        // Provide user-friendly error messages
+        let errorMessage = 'Failed to complete authentication';
+        if (err.message.includes('expired')) {
+          errorMessage = 'Login session expired (>10 minutes). Please try again.';
+        } else if (err.message.includes('Invalid or tampered')) {
+          errorMessage = 'Security validation failed. Please try again.';
+        } else {
+          errorMessage = `${errorMessage}: ${err.message}`;
+        }
+        
+        setError(errorMessage);
         setTimeout(() => navigate('/login'), 3000);
       }
     };

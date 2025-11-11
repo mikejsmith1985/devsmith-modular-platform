@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
@@ -68,13 +70,14 @@ func RegisterGitHubRoutes(router *gin.Engine) {
 		authGroup.GET("/health", HandleOAuthHealthCheck) // NEW: OAuth health check
 	}
 
-	// NOTE: Legacy routes /auth/github/callback REMOVED
-	// Frontend now uses client-side PKCE OAuth with React Router handling /auth/github/callback
-	// Backend only handles: POST /api/portal/auth/token (token exchange with code_verifier)
+	// NOTE: Legacy routes /auth/github/callback kept for OAuth redirect compatibility
+	// GitHub OAuth redirects to this URL (configured in REDIRECT_URI environment variable)
+	// After successful authentication, this handler redirects to frontend with token
 
 	// Keep /auth/github/login for backward compatibility (redirects to GitHub)
 	// This is used by some external tools/scripts
 	router.GET("/auth/github/login", HandleGitHubOAuthLogin)
+	router.GET("/auth/github/callback", HandleGitHubOAuthCallbackWithSession) // OAuth redirect target
 	router.GET("/auth/login", HandleAuthLogin)
 	router.POST("/auth/logout", HandleLogout)
 	router.GET("/auth/health", HandleOAuthHealthCheck)
@@ -304,7 +307,11 @@ func HandleTestLogin(c *gin.Context) {
 }
 
 // HandleGitHubOAuthLogin initiates GitHub OAuth flow with CSRF protection
+// DEPRECATED: This endpoint is deprecated in favor of frontend-initiated PKCE flow.
+// The frontend now handles OAuth initiation with encrypted state.
+// This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthLogin(c *gin.Context) {
+	log.Println("[OAUTH] DEPRECATED: Go-initiated OAuth flow (use frontend PKCE instead)")
 	log.Println("[OAUTH] Step 1: Initiating GitHub OAuth flow")
 
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
@@ -333,10 +340,13 @@ func HandleGitHubOAuthLogin(c *gin.Context) {
 	// Store state for validation in callback
 	storeOAuthState(state)
 
-	redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=read:user%%20user:email",
-		clientID, state)
+	// Add prompt=consent to force GitHub to re-prompt for authorization
+	// This prevents stale state issues when GitHub caches previous authorizations
+	// URL-encode the state parameter to preserve = padding through GitHub redirect
+	redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=read:user%%20user:email&prompt=consent",
+		clientID, url.QueryEscape(state))
 
-	log.Printf("[OAUTH] Step 2: Redirecting to GitHub with state=%s", state)
+	log.Printf("[OAUTH] Step 2: Redirecting to GitHub with state=%s (forced consent)", state)
 	c.Redirect(http.StatusFound, redirectURL)
 }
 
@@ -502,6 +512,9 @@ func RegisterTokenRoutes(router *gin.Engine) {
 
 // HandleTokenExchange handles PKCE token exchange
 // POST /api/portal/auth/token
+// Handles PKCE-based token exchange from frontend OAuth flow.
+// NO STATE VALIDATION IN REDIS - frontend already validated via encrypted state.
+// This endpoint only exchanges the authorization code for an access token using PKCE.
 func HandleTokenExchange(c *gin.Context) {
 	var req TokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -510,7 +523,7 @@ func HandleTokenExchange(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] PKCE token exchange - code=%s, state=%s", req.Code, req.State)
+	log.Printf("[DEBUG] PKCE token exchange - code=%s, state=%s (encrypted, audit only)", req.Code, req.State)
 
 	// Validate OAuth config
 	if err := validateOAuthConfig(); err != nil {
@@ -520,6 +533,7 @@ func HandleTokenExchange(c *gin.Context) {
 
 	// Exchange code for access token with PKCE code_verifier
 	// RFC 7636: code_verifier MUST be sent to token endpoint
+	// NOTE: Frontend validates encrypted state client-side - we only validate PKCE here
 	accessToken, err := exchangeCodeForToken(req.Code, req.CodeVerifier)
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code: %v", err)
@@ -904,7 +918,7 @@ func FetchUserInfo(accessToken string) (UserInfo, error) {
 }
 
 // Update the test configuration to use the nginx gateway URL for all tests
-const nginxGatewayURL = "http://localhost:3000" // Ensure all tests route through nginx
+var nginxGatewayURL = config.GetGatewayURL() // Ensure all tests route through nginx
 
 // TestPortalLoginFlow tests the login flow through the nginx gateway.
 func TestPortalLoginFlow(t *testing.T) {
@@ -920,7 +934,7 @@ func TestPortalLoginFlow(t *testing.T) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	query := req.URL.Query()
-	query.Set("redirect_uri", "http://localhost:3000/auth/github/callback")
+	query.Set("redirect_uri", config.GetGatewayURL()+"/auth/github/callback")
 	req.URL.RawQuery = query.Encode()
 	redirectURI := c.Query("redirect_uri")
 	log.Printf("DEBUG: Handling login request. Redirect URI: %s", redirectURI)
@@ -970,7 +984,11 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 }
 
 // HandleGitHubOAuthCallbackWithSession processes GitHub OAuth callback with Redis session
+// DEPRECATED: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
+// The frontend now handles OAuth callbacks via /api/portal/auth/token endpoint.
+// This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
+	log.Println("[OAUTH] DEPRECATED: Go OAuth callback (use /api/portal/auth/token instead)")
 	log.Println("[OAUTH] Step 3: Callback received from GitHub")
 
 	// Extract parameters
@@ -1019,10 +1037,17 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	if !validateOAuthState(state) {
 		log.Printf("[WARN] OAuth state validation failed: received=%s", state)
+
+		// Check if this might be from a cached GitHub authorization (passkey logins)
+		log.Println("[INFO] State validation failed - this may be from a cached GitHub authorization.")
+		log.Println("[INFO] If you use passkeys/security keys, GitHub may bypass consent and return stale state.")
+		log.Println("[INFO] Solution: Revoke app at https://github.com/settings/applications")
+
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Invalid OAuth state parameter",
-			"details": "Security validation failed. This may indicate a CSRF attack, expired session, or browser issue.",
-			"action":  "Please try logging in again. If this persists, try clearing your browser cookies with error code: OAUTH_STATE_INVALID",
+			"error":        "Invalid OAuth state parameter",
+			"details":      "Security validation failed. If you're using passkeys or security keys for GitHub login, GitHub may have returned a cached authorization from before the server was updated.",
+			"action":       "Please revoke this app at https://github.com/settings/applications, then try logging in again. Error code: OAUTH_STATE_INVALID",
+			"passkey_note": "Passkey logins can cause GitHub to bypass the consent screen and return stale authorization codes.",
 		})
 		return
 	}
@@ -1185,7 +1210,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	// Redirect to React frontend callback route with token in URL
 	// This allows React to store token in localStorage for API calls
-	redirectURL := "http://localhost:3000/auth/callback?token=" + tokenString
+	redirectURL := config.GetGatewayURL() + "/auth/callback?token=" + tokenString
 	log.Printf("[OAUTH] Step 11: Authentication complete! Redirecting to: %s", redirectURL)
 	log.Printf("[OAUTH] User %s (ID: %d) successfully authenticated", user.Login, user.ID)
 

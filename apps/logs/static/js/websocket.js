@@ -9,6 +9,23 @@ class LogsWebSocket {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
     this.isPaused = false;
+    // Enable debug logging only in development mode
+    this.debugEnabled = window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1' ||
+                        window.DEBUG_ENABLED === true;
+  }
+
+  // Internal debug logger - only logs if debugEnabled
+  _debug(message, ...args) {
+    if (this.debugEnabled) {
+      console.log(`[WebSocket] ${message}`, ...args);
+    }
+  }
+
+  _error(message, ...args) {
+    if (this.debugEnabled) {
+      console.error(`[WebSocket] ${message}`, ...args);
+    }
   }
 
   connect() {
@@ -16,7 +33,7 @@ class LogsWebSocket {
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
+        this._debug('Connected');
         this.reconnectAttempts = 0;
         this.onStatusChange('connected');
       };
@@ -27,23 +44,23 @@ class LogsWebSocket {
             const logEntry = JSON.parse(event.data);
             this.onMessage(logEntry);
           } catch (e) {
-            console.error('Failed to parse log entry:', e);
+            this._error('Failed to parse log entry:', e);
           }
         }
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        this._error('Error:', error);
         this.onStatusChange('error');
       };
 
       this.ws.onclose = () => {
-        console.log('WebSocket closed');
+        this._debug('Closed');
         this.onStatusChange('disconnected');
         this.attemptReconnect();
       };
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      this._error('Failed to create WebSocket:', error);
       this.onStatusChange('error');
       this.attemptReconnect();
     }
@@ -52,14 +69,14 @@ class LogsWebSocket {
   attemptReconnect() {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Reconnecting... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+      this._debug(`Reconnecting... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       this.onStatusChange('reconnecting');
 
       setTimeout(() => {
         this.connect();
       }, this.reconnectDelay * this.reconnectAttempts);
     } else {
-      console.error('Max reconnect attempts reached');
+      this._error('Max reconnect attempts reached');
       this.onStatusChange('failed');
     }
   }

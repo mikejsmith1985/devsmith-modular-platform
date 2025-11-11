@@ -15,11 +15,13 @@ type LogEntry struct {
 	Level         string              `json:"level"`
 	Message       string              `json:"message"`
 	IssueType     string              `json:"issue_type,omitempty"`
+	ServiceName   string              `json:"service_name,omitempty"` // Microservice identifier (cross-repo logging)
 	Metadata      []byte              `json:"metadata"`
 	AIAnalysis    []byte              `json:"ai_analysis,omitempty"`
 	Tags          []string            `json:"tags"`
 	ID            int64               `json:"id"`
 	UserID        int64               `json:"user_id"`
+	ProjectID     *int64              `json:"project_id,omitempty"` // Cross-repo project reference (nullable)
 	SeverityScore int                 `json:"severity_score,omitempty"`
 }
 

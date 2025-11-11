@@ -183,6 +183,30 @@ templ Workspace(props WorkspaceProps) {
 
 		<!-- Workspace JavaScript -->
 		<script>
+			// Enable debug logging only in development mode
+			const DEBUG_ENABLED = window.location.hostname === 'localhost' || 
+								  window.location.hostname === '127.0.0.1' ||
+								  window.DEBUG_ENABLED === true;
+
+			// Internal debug logger - only logs if DEBUG_ENABLED
+			function _debug(message, ...args) {
+				if (DEBUG_ENABLED) {
+					console.log(`[Review] ${message}`, ...args);
+				}
+			}
+
+			function _error(message, ...args) {
+				if (DEBUG_ENABLED) {
+					console.error(`[Review] ${message}`, ...args);
+				}
+			}
+
+			function _warn(message, ...args) {
+				if (DEBUG_ENABLED) {
+					console.warn(`[Review] ${message}`, ...args);
+				}
+			}
+
 			// Update character count on input
 			const codeEditor = document.getElementById('code-editor');
 			const charCount = document.getElementById('char-count');
@@ -245,7 +269,7 @@ templ Workspace(props WorkspaceProps) {
 				.then(data => {
 					const modelSelector = document.getElementById('model-selector');
 					if (!modelSelector || !data.models || data.models.length === 0) {
-						console.warn('No models available or selector not found');
+						_warn('No models available or selector not found');
 						return;
 					}
 					
@@ -263,10 +287,10 @@ templ Workspace(props WorkspaceProps) {
 						modelSelector.appendChild(option);
 					});
 					
-					console.log('Loaded', data.models.length, 'models from Ollama');
+					_debug('Loaded models from Ollama', { count: data.models.length });
 				})
 				.catch(error => {
-					console.error('Failed to load models:', error);
+					_error('Failed to load models:', error);
 					// Keep hardcoded fallback options if fetch fails
 				});
 		}			// Copy code to clipboard
@@ -276,7 +300,7 @@ templ Workspace(props WorkspaceProps) {
 					navigator.clipboard.writeText(code).then(() => {
 						showToast('✓ Copied to clipboard');
 					}).catch(err => {
-						console.error('Failed to copy:', err);
+						_error('Failed to copy:', err);
 						showToast('✗ Failed to copy');
 					});
 				} else {
@@ -301,8 +325,7 @@ templ Workspace(props WorkspaceProps) {
 				// CRITICAL: Always read fresh value from textarea DOM element
 				const code = document.getElementById('code-editor').value.trim();
 				
-				console.log('Analyze clicked - Mode:', mode, 'Code length:', code.length);
-				console.log('First 100 chars:', code.substring(0, 100));
+				_debug('Analyze clicked', { mode, codeLength: code.length, preview: code.substring(0, 100) });
 				
 				if (!code) {
 					showToast('⚠️ Please paste some code first');
@@ -317,13 +340,13 @@ templ Workspace(props WorkspaceProps) {
 					showToast('⚠️ Please enter what you want to scan for');
 					return;
 				}
-				console.log('Scan query:', scanQuery);
+				_debug('Scan query', { scanQuery });
 			}
 
 			// Get selected model
 			const modelSelector = document.getElementById('model-selector');
 			const selectedModel = modelSelector ? modelSelector.value : 'mistral:7b-instruct';
-			console.log('Selected model:', selectedModel);
+			_debug('Selected model', { selectedModel });
 			
 			const analysisPane = document.getElementById('analysis-pane');
 			const loadingIndicator = document.getElementById('analysis-loading');
@@ -345,24 +368,26 @@ templ Workspace(props WorkspaceProps) {
 			formData.append('pasted_code', code);
 			formData.append('model', selectedModel);
 			
-			console.log('Sending request to:', endpoint);				fetch(endpoint, {
+			_debug('Sending analysis request', { endpoint, model: selectedModel });
+			
+			fetch(endpoint, {
 					method: 'POST',
 					body: formData
 				})
 				.then(response => {
-					console.log('Response status:', response.status);
+					_debug('Analysis response received', { status: response.status });
 					if (!response.ok) {
 						throw new Error('Analysis failed: ' + response.statusText);
 					}
 					return response.text();
 				})
 				.then(html => {
-					console.log('Analysis complete, response length:', html.length);
+					_debug('Analysis complete', { responseLength: html.length });
 					analysisPane.innerHTML = html;
 					showToast('✓ Analysis complete');
 				})
 				.catch(error => {
-					console.error('Analysis error:', error);
+					_error('Analysis error:', error);
 					analysisPane.innerHTML = '<div class="p-4 rounded-lg bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700"><h4 class="font-semibold text-red-900 dark:text-red-100">Analysis Failed</h4><p class="mt-2 text-sm text-red-800 dark:text-red-200">' + error.message + '</p><button onclick="analyzeCode()" class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm">Retry</button></div>';
 					showToast('✗ Analysis failed');
 				})

@@ -8,6 +8,7 @@ WORKDIR /app
 # Accept build arguments for environment variables
 ARG VITE_GITHUB_CLIENT_ID
 ARG VITE_API_URL=http://localhost:3000
+ARG BUILD_TIMESTAMP
 
 # Set environment variables for Vite build
 ENV VITE_GITHUB_CLIENT_ID=$VITE_GITHUB_CLIENT_ID
@@ -33,6 +34,15 @@ RUN apk add --no-cache curl
 
 # Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# Inject build timestamp into index.html (Layer 2: HTML meta tag cache busting)
+# Reference: CACHE_SOLUTION_ARCHITECTURE.md
+ARG BUILD_TIMESTAMP
+RUN if [ -n "$BUILD_TIMESTAMP" ]; then \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/${BUILD_TIMESTAMP}/" /usr/share/nginx/html/index.html; \
+    else \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/$(date +%s)/" /usr/share/nginx/html/index.html; \
+    fi
 
 # Copy nginx configuration for SPA routing
 COPY <<EOF /etc/nginx/conf.d/default.conf

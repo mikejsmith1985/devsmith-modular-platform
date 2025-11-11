@@ -1,25 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
-import LogsPage from './components/LogsPage';
+import HealthPage from './components/HealthPage';
 import ReviewPage from './components/ReviewPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import LLMConfigPage from './pages/LLMConfigPage';
+import ProjectsPage from './pages/ProjectsPage';
 import LoginPage from './components/LoginPage';
 import OAuthCallback from './components/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
+import { setupGlobalErrorHandlers } from './utils/logger';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './index.css';
 
 export default function App() {
+  // Set up global error handlers on app mount
+  useEffect(() => {
+    setupGlobalErrorHandlers();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/github/callback" element={<OAuthCallback />} />
+          <Route path="/oauth/pkce-callback" element={<OAuthCallback />} />
           <Route
             path="/"
             element={
@@ -37,10 +44,10 @@ export default function App() {
             }
           />
           <Route
-            path="/logs"
+            path="/health"
             element={
               <ProtectedRoute>
-                <LogsPage />
+                <HealthPage />
               </ProtectedRoute>
             }
           />
@@ -65,6 +72,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <LLMConfigPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <ProjectsPage />
               </ProtectedRoute>
             }
           />

@@ -1,4 +1,4 @@
-import { test as base, Page } from '@playwright/test';
+import { test as base, Page, Browser } from '@playwright/test';
 
 /**
  * Test user data structure
@@ -64,18 +64,35 @@ export const test = base.extend<AuthFixtures>({
    * Create authenticated page context
    * 
    * Process:
-   * 1. Call /auth/test-login to create Redis session
-   * 2. Extract JWT token from Set-Cookie header
-   * 3. Set cookie on page context
-   * 4. Provide authenticated page to test
+   * 1. Create FRESH browser context (no persistent cache)
+   * 2. Clear cookies to prevent stale sessions
+   * 3. Call /auth/test-login to create Redis session
+   * 4. Extract JWT token from Set-Cookie header
+   * 5. Set cookie on page context
+   * 6. Provide authenticated page to test
+   * 
+   * Layer 3: Fresh Playwright Context (Test Environment)
+   * Reference: CACHE_SOLUTION_ARCHITECTURE.md
    * 
    * Requirements:
    * - ENABLE_TEST_AUTH=true in docker-compose.yml
    * - Portal service running with test auth endpoint
    */
-  authenticatedPage: async ({ page, testUser }, use) => {
-    // Call test auth endpoint to create session - use page.request for proper cookie handling
-    const response = await page.context().request.post('http://localhost:3000/auth/test-login', {
+  authenticatedPage: async ({ browser, testUser }, use) => {
+    // LAYER 3: Create FRESH browser context per test (no persistent cache)
+    // This is CRITICAL for preventing cache-related test flakiness
+    const context = await browser.newContext({
+      storageState: undefined,  // No saved state - start fresh
+    });
+    
+    // Create new page in fresh context
+    const page = await context.newPage();
+    
+    // Clear any existing cookies (belt and suspenders)
+    await context.clearCookies();
+    
+    // Call test auth endpoint to create session - use context.request for proper cookie handling
+    const response = await context.request.post('http://localhost:3000/auth/test-login', {
       data: testUser,
       headers: {
         'Content-Type': 'application/json'
@@ -110,7 +127,7 @@ export const test = base.extend<AuthFixtures>({
     const tokenValue = cookieMatch[1];
 
     // Set cookie on page context for all subsequent requests
-    await page.context().addCookies([{
+    await context.addCookies([{
       name: 'devsmith_token',
       value: tokenValue,
       domain: 'localhost',
@@ -121,22 +138,24 @@ export const test = base.extend<AuthFixtures>({
     }]);
 
     // Verify cookie was set
-    const cookies = await page.context().cookies();
+    const cookies = await context.cookies();
     const devsmithCookie = cookies.find(c => c.name === 'devsmith_token');
     if (!devsmithCookie) {
       throw new Error('Cookie was not set on context');
     }
 
+    // CRITICAL: Also set token in localStorage for React app
+    // The frontend AuthContext checks localStorage, not cookies
+    await page.goto('http://localhost:3000');
+    await page.evaluate((token) => {
+      localStorage.setItem('devsmith_token', token);
+    }, tokenValue);
+
     // Provide authenticated page to test
     await use(page);
 
-    // Cleanup: Logout after test completes
-    try {
-      await page.goto('http://localhost:3000/auth/logout', { timeout: 5000 });
-    } catch (error) {
-      // Ignore logout errors (session might already be expired)
-      console.log('Logout cleanup error (ignored):', error);
-    }
+    // Cleanup: Close context after test completes
+    await context.close();
   }
 });
 

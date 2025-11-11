@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/templates"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 )
 
@@ -128,10 +128,7 @@ func LogsDashboardHandler(c *gin.Context) {
 	}
 
 	// Fetch dashboard data from logs service API
-	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
-	if logsServiceURL == "" {
-		logsServiceURL = "http://localhost:8082"
-	}
+	logsServiceURL := config.GetServiceURL("logs")
 
 	// Fetch dashboard stats
 	stats, err := fetchLogsData(c.Request.Context(), logsServiceURL+"/api/logs/dashboard/stats")

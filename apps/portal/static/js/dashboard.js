@@ -9,10 +9,12 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 
 // Optional: Check service health on load
 async function checkServiceHealth() {
+  // Use gateway URL dynamically (works in Docker and production)
+  const baseURL = window.location.origin; // Gets gateway URL automatically
   const services = [
-    { name: 'Review', url: 'http://localhost:8081/health' },
-    { name: 'Logs', url: 'http://localhost:8082/health' },
-    { name: 'Analytics', url: 'http://localhost:8083/health' },
+    { name: 'Review', url: `${baseURL}/api/review/health` },
+    { name: 'Logs', url: `${baseURL}/api/logs/health` },
+    { name: 'Analytics', url: `${baseURL}/api/analytics/health` },
   ];
 
   for (const service of services) {
