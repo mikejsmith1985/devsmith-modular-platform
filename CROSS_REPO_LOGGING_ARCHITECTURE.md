@@ -1071,7 +1071,7 @@ services:
 - [ ] Update log queries to filter by project
 - [ ] Register routes in cmd/logs/main.go
 
-### Sample Files (Week 2) ✅ 90% Complete
+### Sample Files (Week 2) ✅ 95% Complete
 - [x] JavaScript sample (docs/integrations/javascript/logger.js) - ✅ 147 lines, buffer + batch + retry
 - [x] Python sample (docs/integrations/python/logger.py) - ✅ 143 lines, threading + requests + atexit
 - [x] Go sample (docs/integrations/go/logger.go) - ✅ 226 lines, goroutine + mutex + http.Client
@@ -1080,6 +1080,15 @@ services:
 - [x] Express.js framework example - ✅ 180 lines, middleware factory + error handler + timing
 - [x] Flask framework example - ✅ 240 lines, extension class + hooks + decorator pattern
 - [x] Gin framework example - ✅ 230 lines, middleware + panic recovery + response capture
+- [x] **Automated test suite** - ✅ 85 tests, ~2,400 lines (unit + integration + mock servers)
+  - JavaScript logger: 17 unit tests (buffer, batch, retry, cleanup)
+  - Python logger: 14 unit tests (threading, batch, cleanup)
+  - Go logger: 15 unit tests (concurrency, mutex, batch)
+  - Express middleware: 12 integration tests (request/response, redaction, skip paths)
+  - Flask extension: 15 integration tests (hooks, decorators, exceptions)
+  - Gin middleware: 12 integration tests (middleware, panic recovery)
+  - Test infrastructure: Setup script, mock servers, .test-config.json
+  - Committed: 6b17552 (8 files, 2,452 insertions)
 
 ### Frontend (Week 3)
 - [ ] Project management page
