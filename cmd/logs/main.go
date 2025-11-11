@@ -313,6 +313,7 @@ func main() {
 	// Phase 3: WebSocket hub re-enabled with frontend connection
 	hub := logs_services.NewWebSocketHub()
 	go hub.Run()
+	defer hub.Stop() // Ensure graceful shutdown of WebSocket hub
 
 	// Register WebSocket routes
 	logs_services.RegisterWebSocketRoutes(router, hub)
@@ -347,7 +348,8 @@ func main() {
 
 	// Start health scheduler (runs background checks every 5 minutes)
 	scheduler := logs_services.NewHealthScheduler(5*time.Minute, storageService, repairService)
-	go scheduler.Start()
+	scheduler.Start()
+	defer scheduler.Stop() // Ensure graceful shutdown of health scheduler
 
 	log.Println("Health intelligence system initialized - scheduler running every 5 minutes")
 

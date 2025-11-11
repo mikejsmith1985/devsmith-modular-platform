@@ -40,6 +40,7 @@ export default function HealthPage() {
   // Phase 3: WebSocket connection state
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null); // Track reconnect timeout for cleanup
   
   // Phase 3: Smart Tagging System
   const [availableTags, setAvailableTags] = useState([]);
@@ -130,7 +131,7 @@ export default function HealthPage() {
       // Reconnect after 5 seconds if auto-refresh still enabled
       if (autoRefresh) {
         logDebug('WebSocket reconnecting in 5 seconds');
-        setTimeout(connectWebSocket, 5000);
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
       }
     };
     
@@ -140,6 +141,12 @@ export default function HealthPage() {
   connectWebSocket();
 
   return () => {
+    // Clear any pending reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    // Close WebSocket connection
     if (wsRef.current) {
       logDebug('WebSocket cleanup - closing connection');
       wsRef.current.close();
