@@ -306,7 +306,11 @@ func HandleTestLogin(c *gin.Context) {
 }
 
 // HandleGitHubOAuthLogin initiates GitHub OAuth flow with CSRF protection
+// DEPRECATED: This endpoint is deprecated in favor of frontend-initiated PKCE flow.
+// The frontend now handles OAuth initiation with encrypted state.
+// This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthLogin(c *gin.Context) {
+	log.Println("[OAUTH] DEPRECATED: Go-initiated OAuth flow (use frontend PKCE instead)")
 	log.Println("[OAUTH] Step 1: Initiating GitHub OAuth flow")
 
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
@@ -507,6 +511,9 @@ func RegisterTokenRoutes(router *gin.Engine) {
 
 // HandleTokenExchange handles PKCE token exchange
 // POST /api/portal/auth/token
+// Handles PKCE-based token exchange from frontend OAuth flow.
+// NO STATE VALIDATION IN REDIS - frontend already validated via encrypted state.
+// This endpoint only exchanges the authorization code for an access token using PKCE.
 func HandleTokenExchange(c *gin.Context) {
 	var req TokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -515,7 +522,7 @@ func HandleTokenExchange(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] PKCE token exchange - code=%s, state=%s", req.Code, req.State)
+	log.Printf("[DEBUG] PKCE token exchange - code=%s, state=%s (encrypted, audit only)", req.Code, req.State)
 
 	// Validate OAuth config
 	if err := validateOAuthConfig(); err != nil {
@@ -525,6 +532,7 @@ func HandleTokenExchange(c *gin.Context) {
 
 	// Exchange code for access token with PKCE code_verifier
 	// RFC 7636: code_verifier MUST be sent to token endpoint
+	// NOTE: Frontend validates encrypted state client-side - we only validate PKCE here
 	accessToken, err := exchangeCodeForToken(req.Code, req.CodeVerifier)
 	if err != nil {
 		log.Printf("[ERROR] Failed to exchange code: %v", err)
@@ -975,7 +983,11 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 }
 
 // HandleGitHubOAuthCallbackWithSession processes GitHub OAuth callback with Redis session
+// DEPRECATED: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
+// The frontend now handles OAuth callbacks via /api/portal/auth/token endpoint.
+// This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
+	log.Println("[OAUTH] DEPRECATED: Go OAuth callback (use /api/portal/auth/token instead)")
 	log.Println("[OAUTH] Step 3: Callback received from GitHub")
 
 	// Extract parameters
@@ -1024,16 +1036,16 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	if !validateOAuthState(state) {
 		log.Printf("[WARN] OAuth state validation failed: received=%s", state)
-		
+
 		// Check if this might be from a cached GitHub authorization (passkey logins)
 		log.Println("[INFO] State validation failed - this may be from a cached GitHub authorization.")
 		log.Println("[INFO] If you use passkeys/security keys, GitHub may bypass consent and return stale state.")
 		log.Println("[INFO] Solution: Revoke app at https://github.com/settings/applications")
-		
+
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error":   "Invalid OAuth state parameter",
-			"details": "Security validation failed. If you're using passkeys or security keys for GitHub login, GitHub may have returned a cached authorization from before the server was updated.",
-			"action":  "Please revoke this app at https://github.com/settings/applications, then try logging in again. Error code: OAUTH_STATE_INVALID",
+			"error":        "Invalid OAuth state parameter",
+			"details":      "Security validation failed. If you're using passkeys or security keys for GitHub login, GitHub may have returned a cached authorization from before the server was updated.",
+			"action":       "Please revoke this app at https://github.com/settings/applications, then try logging in again. Error code: OAUTH_STATE_INVALID",
 			"passkey_note": "Passkey logins can cause GitHub to bypass the consent screen and return stale authorization codes.",
 		})
 		return

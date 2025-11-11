@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { generateCodeVerifier, generateCodeChallenge, generateState } from '../utils/pkce';
+import { generateCodeVerifier, generateCodeChallenge, encryptVerifier } from '../utils/pkce';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -26,11 +26,11 @@ export default function LoginPage() {
       // Generate PKCE parameters
       const codeVerifier = generateCodeVerifier();
       const codeChallenge = await generateCodeChallenge(codeVerifier);
-      const state = generateState();
 
-      // Store verifier and state in sessionStorage (temporary, cleared on tab close)
-      sessionStorage.setItem('pkce_code_verifier', codeVerifier);
-      sessionStorage.setItem('oauth_state', state);
+      // Encrypt verifier into state (self-contained, no sessionStorage)
+      const encryptedState = await encryptVerifier(codeVerifier);
+      
+      console.log('[PKCE] Generated encrypted state (verifier embedded)');
 
       // Get GitHub client ID from environment
       const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
@@ -43,13 +43,13 @@ export default function LoginPage() {
         client_id: clientId,
         redirect_uri: window.location.origin + '/auth/github/callback',
         scope: 'user:email read:user',
-        state: state,
+        state: encryptedState, // Contains encrypted verifier + timestamp + nonce
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
       });
 
       const authURL = `https://github.com/login/oauth/authorize?${params}`;
-      console.log('[PKCE] Redirecting to GitHub with code_challenge');
+      console.log('[PKCE] Redirecting to GitHub with encrypted state and code_challenge');
       window.location.href = authURL;
     } catch (error) {
       console.error('[PKCE] Failed to generate PKCE parameters:', error);
