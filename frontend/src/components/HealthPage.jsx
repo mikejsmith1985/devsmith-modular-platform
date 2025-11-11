@@ -6,7 +6,7 @@ import { Modal } from 'react-bootstrap';
 import StatCards from './StatCards';
 import ModelSelector from './ModelSelector';
 import TagFilter from './TagFilter';
-import { logError, logWarning, logInfo } from '../utils/logger';
+import { logError, logWarning, logInfo, logDebug } from '../utils/logger';
 import { apiRequest } from '../utils/api';
 
 export default function HealthPage() {
@@ -57,99 +57,95 @@ export default function HealthPage() {
         const [statsData, logsData, tagsData] = await Promise.all([
           apiRequest('/api/logs/v1/stats'),
           apiRequest('/api/logs?limit=100'),
-          apiRequest('/api/logs/tags')
-        ]);
-        
-        setStats(statsData);
-        setLogs(logsData.entries || []);
-        setAvailableTags(tagsData.tags || []);
-        setError(null);
-      } catch (err) {
-        console.error('Error loading initial data:', err);
-        logError('Health page initial data load failed', { error: err.message });
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadInitialData();
+        apiRequest('/api/logs/tags')
+      ]);
+      
+      setStats(statsData);
+      setLogs(logsData.entries || []);
+      setAvailableTags(tagsData.tags || []);
+      setError(null);
+    } catch (err) {
+      logError(err, { context: 'Health page initial data load failed' });
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+      loadInitialData();
   }, [activeTab]); // Remove autoRefresh from dependencies - WebSocket handles updates
 
   // Phase 3: WebSocket connection management
   useEffect(() => {
     if (!autoRefresh) {
-      // Disconnect WebSocket when auto-refresh OFF
-      if (wsRef.current) {
-        console.log('WebSocket: Disconnecting (auto-refresh disabled)');
-        wsRef.current.close();
-        wsRef.current = null;
-        setWsConnected(false);
-      }
-      return;
+    // Disconnect WebSocket when auto-refresh OFF
+    if (wsRef.current) {
+      logDebug('WebSocket disconnecting (auto-refresh disabled)');
+      wsRef.current.close();
+      wsRef.current = null;
+      setWsConnected(false);
     }
+    return;
+  }
 
-    // Connect WebSocket when auto-refresh ON
-    const connectWebSocket = () => {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
-      
-      console.log('WebSocket: Connecting to', wsUrl);
-      const ws = new WebSocket(wsUrl);
-      
-      ws.onopen = () => {
-        console.log('WebSocket: Connected');
-        setWsConnected(true);
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const newLog = JSON.parse(event.data);
-          console.log('WebSocket: Received log', newLog);
-          
-          // Add new log to the top of the list (limit to 100)
-          setLogs(prev => [newLog, ...prev].slice(0, 100));
-          
-          // Update stats incrementally
-          setStats(prev => ({
-            ...prev,
-            [newLog.level.toLowerCase()]: (prev[newLog.level.toLowerCase()] || 0) + 1
-          }));
-        } catch (error) {
-          console.error('WebSocket: Failed to parse message', error);
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.error('WebSocket: Error', error);
-        setWsConnected(false);
-      };
-      
-      ws.onclose = () => {
-        console.log('WebSocket: Closed');
-        setWsConnected(false);
-        
-        // Reconnect after 5 seconds if auto-refresh still enabled
-        if (autoRefresh) {
-          console.log('WebSocket: Reconnecting in 5s...');
-          setTimeout(connectWebSocket, 5000);
-        }
-      };
-      
-      wsRef.current = ws;
+  // Connect WebSocket when auto-refresh ON
+  const connectWebSocket = () => {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/logs`;
+    
+    logDebug('WebSocket connecting', { url: wsUrl });
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      logInfo('WebSocket connection established', { autoRefresh });
+      setWsConnected(true);
     };
-
-    connectWebSocket();
-
-    return () => {
-      if (wsRef.current) {
-        console.log('WebSocket: Cleanup - closing connection');
-        wsRef.current.close();
+    
+    ws.onmessage = (event) => {
+      try {
+        const newLog = JSON.parse(event.data);
+        logDebug('WebSocket received log', { logId: newLog.id, level: newLog.level });
+        
+        // Add new log to the top of the list (limit to 100)
+        setLogs(prev => [newLog, ...prev].slice(0, 100));
+        
+        // Update stats incrementally
+        setStats(prev => ({
+          ...prev,
+          [newLog.level.toLowerCase()]: (prev[newLog.level.toLowerCase()] || 0) + 1
+        }));
+      } catch (error) {
+        logError(error, { context: 'WebSocket message parsing failed' });
       }
     };
-  }, [autoRefresh]);
+    
+    ws.onerror = (error) => {
+      logError(new Error('WebSocket error'), { errorEvent: error.toString() });
+      setWsConnected(false);
+    };
+    
+    ws.onclose = () => {
+      logInfo('WebSocket connection closed');
+      setWsConnected(false);
+      
+      // Reconnect after 5 seconds if auto-refresh still enabled
+      if (autoRefresh) {
+        logDebug('WebSocket reconnecting in 5 seconds');
+        setTimeout(connectWebSocket, 5000);
+      }
+    };
+    
+    wsRef.current = ws;
+  };
 
-  // Define fetchData with useCallback to prevent infinite loops
+  connectWebSocket();
+
+  return () => {
+    if (wsRef.current) {
+      logDebug('WebSocket cleanup - closing connection');
+      wsRef.current.close();
+    }
+  };
+}, [autoRefresh]);  // Define fetchData with useCallback to prevent infinite loops
   const fetchData = useCallback(async (isBackgroundRefresh = false) => {
     try {
       // Only show loading spinner on initial load, not during background refresh
@@ -172,39 +168,36 @@ export default function HealthPage() {
         apiRequest(logsQuery)
       ]);
       
-      setStats(statsData);
-      setLogs(logsData.entries || []);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      logError('Health page data fetch failed', { error: err.message });
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.level, filters.service]); // Only depend on filter values we use
+    
+    setStats(statsData);
+    setLogs(logsData.entries || []);
+    setError(null);
+  } catch (err) {
+    logError(err, { context: 'Health page data fetch failed' });
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}, [filters.level, filters.service]); // Only depend on filter values we use
 
-  // Refetch data when level or service filters change
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+// Refetch data when level or service filters change
+useEffect(() => {
+  fetchData();
+}, [fetchData]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [logs, filters, selectedTags]); // Depend on actual values, not the callback
+useEffect(() => {
+  applyFilters();
+}, [logs, filters, selectedTags]); // Depend on actual values, not the callback
 
-  // Phase 3: Fetch available tags
-  const fetchAvailableTags = async () => {
-    try {
-      const data = await apiRequest('/api/logs/tags');
-      setAvailableTags(data.tags || []);
-    } catch (error) {
-      console.error('Error fetching tags:', error);
-      logWarning('Failed to fetch log tags', { error: error.message });
-    }
-  };
-
-  // Phase 3: Toggle tag selection
+// Phase 3: Fetch available tags
+const fetchAvailableTags = async () => {
+  try {
+    const data = await apiRequest('/api/logs/tags');
+    setAvailableTags(data.tags || []);
+  } catch (error) {
+    logWarning('Failed to fetch log tags', { error: error.message });
+  }
+};  // Phase 3: Toggle tag selection
   const handleTagToggle = (tag) => {
     setSelectedTags(prev => {
       if (prev.includes(tag)) {
@@ -304,7 +297,7 @@ export default function HealthPage() {
     try {
       // Phase 4 Fix: Use apiRequest() for connection pooling
       const data = await apiRequest(`/api/logs/${logId}/insights`);
-      console.log('GET /insights data:', data);
+      logDebug('Fetched existing AI insights', { logId, insightsCount: data ? 1 : 0 });
       setAiInsights(data);
       
       logInfo('Fetched existing AI insights', {
@@ -314,11 +307,10 @@ export default function HealthPage() {
     } catch (error) {
       // If 404, no insights exist yet (that's okay, no need to log)
       if (error.status === 404) {
-        console.log('No existing insights found for log', logId);
+        logDebug('No existing insights found for log', { logId });
         return;
       }
       
-      console.error('Error fetching existing insights:', error);
       logWarning('Failed to fetch existing insights', {
         log_id: logId,
         error: error.message,
@@ -330,7 +322,7 @@ export default function HealthPage() {
   const generateAIInsights = async (logId) => {
     // Phase 4 Fix: Prevent concurrent AI requests (debouncing)
     if (isGenerating) {
-      console.log('Already generating insights, ignoring duplicate request');
+      logDebug('Already generating insights, ignoring duplicate request');
       return;
     }
     
@@ -356,9 +348,8 @@ export default function HealthPage() {
         timeout: 60000  // 60 second timeout
       });
 
-      console.log('POST /insights response:', data);
+      logDebug('AI insights response received', { logId, hasAnalysis: !!data?.analysis });
       setAiInsights(data);
-      console.log('State updated with insights:', data);
       
       logInfo('AI insights generated successfully', {
         log_id: logId,
@@ -366,7 +357,6 @@ export default function HealthPage() {
         action: 'generate_insights_success'
       });
     } catch (error) {
-      console.error('Error generating AI insights:', error);
       
       // Check if it was a timeout
       if (error.name === 'AbortError' || error.message?.includes('timeout')) {
@@ -444,7 +434,11 @@ export default function HealthPage() {
       // Clear input
       setNewTagInput('');
     } catch (error) {
-      console.error('Error adding tag:', error);
+      logError(error, {
+        log_id: logId,
+        tag,
+        action: 'add_tag_failed'
+      });
       alert(`Failed to add tag: ${error.message}`);
     } finally {
       setAddingTag(false);
@@ -475,7 +469,6 @@ export default function HealthPage() {
       // Refresh available tags
       await fetchAvailableTags();
     } catch (error) {
-      console.error('Error removing tag:', error);
       logError(error, {
         log_id: logId,
         tag,

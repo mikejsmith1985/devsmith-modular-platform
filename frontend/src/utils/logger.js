@@ -36,7 +36,11 @@ export async function sendLog(level, message, metadata = {}, tags = []) {
       tags: ['frontend', ...tags]
     };
 
-    console.log('[LOGGER] Sending log to backend:', { level, message, metadata });
+    const isDebugEnabled = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
+    
+    if (isDebugEnabled) {
+      console.log('[LOGGER] Sending log to backend:', { level, message, metadata });
+    }
 
     // Send to logs service (don't await - fire and forget)
     fetch(LOGS_API_URL, {
@@ -49,28 +53,38 @@ export async function sendLog(level, message, metadata = {}, tags = []) {
     })
     .then(response => {
       if (!response.ok) {
-        console.error('[LOGGER] Failed to send log:', response.status, response.statusText);
+        if (isDebugEnabled) {
+          console.error('[LOGGER] Failed to send log:', response.status, response.statusText);
+        }
         return response.text().then(text => {
-          console.error('[LOGGER] Response body:', text);
+          if (isDebugEnabled) {
+            console.error('[LOGGER] Response body:', text);
+          }
         });
       }
-      console.log('[LOGGER] Log sent successfully');
+      if (isDebugEnabled) {
+        console.log('[LOGGER] Log sent successfully');
+      }
     })
     .catch(err => {
-      // If logging fails, at least log to console
-      console.error('[LOGGER] Network error sending log to backend:', err);
+      // If logging fails, at least log to console in debug mode
+      if (isDebugEnabled) {
+        console.error('[LOGGER] Network error sending log to backend:', err);
+      }
     });
 
-    // Also log to console for immediate visibility
-    const consoleMethod = {
-      'debug': 'debug',
-      'info': 'info',
-      'warning': 'warn',
-      'error': 'error',
-      'critical': 'error'
-    }[level] || 'log';
-    
-    console[consoleMethod](`[${level.toUpperCase()}] ${message}`, metadata);
+    // Also log to console in debug mode for immediate visibility
+    if (isDebugEnabled) {
+      const consoleMethod = {
+        'debug': 'debug',
+        'info': 'info',
+        'warning': 'warn',
+        'error': 'error',
+        'critical': 'error'
+      }[level] || 'log';
+      
+      console[consoleMethod](`[${level.toUpperCase()}] ${message}`, metadata);
+    }
   } catch (err) {
     console.error('Logger error:', err);
   }
@@ -105,10 +119,11 @@ export function logInfo(message, context = {}) {
 }
 
 /**
- * Log debug info (only in development)
+ * Log debug info (only in development or when VITE_DEBUG=true)
  */
 export function logDebug(message, context = {}) {
-  if (import.meta.env.DEV) {
+  const isDebugEnabled = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
+  if (isDebugEnabled) {
     sendLog(LogLevel.DEBUG, message, context, ['debug']);
   }
 }

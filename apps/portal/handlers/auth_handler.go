@@ -20,6 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
@@ -917,7 +918,7 @@ func FetchUserInfo(accessToken string) (UserInfo, error) {
 }
 
 // Update the test configuration to use the nginx gateway URL for all tests
-const nginxGatewayURL = "http://localhost:3000" // Ensure all tests route through nginx
+var nginxGatewayURL = config.GetGatewayURL() // Ensure all tests route through nginx
 
 // TestPortalLoginFlow tests the login flow through the nginx gateway.
 func TestPortalLoginFlow(t *testing.T) {
@@ -933,7 +934,7 @@ func TestPortalLoginFlow(t *testing.T) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	query := req.URL.Query()
-	query.Set("redirect_uri", "http://localhost:3000/auth/github/callback")
+	query.Set("redirect_uri", config.GetGatewayURL()+"/auth/github/callback")
 	req.URL.RawQuery = query.Encode()
 	redirectURI := c.Query("redirect_uri")
 	log.Printf("DEBUG: Handling login request. Redirect URI: %s", redirectURI)
@@ -1209,7 +1210,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 
 	// Redirect to React frontend callback route with token in URL
 	// This allows React to store token in localStorage for API calls
-	redirectURL := "http://localhost:3000/auth/callback?token=" + tokenString
+	redirectURL := config.GetGatewayURL() + "/auth/callback?token=" + tokenString
 	log.Printf("[OAUTH] Step 11: Authentication complete! Redirecting to: %s", redirectURL)
 	log.Printf("[OAUTH] User %s (ID: %d) successfully authenticated", user.Login, user.ID)
 
