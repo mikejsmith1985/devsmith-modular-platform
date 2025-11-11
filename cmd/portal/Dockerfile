@@ -1,12 +1,4 @@
-# Stage 1: Build frontend
-FROM node:20-alpine AS frontend-builder
-WORKDIR /frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
-# Stage 2: Build Go binary
+# Stage 1: Build Go binary
 FROM golang:1.24-alpine AS builder
 RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
@@ -26,7 +18,9 @@ RUN chown -R appuser:appuser /home/appuser
 USER appuser
 COPY apps/portal/templates/ ./templates/
 COPY apps/portal/static/ ./static/
-COPY --from=frontend-builder /frontend/dist ./dist/
+# NOTE: Portal no longer embeds frontend React build
+# Frontend is served exclusively by the frontend container (nginx)
+# Portal only handles backend API and OAuth callbacks
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 	CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1

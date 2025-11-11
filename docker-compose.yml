@@ -153,21 +153,14 @@ services:
       - "traefik.http.routers.portal-auth.priority=99"
       - "traefik.http.routers.portal-auth.service=portal"
       - "traefik.http.routers.portal-auth.middlewares=html-nocache@docker"
-      # Portal Assets - /assets for React JS/CSS
-      - "traefik.http.routers.portal-assets.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/assets`)"
-      - "traefik.http.routers.portal-assets.entrypoints=web"
-      - "traefik.http.routers.portal-assets.priority=98"
-      - "traefik.http.routers.portal-assets.service=portal"
-      # Portal Static - /static for legacy static files
+      # Portal Static - /static for legacy static files (if any)
       - "traefik.http.routers.portal-static.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/static`)"
       - "traefik.http.routers.portal-static.entrypoints=web"
       - "traefik.http.routers.portal-static.priority=97"
       - "traefik.http.routers.portal-static.service=portal"
-      # Portal Root - catch-all for React SPA (lowest priority)
-      - "traefik.http.routers.portal-root.rule=Host(`localhost`) || Host(`127.0.0.1`)"
-      - "traefik.http.routers.portal-root.entrypoints=web"
-      - "traefik.http.routers.portal-root.priority=1"
-      - "traefik.http.routers.portal-root.service=portal"
+      # NOTE: Portal no longer serves React SPA or /assets
+      # All frontend requests (/, /assets, etc.) are handled by frontend container
+      # Portal is now a pure backend service for API and OAuth
       # Service definition with health check
       - "traefik.http.services.portal.loadbalancer.server.port=3001"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"

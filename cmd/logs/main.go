@@ -27,6 +27,7 @@ import (
 
 var dbConn *sql.DB
 
+//nolint:gocognit // main() initialization is necessarily complex with multiple service setups
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -60,11 +61,11 @@ func main() {
 	dbConn.SetConnMaxIdleTime(600000000000)  // 10 minutes
 
 	// Verify connection
-	if err := dbConn.Ping(); err != nil {
+	if pingErr := dbConn.Ping(); pingErr != nil {
 		if closeErr := dbConn.Close(); closeErr != nil {
 			log.Printf("[ERROR] Failed to close database: %v", closeErr)
 		}
-		log.Fatal("Failed to ping database:", err)
+		log.Fatal("Failed to ping database:", pingErr)
 	}
 
 	// --- Redis session store initialization ---
@@ -84,8 +85,13 @@ func main() {
 	log.Printf("Redis session store initialized: addr=%s, ttl=7 days", redisAddr)
 
 	// Run database migrations
-	if err := runMigrations(dbConn); err != nil {
-		log.Fatal("Failed to run migrations:", err)
+	if err = runMigrations(dbConn); err != nil {
+		log.Printf("Failed to run migrations: %v", err)
+		// Defer will not run after Fatal, so close Redis manually
+		if closeErr := sessionStore.Close(); closeErr != nil {
+			log.Printf("Error closing Redis: %v", closeErr)
+		}
+		os.Exit(1)
 	}
 
 	// OAuth2 configuration (for GitHub)

@@ -642,7 +642,9 @@ func (r *LogRepository) GetLogStatsByLevel(ctx context.Context) (map[string]int,
 	if err != nil {
 		return nil, fmt.Errorf("failed to query log stats: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // Explicitly ignore close error in defer
+	}()
 
 	stats := map[string]int{
 		"debug":    0,
@@ -686,7 +688,9 @@ func (r *LogRepository) GetAllTags(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tags: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() // Explicitly ignore close error in defer
+	}()
 
 	var tags []string
 	for rows.Next() {
@@ -708,8 +712,8 @@ func (r *LogRepository) GetAllTags(ctx context.Context) ([]string, error) {
 	return tags, nil
 }
 
-// AddTag adds a manual tag to a log entry.
-func (r *LogRepository) AddTag(ctx context.Context, logID int64, tag string) error {
+// updateTagsHelper is a helper to reduce code duplication for tag operations
+func (r *LogRepository) updateTagsHelper(ctx context.Context, logID int64, tag, operation string) error {
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("context cancelled: %w", ctx.Err())
@@ -724,13 +728,20 @@ func (r *LogRepository) AddTag(ctx context.Context, logID int64, tag string) err
 		return fmt.Errorf("tag cannot be empty")
 	}
 
-	query := `UPDATE logs.entries 
-	         SET tags = array_append(tags, $1)
-	         WHERE id = $2 AND NOT ($1 = ANY(tags))`
+	var query string
+	if operation == "add" {
+		query = `UPDATE logs.entries 
+			 SET tags = array_append(tags, $1)
+			 WHERE id = $2 AND NOT ($1 = ANY(tags))`
+	} else {
+		query = `UPDATE logs.entries 
+			 SET tags = array_remove(tags, $1)
+			 WHERE id = $2 AND $1 = ANY(tags)`
+	}
 
 	result, err := r.db.ExecContext(ctx, query, tag, logID)
 	if err != nil {
-		return fmt.Errorf("failed to add tag: %w", err)
+		return fmt.Errorf("failed to %s tag: %w", operation, err)
 	}
 
 	rows, err := result.RowsAffected()
@@ -739,45 +750,21 @@ func (r *LogRepository) AddTag(ctx context.Context, logID int64, tag string) err
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("log entry not found or tag already exists")
+		if operation == "add" {
+			return fmt.Errorf("log entry not found or tag already exists")
+		}
+		return fmt.Errorf("log entry not found or tag does not exist")
 	}
 
 	return nil
 }
 
+// AddTag adds a manual tag to a log entry.
+func (r *LogRepository) AddTag(ctx context.Context, logID int64, tag string) error {
+	return r.updateTagsHelper(ctx, logID, tag, "add")
+}
+
 // RemoveTag removes a tag from a log entry.
 func (r *LogRepository) RemoveTag(ctx context.Context, logID int64, tag string) error {
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("context cancelled: %w", ctx.Err())
-	default:
-	}
-
-	if r.db == nil {
-		return nil // No-op for testing
-	}
-
-	if tag == "" {
-		return fmt.Errorf("tag cannot be empty")
-	}
-
-	query := `UPDATE logs.entries 
-	         SET tags = array_remove(tags, $1)
-	         WHERE id = $2 AND $1 = ANY(tags)`
-
-	result, err := r.db.ExecContext(ctx, query, tag, logID)
-	if err != nil {
-		return fmt.Errorf("failed to remove tag: %w", err)
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rows == 0 {
-		return fmt.Errorf("log entry not found or tag does not exist")
-	}
-
-	return nil
+	return r.updateTagsHelper(ctx, logID, tag, "remove")
 }

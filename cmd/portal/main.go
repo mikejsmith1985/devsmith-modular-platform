@@ -141,18 +141,14 @@ func main() {
 	}
 	router.Static("/static", staticPath)
 
-	// Serve React SPA (built frontend)
-	frontendPath := "frontend/dist"
-	if _, err = os.Stat("./dist"); err == nil {
-		// Running in Docker container
-		frontendPath = "./dist"
-	}
+	// NOTE: Portal is now a pure backend service
+	// Frontend React SPA is served exclusively by the frontend container (nginx)
+	// Portal only handles:
+	//   - /api/portal/* - Backend API endpoints
+	//   - /auth/* - OAuth authentication callbacks
+	//   - /static/* - Legacy static assets (if any)
 
-	// Serve React assets (JS, CSS, etc.)
-	router.Static("/assets", frontendPath+"/assets")
-
-	// Serve React index.html for all non-API routes (SPA catch-all)
-	// This MUST be last, as it catches all remaining routes
+	// NoRoute handler for 404s (API requests only)
 	router.NoRoute(func(c *gin.Context) {
 		// If it's an API call, return 404 JSON
 		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
@@ -160,10 +156,12 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
 			return
 		}
-		// Otherwise, serve React app (for client-side routing)
-		log.Printf("Serving React SPA for route: %s", c.Request.URL.Path)
-		c.File(frontendPath + "/index.html")
-	}) // Validate required OAuth environment variables
+		// For non-API routes, return 404 (frontend container handles SPA routing)
+		log.Printf("404 Not Found (non-API routed to frontend): %s", c.Request.URL.Path)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found - route to frontend container"})
+	})
+
+	// Validate required OAuth environment variables
 	if err := validateOAuthEnvironment(); err != nil {
 		log.Printf("FATAL: %v", err)
 		if closeErr := dbConn.Close(); closeErr != nil {

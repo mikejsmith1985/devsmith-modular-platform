@@ -60,7 +60,11 @@ func (s *RestLogService) Insert(ctx context.Context, entry map[string]interface{
 	}
 
 	// Validate metadata size
-	metadataJSON, _ := json.Marshal(metadata)
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		s.logger.Warn("Failed to marshal metadata for size validation")
+		metadataJSON = []byte("{}")
+	}
 	if len(metadataJSON) > MaxMetadataSize {
 		s.logger.WithFields(logrus.Fields{
 			"metadata_size": len(metadataJSON),

@@ -33,10 +33,10 @@ func (h *AIInsightsHandler) GenerateInsights(c *gin.Context) {
 	var req struct {
 		Model string `json:"model" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request body - model parameter is required",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}

@@ -68,13 +68,14 @@ func RegisterGitHubRoutes(router *gin.Engine) {
 		authGroup.GET("/health", HandleOAuthHealthCheck) // NEW: OAuth health check
 	}
 
-	// NOTE: Legacy routes /auth/github/callback REMOVED
-	// Frontend now uses client-side PKCE OAuth with React Router handling /auth/github/callback
-	// Backend only handles: POST /api/portal/auth/token (token exchange with code_verifier)
+	// NOTE: Legacy routes /auth/github/callback kept for OAuth redirect compatibility
+	// GitHub OAuth redirects to this URL (configured in REDIRECT_URI environment variable)
+	// After successful authentication, this handler redirects to frontend with token
 
 	// Keep /auth/github/login for backward compatibility (redirects to GitHub)
 	// This is used by some external tools/scripts
 	router.GET("/auth/github/login", HandleGitHubOAuthLogin)
+	router.GET("/auth/github/callback", HandleGitHubOAuthCallbackWithSession) // OAuth redirect target
 	router.GET("/auth/login", HandleAuthLogin)
 	router.POST("/auth/logout", HandleLogout)
 	router.GET("/auth/health", HandleOAuthHealthCheck)
@@ -333,10 +334,12 @@ func HandleGitHubOAuthLogin(c *gin.Context) {
 	// Store state for validation in callback
 	storeOAuthState(state)
 
-	redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=read:user%%20user:email",
+	// Add prompt=consent to force GitHub to re-prompt for authorization
+	// This prevents stale state issues when GitHub caches previous authorizations
+	redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s&scope=read:user%%20user:email&prompt=consent",
 		clientID, state)
 
-	log.Printf("[OAUTH] Step 2: Redirecting to GitHub with state=%s", state)
+	log.Printf("[OAUTH] Step 2: Redirecting to GitHub with state=%s (forced consent)", state)
 	c.Redirect(http.StatusFound, redirectURL)
 }
 
