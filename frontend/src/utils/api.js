@@ -86,29 +86,35 @@ export const reviewApi = {
   }),
   
   // Run analysis in different modes
+  // All AI analysis requests have 60-second timeout to prevent browser hangs
   runPreview: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/preview', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runSkim: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/skim', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runScan: (sessionId, code, model, query, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/scan', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, query, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runDetailed: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/detailed', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
   
   runCritical: (sessionId, code, model, userMode = 'intermediate', outputMode = 'quick') => apiRequest('/api/review/modes/critical', {
     method: 'POST',
     body: JSON.stringify({ pasted_code: code, model, user_mode: userMode, output_mode: outputMode }),
+    timeout: 60000, // 60 second timeout
   }),
 
   // GitHub Integration API endpoints (Phase 1)
