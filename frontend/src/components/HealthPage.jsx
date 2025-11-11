@@ -50,8 +50,30 @@ export default function HealthPage() {
   const [addingTag, setAddingTag] = useState(false);
 
   useEffect(() => {
-    fetchData();
-    fetchAvailableTags(); // Phase 3: Load available tags
+    // Phase 5: Batch all initial API calls in parallel for faster page load
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        const [statsData, logsData, tagsData] = await Promise.all([
+          apiRequest('/api/logs/v1/stats'),
+          apiRequest('/api/logs?limit=100'),
+          apiRequest('/api/logs/tags')
+        ]);
+        
+        setStats(statsData);
+        setLogs(logsData.entries || []);
+        setAvailableTags(tagsData.tags || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+        logError('Health page initial data load failed', { error: err.message });
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadInitialData();
   }, [activeTab]); // Remove autoRefresh from dependencies - WebSocket handles updates
 
   // Phase 3: WebSocket connection management
@@ -448,6 +470,20 @@ export default function HealthPage() {
       alert(`Failed to remove tag: ${error.message}`);
     }
   };
+
+  // Phase 5: Show loading spinner during initial data fetch
+  if (loading && logs.length === 0) {
+    return (
+      <div className="container mt-4">
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-3 text-muted">Loading health data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-4">
