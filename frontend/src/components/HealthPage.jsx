@@ -149,22 +149,27 @@ export default function HealthPage() {
     };
   }, [autoRefresh]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [logs, filters, selectedTags]); // Depend on actual values, not the callback
-
-
-  const fetchData = async (isBackgroundRefresh = false) => {
+  // Define fetchData with useCallback to prevent infinite loops
+  const fetchData = useCallback(async (isBackgroundRefresh = false) => {
     try {
       // Only show loading spinner on initial load, not during background refresh
       if (!isBackgroundRefresh) {
         setLoading(true);
       }
       
+      // Build query string with level filter if set
+      let logsQuery = '/api/logs?limit=100';
+      if (filters.level !== 'all') {
+        logsQuery += `&level=${filters.level}`;
+      }
+      if (filters.service !== 'all') {
+        logsQuery += `&service=${filters.service}`;
+      }
+      
       // Fetch both stats and logs in parallel using apiRequest
       const [statsData, logsData] = await Promise.all([
         apiRequest('/api/logs/v1/stats'),
-        apiRequest('/api/logs?limit=100')
+        apiRequest(logsQuery)
       ]);
       
       setStats(statsData);
@@ -177,7 +182,16 @@ export default function HealthPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.level, filters.service]); // Only depend on filter values we use
+
+  // Refetch data when level or service filters change
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [logs, filters, selectedTags]); // Depend on actual values, not the callback
 
   // Phase 3: Fetch available tags
   const fetchAvailableTags = async () => {
