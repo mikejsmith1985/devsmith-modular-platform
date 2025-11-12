@@ -1,362 +1,153 @@
-# DevSmith Review App
+# DevSmith Modular Platform
 
-**AI-powered code analysis for effective code comprehension and quality review.**
+**AI-Powered Development Platform for Code Review, Health Monitoring, and Centralized Logging**
 
-DevSmith teaches developers to read and supervise AI-generated code through five distinct reading modes, each optimized for different comprehension goals and cognitive load management.
+DevSmith is a self-hosted platform that helps development teams leverage AI for code review, system monitoring, and cross-repository logging. Built with modern microservices architecture and powered by local AI models (Ollama) or cloud AI providers (OpenAI, Anthropic).
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/go-1.21+-00ADD8.svg)](https://golang.org)
+[![React](https://img.shields.io/badge/react-18.0+-61DAFB.svg)](https://reactjs.org)
 [![Docker](https://img.shields.io/badge/docker-required-2496ED.svg)](https://docker.com)
 
 ---
 
-## � Quick Start (2 Commands)
+## 🚀 Quick Start (15 Minutes)
 
 ```bash
-# 1. Start Ollama (one-time setup)
-ollama serve &
-ollama pull mistral:7b-instruct
-
-# 2. Start Review app
-docker-compose -f docker-compose.review-only.yml up
-```
-
-**Visit: http://localhost:3000**
-
----
-
-## 📑 Table of Contents
-
-- [Overview](#overview)
-- [Reading Modes](#reading-modes)
-- [Prerequisites](#prerequisites)
-- [Setup](#setup)
-- [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
-- [Development](#development)
-
----
-
-## Overview
-
-DevSmith addresses the critical challenge of the "Human-in-the-Loop" era: as AI generates more code, developers must shift from *writing* code to *reading, understanding, and validating* AI output.
-
-### The Solution
-
-DevSmith provides **5 AI-assisted reading modes**:
-1. **👁️ Preview** (2-3 min) - Quick structural overview
-2. **⚡ Skim** (5-7 min) - Understand abstractions and patterns
-3. **🔎 Scan** (3-5 min) - Find specific code patterns
-4. **🔬 Detailed** (10-15 min) - Deep algorithm analysis
-5. **⚠️ Critical** (15-20 min) - Quality review and issue detection
-
-Each mode is optimized for **cognitive load management** and builds transferable mental frameworks.
-
----
-
-## Features
-
-### Core Capabilities
-
-✅ **5 Reading Modes** - AI-guided code analysis for different comprehension goals  
-✅ **Local AI Models** - Ollama integration (no API costs, privacy-first)  
-✅ **Multiple Models** - Mistral, CodeLlama, Llama2, DeepSeek support  
-✅ **Circuit Breaker** - Graceful degradation when AI unavailable  
-✅ **HTMX UI** - Fast, server-rendered interface  
-✅ **Docker Ready** - Single-command deployment  
-✅ **Health Checks** - Comprehensive monitoring of all components  
-✅ **OpenTelemetry** - Distributed tracing to Jaeger  
-✅ **Graceful Shutdown** - Zero data loss during restarts
-
-### Quality & Reliability
-
-✅ **Production-Ready** - Circuit breakers, health checks, graceful shutdown  
-✅ **Error Handling** - User-friendly error templates with retry actions  
-✅ **Observability** - Prometheus metrics + Jaeger tracing  
-✅ **Test Coverage** - Unit, integration, and E2E tests  
-✅ **API Documentation** - OpenAPI 3.0 specification  
-✅ **Incident Runbooks** - Step-by-step troubleshooting guides
-
----
-
-## Architecture
-
-### Services
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Nginx Gateway (port 3000)                 │
-│                         /api/review/*                         │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-         ┌───────────┼───────────┐
-         │           │           │
-    ┌────▼────┐ ┌───▼────┐ ┌───▼────────┐
-    │ Portal  │ │ Review │ │ Analytics  │
-    │ :8080   │ │ :8081  │ │ :8083      │
-    └────┬────┘ └───┬────┘ └───┬────────┘
-         │          │           │
-         └──────────┼───────────┘
----
-
-## Reading Modes
-
-### 👁️ Preview Mode (2-3 minutes)
-**Purpose:** Quick structural assessment before deep dive
-
-**What You Get:**
-- File/folder tree with descriptions
-- Identified bounded contexts
-- Technology stack detection
-- Architectural pattern analysis
-- Entry points and dependencies
-
-**Use Cases:**
-- Evaluating GitHub repo before cloning
-- Quick assessment of AI-generated code
-- Determining project relevance
-
----
-
-### ⚡ Skim Mode (5-7 minutes)
-**Purpose:** Understand abstractions without implementation details
-
-**What You Get:**
-- Function/method signatures with descriptions
-- Interface definitions
-- Data models and entities
-- Key workflows with diagrams
-- API endpoint catalog
-
-**Use Cases:**
-- Understanding what a codebase does
-- Preparing spec for AI implementation
-- Architectural review
-
----
-
-### 🔎 Scan Mode (3-5 minutes)
-**Purpose:** Targeted information search
-
-**What You Get:**
-- Semantic search (not just string matching)
-- Variable/function usage tracking
-- Error source identification
-- Pattern matching
-- Related code discovery
-
-**Use Cases:**
-- "Where is auth validated?"
-- "Find all database queries"
-- "What calls this deprecated function?"
-
----
-
-### 🔬 Detailed Mode (10-15 minutes)
-**Purpose:** Deep understanding of algorithms
-
-**What You Get:**
-- Line-by-line explanation
-- Variable state at each point
-- Control flow analysis
-- Algorithm identification
-- Complexity analysis
-- Edge case identification
-
-**Use Cases:**
-- Understanding complex algorithm before modifying
-- Debugging subtle logic errors
-- Learning from well-written code
-
----
-
-### ⚠️ Critical Mode (15-20 minutes) - Human-in-the-Loop Review
-**Purpose:** Evaluate quality and identify improvements
-
-**What You Get:**
-- **Architecture Issues**: Bounded context violations, layer mixing
-- **Code Quality**: Error handling, scope problems, naming
-- **Security**: SQL injection, unvalidated input, auth gaps
-- **Performance**: N+1 queries, inefficient algorithms
-- **Testing**: Untested code paths, missing coverage
-- **Improvement Suggestions**: Specific refactoring with before/after
-
-**Use Cases:**
-- **PRIMARY**: Reviewing AI-generated code before merge
-- Pre-commit quality checks
-- Security audit
-- Refactoring planning
-
----
-
-## Prerequisites
-
-### System Requirements
-
-**Minimum (Recommended):**
-- Docker 24.0+
-- Docker Compose 2.0+
-- 16GB RAM
-- 50GB disk space
-- Internet connection (for Ollama model download)
-
-**For Best Experience:**
-- 32GB RAM
-- NVIDIA GPU with 8GB+ VRAM
-- 100GB disk space
-
-### Ollama Setup
-
-```bash
-# Install Ollama
+# 1. Install Ollama (AI model host)
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Start Ollama service
-ollama serve &
+# 2. Pull an AI model (choose based on your RAM)
+ollama pull qwen2.5-coder:7b  # For 12-16GB RAM (recommended)
 
-# Pull recommended model (16GB RAM)
-ollama pull mistral:7b-instruct
+# 3. Start Ollama
+ollama serve
 
-# Alternative: Best quality model (32GB RAM)
-ollama pull deepseek-coder-v2:16b
+# 4. Clone repository
+git clone https://github.com/mikejsmith1985/devsmith-modular-platform.git
+cd devsmith-modular-platform
 
-# Verify Ollama running
-curl http://localhost:11434/api/tags
-```
+# 5. Configure environment
+cp .env.example .env
+nano .env  # Add your GitHub OAuth credentials
 
----
+# 6. Start platform
+docker-compose up -d
 
-## Setup
-
-### Option 1: Quick Start (Review App Only)
-
-```bash
-# Start minimal stack
-docker-compose -f docker-compose.review-only.yml up
-
-# Access Review app
+# 7. Open browser
 open http://localhost:3000
 ```
 
-**Services:**
-- Nginx Gateway (port 3000)
-- Review Service (port 8081)
-- PostgreSQL (port 5432)
-- Jaeger (port 16686, optional with --profile dev-tools)
+**Full setup guide:** [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
 
-### Option 2: Full Platform
+## ✨ Features
 
+- **🔍 Code Review:** AI-powered analysis with 5 reading modes (Preview, Skim, Scan, Detailed, Strategic)
+- **🏥 Health Monitoring:** Real-time system metrics, log aggregation, AI diagnostics
+- **🔧 Projects API:** Cross-repository logging with batch ingestion (100x faster)
+- **🤖 AI Factory:** Configure multiple AI providers (Ollama, OpenAI, Anthropic)
+- **📊 Analytics:** *(Coming Soon)* Trend analysis, cost tracking, custom dashboards
+
+---
+
+## 📚 Documentation
+
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Installation & setup (15 min)
+- **[API_INTEGRATION.md](./API_INTEGRATION.md)** - Integrate external apps (5 min)
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture
+- **[TROUBLESHOOTING_GUIDE.md](./docs/TROUBLESHOOTING_GUIDE.md)** - Common issues
+
+---
+
+## 🏗️ Architecture
+
+**Stack:** React 18 + Go + PostgreSQL + Redis + Traefik + Jaeger  
+**Services:** Portal, Review, Logs, Analytics  
+**AI Providers:** Ollama (local), OpenAI, Anthropic
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for details.
+
+---
+
+## 📋 Prerequisites
+
+| Software | Version | Purpose |
+|----------|---------|---------|
+| Docker | 24.0+ | Container runtime |
+| Docker Compose | 2.20+ | Multi-container orchestration |
+| Ollama | 0.1.0+ | AI model hosting |
+| Git | 2.30+ | Source control |
+
+**System Requirements:** 12GB RAM, 4 CPU cores, 20GB storage (minimum)
+
+**GitHub OAuth:** Register at https://github.com/settings/developers
+
+---
+
+## 💻 Usage
+
+### Code Review
+1. Navigate to http://localhost:3000/review
+2. Paste code or connect GitHub repository
+3. Select reading mode (Preview / Skim / Scan / Detailed / Strategic)
+4. Review AI insights
+
+### Send Logs from Your App
 ```bash
-# Start all services
-docker-compose up -d
-
-# Access services
-open http://localhost:3000        # Portal (authentication, navigation)
-open http://localhost:3000/review # Review app
-open http://localhost:3000/logs   # Logs monitoring
-open http://localhost:3000/analytics # Analytics dashboard
+curl -X POST http://localhost:3000/api/logs/batch \
+  -H "X-API-Key: dsk_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"project_slug":"my-app","logs":[...]}'
 ```
 
----
-
-## Usage
-
-### 1. Paste Code
-
-Visit `http://localhost:3000/review/sessions/new`
-
-Paste your code (or provide GitHub URL)
-
-### 2. Select Reading Mode
-
-Choose from dropdown:
-- 👁️ Preview (quick overview)
-- ⚡ Skim (abstractions)
-- 🔎 Scan (search)
-- 🔬 Detailed (deep dive)
-- ⚠️ Critical (quality review)
-
-### 3. Analyze
-
-Click **"Analyze Code"** button
-
-Wait 2-20 minutes depending on mode (see timings above)
-
-### 4. Review Results
-
-**Preview/Skim/Scan:** Interactive tree views, function lists, search results
-
-**Detailed:** Line-by-line explanation with variable states
-
-**Critical:** Issue list categorized by type (Architecture, Security, Quality, Performance, Testing)
+See [API_INTEGRATION.md](./API_INTEGRATION.md) for Node.js, Go, Python, Java examples.
 
 ---
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### "AI analysis service is unavailable"
-
-**Cause:** Ollama not running or model not pulled
-
-**Fix:**
+**Services won't start?**
 ```bash
-# Check Ollama status
-curl http://localhost:11434/api/tags
-
-# If not running:
-ollama serve &
-
-# Pull model if missing:
-ollama pull mistral:7b-instruct
+docker-compose ps  # Check status
+docker-compose logs portal  # View logs
 ```
 
----
-
-### "Database connection failed"
-
-**Cause:** PostgreSQL container not healthy
-
-**Fix:**
+**Ollama connection failed?**
 ```bash
-# Check postgres status
-docker-compose logs postgres
-
-# Restart if unhealthy
-docker-compose restart postgres
+curl http://localhost:11434/api/tags  # Test Ollama
+ollama serve  # Start if not running
 ```
 
----
-
-### "Service timeout" or slow responses
-
-**Cause:** Model too large for available RAM
-
-**Fix:**
-```bash
-# Check system RAM
-free -h
-
-# If < 16GB, use smaller model:
-ollama pull mistral:7b-instruct
-
-# Update docker-compose.review-only.yml:
-# OLLAMA_MODEL=mistral:7b-instruct
-```
+**More help:** [TROUBLESHOOTING_GUIDE.md](./docs/TROUBLESHOOTING_GUIDE.md)
 
 ---
 
-### Review app shows blank page
+## 🤝 Contributing
 
-## Development
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Write tests (see [DevsmithTDD.md](./DevsmithTDD.md))
+4. Commit: `git commit -m "feat: add amazing feature"`
+5. Open Pull Request
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details.
-See [DevsmithTDD.md](DevsmithTDD.md) for test-driven development guidelines.
-See [Requirements.md](Requirements.md) for feature requirements.
+**Commit convention:** [Conventional Commits](https://www.conventionalcommits.org/)
 
 ---
 
-## License
+## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](./LICENSE) file
+
+---
+
+## 📞 Support
+
+- **Issues:** https://github.com/mikejsmith1985/devsmith-modular-platform/issues
+- **Discussions:** https://github.com/mikejsmith1985/devsmith-modular-platform/discussions
+- **Beta Feedback:** Open an issue with label `beta-feedback`
+
+---
+
+**⭐ Star us on GitHub** if you find this project useful!

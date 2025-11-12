@@ -87,6 +87,13 @@ bash scripts/regression-test.sh
 - Changes should be tracked in the main implementation plan, not scattered across multiple files
 - Only create new documentation when absolutely necessary (new features, new subsystems)
 
+### Document Organization
+- **Critical platform docs** (README, DEPLOYMENT, ARCHITECTURE, API_INTEGRATION, etc.) go in project root
+- **Temporary/working docs** (summaries, progress updates, chat notes) go in `copilot-chat-docs/` directory
+- `copilot-chat-docs/` is gitignored and can be deleted without impacting platform
+- **Examples of temporary docs**: completion summaries, phase reviews, status updates, debug notes
+- **Examples of critical docs**: user guides, API specs, deployment instructions, architecture documentation
+
 ---
 
 ## �🚨 CRITICAL RULES (Never Violate)

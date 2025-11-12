@@ -21,6 +21,7 @@ import (
 	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
 	logs_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/middleware"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/monitoring"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/sirupsen/logrus"
@@ -187,13 +188,17 @@ func main() {
 	router.POST("/api/logs/batch", logs_middleware.SimpleAPITokenAuth(projectRepo), batchHandler.IngestBatch)
 
 	// Week 1: Cross-Repository Logging - Project management endpoints
-	// These endpoints allow users to create projects and manage API keys
-	// Note: These need authentication middleware in production
-	router.POST("/api/logs/projects", projectHandler.CreateProject)
-	router.GET("/api/logs/projects", projectHandler.ListProjects)
-	router.GET("/api/logs/projects/:id", projectHandler.GetProject)
-	router.POST("/api/logs/projects/:id/regenerate-key", projectHandler.RegenerateAPIKey)
-	router.DELETE("/api/logs/projects/:id", projectHandler.DeleteProject)
+	// Authentication: Redis session middleware (requires GitHub OAuth login)
+	// These endpoints allow authenticated users to create projects and manage API keys
+	projectRoutes := router.Group("/api/logs/projects")
+	projectRoutes.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
+	{
+		projectRoutes.POST("", projectHandler.CreateProject)
+		projectRoutes.GET("", projectHandler.ListProjects)
+		projectRoutes.GET("/:id", projectHandler.GetProject)
+		projectRoutes.POST("/:id/regenerate-key", projectHandler.RegenerateAPIKey)
+		projectRoutes.DELETE("/:id", projectHandler.DeleteProject)
+	}
 
 	router.GET("/api/logs", func(c *gin.Context) {
 		resthandlers.GetLogs(restSvc)(c)
