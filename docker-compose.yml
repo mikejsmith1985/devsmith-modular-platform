@@ -178,8 +178,8 @@ services:
       - REDIS_URL=redis:6379
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
+      - PORTAL_URL=http://portal:3001
       - OLLAMA_ENDPOINT=http://host.docker.internal:11434
-      - OLLAMA_MODEL=mistral:7b-instruct
       - ENVIRONMENT=docker
         - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4318
     depends_on:

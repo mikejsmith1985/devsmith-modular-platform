@@ -97,6 +97,7 @@ func RedisSessionAuthMiddleware(sessionStore *session.RedisStore) gin.HandlerFun
 		c.Set("github_username", sess.GitHubUsername)
 		c.Set("github_token", sess.GitHubToken)
 		c.Set("session_id", sessionID)
+		c.Set("session_token", tokenString) // Store JWT for Portal AI Factory API calls
 
 		// Store full session for handlers that need metadata
 		c.Set("session", sess)
