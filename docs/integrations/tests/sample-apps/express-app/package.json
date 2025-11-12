@@ -1,0 +1,17 @@
+{
+  "name": "devsmith-express-sample",
+  "version": "1.0.0",
+  "description": "Sample Express.js app with DevSmith logging integration",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

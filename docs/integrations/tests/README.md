@@ -2,29 +2,36 @@
 
 Automated test suite for Week 2 sample files and framework integrations.
 
-## Test Coverage
+## Test Coverage (102 tests, ~2,780 lines)
 
-### Unit Tests
-- ✅ JavaScript logger (buffer, batch, retry, cleanup)
-- ✅ Python logger (threading, batch, retry, cleanup)
-- ✅ Go logger (goroutines, mutex, batch, retry, cleanup)
+### Unit Tests (48 tests)
+- ✅ JavaScript logger (16 tests) - buffer, batch, retry, cleanup
+- ✅ Python logger (17 tests) - threading, batch, retry, cleanup
+- ✅ Go logger (15 tests) - goroutines, mutex, batch, retry, cleanup
 
-### Integration Tests
-- ✅ Express.js middleware (request/response logging, timing, header redaction)
-- ✅ Flask extension (hooks, decorator, exception tracking)
-- ✅ Gin middleware (request/response logging, panic recovery)
+### Integration Tests (37 tests)
+- ✅ Express.js middleware (13 tests) - request/response logging, timing, header redaction
+- ✅ Flask extension (13 tests) - hooks, decorator, exception tracking
+- ✅ Gin middleware (11 tests) - request/response logging, panic recovery
 
-### API Tests
-- ✅ Batch endpoint validation
-- ✅ API key authentication
-- ✅ Rate limiting
-- ✅ Invalid request handling
+### API Tests (17 tests)
+- ✅ Batch endpoint validation (4 tests) - single log, 100 logs, all levels, rich metadata
+- ✅ API key authentication (2 tests) - invalid key, missing key
+- ✅ Request validation (5 tests) - missing slug, missing logs, empty logs, missing fields, invalid level
+- ✅ Performance (2 tests) - 500 logs <5s, concurrent batches
+- ✅ Rate limiting (1 test) - 100 rapid requests
+- ✅ Error handling (3 tests) - malformed JSON, partial failures, network errors
 
 ## Running Tests
 
 ### All Tests
 ```bash
-npm test
+npm run test:all  # Runs Playwright E2E + cross-repo integration tests
+```
+
+### Cross-Repo Tests Only
+```bash
+npm run test:cross-repo  # Runs logger, express, and API tests
 ```
 
 ### Specific Test Suites
