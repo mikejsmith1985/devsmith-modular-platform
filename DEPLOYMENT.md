@@ -197,7 +197,10 @@ JWT_SECRET=$(openssl rand -base64 32)
 
 # AI Configuration
 OLLAMA_ENDPOINT=http://host.docker.internal:11434
-OLLAMA_MODEL=qwen2.5-coder:7b  # Match the model you pulled
+
+# ⚠️ IMPORTANT: AI models are configured through the AI Factory UI (/llm-config)
+# The OLLAMA_ENDPOINT is only needed so AI Factory can connect to your Ollama instance.
+# DO NOT configure models via environment variables - they will be ignored.
 
 # Service Ports (defaults are fine for most users)
 PORT=3000
@@ -285,57 +288,194 @@ curl http://localhost:3000/api/logs/health
 - AI Factory
 - Projects
 
+**⚠️ NEXT STEP REQUIRED:** Before using Review, Logs, or Analytics apps, you MUST configure at least one AI model in the AI Factory. See the next section for instructions.
+
 ---
 
-## 🤖 Configure AI Models (AI Factory)
+## 🤖 Configure AI Models (AI Factory) ⚠️ REQUIRED
 
-After first login, configure your AI models through the web interface:
+**IMPORTANT:** AI model configuration is now ONLY done through the AI Factory web interface. Environment variables for AI models are no longer supported.
+
+After first login, you MUST configure at least one AI model before using Review, Logs, or Analytics features:
+
+### Why AI Factory?
+
+The AI Factory provides:
+- ✅ **Per-user model selection** - Different team members can use different models
+- ✅ **Per-app preferences** - Use fast local models for logs, powerful API models for code review
+- ✅ **Secure API key storage** - Encrypted in database, never in environment files
+- ✅ **Real-time switching** - Change models without restarting services
+- ✅ **Easy testing** - Test connection before saving
 
 ### Step 1: Navigate to AI Factory
 
-From Dashboard, click the **"AI Factory"** card.
+From Dashboard, click the **"AI Factory"** card (or navigate to `/llm-config`).
 
-### Step 2: Add Ollama Model
+### Step 2: Add Your First Model (Required)
+
+You must add at least ONE model before using AI-powered features.
+
+#### Option A: Add Local Ollama Model (Recommended for Beta)
 
 1. Click **"Add Model"** button
 2. Fill in the form:
-   - **Name:** "Local Qwen Coder" (or any name you prefer)
-   - **Provider:** Select "Ollama (Local)"
-   - **Model:** `qwen2.5-coder:7b` (or the model you pulled)
+   - **Name:** "Local Qwen Coder" (or any descriptive name)
+   - **Provider:** Select **"Ollama (Local)"**
+   - **Model Name:** `qwen2.5-coder:7b` (must match the model you pulled earlier)
+   - **Endpoint:** `http://host.docker.internal:11434` (pre-filled, connects to your Ollama instance)
    - **API Key:** Leave blank (not needed for Ollama)
-   - **Endpoint:** `http://host.docker.internal:11434` (pre-filled)
    - **Set as Default:** ✅ Check this box
-3. Click **"Test Connection"** - should show ✅ Success
-4. Click **"Save"**
+3. Click **"Test Connection"** 
+   - Should show: ✅ **"Connection successful! Model is available."**
+   - If it fails, verify:
+     - Ollama is running (`ollama list` should work)
+     - Model is pulled (`ollama list` should show `qwen2.5-coder:7b`)
+     - Endpoint URL is correct
+4. Click **"Save Model"**
 
-### Step 3: Configure App Preferences
+**✅ Success!** You now have a working AI model configured.
 
-Set which model each app should use:
+#### Option B: Add Cloud API Model (OpenAI)
 
-1. In the **"App Preferences"** section, you'll see dropdowns for each app:
-   - **Review App:** Select your Ollama model
-   - **Logs App:** Select your Ollama model (or leave as default)
-2. Changes save automatically
+If you have an OpenAI API key:
 
-### Optional: Add Cloud AI Providers
-
-If you have API keys for cloud providers:
-
-#### Add OpenAI
 1. Click **"Add Model"**
-2. Select **"OpenAI (GPT)"**
-3. Enter your OpenAI API key
-4. Select model (e.g., `gpt-4-turbo-preview`)
-5. Save
+2. Fill in the form:
+   - **Name:** "GPT-4 Turbo"
+   - **Provider:** Select **"OpenAI (GPT)"**
+   - **Model Name:** `gpt-4-turbo-preview` (or `gpt-3.5-turbo` for lower cost)
+   - **API Key:** Paste your OpenAI API key (starts with `sk-`)
+   - **Endpoint:** Leave as default (OpenAI official endpoint)
+   - **Set as Default:** ✅ Check if you want this as primary model
+3. Click **"Test Connection"** - should succeed if key is valid
+4. Click **"Save Model"**
 
-#### Add Anthropic (Claude)
+**💰 Cost Note:** OpenAI charges per request. `gpt-3.5-turbo` is ~10x cheaper than `gpt-4-turbo`.
+
+#### Option C: Add Cloud API Model (Anthropic Claude)
+
+If you have an Anthropic API key:
+
 1. Click **"Add Model"**
-2. Select **"Anthropic (Claude)"**
-3. Enter your Anthropic API key
-4. Select model (e.g., `claude-3-5-sonnet-20241022`)
-5. Save
+2. Fill in the form:
+   - **Name:** "Claude 3.5 Sonnet"
+   - **Provider:** Select **"Anthropic (Claude)"**
+   - **Model Name:** `claude-3-5-sonnet-20241022` (recommended) or `claude-3-opus-20240229`
+   - **API Key:** Paste your Anthropic API key (starts with `sk-ant-`)
+   - **Endpoint:** Leave as default (Anthropic official endpoint)
+   - **Set as Default:** ✅ Check if you want this as primary model
+3. Click **"Test Connection"** - should succeed if key is valid
+4. Click **"Save Model"**
 
-**💡 Tip:** You can switch between models anytime. Local Ollama is free but slower. Cloud APIs are faster but cost money.
+**💡 Quality Tip:** Claude is generally considered best for code analysis and detailed explanations.
+
+### Step 3: Configure App Preferences (Optional)
+
+By default, all apps use your "default" model. But you can customize:
+
+1. In the **"App Preferences"** section, you'll see dropdowns:
+   - **Review App:** Which model to use for code analysis
+   - **Logs App:** Which model to use for log pattern analysis
+   - **Analytics App:** Which model to use for insights
+2. Select different models for each app (or leave as default)
+3. Changes save automatically
+
+**Example Configuration:**
+- Review App: `claude-3-5-sonnet` (best quality for code review)
+- Logs App: `qwen2.5-coder:7b` (fast local model, sufficient for logs)
+- Analytics App: `gpt-4-turbo` (powerful for insights)
+
+### Step 4: Verify Configuration
+
+1. Navigate to **Review** app
+2. Paste some test code:
+   ```go
+   func add(a, b int) int {
+       return a + b
+   }
+   ```
+3. Click **"Analyze"**
+4. Should see AI analysis results (no 500 error)
+
+**✅ If analysis works:** Configuration successful!  
+**❌ If you get errors:** See Troubleshooting section below.
+
+---
+
+## 🔧 Troubleshooting
+
+### "No AI model configured" Error
+
+**Symptom:** Error message: "No AI model configured. Please configure an AI model in AI Factory (/llm-config)"
+
+**Solution:**
+1. Go to http://localhost:3000/llm-config
+2. Add at least ONE model (see Step 2 above)
+3. Set it as default
+4. Try analysis again
+
+### "AI Service Unavailable" or 500 Error
+
+**Symptom:** Analysis fails with generic error
+
+**Possible Causes & Solutions:**
+
+#### 1. Ollama Not Running
+```bash
+# Check if Ollama is accessible
+curl http://localhost:11434/api/tags
+
+# If fails, start Ollama
+ollama serve
+```
+
+#### 2. Model Not Pulled
+```bash
+# Check which models are available
+ollama list
+
+# If your configured model isn't listed, pull it
+ollama pull qwen2.5-coder:7b
+```
+
+#### 3. Wrong Endpoint URL
+- Ollama endpoint should be: `http://host.docker.internal:11434`
+- This special hostname allows Docker containers to reach your host machine
+- On Linux, you may need: `http://172.17.0.1:11434` instead
+
+#### 4. Invalid API Key (for cloud providers)
+- Go to AI Factory
+- Click "Edit" on the model
+- Click "Test Connection"
+- If fails, verify your API key is correct and has credits/quota
+
+#### 5. Model Name Mismatch
+- In AI Factory, model name must EXACTLY match what Ollama has
+- Example: `qwen2.5-coder:7b` not `qwen2.5-coder` or `qwen2.5-coder:latest`
+
+### Check Review Service Logs
+
+If issues persist, check what the Review service sees:
+
+```bash
+# View Review service logs
+docker-compose logs review --tail=50
+
+# Look for lines containing:
+# - "Initializing AI client" (should show portal_url)
+# - "GET /api/portal/app-llm-preferences" (Portal API calls)
+# - Any error messages about models or providers
+```
+
+### Verify Portal API Responds
+
+```bash
+# Test Portal API (will fail auth, but should not 404)
+curl http://localhost:3000/api/portal/app-llm-preferences
+
+# Should return: {"error":"Authentication required"}
+# If returns 404, Portal service may not be running
+```
 
 ---
 
@@ -669,8 +809,13 @@ docker-compose ps
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OLLAMA_ENDPOINT` | No | `http://host.docker.internal:11434` | Ollama API endpoint |
-| `OLLAMA_MODEL` | No | `qwen2.5-coder:7b` | Default AI model |
+| `OLLAMA_ENDPOINT` | No | `http://host.docker.internal:11434` | Ollama API endpoint (only needed for AI Factory to connect) |
+
+**⚠️ IMPORTANT:** The `OLLAMA_MODEL`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY` environment variables are **NO LONGER SUPPORTED**. All AI model configuration must be done through the **AI Factory UI** (`/llm-config`). This ensures:
+- Per-user model preferences
+- Secure API key storage (encrypted in database)
+- Real-time model switching without service restarts
+- Per-app model selection
 
 ### Service Ports
 
