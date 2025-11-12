@@ -32,15 +32,10 @@
 //       router.Run(":8080")
 //   }
 
-package main
+// Package devsmith provides Gin middleware for DevSmith logging
+package devsmith
 
 import (
-	"bytes"
-	"io"
-	"time"
-
-	"github.com/gin-gonic/gin"
-)
 
 // DevSmithMiddlewareConfig configures the DevSmith logging middleware
 type DevSmithMiddlewareConfig struct {

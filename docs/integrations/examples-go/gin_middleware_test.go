@@ -1,6 +1,51 @@
-package tests
+//go:build integration
+// +build integration
+
+package devsmith
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Mock logger for testing
+type MockLogger struct {
+	LogCalls []LogCall
+}
+
+type LogCall struct {
+	Level   string
+	Message string
+	Context map[string]interface{}
+	Tags    []string
+}
+
+func (m *MockLogger) Debug(message string, context map[string]interface{}, tags []string) {
+	m.LogCalls = append(m.LogCalls, LogCall{"DEBUG", message, context, tags})
+}
+
+func (m *MockLogger) Info(message string, context map[string]interface{}, tags []string) {
+	m.LogCalls = append(m.LogCalls, LogCall{"INFO", message, context, tags})
+}
+
+func (m *MockLogger) Warn(message string, context map[string]interface{}, tags []string) {
+	m.LogCalls = append(m.LogCalls, LogCall{"WARN", message, context, tags})
+}
+
+func (m *MockLogger) Error(message string, context map[string]interface{}, tags []string) {
+	m.LogCalls = append(m.LogCalls, LogCall{"ERROR", message, context, tags})
+}
+
+func (m *MockLogger) Close() {
+	// Mock close
+}
+
+func TestInitializationValid(t *testing.T) {
 	"encoding/json"
 	"fmt"
 	"net/http"

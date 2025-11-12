@@ -1,4 +1,4 @@
-package go
+// Package devsmith provides Go integration for DevSmith Logs API
 /*
 DevSmith Logger - Go Integration
 

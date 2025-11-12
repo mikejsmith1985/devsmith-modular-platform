@@ -1,4 +1,7 @@
-package tests
+//go:build integration
+// +build integration
+
+package devsmith
 
 import (
 	"encoding/json"
