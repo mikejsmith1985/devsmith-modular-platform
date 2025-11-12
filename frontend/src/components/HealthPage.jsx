@@ -27,6 +27,7 @@ export default function HealthPage() {
   const [filters, setFilters] = useState({
     level: 'all',
     service: 'all',
+    project: 'all',  // Week 3: Add project filter
     search: ''
   });
   const [autoRefresh, setAutoRefresh] = useState(false);  // OFF by default - Phase 1 fix
@@ -48,6 +49,10 @@ export default function HealthPage() {
   
   // Phase 3: Manual Tag Management
   const [newTagInput, setNewTagInput] = useState('');
+  
+  // Week 3: Cross-repo logging - project management
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
 
   useEffect(() => {
@@ -168,6 +173,10 @@ export default function HealthPage() {
       if (filters.service !== 'all') {
         logsQuery += `&service=${filters.service}`;
       }
+      // Week 3: Add project filter for cross-repo logging
+      if (filters.project !== 'all') {
+        logsQuery += `&project_id=${filters.project}`;
+      }
       
       // Fetch both stats and logs in parallel using apiRequest
       const [statsData, logsData] = await Promise.all([
@@ -204,7 +213,26 @@ const fetchAvailableTags = async () => {
   } catch (error) {
     logWarning('Failed to fetch log tags', { error: error.message });
   }
-};  // Phase 3: Toggle tag selection
+};
+
+// Week 3: Fetch projects for cross-repo logging
+const fetchProjects = async () => {
+  try {
+    setLoadingProjects(true);
+    const data = await apiRequest('/api/logs/projects');
+    setProjects(Array.isArray(data) ? data : data.projects || []);
+  } catch (error) {
+    logWarning('Failed to fetch projects', { error: error.message });
+    setProjects([]);
+  } finally {
+    setLoadingProjects(false);
+  }
+};
+
+useEffect(() => {
+  fetchAvailableTags();
+  fetchProjects();  // Week 3: Fetch projects on mount
+}, []);  // Phase 3: Toggle tag selection
   const handleTagToggle = (tag) => {
     setSelectedTags(prev => {
       if (prev.includes(tag)) {
@@ -243,8 +271,14 @@ const fetchAvailableTags = async () => {
     setFilteredLogs(filtered);
   }, [logs, filters, selectedTags]);
 
+  // Week 3: Filter services by selected project
   const getUniqueServices = () => {
-    const services = new Set(logs.map(log => log.service));
+    // If a project is selected, only show services from that project's logs
+    const logsToFilter = filters.project !== 'all' 
+      ? logs.filter(log => log.project_id === parseInt(filters.project))
+      : logs;
+    
+    const services = new Set(logsToFilter.map(log => log.service));
     return Array.from(services).sort();
   };
 
@@ -673,7 +707,23 @@ const fetchAvailableTags = async () => {
 
                     {/* Filters */}
                     <div className="row mb-3">
-                      <div className="col-md-4">
+                      {/* Week 3: Project filter for cross-repo logging */}
+                      <div className="col-md-3">
+                        <select
+                          className="form-select form-select-sm bg-dark text-light border-secondary"
+                          value={filters.project}
+                          onChange={(e) => setFilters({ ...filters, project: e.target.value })}
+                          disabled={loadingProjects}
+                        >
+                          <option value="all">All Projects</option>
+                          {projects.map(project => (
+                            <option key={project.id} value={project.id}>
+                              {project.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3">
                         <select
                           className="form-select form-select-sm bg-dark text-light border-secondary"
                           value={filters.service}
@@ -685,7 +735,7 @@ const fetchAvailableTags = async () => {
                           ))}
                         </select>
                       </div>
-                      <div className="col-md-8">
+                      <div className="col-md-6">
                         <input
                           type="text"
                           className="form-control form-control-sm bg-dark text-light border-secondary"

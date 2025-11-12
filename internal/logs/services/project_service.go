@@ -21,13 +21,14 @@ type ProjectService struct {
 // ProjectRepository defines the interface for project data access
 type ProjectRepository interface {
 	Create(ctx context.Context, project *logs_models.Project) (*logs_models.Project, error)
-	GetByID(ctx context.Context, id int) (*logs_models.Project, error)
-	GetBySlug(ctx context.Context, userID int, slug string) (*logs_models.Project, error)
+	GetByID(ctx context.Context, id int, userID int) (*logs_models.Project, error)
+	GetByIDGlobal(ctx context.Context, id int) (*logs_models.Project, error) // Without user constraint
+	GetBySlug(ctx context.Context, slug string, userID int) (*logs_models.Project, error)
 	GetBySlugGlobal(ctx context.Context, slug string) (*logs_models.Project, error) // For batch API validation
-	GetByAPIKeyHash(ctx context.Context, apiKeyHash string) (*logs_models.Project, error)
+	FindByAPIToken(ctx context.Context, token string) (*logs_models.Project, error)
 	ListByUserID(ctx context.Context, userID int) ([]logs_models.Project, error)
 	Update(ctx context.Context, project *logs_models.Project) error
-	UpdateAPIKeyHash(ctx context.Context, projectID int, newAPIKeyHash string) error
+	UpdateAPIToken(ctx context.Context, projectID int, newAPIToken string) error
 	Delete(ctx context.Context, id int) error
 }
 
@@ -137,7 +138,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, userID int, req *log
 
 	// Create project model
 	project := &logs_models.Project{
-		UserID:        userID,
+		UserID:        &userID, // Convert int to *int
 		Name:          req.Name,
 		Slug:          req.Slug,
 		Description:   req.Description,
@@ -188,13 +189,13 @@ func (s *ProjectService) ListProjects(ctx context.Context, userID int) ([]logs_m
 // GetProject returns a project by ID with statistics
 func (s *ProjectService) GetProject(ctx context.Context, projectID int) (*logs_models.Project, error) {
 	// TODO: Add log count statistics to Project model
-	return s.repo.GetByID(ctx, projectID)
+	return s.repo.GetByIDGlobal(ctx, projectID)
 }
 
 // UpdateProject updates a project's metadata
 func (s *ProjectService) UpdateProject(ctx context.Context, projectID int, req *logs_models.UpdateProjectRequest) (*logs_models.Project, error) {
 	// Get existing project
-	project, err := s.repo.GetByID(ctx, projectID)
+	project, err := s.repo.GetByIDGlobal(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("project not found: %w", err)
 	}
@@ -223,22 +224,21 @@ func (s *ProjectService) UpdateProject(ctx context.Context, projectID int, req *
 
 // RegenerateAPIKey generates a new API key for a project
 func (s *ProjectService) RegenerateAPIKey(ctx context.Context, projectID int) (*logs_models.RegenerateKeyResponse, error) {
-	// Get existing project
-	project, err := s.repo.GetByID(ctx, projectID)
+	// Verify project exists
+	_, err := s.repo.GetByIDGlobal(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("project not found: %w", err)
 	}
 
-	// Generate new API key
-	plainKey, hash, err := GenerateAPIKey()
+	// Generate new API token (plain, no hashing)
+	plainKey, _, err := GenerateAPIKey() // Still use same generation, just don't use hash
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate API key: %w", err)
+		return nil, fmt.Errorf("failed to generate API token: %w", err)
 	}
 
-	// Update project with new hash
-	project.APIKeyHash = hash
-	if err := s.repo.Update(ctx, project); err != nil {
-		return nil, fmt.Errorf("failed to update API key: %w", err)
+	// Update project with new token (plain, not hashed)
+	if err := s.repo.UpdateAPIToken(ctx, projectID, plainKey); err != nil {
+		return nil, fmt.Errorf("failed to update API token: %w", err)
 	}
 
 	return &logs_models.RegenerateKeyResponse{
@@ -249,7 +249,7 @@ func (s *ProjectService) RegenerateAPIKey(ctx context.Context, projectID int) (*
 
 // DeactivateProject soft-deletes a project
 func (s *ProjectService) DeactivateProject(ctx context.Context, projectID int) error {
-	project, err := s.repo.GetByID(ctx, projectID)
+	project, err := s.repo.GetByIDGlobal(ctx, projectID)
 	if err != nil {
 		return fmt.Errorf("project not found: %w", err)
 	}

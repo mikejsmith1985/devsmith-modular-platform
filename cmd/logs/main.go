@@ -19,6 +19,7 @@ import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
+	logs_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/middleware"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/monitoring"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
@@ -178,9 +179,12 @@ func main() {
 
 	// Week 1: Cross-Repository Logging - Batch ingestion endpoint
 	// This endpoint allows external applications to send logs in batches (100x performance improvement)
-	// Authentication: Bearer token (API key from project)
+	// Authentication: Simple API token validation (fast O(1) lookup)
 	// Rate limit: 100 requests/minute per API key (TODO: implement rate limiting middleware)
-	router.POST("/api/logs/batch", batchHandler.IngestBatch)
+	//
+	// Standalone: Works for ANY external codebase (Node.js, Go, Java, Python, etc.)
+	// No dependency on Portal service - projects can be unclaimed (user_id=NULL)
+	router.POST("/api/logs/batch", logs_middleware.SimpleAPITokenAuth(projectRepo), batchHandler.IngestBatch)
 
 	// Week 1: Cross-Repository Logging - Project management endpoints
 	// These endpoints allow users to create projects and manage API keys

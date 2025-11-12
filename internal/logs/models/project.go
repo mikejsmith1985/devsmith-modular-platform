@@ -5,7 +5,7 @@ import "time"
 // Project represents an external application/repository that sends logs to DevSmith
 type Project struct {
 	ID            int       `json:"id" db:"id"`
-	UserID        int       `json:"user_id" db:"user_id"`
+	UserID        *int      `json:"user_id,omitempty" db:"user_id"` // Nullable for auto-created projects
 	Name          string    `json:"name" db:"name"`
 	Slug          string    `json:"slug" db:"slug"`
 	Description   string    `json:"description" db:"description"`

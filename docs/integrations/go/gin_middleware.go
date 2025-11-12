@@ -71,11 +71,13 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 // DevSmithMiddleware creates a Gin middleware for automatic request/response logging
 //
 // Args:
-//   logger: DevSmithLogger instance
-//   config: Middleware configuration (optional)
+//
+//	logger: DevSmithLogger instance
+//	config: Middleware configuration (optional)
 //
 // Returns:
-//   gin.HandlerFunc
+//
+//	gin.HandlerFunc
 func DevSmithMiddleware(logger *DevSmithLogger, config DevSmithMiddlewareConfig) gin.HandlerFunc {
 	// Set defaults
 	if config.SkipPaths == nil {
@@ -216,7 +218,8 @@ func redactHeaders(headers map[string][]string, redactMap map[string]bool) map[s
 // DevSmithErrorHandler creates a middleware to log panic recovery
 //
 // Usage:
-//   router.Use(DevSmithErrorHandler(logger))
+//
+//	router.Use(DevSmithErrorHandler(logger))
 func DevSmithErrorHandler(logger *DevSmithLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {

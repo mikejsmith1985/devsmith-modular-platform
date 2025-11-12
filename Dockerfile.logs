@@ -1,0 +1,45 @@
+# Multi-stage build for Logs service
+FROM golang:1.21-alpine AS builder
+
+# Version build arguments
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
+
+WORKDIR /build
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the logs service with version injection
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo \
+    -ldflags "-X github.com/mikejsmith1985/devsmith-modular-platform/internal/version.Version=${VERSION} \
+              -X github.com/mikejsmith1985/devsmith-modular-platform/internal/version.CommitHash=${GIT_COMMIT} \
+              -X github.com/mikejsmith1985/devsmith-modular-platform/internal/version.BuildTime=${BUILD_TIME}" \
+    -o logs ./cmd/logs
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates postgresql-client
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /build/logs .
+
+# Copy migrations
+COPY --from=builder /build/internal/logs/db/migrations ./migrations
+
+# Copy entrypoint script
+COPY docker/logs-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 8082
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["./logs"]

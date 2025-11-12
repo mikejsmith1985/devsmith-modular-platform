@@ -10,6 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/nav"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/version"
 )
 
 func Layout(title string, user *DashboardUser) templ.Component {
@@ -40,13 +41,39 @@ func Layout(title string, user *DashboardUser) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 14, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 15, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - DevSmith</title><!-- Unified DevSmith Theme --><link rel=\"stylesheet\" href=\"/static/css/devsmith-theme.css\"><link rel=\"stylesheet\" href=\"/static/fonts/bootstrap-icons.css\"><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\t/* Prevent layout shift when scrollbar appears */\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\n\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t[x-cloak] { display: none !important; }\n\t\t</style><script>\n\t\t\t// Alpine.js Dark Mode Store\n\t\t\tfunction darkModeStore() {\n\t\t\t\treturn {\n\t\t\t\t\tdark: localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches),\n\t\t\t\t\ttoggleDark() {\n\t\t\t\t\t\tthis.dark = !this.dark;\n\t\t\t\t\t\tthis.updateDOM();\n\t\t\t\t\t},\n\t\t\t\t\tupdateDOM() {\n\t\t\t\t\t\tdocument.documentElement.classList.toggle('dark', this.dark);\n\t\t\t\t\t\tlocalStorage.setItem('darkMode', this.dark ? 'true' : 'false');\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\t\t\t\n\t\t\tfunction initDarkMode() {\n\t\t\t\t// Initialize on mount\n\t\t\t\tconst isDark = localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);\n\t\t\t\tdocument.documentElement.classList.toggle('dark', isDark);\n\t\t\t}\n\t\t</script></head><body class=\"bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50\"><!-- Skip to main content link for keyboard navigation --><a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded focus:shadow-lg\">Skip to main content</a><!-- Navigation -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - DevSmith</title><!-- Unified DevSmith Theme with cache-busting --><link rel=\"stylesheet\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 templ.SafeURL
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs("/static/css/devsmith-theme.css?" + version.QueryParam())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 17, Col: 88}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"><link rel=\"stylesheet\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 templ.SafeURL
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs("/static/fonts/bootstrap-icons.css?" + version.QueryParam())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 18, Col: 91}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\t/* Prevent layout shift when scrollbar appears */\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\n\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t[x-cloak] { display: none !important; }\n\t\t</style><script>\n\t\t\t// Alpine.js Dark Mode Store\n\t\t\tfunction darkModeStore() {\n\t\t\t\treturn {\n\t\t\t\t\tdark: localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches),\n\t\t\t\t\ttoggleDark() {\n\t\t\t\t\t\tthis.dark = !this.dark;\n\t\t\t\t\t\tthis.updateDOM();\n\t\t\t\t\t},\n\t\t\t\t\tupdateDOM() {\n\t\t\t\t\t\tdocument.documentElement.classList.toggle('dark', this.dark);\n\t\t\t\t\t\tlocalStorage.setItem('darkMode', this.dark ? 'true' : 'false');\n\t\t\t\t\t}\n\t\t\t\t};\n\t\t\t}\n\t\t\t\n\t\t\tfunction initDarkMode() {\n\t\t\t\t// Initialize on mount\n\t\t\t\tconst isDark = localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);\n\t\t\t\tdocument.documentElement.classList.toggle('dark', isDark);\n\t\t\t}\n\t\t</script></head><body class=\"bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50\"><!-- Skip to main content link for keyboard navigation --><a href=\"#main-content\" class=\"sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded focus:shadow-lg\">Skip to main content</a><!-- Navigation -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -61,7 +88,7 @@ func Layout(title string, user *DashboardUser) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Main Content --><main id=\"main-content\" class=\"flex-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<!-- Main Content --><main id=\"main-content\" class=\"flex-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -69,7 +96,7 @@ func Layout(title string, user *DashboardUser) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</main><!-- Footer --><footer class=\"border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8\"><div class=\"max-w-7xl mx-auto\"><p class=\"text-center text-sm text-gray-500 dark:text-gray-400\">© 2024 DevSmith Platform. AI-powered code review and development intelligence.</p></div></footer></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</main><!-- Footer --><footer class=\"border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8\"><div class=\"max-w-7xl mx-auto\"><p class=\"text-center text-sm text-gray-500 dark:text-gray-400\">© 2024 DevSmith Platform. AI-powered code review and development intelligence.</p></div></footer></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,33 +121,33 @@ func LayoutWithoutNav(title string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<!doctype html><html lang=\"en\" class=\"scroll-smooth\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta name=\"description\" content=\"DevSmith Platform - AI-assisted code review and development analytics\"><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<!doctype html><html lang=\"en\" class=\"scroll-smooth\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta name=\"description\" content=\"DevSmith Platform - AI-assisted code review and development analytics\"><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(title)
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 94, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/portal/templates/layout.templ`, Line: 95, Col: 16}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " - DevSmith</title><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\n\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t[x-cloak] { display: none !important; }\n\t\t</style></head><body class=\"bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ_7745c5c3_Var3.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " - DevSmith</title><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\thtml {\n\t\t\t\toverflow-y: scroll;\n\t\t\t}\n\n\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t[x-cloak] { display: none !important; }\n\t\t</style></head><body class=\"bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</body></html>")
+		templ_7745c5c3_Err = templ_7745c5c3_Var5.Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

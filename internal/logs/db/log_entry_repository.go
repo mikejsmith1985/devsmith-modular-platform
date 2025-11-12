@@ -238,7 +238,7 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 	// Build parameterized INSERT statement with multiple value rows
 	// Using a single query with multiple VALUES reduces network overhead and transaction cost
 	valueStrings := make([]string, len(entries))
-	valueArgs := make([]interface{}, 0, len(entries)*9) // 9 fields per entry
+	valueArgs := make([]interface{}, 0, len(entries)*6) // 6 fields per entry
 
 	for i, entry := range entries {
 		// Prepare metadata as bytes
@@ -250,25 +250,16 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 		// Normalize level to uppercase
 		level := strings.ToUpper(entry.Level)
 
-		// Prepare tags using pq.Array for PostgreSQL text[] support
-		tags := entry.Tags
-		if tags == nil {
-			tags = []string{}
-		}
-
-		// Each entry requires 9 parameters: user_id, project_id, service, service_name, level, message, metadata, tags, timestamp
-		valueStrings[i] = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			i*9+1, i*9+2, i*9+3, i*9+4, i*9+5, i*9+6, i*9+7, i*9+8, i*9+9)
+		// Each entry requires 6 parameters: project_id, service_name, level, message, metadata, timestamp
+		valueStrings[i] = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
+			i*6+1, i*6+2, i*6+3, i*6+4, i*6+5, i*6+6)
 
 		valueArgs = append(valueArgs,
-			entry.UserID,
-			entry.ProjectID, // Can be nil for backward compatibility
-			entry.Service,
-			entry.ServiceName, // Microservice identifier
+			entry.ProjectID,
+			entry.ServiceName,
 			level,
 			entry.Message,
 			metadataBytes,
-			pq.Array(tags),
 			entry.Timestamp,
 		)
 	}
@@ -276,7 +267,7 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 	// Build query safely using parameterized placeholders (no SQL injection risk)
 	//nolint:gosec // All values are parameterized, no user input in query structure
 	query := fmt.Sprintf(`
-		INSERT INTO logs.entries (user_id, project_id, service, service_name, level, message, metadata, tags, timestamp)
+		INSERT INTO logs.entries (project_id, service_name, level, message, metadata, timestamp)
 		VALUES %s
 	`, strings.Join(valueStrings, ","))
 
