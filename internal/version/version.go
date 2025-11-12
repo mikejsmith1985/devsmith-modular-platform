@@ -10,13 +10,13 @@ import (
 var (
 	// Version is the semantic version (e.g., "v0.1.0")
 	Version = "dev"
-	
+
 	// CommitHash is the git commit hash
 	CommitHash = "unknown"
-	
+
 	// BuildTime is when the binary was built
 	BuildTime = "unknown"
-	
+
 	// BuildNumber is the CI build number (optional)
 	BuildNumber = "0"
 )
@@ -28,7 +28,7 @@ func CacheBuster() string {
 		// Production: use version-commithash (e.g., v0.1.0-abc1234)
 		return fmt.Sprintf("%s-%s", Version, shortHash())
 	}
-	
+
 	// Development: use dev-commithash-buildtime (changes every build)
 	return fmt.Sprintf("dev-%s-%s", shortHash(), buildTimestamp())
 }

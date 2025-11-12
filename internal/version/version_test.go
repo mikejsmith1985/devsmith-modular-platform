@@ -55,10 +55,10 @@ func TestCacheBuster(t *testing.T) {
 func TestQueryParam(t *testing.T) {
 	Version = "v1.0.0"
 	CommitHash = "abc1234"
-	
+
 	got := QueryParam()
 	want := "v=v1.0.0-abc1234"
-	
+
 	if got != want {
 		t.Errorf("QueryParam() = %v, want %v", got, want)
 	}
@@ -89,7 +89,7 @@ func TestShortVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Version = tt.version
 			CommitHash = tt.commitHash
-			
+
 			got := ShortVersion()
 			if got != tt.want {
 				t.Errorf("ShortVersion() = %v, want %v", got, tt.want)

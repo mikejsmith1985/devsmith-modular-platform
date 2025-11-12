@@ -1,5 +1,4 @@
 package tests
-package main
 
 import (
 	"encoding/json"
