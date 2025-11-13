@@ -9,11 +9,32 @@ import TagFilter from './TagFilter';
 import { logError, logWarning, logInfo, logDebug } from '../utils/logger';
 import { apiRequest } from '../utils/api';
 
+// Helper function to classify log severity and detect critical events
+const classifyLogSeverity = (log) => {
+  const level = (log.level || 'info').toLowerCase();
+  const message = (log.message || '').toLowerCase();
+  const metadata = log.metadata || {};
+  const metadataStr = JSON.stringify(metadata).toLowerCase();
+  
+  // Critical keywords that indicate high severity
+  const criticalKeywords = ['critical', 'fatal', 'panic', 'emergency', 'down', 'crash', 'failed to start'];
+  const isCritical = criticalKeywords.some(keyword => 
+    message.includes(keyword) || metadataStr.includes(keyword)
+  );
+  
+  // Return appropriate severity level
+  if (isCritical || level === 'critical') return 'critical';
+  if (level === 'error') return 'error';
+  if (level === 'warn') return 'warning';
+  return level;
+};
+
 export default function HealthPage() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('logs');
-  const [stats, setStats] = useState({
+  // Unfiltered stats - always shows total counts regardless of active filters
+  const [unfilteredStats, setUnfilteredStats] = useState({
     debug: 0,
     info: 0,
     warning: 0,
@@ -60,23 +81,17 @@ export default function HealthPage() {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [logsData, tagsData] = await Promise.all([
+        const [statsData, logsData, tagsData] = await Promise.all([
+          apiRequest('/api/logs/v1/stats'),
           apiRequest('/api/logs?limit=100'),
           apiRequest('/api/logs/tags')
         ]);
       
         const entries = logsData.entries || [];
         
-        // Calculate stats from the actual logs array (not from ALL logs in database)
-        const calculatedStats = entries.reduce((acc, log) => {
-          let level = log.level?.toLowerCase() || 'info';
-          // Normalize 'warn' to 'warning' for consistency
-          if (level === 'warn') level = 'warning';
-          acc[level] = (acc[level] || 0) + 1;
-          return acc;
-        }, { debug: 0, info: 0, warning: 0, error: 0, critical: 0 });
+        // Store unfiltered stats from API (always shows total database counts)
+        setUnfilteredStats(statsData);
         
-        setStats(calculatedStats);
         setLogs(entries);
         setAvailableTags(tagsData.tags || []);
         setError(null);
@@ -124,8 +139,8 @@ export default function HealthPage() {
         // Add new log to the top of the list (limit to 100)
         setLogs(prev => [newLog, ...prev].slice(0, 100));
         
-        // Update stats incrementally
-        setStats(prev => ({
+        // Update unfiltered stats incrementally
+        setUnfilteredStats(prev => ({
           ...prev,
           [newLog.level.toLowerCase()]: (prev[newLog.level.toLowerCase()] || 0) + 1
         }));
@@ -188,21 +203,17 @@ export default function HealthPage() {
         logsQuery += `&project_id=${filters.project}`;
       }
       
-      // Fetch logs using apiRequest
-      const logsData = await apiRequest(logsQuery);
+      // Fetch stats and logs in parallel
+      const [statsData, logsData] = await Promise.all([
+        apiRequest('/api/logs/v1/stats'),
+        apiRequest(logsQuery)
+      ]);
       
       const entries = logsData.entries || [];
       
-      // Calculate stats from the filtered logs array (not from ALL logs in database)
-      const calculatedStats = entries.reduce((acc, log) => {
-        let level = log.level?.toLowerCase() || 'info';
-        // Normalize 'warn' to 'warning' for consistency
-        if (level === 'warn') level = 'warning';
-        acc[level] = (acc[level] || 0) + 1;
-        return acc;
-      }, { debug: 0, info: 0, warning: 0, error: 0, critical: 0 });
-    
-      setStats(calculatedStats);
+      // Store unfiltered stats from API (always shows total database counts)
+      setUnfilteredStats(statsData);
+      
       setLogs(entries);
       setError(null);
     setError(null);
@@ -674,7 +685,7 @@ useEffect(() => {
                   {/* Stats Cards - Horizontal on main column */}
                   <div className="mb-3">
                     <StatCards 
-                      stats={stats} 
+                      stats={unfilteredStats} 
                       selectedLevel={filters.level === 'all' ? null : filters.level}
                       onLevelClick={(level) => {
                         setFilters({ 
@@ -1194,3 +1205,4 @@ useEffect(() => {
     </div>
   );
 }
+// Force rebuild 1763072492
