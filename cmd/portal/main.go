@@ -69,7 +69,7 @@ func main() {
 			"version": "1.0.0",
 		})
 	})
-	
+
 	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	dbConn, err := sql.Open("pgx", dbURL)

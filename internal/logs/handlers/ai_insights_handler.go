@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
+	"github.com/sirupsen/logrus"
 )
 
 // AIInsightsHandler handles AI insights API requests
