@@ -13,6 +13,14 @@ RUN addgroup -g 1000 appuser && \
 WORKDIR /home/appuser
 COPY --from=builder /app/bin/review ./review
 COPY --from=builder /app/apps/review/static ./apps/review/static
+
+# Inject build timestamp into index.html for cache busting
+ARG BUILD_TIMESTAMP
+RUN if [ -n "$BUILD_TIMESTAMP" ]; then \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/${BUILD_TIMESTAMP}/" ./apps/review/static/index.html; \
+    else \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/$(date +%s)/" ./apps/review/static/index.html; \
+    fi
 COPY scripts/wait-for-postgres.sh /wait-for-postgres.sh
 COPY scripts/start-review.sh /start-review.sh
 RUN chmod +x /wait-for-postgres.sh /start-review.sh && chown appuser:appuser /wait-for-postgres.sh /start-review.sh

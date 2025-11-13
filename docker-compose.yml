@@ -68,44 +68,14 @@ services:
         condition: service_healthy
       analytics:
         condition: service_healthy
-      frontend:
-        condition: service_healthy
     networks:
       - devsmith-network
     restart: unless-stopped
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
-        VITE_API_URL: http://localhost:3000
-        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-1731272400}
-    container_name: devsmith-frontend
-    ports:
-      - "5173:80"
-    networks:
-      - devsmith-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && !PathPrefix(`/api`) && !PathPrefix(`/auth`)"
-      - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.routers.frontend.priority=2147483647"  # Max priority to override Traefik dashboard
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      # Traefik Middleware - Layer 1: Infrastructure-level cache invalidation
-      # Reference: CACHE_SOLUTION_ARCHITECTURE.md
-      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, max-age=0"
-      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Pragma=no-cache"
-      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Expires=0"
-      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.X-Cache-Invalidate=always"
-      - "traefik.http.routers.frontend.middlewares=html-nocache@docker"
+  # OLD FRONTEND SERVICE REMOVED 2025-11-12
+  # Was serving stale React build (Nov 11) with max Traefik priority
+  # Blocking new Review service with Portal AI Factory integration
+  # Review service now handles both UI and API routes
 
   portal:
     build:
@@ -143,24 +113,34 @@ services:
     labels:
       - "traefik.enable=true"
       # Portal API - /api/portal routes go to backend
+      # Shared cache-busting middleware (used by Portal and Review)
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, max-age=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Pragma=no-cache"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Expires=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.X-Cache-Invalidate=always"
+      # Portal API - handle /api/portal/* routes
       - "traefik.http.routers.portal-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/portal`)"
       - "traefik.http.routers.portal-api.entrypoints=web"
       - "traefik.http.routers.portal-api.priority=100"
       - "traefik.http.routers.portal-api.service=portal"
-      # Portal Auth - /auth routes go to backend
+      # Portal Auth - /auth routes (OAuth flow)
       - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)"
       - "traefik.http.routers.portal-auth.entrypoints=web"
       - "traefik.http.routers.portal-auth.priority=99"
       - "traefik.http.routers.portal-auth.service=portal"
       - "traefik.http.routers.portal-auth.middlewares=html-nocache@docker"
-      # Portal Static - /static for legacy static files (if any)
+      # Portal Static - /static for assets (CSS, JS, fonts, images)
       - "traefik.http.routers.portal-static.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/static`)"
       - "traefik.http.routers.portal-static.entrypoints=web"
       - "traefik.http.routers.portal-static.priority=97"
       - "traefik.http.routers.portal-static.service=portal"
-      # NOTE: Portal no longer serves React SPA or /assets
-      # All frontend requests (/, /assets, etc.) are handled by frontend container
-      # Portal is now a pure backend service for API and OAuth
+      # Portal UI - serve React SPA (root, dashboard, all UI routes)
+      # Priority 50 (lowest) - catches all non-matched routes for client-side routing
+      - "traefik.http.routers.portal-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/`)"
+      - "traefik.http.routers.portal-ui.entrypoints=web"
+      - "traefik.http.routers.portal-ui.priority=50"
+      - "traefik.http.routers.portal-ui.service=portal"
+      - "traefik.http.routers.portal-ui.middlewares=html-nocache@docker"
       # Service definition with health check
       - "traefik.http.services.portal.loadbalancer.server.port=3001"
       - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"
@@ -201,10 +181,19 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
+      # Review UI - serve React SPA for /review paths
+      # Review UI - handle /review route (embedded UI)
+      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`)"
+      - "traefik.http.routers.review-ui.entrypoints=web"
+      - "traefik.http.routers.review-ui.priority=150"
+      - "traefik.http.routers.review-ui.service=review"
+      - "traefik.http.routers.review-ui.middlewares=html-nocache@docker"
+      # Review API - handle /api/review/* routes
       - "traefik.http.routers.review.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/review`)"
       - "traefik.http.routers.review.entrypoints=web"
       - "traefik.http.routers.review.priority=100"
       - "traefik.http.routers.review.service=review"
+      # Service configuration
       - "traefik.http.services.review.loadbalancer.server.port=8081"
       - "traefik.http.services.review.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.review.loadbalancer.healthcheck.interval=10s"
