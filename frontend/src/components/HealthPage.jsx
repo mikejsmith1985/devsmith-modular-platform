@@ -60,16 +60,26 @@ export default function HealthPage() {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [statsData, logsData, tagsData] = await Promise.all([
-          apiRequest('/api/logs/v1/stats'),
+        const [logsData, tagsData] = await Promise.all([
           apiRequest('/api/logs?limit=100'),
-        apiRequest('/api/logs/tags')
-      ]);
+          apiRequest('/api/logs/tags')
+        ]);
       
-      setStats(statsData);
-      setLogs(logsData.entries || []);
-      setAvailableTags(tagsData.tags || []);
-      setError(null);
+        const entries = logsData.entries || [];
+        
+        // Calculate stats from the actual logs array (not from ALL logs in database)
+        const calculatedStats = entries.reduce((acc, log) => {
+          let level = log.level?.toLowerCase() || 'info';
+          // Normalize 'warn' to 'warning' for consistency
+          if (level === 'warn') level = 'warning';
+          acc[level] = (acc[level] || 0) + 1;
+          return acc;
+        }, { debug: 0, info: 0, warning: 0, error: 0, critical: 0 });
+        
+        setStats(calculatedStats);
+        setLogs(entries);
+        setAvailableTags(tagsData.tags || []);
+        setError(null);
     } catch (err) {
       logError(err, { context: 'Health page initial data load failed' });
       setError(err.message);
@@ -178,15 +188,23 @@ export default function HealthPage() {
         logsQuery += `&project_id=${filters.project}`;
       }
       
-      // Fetch both stats and logs in parallel using apiRequest
-      const [statsData, logsData] = await Promise.all([
-        apiRequest('/api/logs/v1/stats'),
-        apiRequest(logsQuery)
-      ]);
+      // Fetch logs using apiRequest
+      const logsData = await apiRequest(logsQuery);
       
+      const entries = logsData.entries || [];
+      
+      // Calculate stats from the filtered logs array (not from ALL logs in database)
+      const calculatedStats = entries.reduce((acc, log) => {
+        let level = log.level?.toLowerCase() || 'info';
+        // Normalize 'warn' to 'warning' for consistency
+        if (level === 'warn') level = 'warning';
+        acc[level] = (acc[level] || 0) + 1;
+        return acc;
+      }, { debug: 0, info: 0, warning: 0, error: 0, critical: 0 });
     
-    setStats(statsData);
-    setLogs(logsData.entries || []);
+      setStats(calculatedStats);
+      setLogs(entries);
+      setError(null);
     setError(null);
   } catch (err) {
     logError(err, { context: 'Health page data fetch failed' });
@@ -854,9 +872,13 @@ useEffect(() => {
                         <span className="small">Warnings</span>
                         <strong className="text-warning">{stats.warning}</strong>
                       </div>
+                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>
+                        <span className="small">Info</span>
+                        <strong className="text-info">{stats.info}</strong>
+                      </div>
                       <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)' }}>
-                        <span className="small">Success</span>
-                        <strong className="text-success">{stats.info + stats.debug}</strong>
+                        <span className="small">Debug</span>
+                        <strong className="text-success">{stats.debug}</strong>
                       </div>
                     </div>
                   </div>

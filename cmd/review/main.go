@@ -163,7 +163,7 @@ func main() {
 		portalURL = "http://portal:3001" // Default to Docker Compose service name
 	}
 	reviewLogger.Info("Initializing AI client", "portal_url", portalURL, "config_source", "Portal AI Factory")
-	
+
 	unifiedAIClient := review_services.NewUnifiedAIClient(portalURL)
 
 	// Wrap unified AI client with circuit breaker for resilience

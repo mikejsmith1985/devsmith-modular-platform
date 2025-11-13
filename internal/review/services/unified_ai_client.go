@@ -122,7 +122,7 @@ func (c *UnifiedAIClient) GetModelCapabilities(provider string) ModelCapabilitie
 			SupportsAnalogies:         false,
 			SupportsAdvancedReasoning: false,
 			SupportsCodeExecution:     false,
-			MaxContextWindow:          8192,  // Conservative estimate
+			MaxContextWindow:          8192, // Conservative estimate
 			Description:               "Local model - Fast, private, but limited reasoning",
 		}
 	}
@@ -133,7 +133,7 @@ func (c *UnifiedAIClient) GetModelCapabilities(provider string) ModelCapabilitie
 		IsLocal:                   false,
 		SupportsAnalogies:         true,
 		SupportsAdvancedReasoning: true,
-		SupportsCodeExecution:     false, // Future feature
+		SupportsCodeExecution:     false,  // Future feature
 		MaxContextWindow:          200000, // Claude 3.5 Sonnet supports 200k
 		Description:               "Cloud API model - Advanced reasoning and analogies",
 	}
@@ -149,4 +149,3 @@ type ModelCapabilities struct {
 	MaxContextWindow          int    `json:"max_context_window"`
 	Description               string `json:"description"`
 }
-

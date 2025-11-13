@@ -27,15 +27,15 @@ func NewPortalClient(portalURL string) *PortalClient {
 
 // LLMConfig represents an AI model configuration from Portal's AI Factory
 type LLMConfig struct {
-	ID           string  `json:"id"`
-	UserID       int     `json:"user_id"`
-	Provider     string  `json:"provider"`
-	ModelName    string  `json:"model_name"`
-	APIEndpoint  string  `json:"api_endpoint,omitempty"`
-	APIKey       string  `json:"api_key,omitempty"` // Decrypted by Portal
-	IsDefault    bool    `json:"is_default"`
-	MaxTokens    int     `json:"max_tokens"`
-	Temperature  float64 `json:"temperature"`
+	ID          string  `json:"id"`
+	UserID      int     `json:"user_id"`
+	Provider    string  `json:"provider"`
+	ModelName   string  `json:"model_name"`
+	APIEndpoint string  `json:"api_endpoint,omitempty"`
+	APIKey      string  `json:"api_key,omitempty"` // Decrypted by Portal
+	IsDefault   bool    `json:"is_default"`
+	MaxTokens   int     `json:"max_tokens"`
+	Temperature float64 `json:"temperature"`
 }
 
 // AppPreferencesResponse is the response from Portal's app preferences endpoint

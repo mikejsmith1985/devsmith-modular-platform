@@ -108,11 +108,19 @@ bash scripts/regression-test.sh
 - Docker container serving old files → Fix: `docker-compose up -d --build --force-recreate`
 - Frontend not rebuilt → Fix: `npm run build` then rebuild container
 - Backend using old environment variables → Fix: Restart service with updated docker-compose.yml
+- **Vite .env.production overriding .env** → Fix: Check `.env.production` FIRST, not just `.env`
 
 **If you suspect caching**:
 1. Check what files Docker container is actually serving: `docker exec <container> ls /path/to/files`
 2. Compare with source files: `diff source_file container_file`
 3. Rebuild container if mismatch: `docker-compose up -d --build --force-recreate <service>`
+
+**Vite Environment Variable Debugging**:
+1. **ALWAYS check `.env.production` FIRST** - it overrides `.env` during production builds
+2. Run validation: `bash scripts/validate-frontend-build.sh`
+3. Verify built bundle: `strings frontend/dist/assets/index-*.js | grep 'u="http://localhost:3000"'`
+4. Expected pattern: `u="http://localhost:3000"` NOT `u="/api"`
+5. If wrong value found, fix `.env.production` and rebuild: `cd frontend && npm run build`
 
 ### Rule 1: NEVER Work on `development` or `main` Branch
 ```bash
