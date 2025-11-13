@@ -287,7 +287,7 @@ func main() {
 	ollamaAdapter := logs_services.NewOllamaAdapter(ollamaClient)
 	logRepoAdapter := logs_services.NewLogRepositoryAdapter(logRepo)
 	aiInsightsService := logs_services.NewAIInsightsService(ollamaAdapter, logRepoAdapter, aiInsightsRepo)
-	aiInsightsHandler := internal_logs_handlers.NewAIInsightsHandler(aiInsightsService)
+	aiInsightsHandler := internal_logs_handlers.NewAIInsightsHandler(aiInsightsService, logger, logEntryRepo)
 
 	// AI insights endpoints
 	router.POST("/api/logs/:id/insights", aiInsightsHandler.GenerateInsights)

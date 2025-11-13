@@ -61,13 +61,16 @@ func main() {
 		c.Next()
 	})
 
-	router.GET("/health", func(c *gin.Context) {
+	// Health check endpoint - moved to /api/portal/health to avoid conflict with frontend /health route
+	router.GET("/api/portal/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "healthy",
 			"service": "portal",
 			"version": "1.0.0",
 		})
-	}) // Database connection
+	})
+	
+	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	dbConn, err := sql.Open("pgx", dbURL)
 	if err != nil {

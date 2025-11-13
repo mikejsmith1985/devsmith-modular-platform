@@ -159,7 +159,7 @@ echo ""
 # Step 6: Wait for health check
 echo "📋 Step 6: Waiting for health check..."
 for i in {1..30}; do
-    if curl -sf http://localhost:3000/health >/dev/null 2>&1; then
+    if curl -sf http://localhost:3000/api/portal/health >/dev/null 2>&1; then
         echo -e "${GREEN}✓ Health check passed${NC}"
         break
     fi

@@ -257,8 +257,8 @@ fi
 
 log_info "━━━ TEST 5: API Health Endpoints ━━━"
 
-# Portal health - now served by frontend container
-PORTAL_HEALTH=$(curl -s "http://localhost:3001/health" || echo '{}')
+# Portal health - API endpoint moved to /api/portal/health
+PORTAL_HEALTH=$(curl -s "http://localhost:3000/api/portal/health" || echo '{}')
 if echo "$PORTAL_HEALTH" | jq -e '.status' > /dev/null 2>&1; then
     record_test "Portal API Health Endpoint" "pass" "Portal API health check passed" ""
 else

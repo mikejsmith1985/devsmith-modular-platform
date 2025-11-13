@@ -54,7 +54,7 @@ echo ""
 
 # Check if services are running
 echo "Checking if services are running at http://localhost:3000..."
-if ! curl -s http://localhost:3000/health > /dev/null 2>&1; then
+if ! curl -s http://localhost:3000/api/portal/health > /dev/null 2>&1; then
 	echo -e "${YELLOW}⚠️  WARNING: Services may not be running at http://localhost:3000${NC}"
 	echo "Start them with: docker-compose up -d"
 	echo ""
