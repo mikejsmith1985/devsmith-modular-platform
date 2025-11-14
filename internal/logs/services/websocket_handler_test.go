@@ -1253,16 +1253,16 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 	}
 
 	hub.Register(client)
-	
+
 	// Use WaitGroup to ensure goroutines are cleaned up properly
 	var wg sync.WaitGroup
 	wg.Add(2)
-	
+
 	go func() {
 		defer wg.Done()
 		client.ReadPump(hub)
 	}()
-	
+
 	go func() {
 		defer wg.Done()
 		client.WritePump(hub)

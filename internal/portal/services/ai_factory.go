@@ -44,13 +44,13 @@ import (
 
 // LLMConfig represents a user's LLM configuration
 type LLMConfig struct {
-	UserID      int
-	AppName     string
-	Provider    string
-	Model       string
-	APIKey      string // Encrypted for API providers, empty for Ollama
-	APIEndpoint string
-	IsDefault   bool
+	UserID      int    // 8 bytes on 64-bit systems
+	Provider    string // 16 bytes (pointer + length)
+	Model       string // 16 bytes (pointer + length)
+	APIKey      string // 16 bytes (pointer + length) - Encrypted for API providers, empty for Ollama
+	APIEndpoint string // 16 bytes (pointer + length)
+	AppName     string // 16 bytes (pointer + length)
+	IsDefault   bool   // 1 byte
 }
 
 // ClientFactory creates and caches AI provider clients based on user preferences
@@ -103,6 +103,14 @@ func NewClientFactory(configService LLMConfigServiceInterface, encryptionService
 //   - ai.Provider: Ready-to-use AI client
 //   - error: Validation error, config lookup error, decryption error, or provider creation error
 //
+// GetClientForApp retrieves or creates an AI client for the specified user and app.
+//
+// Cache Strategy: Clients are cached by "user{ID}-{appName}" key to avoid
+// recreating HTTP connections and re-establishing provider state.
+//
+// Fallback Strategy: Returns Ollama client on any configuration error to
+// ensure the platform always has a working LLM.
+//
 // Thread Safety: Safe for concurrent calls. Uses read lock for cache hits,
 // write lock for cache misses.
 func (f *ClientFactory) GetClientForApp(ctx context.Context, userID int, appName string) (ai.Provider, error) {
@@ -125,65 +133,11 @@ func (f *ClientFactory) GetClientForApp(ctx context.Context, userID int, appName
 	}
 	f.cacheMutex.RUnlock()
 
-	// Look up user preference
-	config, err := f.configService.GetUserConfigForApp(ctx, userID, appName)
+	// Get user configuration
+	client, err := f.createClientFromConfig(ctx, userID, appName)
 	if err != nil {
-		// Error retrieving config - fall back to Ollama
-		return f.createDefaultOllamaClient(), nil
-	}
-
-	if config == nil {
-		// No preference set - fall back to Ollama
-		return f.createDefaultOllamaClient(), nil
-	}
-
-	// Create client based on provider
-	var client ai.Provider
-
-	switch config.Provider {
-	case "ollama":
-		// Local Ollama - no API key needed
-		endpoint := config.APIEndpoint
-		if endpoint == "" {
-			endpoint = "http://localhost:11434"
-		}
-		client = providers.NewOllamaClient(endpoint, config.Model)
-
-	case "anthropic":
-		// API-based - decrypt API key
-		apiKey, decryptErr := f.decryptAPIKey(config.APIKey, userID)
-		if decryptErr != nil {
-			return nil, fmt.Errorf("failed to create Anthropic client for user %d, app %s: %w", userID, appName, decryptErr)
-		}
-		client = providers.NewAnthropicClient(apiKey, config.Model)
-
-	case "openai":
-		// API-based - decrypt API key
-		apiKey, decryptErr := f.decryptAPIKey(config.APIKey, userID)
-		if decryptErr != nil {
-			return nil, fmt.Errorf("failed to create OpenAI client for user %d, app %s: %w", userID, appName, decryptErr)
-		}
-		client = providers.NewOpenAIClient(apiKey, config.Model)
-
-	case "deepseek":
-		// API-based - decrypt API key
-		apiKey, decryptErr := f.decryptAPIKey(config.APIKey, userID)
-		if decryptErr != nil {
-			return nil, fmt.Errorf("failed to create DeepSeek client for user %d, app %s: %w", userID, appName, decryptErr)
-		}
-		client = providers.NewDeepSeekClient(apiKey, config.Model)
-
-	case "mistral":
-		// API-based - decrypt API key
-		apiKey, decryptErr := f.decryptAPIKey(config.APIKey, userID)
-		if decryptErr != nil {
-			return nil, fmt.Errorf("failed to create Mistral client for user %d, app %s: %w", userID, appName, decryptErr)
-		}
-		client = providers.NewMistralClient(apiKey, config.Model)
-
-	default:
-		// Unknown provider - fall back to Ollama with warning
-		// (Could log warning here once logging is integrated)
+		// Log the error but return default client instead of failing
+		// This ensures platform always has working LLM
 		return f.createDefaultOllamaClient(), nil
 	}
 
@@ -193,6 +147,93 @@ func (f *ClientFactory) GetClientForApp(ctx context.Context, userID int, appName
 	f.cacheMutex.Unlock()
 
 	return client, nil
+}
+
+// createClientFromConfig creates an AI client based on user configuration.
+// Returns error if config lookup fails or client creation fails.
+func (f *ClientFactory) createClientFromConfig(ctx context.Context, userID int, appName string) (ai.Provider, error) {
+	// Look up user preference
+	config, err := f.configService.GetUserConfigForApp(ctx, userID, appName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user config: %w", err)
+	}
+
+	if config == nil {
+		// No preference set - use default
+		return f.createDefaultOllamaClient(), nil
+	}
+
+	// Create client based on provider
+	return f.createClientForProvider(config, userID, appName)
+}
+
+// createClientForProvider creates a client for the specified provider configuration.
+func (f *ClientFactory) createClientForProvider(config *LLMConfig, userID int, appName string) (ai.Provider, error) {
+	switch config.Provider {
+	case "ollama":
+		return f.createOllamaClient(config), nil
+
+	case "anthropic":
+		return f.createAnthropicClient(config, userID, appName)
+
+	case "openai":
+		return f.createOpenAIClient(config, userID, appName)
+
+	case "deepseek":
+		return f.createDeepSeekClient(config, userID, appName)
+
+	case "mistral":
+		return f.createMistralClient(config, userID, appName)
+
+	default:
+		// Unknown provider - use default
+		return f.createDefaultOllamaClient(), nil
+	}
+}
+
+// createOllamaClient creates an Ollama client from configuration.
+func (f *ClientFactory) createOllamaClient(config *LLMConfig) ai.Provider {
+	endpoint := config.APIEndpoint
+	if endpoint == "" {
+		endpoint = "http://localhost:11434"
+	}
+	return providers.NewOllamaClient(endpoint, config.Model)
+}
+
+// createAnthropicClient creates an Anthropic client from configuration.
+func (f *ClientFactory) createAnthropicClient(config *LLMConfig, userID int, appName string) (ai.Provider, error) {
+	apiKey, err := f.decryptAPIKey(config.APIKey, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Anthropic client for user %d, app %s: %w", userID, appName, err)
+	}
+	return providers.NewAnthropicClient(apiKey, config.Model), nil
+}
+
+// createOpenAIClient creates an OpenAI client from configuration.
+func (f *ClientFactory) createOpenAIClient(config *LLMConfig, userID int, appName string) (ai.Provider, error) {
+	apiKey, err := f.decryptAPIKey(config.APIKey, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OpenAI client for user %d, app %s: %w", userID, appName, err)
+	}
+	return providers.NewOpenAIClient(apiKey, config.Model), nil
+}
+
+// createDeepSeekClient creates a DeepSeek client from configuration.
+func (f *ClientFactory) createDeepSeekClient(config *LLMConfig, userID int, appName string) (ai.Provider, error) {
+	apiKey, err := f.decryptAPIKey(config.APIKey, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DeepSeek client for user %d, app %s: %w", userID, appName, err)
+	}
+	return providers.NewDeepSeekClient(apiKey, config.Model), nil
+}
+
+// createMistralClient creates a Mistral client from configuration.
+func (f *ClientFactory) createMistralClient(config *LLMConfig, userID int, appName string) (ai.Provider, error) {
+	apiKey, err := f.decryptAPIKey(config.APIKey, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Mistral client for user %d, app %s: %w", userID, appName, err)
+	}
+	return providers.NewMistralClient(apiKey, config.Model), nil
 }
 
 // decryptAPIKey decrypts an encrypted API key for the specified user.

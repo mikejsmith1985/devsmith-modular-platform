@@ -1,10 +1,15 @@
+// Package repositories provides data access layer implementations for the Review service.
+// This package contains repository implementations for various domain entities including
+// prompt templates, GitHub sessions, and user data management.
 package repositories
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
@@ -136,7 +141,7 @@ func (r *PromptTemplateRepository) FindByUserAndMode(
 	row := r.db.QueryRowContext(ctx, queryFindByUserAndMode, userID, mode, userLevel, outputMode)
 
 	template, err := scanPromptTemplate(row)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil // No user custom exists
 	}
 	if err != nil {
@@ -154,7 +159,7 @@ func (r *PromptTemplateRepository) FindDefaultByMode(
 	row := r.db.QueryRowContext(ctx, queryFindDefaultByMode, mode, userLevel, outputMode)
 
 	template, err := scanPromptTemplate(row)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("no default prompt found for mode=%s, level=%s, output=%s", mode, userLevel, outputMode)
 	}
 	if err != nil {
@@ -251,7 +256,11 @@ func (r *PromptTemplateRepository) GetExecutionHistory(
 	if err != nil {
 		return nil, fmt.Errorf("failed to query execution history: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("warning: failed to close rows: %v", err)
+		}
+	}()
 
 	var executions []*review_models.PromptExecution
 	for rows.Next() {

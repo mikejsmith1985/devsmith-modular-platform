@@ -61,13 +61,16 @@ func main() {
 		c.Next()
 	})
 
-	router.GET("/health", func(c *gin.Context) {
+	// Health check endpoint - moved to /api/portal/health to avoid conflict with frontend /health route
+	router.GET("/api/portal/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "healthy",
 			"service": "portal",
 			"version": "1.0.0",
 		})
-	}) // Database connection
+	})
+
+	// Database connection
 	dbURL := os.Getenv("DATABASE_URL")
 	dbConn, err := sql.Open("pgx", dbURL)
 	if err != nil {
@@ -118,6 +121,10 @@ func main() {
 	// Register authentication routes (pass session store)
 	handlers.RegisterAuthRoutesWithSession(router, dbConn, sessionStore)
 
+	// Register version endpoint (public - no auth required)
+	router.GET("/api/portal/version", handlers.HandleVersion)
+	router.GET("/version", handlers.HandleVersionShort)
+
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "portal")
 
@@ -140,15 +147,17 @@ func main() {
 		staticPath = "./static"
 	}
 	router.Static("/static", staticPath)
+	router.Static("/assets", staticPath+"/assets") // Serve React app assets (JS, CSS, fonts)
 
-	// NOTE: Portal is now a pure backend service
-	// Frontend React SPA is served exclusively by the frontend container (nginx)
-	// Portal only handles:
-	//   - /api/portal/* - Backend API endpoints
-	//   - /auth/* - OAuth authentication callbacks
-	//   - /static/* - Legacy static assets (if any)
+	// Serve React SPA
+	// Root route - serves index.html (portal dashboard / login page)
+	router.GET("/", func(c *gin.Context) {
+		indexPath := staticPath + "/index.html"
+		c.File(indexPath)
+	})
 
-	// NoRoute handler for 404s (API requests only)
+	// SPA fallback - catch all non-API routes for client-side routing
+	// This allows React Router to handle routes like /dashboard, /projects, etc.
 	router.NoRoute(func(c *gin.Context) {
 		// If it's an API call, return 404 JSON
 		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
@@ -156,9 +165,10 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
 			return
 		}
-		// For non-API routes, return 404 (frontend container handles SPA routing)
-		log.Printf("404 Not Found (non-API routed to frontend): %s", c.Request.URL.Path)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Not found - route to frontend container"})
+		// For non-API routes, serve index.html (SPA will handle routing)
+		log.Printf("SPA fallback route: %s", c.Request.URL.Path)
+		indexPath := staticPath + "/index.html"
+		c.File(indexPath)
 	})
 
 	// Validate required OAuth environment variables

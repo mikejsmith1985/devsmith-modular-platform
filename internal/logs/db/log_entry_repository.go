@@ -207,7 +207,7 @@ func (r *LogEntryRepository) Create(ctx context.Context, entry *logs_models.LogE
 	// Phase 2: Normalize level to uppercase to prevent mixed case corruption
 	entry.Level = strings.ToUpper(entry.Level)
 
-	query := `INSERT INTO logs.log_entries (user_id, service, level, message, metadata) 
+	query := `INSERT INTO logs.entries (user_id, service, level, message, metadata) 
 	         VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`
 
 	err := r.db.QueryRowContext(ctx, query,
@@ -238,7 +238,7 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 	// Build parameterized INSERT statement with multiple value rows
 	// Using a single query with multiple VALUES reduces network overhead and transaction cost
 	valueStrings := make([]string, len(entries))
-	valueArgs := make([]interface{}, 0, len(entries)*9) // 9 fields per entry
+	valueArgs := make([]interface{}, 0, len(entries)*6) // 6 fields per entry
 
 	for i, entry := range entries {
 		// Prepare metadata as bytes
@@ -250,25 +250,16 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 		// Normalize level to uppercase
 		level := strings.ToUpper(entry.Level)
 
-		// Prepare tags using pq.Array for PostgreSQL text[] support
-		tags := entry.Tags
-		if tags == nil {
-			tags = []string{}
-		}
-
-		// Each entry requires 9 parameters: user_id, project_id, service, service_name, level, message, metadata, tags, timestamp
-		valueStrings[i] = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
-			i*9+1, i*9+2, i*9+3, i*9+4, i*9+5, i*9+6, i*9+7, i*9+8, i*9+9)
+		// Each entry requires 6 parameters: project_id, service_name, level, message, metadata, timestamp
+		valueStrings[i] = fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)",
+			i*6+1, i*6+2, i*6+3, i*6+4, i*6+5, i*6+6)
 
 		valueArgs = append(valueArgs,
-			entry.UserID,
-			entry.ProjectID, // Can be nil for backward compatibility
-			entry.Service,
-			entry.ServiceName, // Microservice identifier
+			entry.ProjectID,
+			entry.ServiceName,
 			level,
 			entry.Message,
 			metadataBytes,
-			pq.Array(tags),
 			entry.Timestamp,
 		)
 	}
@@ -276,7 +267,7 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 	// Build query safely using parameterized placeholders (no SQL injection risk)
 	//nolint:gosec // All values are parameterized, no user input in query structure
 	query := fmt.Sprintf(`
-		INSERT INTO logs.entries (user_id, project_id, service, service_name, level, message, metadata, tags, timestamp)
+		INSERT INTO logs.entries (project_id, service_name, level, message, metadata, timestamp)
 		VALUES %s
 	`, strings.Join(valueStrings, ","))
 
@@ -291,7 +282,7 @@ func (r *LogEntryRepository) CreateBatch(ctx context.Context, entries []*logs_mo
 // GetByID retrieves a log entry by its ID.
 func (r *LogEntryRepository) GetByID(ctx context.Context, id int64) (*logs_models.LogEntry, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries WHERE id = $1`,
+		`SELECT id, user_id, service, level, message, metadata, created_at FROM logs.entries WHERE id = $1`,
 		id,
 	)
 
@@ -309,7 +300,7 @@ func (r *LogEntryRepository) GetByID(ctx context.Context, id int64) (*logs_model
 
 // GetByService retrieves log entries filtered by service name.
 func (r *LogEntryRepository) GetByService(ctx context.Context, service string, limit, offset int) ([]logs_models.LogEntry, error) {
-	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
+	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.entries 
 	         WHERE service = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	entries, err := r.queryLogEntries(ctx, query, service, limit, offset)
 	if err != nil {
@@ -320,7 +311,7 @@ func (r *LogEntryRepository) GetByService(ctx context.Context, service string, l
 
 // GetByLevel retrieves log entries filtered by level.
 func (r *LogEntryRepository) GetByLevel(ctx context.Context, level string, limit, offset int) ([]logs_models.LogEntry, error) {
-	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
+	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.entries 
 	         WHERE level = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	entries, err := r.queryLogEntries(ctx, query, level, limit, offset)
 	if err != nil {
@@ -331,7 +322,7 @@ func (r *LogEntryRepository) GetByLevel(ctx context.Context, level string, limit
 
 // GetByUser retrieves log entries for a specific user.
 func (r *LogEntryRepository) GetByUser(ctx context.Context, userID int64, limit, offset int) ([]logs_models.LogEntry, error) {
-	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
+	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.entries 
 	         WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	entries, err := r.queryLogEntries(ctx, query, userID, limit, offset)
 	if err != nil {
@@ -342,7 +333,7 @@ func (r *LogEntryRepository) GetByUser(ctx context.Context, userID int64, limit,
 
 // GetRecent retrieves the most recent log entries.
 func (r *LogEntryRepository) GetRecent(ctx context.Context, limit int) ([]logs_models.LogEntry, error) {
-	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.log_entries 
+	query := `SELECT id, user_id, service, level, message, metadata, created_at FROM logs.entries 
 	         ORDER BY created_at DESC LIMIT $1`
 	entries, err := r.queryLogEntries(ctx, query, limit)
 	if err != nil {
@@ -357,7 +348,7 @@ func (r *LogEntryRepository) GetStats(ctx context.Context) (map[string]interface
 
 	levelCounts := make(map[string]int)
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT level, COUNT(*) as count FROM logs.log_entries GROUP BY level`,
+		`SELECT level, COUNT(*) as count FROM logs.entries GROUP BY level`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to query level stats: %w", err)
@@ -386,7 +377,7 @@ func (r *LogEntryRepository) GetStats(ctx context.Context) (map[string]interface
 
 	serviceCounts := make(map[string]int)
 	rows, err = r.db.QueryContext(ctx,
-		`SELECT service, COUNT(*) as count FROM logs.log_entries GROUP BY service`,
+		`SELECT service, COUNT(*) as count FROM logs.entries GROUP BY service`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to query service stats: %w", err)
@@ -418,7 +409,7 @@ func (r *LogEntryRepository) GetStats(ctx context.Context) (map[string]interface
 // Count returns the total number of log entries.
 func (r *LogEntryRepository) Count(ctx context.Context) (int64, error) {
 	var count int64
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM logs.log_entries`).Scan(&count)
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM logs.entries`).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("db: failed to count log entries: %w", err)
 	}
@@ -517,7 +508,7 @@ func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*logs_mod
 	// Build query safely using parameterized placeholders (no SQL injection risk)
 	//nolint:gosec // All values are parameterized, no user input in query structure
 	query := fmt.Sprintf(`
-		INSERT INTO logs.log_entries (user_id, service, level, message, metadata, tags, timestamp)
+		INSERT INTO logs.entries (user_id, service, level, message, metadata, tags, timestamp)
 		VALUES %s
 	`, strings.Join(valueStrings, ","))
 
@@ -535,7 +526,7 @@ func (r *LogEntryRepository) BulkInsert(ctx context.Context, entries []*logs_mod
 
 // Delete removes a log entry by ID.
 func (r *LogEntryRepository) Delete(ctx context.Context, id int64) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM logs.log_entries WHERE id = $1`, id)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM logs.entries WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("db: failed to delete log entry: %w", err)
 	}
@@ -554,7 +545,7 @@ func (r *LogEntryRepository) Delete(ctx context.Context, id int64) error {
 
 // DeleteByService removes all log entries for a service.
 func (r *LogEntryRepository) DeleteByService(ctx context.Context, service string) (int64, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM logs.log_entries WHERE service = $1`, service)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM logs.entries WHERE service = $1`, service)
 	if err != nil {
 		return 0, fmt.Errorf("db: failed to delete log entries: %w", err)
 	}
@@ -570,7 +561,7 @@ func (r *LogEntryRepository) DeleteByService(ctx context.Context, service string
 // DeleteOlderThan removes log entries older than the specified days.
 func (r *LogEntryRepository) DeleteOlderThan(ctx context.Context, days int) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM logs.log_entries WHERE created_at < NOW() - INTERVAL '1 day' * $1`,
+		`DELETE FROM logs.entries WHERE created_at < NOW() - INTERVAL '1 day' * $1`,
 		days,
 	)
 	if err != nil {
@@ -603,7 +594,7 @@ func (r *LogEntryRepository) GetMetadataValue(metadata []byte, key string) (inte
 // DeleteEntriesOlderThan deletes log entries older than the specified time.
 func (r *LogEntryRepository) DeleteEntriesOlderThan(ctx context.Context, before time.Time) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM logs.log_entries WHERE created_at < $1`,
+		`DELETE FROM logs.entries WHERE created_at < $1`,
 		before,
 	)
 	if err != nil {
@@ -622,7 +613,7 @@ func (r *LogEntryRepository) DeleteEntriesOlderThan(ctx context.Context, before 
 func (r *LogEntryRepository) GetEntriesForArchival(ctx context.Context, before time.Time, limit int) ([]map[string]interface{}, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, service, level, message, metadata, tags, created_at
-		 FROM logs.log_entries
+		 FROM logs.entries
 		 WHERE created_at < $1
 		 ORDER BY created_at DESC
 		 LIMIT $2`,
@@ -670,7 +661,7 @@ func (r *LogEntryRepository) GetEntriesForArchival(ctx context.Context, before t
 func (r *LogEntryRepository) CountEntriesOlderThan(ctx context.Context, before time.Time) (int64, error) {
 	var count int64
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM logs.log_entries WHERE created_at < $1`,
+		`SELECT COUNT(*) FROM logs.entries WHERE created_at < $1`,
 		before,
 	).Scan(&count)
 	if err != nil {

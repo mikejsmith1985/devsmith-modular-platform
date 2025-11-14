@@ -130,52 +130,17 @@ func (s *LLMConfigService) UpdateConfig(
 		return err
 	}
 
-	// Apply updates
-	if provider, ok := updates["provider"]; ok {
-		if providerStr, ok := provider.(string); ok {
-			existing.Provider = providerStr
-		}
-	}
-	if model, ok := updates["model_name"]; ok {
-		if modelStr, ok := model.(string); ok {
-			existing.ModelName = modelStr
-		}
-	}
-	if endpoint, ok := updates["endpoint"]; ok {
-		if endpointStr, ok := endpoint.(string); ok && endpointStr != "" {
-			existing.APIEndpoint = sql.NullString{String: endpointStr, Valid: true}
-		}
-	}
-	if isDefault, ok := updates["is_default"]; ok {
-		if isDefaultBool, ok := isDefault.(bool); ok {
-			// If setting this config as default, use the SetDefault method which
-			// handles unsetting other configs atomically in a transaction
-			if isDefaultBool {
-				if err := s.repo.SetDefault(ctx, userID, configID); err != nil {
-					return fmt.Errorf("failed to set as default: %w", err)
-				}
-				// SetDefault already updated the database, so we just update the in-memory object
-				existing.IsDefault = true
-			} else {
-				// If explicitly setting is_default to false, just update this config
-				existing.IsDefault = false
-			}
-		}
+	// Apply updates using helper methods to reduce complexity
+	if err := s.applyProviderUpdates(existing, updates); err != nil {
+		return err
 	}
 
-	// Handle API key update with re-encryption
-	if apiKey, ok := updates["api_key"]; ok {
-		if apiKeyStr, ok := apiKey.(string); ok {
-			if existing.Provider != "ollama" && apiKeyStr != "" {
-				encrypted, err := s.encryption.EncryptAPIKey(apiKeyStr, userID)
-				if err != nil {
-					return fmt.Errorf("%s: %w", errFailedToEncrypt, err)
-				}
-				existing.APIKeyEncrypted = sql.NullString{String: encrypted, Valid: true}
-			} else {
-				existing.APIKeyEncrypted = sql.NullString{Valid: false}
-			}
-		}
+	if err := s.applyDefaultUpdates(ctx, existing, updates, userID, configID); err != nil {
+		return err
+	}
+
+	if err := s.applyAPIKeyUpdates(existing, updates, userID); err != nil {
+		return err
 	}
 
 	// Update timestamp
@@ -255,20 +220,8 @@ func (s *LLMConfigService) GetEffectiveConfig(
 		return defaultConfig, nil
 	}
 
-	// Priority 3: Return system default (Ollama)
-	systemDefault := &portal_repositories.LLMConfig{
-		ID:              "system-default-ollama",
-		UserID:          0, // System config
-		Provider:        "ollama",
-		ModelName:       "deepseek-coder:6.7b",
-		APIEndpoint:     sql.NullString{String: "http://localhost:11434", Valid: true},
-		APIKeyEncrypted: sql.NullString{Valid: false}, // No API key for Ollama
-		IsDefault:       true,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
-
-	return systemDefault, nil
+	// No fallback - user must configure an LLM in AI Factory
+	return nil, fmt.Errorf("no LLM configured for user %d (app: %s). Please configure an LLM in AI Factory", userID, appName)
 }
 
 // SetAppPreference sets the preferred LLM configuration for a specific app
@@ -302,4 +255,65 @@ func (s *LLMConfigService) ListUserConfigs(
 		return nil, fmt.Errorf("%s: %w", errFailedToListConfigs, err)
 	}
 	return configs, nil
+}
+
+// applyProviderUpdates applies provider and model updates to the config
+func (s *LLMConfigService) applyProviderUpdates(existing *portal_repositories.LLMConfig, updates map[string]interface{}) error {
+	if provider, ok := updates["provider"]; ok {
+		if providerStr, ok := provider.(string); ok {
+			existing.Provider = providerStr
+		}
+	}
+	if model, ok := updates["model_name"]; ok {
+		if modelStr, ok := model.(string); ok {
+			existing.ModelName = modelStr
+		}
+	}
+	if endpoint, ok := updates["endpoint"]; ok {
+		if endpointStr, ok := endpoint.(string); ok && endpointStr != "" {
+			existing.APIEndpoint = sql.NullString{String: endpointStr, Valid: true}
+		}
+	}
+	return nil
+}
+
+// applyDefaultUpdates handles is_default flag updates with atomic transaction
+// nolint:nestif // complexity is due to necessary type assertion and default handling logic
+func (s *LLMConfigService) applyDefaultUpdates(ctx context.Context, existing *portal_repositories.LLMConfig, updates map[string]interface{}, userID int, configID string) error {
+	if isDefault, ok := updates["is_default"]; ok {
+		if isDefaultBool, ok := isDefault.(bool); ok {
+			// If setting this config as default, use the SetDefault method which
+			// handles unsetting other configs atomically in a transaction
+			if isDefaultBool {
+				if err := s.repo.SetDefault(ctx, userID, configID); err != nil {
+					return fmt.Errorf("failed to set as default: %w", err)
+				}
+				// SetDefault already updated the database, so we just update the in-memory object
+				existing.IsDefault = true
+			} else {
+				// If explicitly setting is_default to false, just update this config
+				existing.IsDefault = false
+			}
+		}
+	}
+	return nil
+}
+
+// applyAPIKeyUpdates handles API key encryption and updates
+// nolint:nestif // complexity is due to necessary type assertion and encryption logic
+func (s *LLMConfigService) applyAPIKeyUpdates(existing *portal_repositories.LLMConfig, updates map[string]interface{}, userID int) error {
+	if apiKey, ok := updates["api_key"]; ok {
+		if apiKeyStr, ok := apiKey.(string); ok {
+			if existing.Provider != "ollama" && apiKeyStr != "" {
+				encrypted, err := s.encryption.EncryptAPIKey(apiKeyStr, userID)
+				if err != nil {
+					return fmt.Errorf("%s: %w", errFailedToEncrypt, err)
+				}
+				existing.APIKeyEncrypted = sql.NullString{String: encrypted, Valid: true}
+			} else {
+				existing.APIKeyEncrypted = sql.NullString{Valid: false}
+			}
+		}
+	}
+	return nil
 }

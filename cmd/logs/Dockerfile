@@ -1,4 +1,10 @@
 FROM golang:1.24-alpine AS builder
+
+# Cache-busting argument - forces fresh build when source changes
+# Pass with: --build-arg BUILD_TIMESTAMP=$(date +%s)
+ARG BUILD_TIMESTAMP=0
+RUN echo "Build timestamp: ${BUILD_TIMESTAMP}"
+
 RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 COPY go.mod go.sum ./

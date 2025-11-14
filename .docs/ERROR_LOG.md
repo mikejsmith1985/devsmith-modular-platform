@@ -80,6 +80,119 @@ command2
 
 ---
 
+## 2025-11-13: RESOLVED - Vite .env.production Overriding .env
+
+### Error: Double /api/api in URLs Causing 404 Errors
+
+**Date**: 2025-11-13 07:15 UTC  
+**Context**: User reported "still not fixed..." after previous AuthContext fix. Login page shows console error `http://localhost:3000/api/api/portal/auth/me` 404 (Not Found). Notice the **double `/api/api`**.
+
+**Error Message**: 
+```
+GET http://localhost:3000/api/api/portal/auth/me 404 (Not Found)
+```
+
+**Root Cause**:
+The `.env.production` file had `VITE_API_URL=/api` which **OVERRIDES** the `.env` file during production builds (`npm run build`). Vite's environment variable precedence:
+1. `.env.[mode].local` (highest priority)
+2. `.env.[mode]` ← **THIS WAS THE CULPRIT**
+3. `.env.local`
+4. `.env` (lowest priority)
+
+When `npm run build` runs (defaults to production mode), Vite reads `.env.production` instead of `.env`, resulting in:
+```javascript
+// Source code:
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+// .env.production had:
+VITE_API_URL=/api
+
+// Built JavaScript got:
+u="/api"
+
+// API calls became:
+fetch(`${u}/api/portal/auth/me`)  // = /api/api/portal/auth/me ❌
+```
+
+**Impact**:
+- **Severity**: CRITICAL - Complete OAuth login failure
+- **Scope**: All API calls in production builds
+- **User Experience**: 404 errors on every API request
+- **Detection Time**: Multiple rebuild attempts before discovering `.env.production`
+- **Wasted Time**: 2+ hours debugging, multiple failed rebuilds
+
+**Resolution**:
+```bash
+# Fixed .env.production to have correct value
+# File: frontend/.env.production line 17
+VITE_API_URL=http://localhost:3000  # Was: /api
+
+# Rebuilt frontend
+cd frontend && npm run build
+
+# Verified fix in built bundle
+strings frontend/dist/assets/index-*.js | grep -B 2 -A 2 "portal/auth/me"
+# Output shows: u="http://localhost:3000" ✅ (was u="/api" ❌)
+
+# Deploy to Portal
+docker-compose up -d --build portal
+```
+
+**Prevention Measures Implemented**:
+
+1. ✅ **Added Warning Comments to .env.production**
+   - File: `frontend/.env.production`
+   - Added 8 lines of warnings explaining override behavior
+   - Added debugging instructions for future issues
+   - Documents what to check if built JS has wrong API_URL
+
+2. ✅ **Created Build Validation Script**
+   - File: `scripts/validate-frontend-build.sh`
+   - Checks `.env.production` has correct VITE_API_URL
+   - Validates built JavaScript bundle has correct value
+   - Checks for pattern `u="http://localhost:3000"` vs `u="/api"`
+   - **Fails build** if wrong value detected
+   - Usage: `bash scripts/validate-frontend-build.sh` before docker-compose build
+
+3. ✅ **Created Pre-commit Hook**
+   - File: `.git/hooks/pre-commit-frontend-validation`
+   - Validates `.env.production` changes before commit
+   - Prevents committing incorrect VITE_API_URL
+   - **Blocks commit** if wrong value detected
+
+4. ✅ **Updated copilot-instructions.md** (TODO)
+   - Add rule: "Always check .env.production when debugging Vite env vars"
+   - Add rule: "Run validate-frontend-build.sh before declaring build complete"
+   - Add to ERROR_LOG.md for institutional knowledge
+
+5. ✅ **Documentation in ERROR_LOG.md**
+   - This entry serves as reference for future debugging
+   - Documents Vite env file precedence
+   - Provides grep command to verify built bundles
+
+**Verification Command**:
+```bash
+# Check built JavaScript has correct API_URL
+strings frontend/dist/assets/index-*.js | grep 'u="http://localhost:3000"'
+
+# Should output line containing:
+# u="http://localhost:3000"
+
+# If you see this instead, build is BROKEN:
+# u="/api"
+```
+
+**Time Lost**: 120 minutes (investigation + multiple failed rebuilds)  
+**Logged to Platform**: ✅ YES - This ERROR_LOG.md entry  
+**Related Issue**: Phase 0 OAuth Login Fix  
+**Tags**: vite, environment-variables, build-configuration, env-file-precedence, double-api-url, oauth-404
+
+**Status**: ✅ **RESOLVED** - Fix verified, prevention measures in place
+
+**Key Lesson**: When debugging Vite environment variables, check `.env.[mode]` files FIRST, not just `.env`. Vite's file precedence can override your expectations.
+
+---
+
 ## 2025-11-11
 
 ### Error: OAuth State Validation Failed (Cached GitHub Authorization)

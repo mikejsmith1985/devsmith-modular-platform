@@ -68,7 +68,7 @@ echo ""
 
 # Check if docker-compose services are running
 echo "Checking Docker services..."
-if ! curl -s http://localhost:3000/health > /dev/null 2>&1; then
+if ! curl -s http://localhost:3000/api/portal/health > /dev/null 2>&1; then
 	echo "❌ ERROR: Services not running at http://localhost:3000"
 	echo ""
 	echo "Start services with:"

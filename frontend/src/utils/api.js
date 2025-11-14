@@ -1,5 +1,6 @@
 // API utilities for DevSmith frontend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Use relative path when served from Portal, or explicit URL for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 class ApiError extends Error {
   constructor(message, status) {

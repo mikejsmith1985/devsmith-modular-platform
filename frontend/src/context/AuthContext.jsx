@@ -8,7 +8,8 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // Use relative path when served from Portal, or explicit URL for development
+  const API_URL = import.meta.env.VITE_API_URL || '';
 
   // Load token from localStorage on mount
   useEffect(() => {
@@ -31,7 +32,14 @@ export function AuthProvider({ children }) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch user');
+        // Don't set error for 401 - it's normal to not be authenticated
+        // Only log to console, don't show error to user
+        console.log('User not authenticated (401) - clearing session');
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem('devsmith_token');
+        setLoading(false);
+        return;
       }
 
       const userData = await response.json();
@@ -39,7 +47,7 @@ export function AuthProvider({ children }) {
       setError(null);
     } catch (err) {
       console.error('Error fetching user:', err);
-      setError(err.message);
+      // Network error or parsing error - don't show to user on login page
       setUser(null);
       setToken(null);
       localStorage.removeItem('devsmith_token');

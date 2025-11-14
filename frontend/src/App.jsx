@@ -7,6 +7,7 @@ import ReviewPage from './components/ReviewPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import LLMConfigPage from './pages/LLMConfigPage';
 import ProjectsPage from './pages/ProjectsPage';
+import IntegrationDocsPage from './pages/IntegrationDocsPage';
 import LoginPage from './components/LoginPage';
 import OAuthCallback from './components/OAuthCallback';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -80,6 +81,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ProjectsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/integration-docs"
+            element={
+              <ProtectedRoute>
+                <IntegrationDocsPage />
               </ProtectedRoute>
             }
           />

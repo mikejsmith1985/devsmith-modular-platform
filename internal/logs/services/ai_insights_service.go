@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
@@ -135,14 +136,25 @@ Respond ONLY with valid JSON, no additional text.`,
 }
 
 // parseAIResponse parses the AI response into an AIInsight struct
+// Handles both pure JSON and JSON wrapped in markdown code blocks
 func (s *AIInsightsService) parseAIResponse(content string) (*logs_models.AIInsight, error) {
+	// Try to find JSON in the response (AI might wrap it in markdown)
+	jsonStart := strings.Index(content, "{")
+	jsonEnd := strings.LastIndex(content, "}")
+
+	if jsonStart == -1 || jsonEnd == -1 {
+		return nil, fmt.Errorf("no JSON found in response")
+	}
+
+	jsonContent := content[jsonStart : jsonEnd+1]
+
 	var parsed struct {
 		Analysis    string   `json:"analysis"`
 		RootCause   string   `json:"root_cause"`
 		Suggestions []string `json:"suggestions"`
 	}
 
-	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+	if err := json.Unmarshal([]byte(jsonContent), &parsed); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
@@ -150,6 +162,11 @@ func (s *AIInsightsService) parseAIResponse(content string) (*logs_models.AIInsi
 		Analysis:    parsed.Analysis,
 		RootCause:   parsed.RootCause,
 		Suggestions: parsed.Suggestions,
+	}
+
+	// Ensure Suggestions is not nil
+	if insight.Suggestions == nil {
+		insight.Suggestions = []string{}
 	}
 
 	return insight, nil

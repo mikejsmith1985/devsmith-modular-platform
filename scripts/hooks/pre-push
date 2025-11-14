@@ -154,6 +154,54 @@ echo "   Typical duration: 10-20s for modified packages"
 echo ""
 echo "════════════════════════════════════════════════════════════"
 
+# 7. DEPLOYMENT WARNING - Remind to rebuild containers
+if [ -n "$MODIFIED_GO_FILES" ]; then
+    echo ""
+    echo "⚠️  WARNING: Go source files were modified"
+    echo ""
+    echo "   Modified files:"
+    echo "$MODIFIED_GO_FILES" | sed 's/^/     /'
+    echo ""
+    echo "   🚨 CRITICAL: Docker containers must be rebuilt to deploy these changes!"
+    echo ""
+    echo "   ❌ DO NOT USE: docker-compose up -d --build"
+    echo "   ✅ USE INSTEAD: ./scripts/rebuild-service.sh <service>"
+    echo ""
+    echo "   Services that may need rebuilding:"
+    
+    # Detect which services were modified
+    NEEDS_REBUILD=""
+    if echo "$MODIFIED_GO_FILES" | grep -q "cmd/portal/\|internal/portal/"; then
+        echo "     - portal"
+        NEEDS_REBUILD="yes"
+    fi
+    if echo "$MODIFIED_GO_FILES" | grep -q "cmd/review/\|internal/review/"; then
+        echo "     - review"
+        NEEDS_REBUILD="yes"
+    fi
+    if echo "$MODIFIED_GO_FILES" | grep -q "cmd/logs/\|internal/logs/"; then
+        echo "     - logs"
+        NEEDS_REBUILD="yes"
+    fi
+    if echo "$MODIFIED_GO_FILES" | grep -q "cmd/analytics/\|internal/analytics/"; then
+        echo "     - analytics"
+        NEEDS_REBUILD="yes"
+    fi
+    if echo "$MODIFIED_GO_FILES" | grep -q "internal/common/\|internal/config/\|internal/middleware/"; then
+        echo "     - ALL SERVICES (shared code modified)"
+        NEEDS_REBUILD="yes"
+    fi
+    
+    if [ -z "$NEEDS_REBUILD" ]; then
+        echo "     - Unable to determine (rebuild all to be safe)"
+    fi
+    
+    echo ""
+    echo "   Example: ./scripts/rebuild-service.sh logs"
+    echo ""
+    echo "════════════════════════════════════════════════════════════"
+fi
+
 if [[ $FAILED -eq 0 ]]; then
     echo "✅ PRE-PUSH CHECKS PASSED"
     echo "════════════════════════════════════════════════════════════"

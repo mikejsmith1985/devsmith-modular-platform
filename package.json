@@ -5,7 +5,14 @@
     "test:visual": "percy exec -- playwright test tests/e2e/visual-regression.spec.ts",
     "test:visual:local": "playwright test tests/e2e/visual-regression.spec.ts",
     "percy:snapshot": "percy exec -- playwright test tests/e2e/visual-regression.spec.ts",
-    "test:a11y": "playwright test tests/e2e/accessibility.spec.ts --workers=1"
+    "test:a11y": "playwright test tests/e2e/accessibility.spec.ts --workers=1",
+    "test:cross-repo": "npm run test:logger:js && npm run test:express && npm run test:api",
+    "test:logger:js": "mocha docs/integrations/tests/logger.test.js",
+    "test:express": "mocha docs/integrations/tests/express-middleware.test.js",
+    "test:flask": "python3 docs/integrations/tests/flask_integration_test.py",
+    "test:gin": "cd docs/integrations/go && go test -v",
+    "test:api": "mocha docs/integrations/tests/api-batch.test.js",
+    "test:all": "npm test && npm run test:cross-repo"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",

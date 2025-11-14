@@ -9,11 +9,32 @@ import TagFilter from './TagFilter';
 import { logError, logWarning, logInfo, logDebug } from '../utils/logger';
 import { apiRequest } from '../utils/api';
 
+// Helper function to classify log severity and detect critical events
+const classifyLogSeverity = (log) => {
+  const level = (log.level || 'info').toLowerCase();
+  const message = (log.message || '').toLowerCase();
+  const metadata = log.metadata || {};
+  const metadataStr = JSON.stringify(metadata).toLowerCase();
+  
+  // Critical keywords that indicate high severity
+  const criticalKeywords = ['critical', 'fatal', 'panic', 'emergency', 'down', 'crash', 'failed to start'];
+  const isCritical = criticalKeywords.some(keyword => 
+    message.includes(keyword) || metadataStr.includes(keyword)
+  );
+  
+  // Return appropriate severity level
+  if (isCritical || level === 'critical') return 'critical';
+  if (level === 'error') return 'error';
+  if (level === 'warn') return 'warning';
+  return level;
+};
+
 export default function HealthPage() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('logs');
-  const [stats, setStats] = useState({
+  // Unfiltered stats - always shows total counts regardless of active filters
+  const [unfilteredStats, setUnfilteredStats] = useState({
     debug: 0,
     info: 0,
     warning: 0,
@@ -27,10 +48,11 @@ export default function HealthPage() {
   const [filters, setFilters] = useState({
     level: 'all',
     service: 'all',
+    project: 'all',  // Week 3: Add project filter
     search: ''
   });
   const [autoRefresh, setAutoRefresh] = useState(false);  // OFF by default - Phase 1 fix
-  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedModel, setSelectedModel] = useState('qwen2.5-coder:7b-instruct-q4_K_M');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
   const [aiInsights, setAiInsights] = useState(null);
@@ -48,6 +70,10 @@ export default function HealthPage() {
   
   // Phase 3: Manual Tag Management
   const [newTagInput, setNewTagInput] = useState('');
+  
+  // Week 3: Cross-repo logging - project management
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
 
   useEffect(() => {
@@ -58,13 +84,17 @@ export default function HealthPage() {
         const [statsData, logsData, tagsData] = await Promise.all([
           apiRequest('/api/logs/v1/stats'),
           apiRequest('/api/logs?limit=100'),
-        apiRequest('/api/logs/tags')
-      ]);
+          apiRequest('/api/logs/tags')
+        ]);
       
-      setStats(statsData);
-      setLogs(logsData.entries || []);
-      setAvailableTags(tagsData.tags || []);
-      setError(null);
+        const entries = logsData.entries || [];
+        
+        // Store unfiltered stats from API (always shows total database counts)
+        setUnfilteredStats(statsData);
+        
+        setLogs(entries);
+        setAvailableTags(tagsData.tags || []);
+        setError(null);
     } catch (err) {
       logError(err, { context: 'Health page initial data load failed' });
       setError(err.message);
@@ -109,8 +139,8 @@ export default function HealthPage() {
         // Add new log to the top of the list (limit to 100)
         setLogs(prev => [newLog, ...prev].slice(0, 100));
         
-        // Update stats incrementally
-        setStats(prev => ({
+        // Update unfiltered stats incrementally
+        setUnfilteredStats(prev => ({
           ...prev,
           [newLog.level.toLowerCase()]: (prev[newLog.level.toLowerCase()] || 0) + 1
         }));
@@ -168,16 +198,24 @@ export default function HealthPage() {
       if (filters.service !== 'all') {
         logsQuery += `&service=${filters.service}`;
       }
+      // Week 3: Add project filter for cross-repo logging
+      if (filters.project !== 'all') {
+        logsQuery += `&project_id=${filters.project}`;
+      }
       
-      // Fetch both stats and logs in parallel using apiRequest
+      // Fetch stats and logs in parallel
       const [statsData, logsData] = await Promise.all([
         apiRequest('/api/logs/v1/stats'),
         apiRequest(logsQuery)
       ]);
       
-    
-    setStats(statsData);
-    setLogs(logsData.entries || []);
+      const entries = logsData.entries || [];
+      
+      // Store unfiltered stats from API (always shows total database counts)
+      setUnfilteredStats(statsData);
+      
+      setLogs(entries);
+      setError(null);
     setError(null);
   } catch (err) {
     logError(err, { context: 'Health page data fetch failed' });
@@ -204,7 +242,26 @@ const fetchAvailableTags = async () => {
   } catch (error) {
     logWarning('Failed to fetch log tags', { error: error.message });
   }
-};  // Phase 3: Toggle tag selection
+};
+
+// Week 3: Fetch projects for cross-repo logging
+const fetchProjects = async () => {
+  try {
+    setLoadingProjects(true);
+    const data = await apiRequest('/api/logs/projects');
+    setProjects(Array.isArray(data) ? data : data.projects || []);
+  } catch (error) {
+    logWarning('Failed to fetch projects', { error: error.message });
+    setProjects([]);
+  } finally {
+    setLoadingProjects(false);
+  }
+};
+
+useEffect(() => {
+  fetchAvailableTags();
+  fetchProjects();  // Week 3: Fetch projects on mount
+}, []);  // Phase 3: Toggle tag selection
   const handleTagToggle = (tag) => {
     setSelectedTags(prev => {
       if (prev.includes(tag)) {
@@ -243,8 +300,14 @@ const fetchAvailableTags = async () => {
     setFilteredLogs(filtered);
   }, [logs, filters, selectedTags]);
 
+  // Week 3: Filter services by selected project
   const getUniqueServices = () => {
-    const services = new Set(logs.map(log => log.service));
+    // If a project is selected, only show services from that project's logs
+    const logsToFilter = filters.project !== 'all' 
+      ? logs.filter(log => log.project_id === parseInt(filters.project))
+      : logs;
+    
+    const services = new Set(logsToFilter.map(log => log.service));
     return Array.from(services).sort();
   };
 
@@ -622,7 +685,7 @@ const fetchAvailableTags = async () => {
                   {/* Stats Cards - Horizontal on main column */}
                   <div className="mb-3">
                     <StatCards 
-                      stats={stats} 
+                      stats={unfilteredStats} 
                       selectedLevel={filters.level === 'all' ? null : filters.level}
                       onLevelClick={(level) => {
                         setFilters({ 
@@ -673,7 +736,23 @@ const fetchAvailableTags = async () => {
 
                     {/* Filters */}
                     <div className="row mb-3">
-                      <div className="col-md-4">
+                      {/* Week 3: Project filter for cross-repo logging */}
+                      <div className="col-md-3">
+                        <select
+                          className="form-select form-select-sm bg-dark text-light border-secondary"
+                          value={filters.project}
+                          onChange={(e) => setFilters({ ...filters, project: e.target.value })}
+                          disabled={loadingProjects}
+                        >
+                          <option value="all">All Projects</option>
+                          {projects.map(project => (
+                            <option key={project.id} value={project.id}>
+                              {project.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-3">
                         <select
                           className="form-select form-select-sm bg-dark text-light border-secondary"
                           value={filters.service}
@@ -685,7 +764,7 @@ const fetchAvailableTags = async () => {
                           ))}
                         </select>
                       </div>
-                      <div className="col-md-8">
+                      <div className="col-md-6">
                         <input
                           type="text"
                           className="form-control form-control-sm bg-dark text-light border-secondary"
@@ -798,15 +877,19 @@ const fetchAvailableTags = async () => {
                       </div>
                       <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(220, 38, 38, 0.05)' }}>
                         <span className="small">Errors</span>
-                        <strong className="text-danger">{stats.error + stats.critical}</strong>
+                        <strong className="text-danger">{unfilteredStats.error + unfilteredStats.critical}</strong>
                       </div>
                       <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(234, 179, 8, 0.05)' }}>
                         <span className="small">Warnings</span>
-                        <strong className="text-warning">{stats.warning}</strong>
+                        <strong className="text-warning">{unfilteredStats.warning}</strong>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>
+                        <span className="small">Info</span>
+                        <strong className="text-info">{unfilteredStats.info}</strong>
                       </div>
                       <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)' }}>
-                        <span className="small">Success</span>
-                        <strong className="text-success">{stats.info + stats.debug}</strong>
+                        <span className="small">Debug</span>
+                        <strong className="text-success">{unfilteredStats.debug}</strong>
                       </div>
                     </div>
                   </div>
@@ -1122,3 +1205,4 @@ const fetchAvailableTags = async () => {
     </div>
   );
 }
+// Force rebuild 1763072492

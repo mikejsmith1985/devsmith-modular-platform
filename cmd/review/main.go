@@ -153,62 +153,39 @@ func main() {
 	// Start retention job (best-effort, uses analysisRepo.DeleteOlderThan)
 	review_services.StartRetentionJob(appCtx, analysisRepo, retentionDays, retentionInterval, reviewLogger)
 
-	// Initialize Ollama client with configuration from environment
-	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
-	if ollamaEndpoint == "" {
-		ollamaEndpoint = "http://localhost:11434" // Default to local Ollama
+	// ==========================================
+	// AI CLIENT INITIALIZATION
+	// ==========================================
+	// Initialize unified AI client that fetches configs from Portal's AI Factory
+	// No environment variables needed - users configure models through AI Factory UI
+	portalURL := os.Getenv("PORTAL_URL")
+	if portalURL == "" {
+		portalURL = "http://portal:3001" // Default to Docker Compose service name
 	}
+	reviewLogger.Info("Initializing AI client", "portal_url", portalURL, "config_source", "Portal AI Factory")
 
-	ollamaModel := os.Getenv("OLLAMA_MODEL")
-	if ollamaModel == "" {
-		ollamaModel = "mistral:7b-instruct" // Default to mistral
-	}
+	unifiedAIClient := review_services.NewUnifiedAIClient(portalURL)
 
-	// Allow a fast deterministic mock of Ollama for Playwright/CI runs.
-	// Set OLLAMA_MOCK=true in environment (via docker-compose override) to enable.
-	if os.Getenv("OLLAMA_MOCK") == "true" {
-		// Start a local mock Ollama HTTP server listening on 127.0.0.1:11434
-		mockAddr := "127.0.0.1:11434"
-		reviewLogger.Info("Starting mock Ollama server for tests", "addr", mockAddr, "model", ollamaModel)
-		shutdownMock, err := providers.StartMockOllamaServer(mockAddr, ollamaModel)
-		if err != nil {
-			reviewLogger.Error("Failed to start mock Ollama server", "error", err)
-		} else {
-			// Ensure shutdown during process exit
-			defer func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				_ = shutdownMock(ctx)
-			}()
-
-			// Point client at mock server
-			ollamaEndpoint = "http://127.0.0.1:11434"
-		}
-	}
-
-	reviewLogger.Info("Initializing Ollama client", "endpoint", ollamaEndpoint, "model", ollamaModel)
-	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaModel)
-
-	// Verify Ollama is reachable
-	if err := ollamaClient.HealthCheck(context.Background()); err != nil {
-		reviewLogger.Warn("Ollama health check failed (will retry on first request)", "error", err.Error())
-	} else {
-		reviewLogger.Info("Ollama health check passed", "model", ollamaModel)
-	}
-
-	// Wrap OllamaClient with adapter to match review services interface
-	ollamaAdapter := review_services.NewOllamaClientAdapter(ollamaClient)
-
-	// Wrap Ollama adapter with circuit breaker for resilience
-	ollamaWithCircuitBreaker := review_circuit.NewOllamaCircuitBreaker(ollamaAdapter, reviewLogger)
+	// Wrap unified AI client with circuit breaker for resilience
+	aiClientWithCircuitBreaker := review_circuit.NewOllamaCircuitBreaker(unifiedAIClient, reviewLogger)
 	reviewLogger.Info("Circuit breaker initialized", "threshold", 5, "timeout", "60s")
 
-	// Wire up services with circuit breaker wrapper (fail-fast when Ollama is unhealthy)
-	previewService := review_services.NewPreviewService(ollamaWithCircuitBreaker, reviewLogger)
-	skimService := review_services.NewSkimService(ollamaWithCircuitBreaker, analysisRepo, reviewLogger)
-	scanService := review_services.NewScanService(ollamaWithCircuitBreaker, analysisRepo, reviewLogger)
-	detailedService := review_services.NewDetailedService(ollamaWithCircuitBreaker, analysisRepo, reviewLogger)
-	criticalService := review_services.NewCriticalService(ollamaWithCircuitBreaker, analysisRepo, reviewLogger)
+	// NOTE: ModelService and MultiFileAnalyzer still use direct Ollama for model discovery
+	// These will be refactored in future to use Portal AI Factory as well
+	// For now, we keep a minimal Ollama client just for these legacy services
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://host.docker.internal:11434"
+	}
+	ollamaDefaultModel := "mistral:7b-instruct" // Used only for multiFileAnalyzer fallback
+	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaDefaultModel)
+
+	// Wire up services with circuit breaker wrapper (fail-fast when AI is unhealthy)
+	previewService := review_services.NewPreviewService(aiClientWithCircuitBreaker, reviewLogger)
+	skimService := review_services.NewSkimService(aiClientWithCircuitBreaker, analysisRepo, reviewLogger)
+	scanService := review_services.NewScanService(aiClientWithCircuitBreaker, analysisRepo, reviewLogger)
+	detailedService := review_services.NewDetailedService(aiClientWithCircuitBreaker, analysisRepo, reviewLogger)
+	criticalService := review_services.NewCriticalService(aiClientWithCircuitBreaker, analysisRepo, reviewLogger)
 
 	// Initialize health checker with all services
 	healthChecker := review_health.NewServiceHealthChecker(
@@ -217,7 +194,7 @@ func main() {
 		scanService,
 		detailedService,
 		criticalService,
-		ollamaAdapter,
+		unifiedAIClient, // Use unified client for health checks
 		sqlDB,
 		reviewLogger,
 	)
@@ -273,8 +250,9 @@ func main() {
 	githubClient := github.NewDefaultClient()
 
 	// Initialize multi-file analyzer service for GitHub session analysis
-	// Note: MultiFileAnalyzer uses ai.Provider interface, so we use ollamaClient directly
-	multiFileAnalyzer := review_services.NewMultiFileAnalyzer(ollamaClient, ollamaModel)
+	// Note: MultiFileAnalyzer uses ai.Provider interface, uses Ollama client directly
+	// TODO: Refactor to use Portal AI Factory
+	multiFileAnalyzer := review_services.NewMultiFileAnalyzer(ollamaClient, ollamaDefaultModel)
 
 	// Initialize GitHub session handler for repository integration
 	githubSessionHandler := review_handlers.NewGitHubSessionHandler(githubRepo, githubClient, multiFileAnalyzer)
@@ -295,8 +273,9 @@ func main() {
 	router.GET("/api/review/models", uiHandler.GetAvailableModels) // Model list is public
 
 	// Home/landing page - REQUIRES authentication via Redis session (SSO with Portal)
-	// Note: WITH stripprefix, Traefik strips /review so we only handle /
+	// Handles both / (legacy direct access) and /review (Traefik gateway access)
 	router.GET("/", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
+	router.GET("/review", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
 
 	// Protected endpoints group (require JWT authentication with Redis session validation)
 	protected := router.Group("/")

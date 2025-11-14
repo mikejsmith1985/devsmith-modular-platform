@@ -23,7 +23,7 @@ func NewProjectRepository(db *sql.DB) *ProjectRepository {
 // Create inserts a new project and returns the created project with ID.
 func (r *ProjectRepository) Create(ctx context.Context, project *logs_models.Project) (*logs_models.Project, error) {
 	query := `
-		INSERT INTO logs.projects (user_id, name, slug, description, repository_url, api_key_hash, is_active)
+		INSERT INTO logs.projects (user_id, name, slug, description, repository_url, api_token, is_active)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`
@@ -45,10 +45,44 @@ func (r *ProjectRepository) Create(ctx context.Context, project *logs_models.Pro
 	return project, nil
 }
 
-// GetByID retrieves a project by its ID.
-func (r *ProjectRepository) GetByID(ctx context.Context, id int) (*logs_models.Project, error) {
+// GetByID retrieves a project by its ID and user ID.
+func (r *ProjectRepository) GetByID(ctx context.Context, id int, userID int) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
+		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		       created_at, updated_at, is_active
+		FROM logs.projects
+		WHERE id = $1 AND user_id = $2
+	`
+
+	var project logs_models.Project
+	err := r.db.QueryRowContext(ctx, query, id, userID).Scan(
+		&project.ID,
+		&project.UserID,
+		&project.Name,
+		&project.Slug,
+		&project.Description,
+		&project.RepositoryURL,
+		&project.APIKeyHash,
+		&project.CreatedAt,
+		&project.UpdatedAt,
+		&project.IsActive,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("db: failed to get project by id: %w", err)
+	}
+
+	return &project, nil
+}
+
+// GetByIDGlobal retrieves a project by ID without userID constraint.
+// Used for service operations that don't have user context.
+func (r *ProjectRepository) GetByIDGlobal(ctx context.Context, id int) (*logs_models.Project, error) {
+	query := `
+		SELECT id, user_id, name, slug, description, repository_url, api_token, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE id = $1
@@ -78,13 +112,13 @@ func (r *ProjectRepository) GetByID(ctx context.Context, id int) (*logs_models.P
 	return &project, nil
 }
 
-// GetBySlug retrieves a project by its slug (unique per user).
-func (r *ProjectRepository) GetBySlug(ctx context.Context, userID int, slug string) (*logs_models.Project, error) {
+// GetBySlug retrieves a project by its slug and user ID.
+func (r *ProjectRepository) GetBySlug(ctx context.Context, slug string, userID int) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
+		SELECT id, user_id, name, slug, description, repository_url, api_token, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
-		WHERE user_id = $1 AND slug = $2
+		WHERE slug = $1 AND user_id = $2
 	`
 
 	var project logs_models.Project
@@ -116,7 +150,7 @@ func (r *ProjectRepository) GetBySlug(ctx context.Context, userID int, slug stri
 // Only returns active projects.
 func (r *ProjectRepository) GetBySlugGlobal(ctx context.Context, slug string) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
+		SELECT id, user_id, name, slug, description, repository_url, api_token, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE slug = $1 AND is_active = true
@@ -146,24 +180,25 @@ func (r *ProjectRepository) GetBySlugGlobal(ctx context.Context, slug string) (*
 	return &project, nil
 }
 
-// GetByAPIKeyHash retrieves a project by its hashed API key (for authentication).
-func (r *ProjectRepository) GetByAPIKeyHash(ctx context.Context, apiKeyHash string) (*logs_models.Project, error) {
+// FindByAPIToken retrieves a project by its plain API token (for authentication).
+// Uses indexed lookup for O(1) performance. Only returns active projects.
+func (r *ProjectRepository) FindByAPIToken(ctx context.Context, token string) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
+		SELECT id, user_id, name, slug, description, repository_url, api_token, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
-		WHERE api_key_hash = $1
+		WHERE api_token = $1 AND is_active = true
 	`
 
 	var project logs_models.Project
-	err := r.db.QueryRowContext(ctx, query, apiKeyHash).Scan(
+	err := r.db.QueryRowContext(ctx, query, token).Scan(
 		&project.ID,
 		&project.UserID,
 		&project.Name,
 		&project.Slug,
 		&project.Description,
 		&project.RepositoryURL,
-		&project.APIKeyHash,
+		&project.APIKeyHash, // Model field still named APIKeyHash, but now stores plain token
 		&project.CreatedAt,
 		&project.UpdatedAt,
 		&project.IsActive,
@@ -171,9 +206,9 @@ func (r *ProjectRepository) GetByAPIKeyHash(ctx context.Context, apiKeyHash stri
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, fmt.Errorf("db: project not found for api token")
 		}
-		return nil, fmt.Errorf("db: failed to get project by api key: %w", err)
+		return nil, fmt.Errorf("db: failed to find project by api token: %w", err)
 	}
 
 	return &project, nil
@@ -182,7 +217,7 @@ func (r *ProjectRepository) GetByAPIKeyHash(ctx context.Context, apiKeyHash stri
 // ListByUserID retrieves all projects for a specific user.
 func (r *ProjectRepository) ListByUserID(ctx context.Context, userID int) ([]logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
+		SELECT id, user_id, name, slug, description, repository_url, api_token, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE user_id = $1
@@ -193,7 +228,11 @@ func (r *ProjectRepository) ListByUserID(ctx context.Context, userID int) ([]log
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to list projects: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			fmt.Printf("Error closing rows: %v\n", closeErr)
+		}
+	}()
 
 	var projects []logs_models.Project
 	for rows.Next() {
@@ -256,17 +295,17 @@ func (r *ProjectRepository) Update(ctx context.Context, project *logs_models.Pro
 	return nil
 }
 
-// UpdateAPIKeyHash updates the API key hash for a project (for key regeneration).
-func (r *ProjectRepository) UpdateAPIKeyHash(ctx context.Context, projectID int, newAPIKeyHash string) error {
+// UpdateAPIToken updates the API token for a project (for token regeneration).
+func (r *ProjectRepository) UpdateAPIToken(ctx context.Context, projectID int, newAPIToken string) error {
 	query := `
 		UPDATE logs.projects
-		SET api_key_hash = $1, updated_at = $2
+		SET api_token = $1, updated_at = $2
 		WHERE id = $3
 	`
 
-	result, err := r.db.ExecContext(ctx, query, newAPIKeyHash, time.Now(), projectID)
+	result, err := r.db.ExecContext(ctx, query, newAPIToken, time.Now(), projectID)
 	if err != nil {
-		return fmt.Errorf("db: failed to update api key hash: %w", err)
+		return fmt.Errorf("db: failed to update api token: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()

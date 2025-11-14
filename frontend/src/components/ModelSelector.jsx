@@ -54,16 +54,8 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
       } catch (err) {
         console.error('Failed to load Portal LLM configs:', err);
         setError(err.message);
-        // Fallback to default models with recommended first
-        const defaultModels = [
-          { name: 'qwen2.5-coder:7b-instruct-q4_K_M', displayName: 'Qwen 2.5 Coder 7B (Recommended for 8GB VRAM)', provider: 'Ollama', isDefault: true },
-          { name: 'mistral:7b-instruct', displayName: 'Mistral 7B', provider: 'Ollama' },
-          { name: 'deepseek-coder-v2:16b-lite-instruct-q4_K_M', displayName: 'DeepSeek Coder V2 16B (Requires 16GB+ VRAM)', provider: 'Ollama' }
-        ];
-        setModels(defaultModels);
-        if (!selectedModel) {
-          onModelSelect('qwen2.5-coder:7b-instruct-q4_K_M');
-        }
+        // No fallback - user must configure models in AI Factory
+        setModels([]);
       } finally {
         setLoading(false);
       }

@@ -8,10 +8,10 @@ import (
 
 // InfrastructureError represents failures in external dependencies.
 type InfrastructureError struct {
-	Code       string
-	Message    string
-	Cause      error
-	HTTPStatus int
+	HTTPStatus int    // 8 bytes
+	Code       string // 16 bytes
+	Message    string // 16 bytes
+	Cause      error  // 16 bytes
 }
 
 func (e *InfrastructureError) Error() string {
@@ -21,6 +21,7 @@ func (e *InfrastructureError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
+// StatusCode returns the HTTP status code for this infrastructure error
 func (e *InfrastructureError) StatusCode() int {
 	if e.HTTPStatus > 0 {
 		return e.HTTPStatus
@@ -39,6 +40,7 @@ func (e *BusinessError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
+// StatusCode returns the HTTP status code for this business error
 func (e *BusinessError) StatusCode() int {
 	if e.HTTPStatus > 0 {
 		return e.HTTPStatus

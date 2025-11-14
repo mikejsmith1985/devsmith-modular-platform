@@ -5,11 +5,11 @@ package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
 import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/nav"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/version"
 )
 
 func Layout(title string) templ.Component {
@@ -40,13 +40,39 @@ func Layout(title string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/layout.templ`, Line: 14, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/layout.templ`, Line: 15, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - DevSmith Review</title><!-- Unified DevSmith Theme --><link rel=\"stylesheet\" href=\"/static/css/devsmith-theme.css\"><link rel=\"stylesheet\" href=\"/static/fonts/bootstrap-icons.css\"><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t\t[x-cloak] { display: none !important; }\n\t\t\t</style><script>\n\t\t\t\t// Alpine.js Dark Mode Store\n\t\t\t\tfunction darkModeStore() {\n\t\t\t\t\treturn {\n\t\t\t\t\t\tdark: localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches),\n\t\t\t\t\t\ttoggleDark() {\n\t\t\t\t\t\t\tthis.dark = !this.dark;\n\t\t\t\t\t\t\tthis.updateDOM();\n\t\t\t\t\t\t},\n\t\t\t\t\t\tupdateDOM() {\n\t\t\t\t\t\t\tdocument.documentElement.classList.toggle('dark', this.dark);\n\t\t\t\t\t\t\tlocalStorage.setItem('darkMode', this.dark ? 'true' : 'false');\n\t\t\t\t\t\t}\n\t\t\t\t\t};\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\tfunction initDarkMode() {\n\t\t\t\t\tconst isDark = localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);\n\t\t\t\t\tdocument.documentElement.classList.toggle('dark', isDark);\n\t\t\t\t}\n\t\t\t</script></head><body class=\"bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50\"><!-- Navigation (without user context for review app) -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " - DevSmith Review</title><!-- Unified DevSmith Theme with cache-busting --><link rel=\"stylesheet\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 templ.SafeURL
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs("/static/css/devsmith-theme.css?" + version.QueryParam())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/layout.templ`, Line: 17, Col: 88}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"><link rel=\"stylesheet\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 templ.SafeURL
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs("/static/fonts/bootstrap-icons.css?" + version.QueryParam())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/layout.templ`, Line: 18, Col: 91}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script><style>\n\t\t\t\t/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */\n\t\t\t\t[x-cloak] { display: none !important; }\n\t\t\t</style><script>\n\t\t\t\t// Alpine.js Dark Mode Store\n\t\t\t\tfunction darkModeStore() {\n\t\t\t\t\treturn {\n\t\t\t\t\t\tdark: localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches),\n\t\t\t\t\t\ttoggleDark() {\n\t\t\t\t\t\t\tthis.dark = !this.dark;\n\t\t\t\t\t\t\tthis.updateDOM();\n\t\t\t\t\t\t},\n\t\t\t\t\t\tupdateDOM() {\n\t\t\t\t\t\t\tdocument.documentElement.classList.toggle('dark', this.dark);\n\t\t\t\t\t\t\tlocalStorage.setItem('darkMode', this.dark ? 'true' : 'false');\n\t\t\t\t\t\t}\n\t\t\t\t\t};\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\tfunction initDarkMode() {\n\t\t\t\t\tconst isDark = localStorage.getItem('darkMode') === 'true' || \n\t\t\t\t\t\t\t\t  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);\n\t\t\t\t\tdocument.documentElement.classList.toggle('dark', isDark);\n\t\t\t\t}\n\t\t\t</script></head><body class=\"bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50\"><!-- Navigation (without user context for review app) -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -57,7 +83,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Main Content --><main class=\"flex-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<!-- Main Content --><main class=\"flex-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -65,7 +91,33 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</main><!-- Footer --><footer class=\"border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8 mt-12\"><div class=\"max-w-7xl mx-auto text-center text-sm text-gray-500 dark:text-gray-400\"><p>© 2024 DevSmith Review. Advanced code analysis with AI.</p></div></footer><script src=\"/static/js/review.js\"></script><script src=\"/static/js/analysis.js\"></script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</main><!-- Footer --><footer class=\"border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 py-6 px-4 sm:px-6 lg:px-8 mt-12\"><div class=\"max-w-7xl mx-auto text-center text-sm text-gray-500 dark:text-gray-400\"><p>© 2024 DevSmith Review. Advanced code analysis with AI.</p></div></footer><script src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs("/static/js/review.js?" + version.QueryParam())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/layout.templ`, Line: 67, Col: 63}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"></script><script src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("/static/js/analysis.js?" + version.QueryParam())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/layout.templ`, Line: 68, Col: 65}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"></script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

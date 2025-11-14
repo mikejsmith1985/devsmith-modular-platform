@@ -7,27 +7,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
-	"github.com/lib/pq" // PostgreSQL array support
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
 // LogEntry represents a log entry in the database.
-// nolint:govet // minor field alignment optimization not worth restructuring
 type LogEntry struct {
+	ID        int64
 	CreatedAt time.Time
 	Metadata  map[string]interface{}
 	Tags      []string // Auto-generated and manual tags
 	Message   string
 	Service   string
 	Level     string
-	ID        int64
 }
 
 // QueryFilters represents filtering options for log queries.
-// nolint:govet // minor field alignment optimization not worth restructuring
 type QueryFilters struct {
 	From       time.Time         // Filter logs created at or after this time
 	To         time.Time         // Filter logs created at or before this time
@@ -164,7 +162,7 @@ func buildWhereClause(filters *QueryFilters) ([]string, []interface{}, int) {
 }
 
 // Query retrieves log entries matching specified filters with pagination support.
-// nolint:gocognit // complexity is necessary for comprehensive query building and filtering
+// nolint:gocognit,gocyclo // complexity is necessary for comprehensive query building and filtering
 func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page PageOptions) ([]*LogEntry, error) {
 	// Validate pagination
 	if page.Limit <= 0 {
@@ -190,8 +188,8 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 	whereFragments, args, argNum := buildWhereClause(filters)
 	args = append(args, page.Limit, page.Offset)
 
-	// Build query - include tags column
-	query := "SELECT id, service, level, message, metadata, tags, created_at FROM logs.entries"
+	// Build query - select actual columns (no tags column exists)
+	query := "SELECT id, service, level, message, metadata, created_at FROM logs.entries"
 	if len(whereFragments) > 0 {
 		query += " WHERE " + strings.Join(whereFragments, " AND ")
 	}
@@ -216,10 +214,9 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 		var id int64
 		var service, level, message string
 		var metadataJSON sql.NullString
-		var tags pq.StringArray // PostgreSQL text[] array
 		var createdAt time.Time
 
-		if err := rows.Scan(&id, &service, &level, &message, &metadataJSON, &tags, &createdAt); err != nil {
+		if err := rows.Scan(&id, &service, &level, &message, &metadataJSON, &createdAt); err != nil {
 			return nil, fmt.Errorf("failed to scan log entry: %w", err)
 		}
 
@@ -228,15 +225,18 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 			Service:   service,
 			Level:     level,
 			Message:   message,
-			Tags:      []string(tags), // Convert pq.StringArray to []string
+			Tags:      []string{}, // No tags column in schema
 			CreatedAt: createdAt,
 			Metadata:  make(map[string]interface{}),
 		}
 
 		// Parse metadata JSON if it exists
 		if metadataJSON.Valid && metadataJSON.String != "" {
-			//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
-			_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+			if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
+				// Log the error but continue with empty metadata
+				log.Printf("Failed to unmarshal metadata for log entry %d: %v", entry.ID, err)
+				entry.Metadata = make(map[string]interface{})
+			}
 		}
 
 		entries = append(entries, entry)
@@ -299,8 +299,10 @@ func (r *LogRepository) GetByID(ctx context.Context, id int64) (*LogEntry, error
 
 	// Parse metadata JSON if it exists
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
-		_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+		if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
+			log.Printf("Warning: Failed to unmarshal metadata JSON for log entry %d: %v", entry.ID, err)
+			// Continue with empty metadata map
+		}
 	}
 
 	return entry, nil
@@ -643,7 +645,10 @@ func (r *LogRepository) GetLogStatsByLevel(ctx context.Context) (map[string]int,
 		return nil, fmt.Errorf("failed to query log stats: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // Explicitly ignore close error in defer
+		if closeErr := rows.Close(); closeErr != nil {
+			// Log error but don't return it to avoid masking the primary error
+			fmt.Printf("Error closing rows: %v\n", closeErr)
+		}
 	}()
 
 	stats := map[string]int{
@@ -682,34 +687,8 @@ func (r *LogRepository) GetAllTags(ctx context.Context) ([]string, error) {
 		return []string{}, nil
 	}
 
-	query := `SELECT DISTINCT unnest(tags) as tag FROM logs.entries ORDER BY tag`
-
-	rows, err := r.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query tags: %w", err)
-	}
-	defer func() {
-		_ = rows.Close() // Explicitly ignore close error in defer
-	}()
-
-	var tags []string
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err != nil {
-			return nil, fmt.Errorf("failed to scan tag: %w", err)
-		}
-		tags = append(tags, tag)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
-	}
-
-	if tags == nil {
-		tags = []string{}
-	}
-
-	return tags, nil
+	// Tags column doesn't exist in schema - return empty array
+	return []string{}, nil
 }
 
 // updateTagsHelper is a helper to reduce code duplication for tag operations
