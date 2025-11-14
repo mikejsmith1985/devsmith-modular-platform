@@ -50,6 +50,10 @@ import (
 
 // TestPerformanceRepository_BulkInsert_1000Logs tests bulk insert functionality for 1000 logs
 func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -81,6 +85,10 @@ func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
 
 // TestPerformanceRepository_BulkInsert_CompletesUnder500ms tests that bulk insert of 1000 logs completes quickly
 func TestPerformanceRepository_BulkInsert_CompletesUnder500ms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -179,6 +187,10 @@ func TestPerformanceRepository_CanExplainAnalyzeSlowQueries(t *testing.T) {
 
 // TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond tests 1000 logs/sec sustained throughput
 func TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -218,6 +230,10 @@ func TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond(t *testing.T)
 
 // TestPerformanceRepository_Ingestion_LatencyUnder50msP95 tests ingestion latency
 func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -251,6 +267,10 @@ func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
 
 // TestPerformanceRepository_QueryLatency_Under100msP95 tests query latency
 func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -352,6 +372,10 @@ func BenchmarkPerformanceRepository_SingleInsert(b *testing.B) {
 
 // TestPerformanceRepository_WebSocket_100ConcurrentClients tests concurrent WebSocket clients
 func TestPerformanceRepository_WebSocket_100ConcurrentClients(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 

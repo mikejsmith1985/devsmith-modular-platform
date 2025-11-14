@@ -127,8 +127,6 @@ jobs:
         run: |
           echo "=== Traefik Logs ==="
           docker compose logs traefik --tail=50
-          echo "=== Frontend Logs ==="
-          docker compose logs frontend --tail=50
           echo "=== Portal Logs ==="
           docker compose logs portal --tail=50
           echo "=== Review Logs ==="
