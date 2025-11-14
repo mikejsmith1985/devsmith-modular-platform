@@ -221,17 +221,31 @@ $secret = [Convert]::ToBase64String([byte[]](1..32 | ForEach-Object { Get-Random
 Add-Content .env "JWT_SECRET=$secret"
 ```
 
-### Step 6: Start DevSmith Platform (2 minutes)
+### Step 6: Deploy DevSmith Platform (2 minutes)
 
+**✨ NEW: Atomic Deployment Process**
+
+```bash
+# Deploy portal with atomic frontend+backend build
+./scripts/deploy-portal.sh
+
+# Start remaining services
+docker-compose up -d
+
+# Fix any missing database migrations (if needed)
+./scripts/fix-database.sh
+```
+
+This atomic deployment:
+- ✅ **Builds frontend inside Docker** (no local node_modules needed)
+- ✅ **Deploys frontend + backend together** (no version drift)
+- ✅ **Includes health checks** (automatic verification)
+- ✅ **Single command operation** (eliminates manual errors)
+
+**Alternative: Traditional method (if atomic deployment fails):**
 ```bash
 docker-compose up -d
 ```
-
-This will:
-- Pull Docker images (~2GB download on first run)
-- Start 9 services (PostgreSQL, Redis, Traefik, Frontend, Portal, Review, Logs, Analytics, Jaeger)
-- Run database migrations automatically
-- Wait for health checks to pass
 
 **Watch startup progress:**
 ```bash
@@ -769,26 +783,171 @@ curl http://localhost:3000/api/analytics/health
 
 ---
 
-## 🔄 Updating DevSmith
+## 🔄 Updating DevSmith / Deploying Code Changes
 
-To update to a newer version:
+### ✨ NEW: Atomic Deployment (Recommended)
+
+**Portal Service (Frontend + Backend):**
+```bash
+./scripts/deploy-portal.sh
+```
+
+This script:
+- ✅ Builds frontend inside Docker (eliminates node_modules sync issues)
+- ✅ Compiles backend with embedded frontend (atomic deployment)
+- ✅ Includes automatic health checks and verification
+- ✅ Displays deployment status and bundle version
+- ✅ Fails fast with clear error messages
+
+**Other Services:**
+```bash
+docker-compose up -d --build <service>
+```
+
+**Database Fixes (if migrations failed):**
+```bash
+./scripts/fix-database.sh
+```
+
+### ⚠️ Legacy: Manual Frontend Deployment (Deprecated)
+
+**❌ OLD METHOD (Error-Prone):**
+```bash
+cd frontend && npm run build      # Can fail or be skipped
+cp -r dist/* ../apps/portal/static/  # Manual copy step
+docker-compose up -d --build portal   # May use old files
+```
+
+**Issues with old method:**
+- Manual steps can be forgotten or fail
+- Frontend/backend version drift
+- No automatic verification
+- Hard to rollback on failure
+
+**✅ NEW METHOD (Atomic):**
+```bash
+./scripts/deploy-portal.sh  # One command, atomic operation
+```
+```
+
+### Standard Update Procedure
+
+When you update code (via `git pull` or local development):
 
 ```bash
-# Stop services
+# Stop services (if running)
 docker-compose down
 
-# Pull latest code
+# Pull latest code (if updating from git)
 git pull origin main
 
-# Rebuild images
-docker-compose build
+# Rebuild each service with mandatory script
+./scripts/rebuild-service.sh portal
+./scripts/rebuild-service.sh review
+./scripts/rebuild-service.sh logs
+./scripts/rebuild-service.sh analytics
 
-# Start services (migrations run automatically)
-docker-compose up -d
-
-# Verify health
+# Verify all services healthy
 docker-compose ps
 ```
+
+### Single Service Deployment
+
+If you only modified one service:
+
+```bash
+# Example: Updated logs service
+./scripts/rebuild-service.sh logs
+
+# Script automatically:
+# 1. Stops container
+# 2. Removes container
+# 3. Removes image (prevents cache)
+# 4. Builds fresh with --no-cache
+# 5. Starts container
+# 6. Verifies deployment (5 checks)
+```
+
+### What the Verification Checks
+
+The rebuild script automatically verifies:
+- ✅ Container is running
+- ✅ Container age < 120 seconds (catches stale deployments)
+- ✅ Health endpoint responds
+- ✅ No recent errors in logs
+- ✅ Build timestamp present
+
+**If any check fails**, the script will report the error and exit.
+
+### Example Output
+
+```
+🔨 MANDATORY REBUILD: logs
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1/6: Stopping container...
+✅ Container stopped
+
+Step 2/6: Removing container...
+✅ Container removed
+
+Step 3/6: Removing image...
+✅ Image removed
+
+Step 4/6: Building with fresh cache...
+[+] Building 45.2s (30/30) FINISHED
+✅ Build completed (45s)
+
+Step 5/6: Starting container...
+✅ Container started
+
+Step 6/6: Verifying deployment...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 DEPLOYMENT VERIFICATION: logs
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣ Checking if container is running...
+✅ Container is running
+
+2️⃣ Checking container age...
+✅ Container is 8s old (fresh deployment)
+
+3️⃣ Checking health endpoint...
+✅ Health endpoint responding
+
+4️⃣ Checking for recent errors...
+✅ No recent errors found
+
+5️⃣ Checking build timestamp...
+✅ Build timestamp present in logs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ ALL CHECKS PASSED - Deployment verified!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Troubleshooting Failed Deployments
+
+#### Container Age Check Failed
+```
+❌ FAIL: Container is 2100s old (expected < 120s)
+```
+**Cause:** Container wasn't rebuilt, using cached code  
+**Fix:** Ensure script completes all 6 steps
+
+#### Health Endpoint Failed
+```
+❌ FAIL: Health endpoint not responding
+```
+**Cause:** Service failed to start  
+**Fix:** Check logs: `docker logs devsmith-modular-platform-logs-1 --tail=50`
+
+#### Recent Errors Found
+```
+❌ FAIL: Found recent errors in container logs
+```
+**Cause:** Runtime error after startup  
+**Fix:** Review logs and fix code issue
 
 ---
 

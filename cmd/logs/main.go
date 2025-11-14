@@ -14,6 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	apphandlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/handlers"
 	resthandlers "github.com/mikejsmith1985/devsmith-modular-platform/cmd/logs/handlers"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
@@ -147,22 +148,122 @@ func main() {
 	validationAgg := logs_services.NewValidationAggregation(logRepo, logger)
 
 	// Phase 1: AI-Driven Diagnostics - Initialize AI analysis services
-	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
-	if ollamaEndpoint == "" {
-		ollamaEndpoint = "http://host.docker.internal:11434" // Default for Docker
-	}
-	ollamaModel := os.Getenv("OLLAMA_MODEL")
-	if ollamaModel == "" {
-		ollamaModel = "qwen2.5-coder:7b-instruct-q4_K_M" // Default model
+	// AI Configuration - Query AI Factory database directly (no HTTP/auth overhead)
+	// Uses same priority logic as Portal's GetEffectiveConfig:
+	// 1. App-specific preference for 'logs' app
+	// 2. User's default configuration (is_default = true)
+	// 3. FATAL error if nothing configured
+	log.Println("Fetching AI configuration from AI Factory database...")
+
+	// Priority 1: Check for logs app-specific preference
+	var logsConfigID string
+	err = dbConn.QueryRow(`
+		SELECT llm_config_id 
+		FROM portal.app_llm_preferences 
+		WHERE app_name = 'logs'
+		LIMIT 1
+	`).Scan(&logsConfigID)
+
+	if err == sql.ErrNoRows {
+		// Priority 2: Fall back to user's default configuration
+		log.Println("No app-specific LLM preference for logs, checking for default config...")
+		err = dbConn.QueryRow(`
+			SELECT id 
+			FROM portal.llm_configs 
+			WHERE is_default = true
+			LIMIT 1
+		`).Scan(&logsConfigID)
+
+		if err == sql.ErrNoRows {
+			log.Fatal("FATAL: No LLM configured in AI Factory.\nPlease configure an LLM in AI Factory (http://localhost:3000/ai-factory) and set it as default.")
+		}
+		if err != nil {
+			log.Fatalf("FATAL: Failed to query default LLM config: %v", err)
+		}
+		log.Println("Using default LLM configuration")
+	} else if err != nil {
+		log.Fatalf("FATAL: Failed to query LLM preference from database: %v", err)
+	} else {
+		log.Println("Using logs app-specific LLM configuration")
 	}
 
-	ollamaClient := providers.NewOllamaClient(ollamaEndpoint, ollamaModel)
-	aiAnalyzer := logs_services.NewAIAnalyzer(ollamaClient)
+	// Query for the specific LLM configuration
+	var (
+		configName  string
+		provider    string
+		modelName   string
+		apiEndpoint sql.NullString
+		apiKeyEnc   sql.NullString
+	)
+	err = dbConn.QueryRow(`
+		SELECT id, provider, model_name, api_endpoint, api_key_encrypted
+		FROM portal.llm_configs
+		WHERE id = $1
+		LIMIT 1
+	`, logsConfigID).Scan(&configName, &provider, &modelName, &apiEndpoint, &apiKeyEnc)
+
+	if err == sql.ErrNoRows {
+		log.Fatalf("FATAL: LLM config %s not found in AI Factory database", logsConfigID)
+	}
+	if err != nil {
+		log.Fatalf("FATAL: Failed to query LLM config from database: %v", err)
+	}
+
+	log.Printf("AI Factory configuration loaded: %s (%s - %s)\n", configName, provider, modelName)
+
+	// Decrypt API key (AI Factory stores encrypted keys)
+	var apiKey string
+	if apiKeyEnc.Valid && apiKeyEnc.String != "" {
+		// TODO: Implement decryption using Portal's encryption service
+		// For now, assume keys are stored as base64-encoded
+		apiKey = apiKeyEnc.String
+	}
+
+	endpoint := apiEndpoint.String
+	if endpoint == "" && provider == "ollama" {
+		endpoint = "http://host.docker.internal:11434" // Default Ollama endpoint
+	}
+
+	// Initialize AI provider based on configuration
+	var rawAIClient ai.Provider
+	var adaptedAIClient logs_services.AIProvider
+
+	switch provider {
+	case "anthropic":
+		if apiKey == "" {
+			log.Fatalf("FATAL: Anthropic API key not set in AI Factory for config '%s'", configName)
+		}
+		anthropicClient := providers.NewAnthropicClient(apiKey, modelName)
+		rawAIClient = anthropicClient
+		adaptedAIClient = logs_services.NewAnthropicAdapter(anthropicClient)
+		log.Printf("✓ AI provider ready: Anthropic (%s)\n", modelName)
+
+	case "ollama":
+		if endpoint == "" {
+			log.Fatal("FATAL: Ollama endpoint not configured in AI Factory.\nPlease set the endpoint in AI Factory configuration.")
+		}
+		ollamaClient := providers.NewOllamaClient(endpoint, modelName)
+		rawAIClient = ollamaClient
+		adaptedAIClient = logs_services.NewOllamaAdapter(ollamaClient)
+		log.Printf("✓ AI provider ready: Ollama (%s - %s)\n", endpoint, modelName)
+
+	case "openai":
+		if apiKey == "" {
+			log.Fatalf("FATAL: OpenAI API key not set in AI Factory for config '%s'", configName)
+		}
+		// OpenAI client implementation would go here
+		log.Fatalf("FATAL: OpenAI provider not yet implemented. Please use Anthropic or Ollama.")
+
+	default:
+		log.Fatalf("FATAL: Unsupported AI provider '%s' configured in AI Factory.\nSupported providers: anthropic, ollama", provider)
+	}
+
+	aiAnalyzer := logs_services.NewAIAnalyzer(rawAIClient)
 	patternMatcher := logs_services.NewPatternMatcher()
 	analysisService := logs_services.NewAnalysisService(aiAnalyzer, patternMatcher)
 	analysisHandler := internal_logs_handlers.NewAnalysisHandler(analysisService, logger)
 
-	log.Println("AI analysis services initialized - Ollama:", ollamaEndpoint, "Model:", ollamaModel)
+	log.Printf("✓ AI analysis services ready\n")
 
 	// Week 1: Cross-Repository Logging - Initialize batch ingestion services
 	projectRepo := logs_db.NewProjectRepository(dbConn)
@@ -284,9 +385,8 @@ func main() {
 
 	// Phase 2: AI Insights - Initialize AI insights services
 	aiInsightsRepo := logs_db.NewAIInsightsRepository(dbConn)
-	ollamaAdapter := logs_services.NewOllamaAdapter(ollamaClient)
 	logRepoAdapter := logs_services.NewLogRepositoryAdapter(logRepo)
-	aiInsightsService := logs_services.NewAIInsightsService(ollamaAdapter, logRepoAdapter, aiInsightsRepo)
+	aiInsightsService := logs_services.NewAIInsightsService(adaptedAIClient, logRepoAdapter, aiInsightsRepo)
 	aiInsightsHandler := internal_logs_handlers.NewAIInsightsHandler(aiInsightsService, logger, logEntryRepo)
 
 	// AI insights endpoints

@@ -1604,11 +1604,28 @@ services:
   redis:             # Port 6379
 ```
 
-### Container Strategy
-- **Frontend:** Multi-stage build (build → nginx)
-- **Backend:** Python 3.11-slim base image
+### Container Strategy (Updated 2025-11-13)
+
+**✨ NEW: Atomic Frontend+Backend Deployment**
+- **Portal:** Multi-stage build (frontend → go → alpine)
+  - Stage 1: `node:18-alpine` builds React frontend 
+  - Stage 2: `golang:1.24-alpine` builds Go binary with embedded frontend
+  - Stage 3: `alpine:latest` runtime with single binary
+- **Other Services:** Go binary in alpine base image
 - **Database:** Official postgres:15-alpine
 - **Redis:** Official redis:7-alpine
+
+**Benefits of Atomic Deployment:**
+- ✅ **Version Consistency:** Frontend + backend deployed together
+- ✅ **Single Source of Truth:** One Docker build creates complete service
+- ✅ **Eliminated Manual Steps:** No `npm build → cp → docker build` dance
+- ✅ **Faster Development:** One command deployment via `./scripts/deploy-portal.sh`
+- ✅ **Safer Rollbacks:** Single image to rollback, no frontend/backend drift
+
+**Legacy Architecture (Deprecated):**
+- ❌ **Old:** Separate frontend Dockerfile (nginx-based)
+- ❌ **Old:** Manual frontend build and copy steps
+- ❌ **Old:** Version drift between frontend and backend
 
 ### Volume Management
 - **postgres-data:** Database persistence
@@ -1873,7 +1890,7 @@ Similar to MULTI_LLM_IMPLEMENTATION_PLAN.md Phase 6 (Traefik priority fix):
 - ✅ No manual cache clearing required
 
 **Developer Experience:**
-- ✅ `docker-compose up -d --build` just works
+- ✅ `./scripts/deploy-portal.sh` provides one-command atomic deployment
 - ✅ No "clear your cache" instructions needed
 - ✅ Platform-wide solution (all frontends benefit)
 - ✅ CI/CD friendly (no cache state between builds)

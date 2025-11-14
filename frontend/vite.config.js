@@ -11,9 +11,13 @@ export default defineConfig({
     port: 5173
   },
   build: {
+    // CRITICAL FIX: Disable all caching mechanisms to prevent stale code
+    minify: false,        // Expose raw variable names (temporary for debugging)
+    cssCodeSplit: false,  // Bundle all CSS into one file
     rollupOptions: {
+      cache: false,       // Disable Rollup's persistent module graph cache
       output: {
-        manualChunks: undefined  // Better hash stability
+        // Remove manualChunks to prevent cascading hash issues
       }
     }
   }

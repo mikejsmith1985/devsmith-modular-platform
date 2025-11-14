@@ -11,7 +11,7 @@ DevSmith is a self-hosted platform that helps development teams leverage AI for 
 
 ---
 
-## 🚀 Quick Start (15 Minutes)
+## 🚀 Quick Start (10 Minutes)
 
 ```bash
 # 1. Install Ollama (AI model host)
@@ -31,10 +31,13 @@ cd devsmith-modular-platform
 cp .env.example .env
 nano .env  # Add your GitHub OAuth credentials
 
-# 6. Start platform
+# 6. Deploy platform (atomic build + deploy)
+./scripts/deploy-portal.sh
+
+# 7. Start remaining services
 docker-compose up -d
 
-# 7. Open browser
+# 8. Open browser
 open http://localhost:3000
 ```
 
@@ -121,6 +124,46 @@ ollama serve  # Start if not running
 ```
 
 **More help:** [TROUBLESHOOTING_GUIDE.md](./docs/TROUBLESHOOTING_GUIDE.md)
+
+---
+
+## 🚢 Deploying Code Changes
+
+**CRITICAL:** Docker's build cache can cause deployments to use stale code even when builds appear successful.
+
+**❌ DO NOT USE:**
+```bash
+docker-compose up -d --build  # Can deploy old code from cache!
+```
+
+**✅ ALWAYS USE:**
+```bash
+./scripts/rebuild-service.sh <service>  # Mandatory rebuild script
+```
+
+This script:
+- Removes old container and image (prevents cache issues)
+- Builds with fresh cache and timestamp
+- Verifies deployment success (checks container age, health)
+
+**Example:**
+```bash
+# After modifying logs service code
+./scripts/rebuild-service.sh logs
+
+# After modifying multiple services
+./scripts/rebuild-service.sh portal
+./scripts/rebuild-service.sh review
+```
+
+**Verification:** The script automatically verifies:
+- ✅ Container is running
+- ✅ Container is fresh (< 2 minutes old)
+- ✅ Health endpoint responds
+- ✅ No recent errors in logs
+- ✅ Build timestamp present
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete procedures.
 
 ---
 

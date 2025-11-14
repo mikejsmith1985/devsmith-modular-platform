@@ -81,6 +81,8 @@ services:
     build:
       context: .
       dockerfile: cmd/portal/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "3001:3001"
     environment:
@@ -149,6 +151,8 @@ services:
     build:
       context: .
       dockerfile: cmd/review/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "8081:8081"
     environment:
@@ -201,6 +205,8 @@ services:
     build:
       context: .
       dockerfile: cmd/logs/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "8082:8082"
     environment:
@@ -211,6 +217,7 @@ services:
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - REDIRECT_URI=http://localhost:3000/auth/github/callback
+      - PORTAL_URL=http://portal:3001
     depends_on:
       postgres:
         condition: service_healthy
@@ -237,6 +244,8 @@ services:
     build:
       context: .
       dockerfile: cmd/analytics/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "8083:8083"
     environment:

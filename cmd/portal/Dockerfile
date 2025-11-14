@@ -1,4 +1,12 @@
-# Stage 1: Build Go binary
+# Stage 1: Build Frontend
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci --only=production
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Build Go binary
 FROM golang:1.24-alpine AS builder
 
 # Build arguments for version injection
@@ -6,11 +14,18 @@ ARG VERSION=dev
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 
+# Cache-busting argument - forces fresh build when source changes
+# Pass with: --build-arg BUILD_TIMESTAMP=$(date +%s)
+ARG BUILD_TIMESTAMP=0
+RUN echo "Build timestamp: ${BUILD_TIMESTAMP}"
+
 RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+# Copy built frontend into Go static directory
+COPY --from=frontend-builder /app/frontend/dist apps/portal/static/
 
 # Build with version information injected via ldflags
 RUN CGO_ENABLED=0 GOOS=linux go build \
@@ -30,7 +45,8 @@ COPY --from=builder /app/bin/portal ./portal
 RUN chown -R appuser:appuser /home/appuser
 USER appuser
 COPY apps/portal/templates/ ./templates/
-COPY --chown=appuser:appuser apps/portal/static/ ./static/
+# Static files are now built and copied from builder stage (atomic deployment)
+COPY --from=builder --chown=appuser:appuser /app/apps/portal/static/ ./static/
 # Inject build timestamp for cache-busting (prevents stale frontend builds)
 ARG BUILD_TIMESTAMP
 RUN if [ -n "$BUILD_TIMESTAMP" ]; then \
