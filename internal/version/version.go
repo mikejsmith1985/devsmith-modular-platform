@@ -1,3 +1,5 @@
+// Package version provides version information for the DevSmith platform.
+// This package centralizes version management across all services.
 package version
 
 import (
@@ -19,18 +21,21 @@ var (
 
 	// BuildNumber is the CI build number (optional)
 	BuildNumber = "0"
+
+	// DevVersion is the version string for development builds
+	DevVersion = "dev"
 )
 
 // CacheBuster returns a string suitable for cache busting in URLs
 // Format: v0.1.0-abc1234 or dev-abc1234-20251112
 func CacheBuster() string {
-	if Version != "dev" {
+	if Version != DevVersion {
 		// Production: use version-commithash (e.g., v0.1.0-abc1234)
 		return fmt.Sprintf("%s-%s", Version, shortHash())
 	}
 
 	// Development: use dev-commithash-buildtime (changes every build)
-	return fmt.Sprintf("dev-%s-%s", shortHash(), buildTimestamp())
+	return fmt.Sprintf("%s-%s-%s", DevVersion, shortHash(), buildTimestamp())
 }
 
 // QueryParam returns the cache buster as a URL query parameter

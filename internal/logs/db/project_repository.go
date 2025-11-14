@@ -228,7 +228,11 @@ func (r *ProjectRepository) ListByUserID(ctx context.Context, userID int) ([]log
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to list projects: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			fmt.Printf("Error closing rows: %v\n", closeErr)
+		}
+	}()
 
 	var projects []logs_models.Project
 	for rows.Next() {

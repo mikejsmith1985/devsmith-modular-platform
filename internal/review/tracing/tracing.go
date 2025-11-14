@@ -17,7 +17,7 @@ import (
 
 // InitTracer initializes OpenTelemetry tracing with OTLP HTTP exporter.
 // Exports traces to Jaeger-compatible backend via OTLP.
-func InitTracer(serviceName string, endpoint string) (func(context.Context) error, error) {
+func InitTracer(serviceName, endpoint string) (func(context.Context) error, error) {
 	ctx := context.Background()
 
 	// Create OTLP HTTP exporter (works with Jaeger 1.35+)

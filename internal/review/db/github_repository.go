@@ -45,6 +45,8 @@ func (r *GitHubRepository) CreateGitHubSession(ctx context.Context, session *rev
 }
 
 // GetGitHubSession retrieves a GitHub session by ID
+//
+//nolint:dupl // Scanning code is similar but serves different purposes
 func (r *GitHubRepository) GetGitHubSession(ctx context.Context, id int64) (*review_models.GitHubSession, error) {
 	query := `
 		SELECT id, session_id, github_url, owner, repo, branch, commit_sha, 

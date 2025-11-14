@@ -1,3 +1,6 @@
+// Package logs_services provides business logic services for the DevSmith Logs application.
+//
+//nolint:dupl // AnthropicAdapter and OllamaAdapter have similar structure but different implementations
 package logs_services
 
 import (

@@ -121,6 +121,7 @@ func (c *GatewayChecker) parseNginxConfig() ([]RouteMapping, error) {
 
 // parseConfigFile extracts route mappings from a single nginx config file
 func (c *GatewayChecker) parseConfigFile(configPath string) ([]RouteMapping, error) {
+	//nolint:gosec // Config file path is controlled and validated by calling function
 	file, err := os.Open(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config %s: %w", configPath, err)

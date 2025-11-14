@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,7 +31,41 @@ import (
 
 var dbConn *sql.DB
 
-//nolint:gocognit // main() initialization is necessarily complex with multiple service setups
+// resolveLLMConfig handles the complex logic of finding an LLM configuration
+// Returns the resolved config ID as string
+func resolveLLMConfig(lookupErr error, configID string, db *sql.DB) string {
+	switch {
+	case errors.Is(lookupErr, sql.ErrNoRows):
+		return handleMissingAppConfig(db)
+	case lookupErr != nil:
+		log.Fatalf("FATAL: Failed to query LLM preference from database: %v", lookupErr)
+	default:
+		log.Println("Using logs app-specific LLM configuration")
+	}
+	return configID
+}
+
+// handleMissingAppConfig attempts to find default LLM configuration
+func handleMissingAppConfig(db *sql.DB) string {
+	var defaultConfigID string
+	err := db.QueryRow(`
+		SELECT id 
+		FROM portal.llm_configs 
+		WHERE is_default = true
+		LIMIT 1
+	`).Scan(&defaultConfigID)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Fatal("FATAL: No LLM configured in AI Factory.\nPlease configure an LLM in AI Factory (http://localhost:3000/ai-factory) and set it as default.")
+	}
+	if err != nil {
+		log.Fatalf("FATAL: Failed to query default LLM config: %v", err)
+	}
+	log.Println("Using default LLM configuration")
+	return defaultConfigID
+}
+
+//nolint:gocognit,gocyclo // main() initialization is necessarily complex with multiple service setups
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -81,20 +116,15 @@ func main() {
 		log.Fatalf("Failed to initialize Redis session store: %v", err)
 	}
 	defer func() {
-		if err := sessionStore.Close(); err != nil {
-			log.Printf("Error closing Redis: %v", err)
+		if closeErr := sessionStore.Close(); closeErr != nil {
+			log.Printf("Error closing Redis: %v", closeErr)
 		}
 	}()
 	log.Printf("Redis session store initialized: addr=%s, ttl=7 days", redisAddr)
 
 	// Run database migrations
 	if err = runMigrations(dbConn); err != nil {
-		log.Printf("Failed to run migrations: %v", err)
-		// Defer will not run after Fatal, so close Redis manually
-		if closeErr := sessionStore.Close(); closeErr != nil {
-			log.Printf("Error closing Redis: %v", closeErr)
-		}
-		os.Exit(1)
+		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	// OAuth2 configuration (for GitHub)
@@ -113,11 +143,13 @@ func main() {
 	// Middleware for logging requests (skip health checks in event log, but still track them)
 	router.Use(func(c *gin.Context) {
 		// Log all requests asynchronously (health checks too, for observability)
-		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
+		if logErr := instrLogger.LogEvent(c.Request.Context(), "request_received", map[string]interface{}{
 			"method": c.Request.Method,
 			"path":   c.Request.URL.Path,
-		})
+		}); logErr != nil {
+			// Log error but don't fail the request
+			log.Printf("Failed to log request event: %v", logErr)
+		}
 		c.Next()
 	})
 
@@ -164,28 +196,8 @@ func main() {
 		LIMIT 1
 	`).Scan(&logsConfigID)
 
-	if err == sql.ErrNoRows {
-		// Priority 2: Fall back to user's default configuration
-		log.Println("No app-specific LLM preference for logs, checking for default config...")
-		err = dbConn.QueryRow(`
-			SELECT id 
-			FROM portal.llm_configs 
-			WHERE is_default = true
-			LIMIT 1
-		`).Scan(&logsConfigID)
-
-		if err == sql.ErrNoRows {
-			log.Fatal("FATAL: No LLM configured in AI Factory.\nPlease configure an LLM in AI Factory (http://localhost:3000/ai-factory) and set it as default.")
-		}
-		if err != nil {
-			log.Fatalf("FATAL: Failed to query default LLM config: %v", err)
-		}
-		log.Println("Using default LLM configuration")
-	} else if err != nil {
-		log.Fatalf("FATAL: Failed to query LLM preference from database: %v", err)
-	} else {
-		log.Println("Using logs app-specific LLM configuration")
-	}
+	// Handle LLM configuration lookup results
+	logsConfigID = resolveLLMConfig(err, logsConfigID, dbConn)
 
 	// Query for the specific LLM configuration
 	var (
@@ -202,7 +214,7 @@ func main() {
 		LIMIT 1
 	`, logsConfigID).Scan(&configName, &provider, &modelName, &apiEndpoint, &apiKeyEnc)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		log.Fatalf("FATAL: LLM config %s not found in AI Factory database", logsConfigID)
 	}
 	if err != nil {
@@ -293,13 +305,11 @@ func main() {
 	// These endpoints allow authenticated users to create projects and manage API keys
 	projectRoutes := router.Group("/api/logs/projects")
 	projectRoutes.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
-	{
-		projectRoutes.POST("", projectHandler.CreateProject)
-		projectRoutes.GET("", projectHandler.ListProjects)
-		projectRoutes.GET("/:id", projectHandler.GetProject)
-		projectRoutes.POST("/:id/regenerate-key", projectHandler.RegenerateAPIKey)
-		projectRoutes.DELETE("/:id", projectHandler.DeleteProject)
-	}
+	projectRoutes.POST("", projectHandler.CreateProject)
+	projectRoutes.GET("", projectHandler.ListProjects)
+	projectRoutes.GET("/:id", projectHandler.GetProject)
+	projectRoutes.POST("/:id/regenerate-key", projectHandler.RegenerateAPIKey)
+	projectRoutes.DELETE("/:id", projectHandler.DeleteProject)
 
 	router.GET("/api/logs", func(c *gin.Context) {
 		resthandlers.GetLogs(restSvc)(c)

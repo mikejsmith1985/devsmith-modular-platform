@@ -1,3 +1,12 @@
+// Package logs_services provides business logic services for the DevSmith Logs application.
+//
+// This package contains service implementations for:
+// - Project management and API key generation
+// - Cross-repository log ingestion and batching
+// - Integration with external logging systems
+//
+// The services maintain separation of concerns by handling business logic
+// while delegating data access to repository interfaces.
 package logs_services
 
 import (
@@ -39,11 +48,11 @@ func NewProjectService(repo ProjectRepository) *ProjectService {
 
 // GenerateAPIKey generates a new API key and returns both the plain key and bcrypt hash
 // Format: dsk_<32 random bytes base64url encoded> = dsk_abc123xyz... (47 chars total)
-func GenerateAPIKey() (plainKey string, hash string, err error) {
+func GenerateAPIKey() (plainKey, hash string, err error) {
 	// Generate 32 random bytes
 	randomBytes := make([]byte, 32)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return "", "", fmt.Errorf("failed to generate random bytes: %w", err)
+	if _, readErr := rand.Read(randomBytes); readErr != nil {
+		return "", "", fmt.Errorf("failed to generate random bytes: %w", readErr)
 	}
 
 	// Encode as base64url (URL-safe, no padding)

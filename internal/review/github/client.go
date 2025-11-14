@@ -27,11 +27,11 @@ type CodeFetch struct {
 
 // TreeNode represents a file or directory in the repository tree
 type TreeNode struct {
-	Path     string     `json:"path"`
-	Type     string     `json:"type"` // "file" or "dir"
-	SHA      string     `json:"sha"`
-	Size     int64      `json:"size,omitempty"`
-	Children []TreeNode `json:"children,omitempty"`
+	Size     int64      `json:"size,omitempty"`     // 8 bytes
+	Path     string     `json:"path"`               // 16 bytes
+	Type     string     `json:"type"`               // 16 bytes - "file" or "dir"
+	SHA      string     `json:"sha"`                // 16 bytes
+	Children []TreeNode `json:"children,omitempty"` // 24 bytes
 }
 
 // RepoTree represents the complete repository file structure
@@ -52,25 +52,25 @@ type FileContent struct {
 
 // PullRequest represents GitHub PR metadata
 type PullRequest struct {
-	Number      int
-	Title       string
-	Description string
-	Author      string
-	State       string // "open", "closed", "merged"
-	HeadBranch  string
-	BaseBranch  string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	Number      int       // 8 bytes
+	CreatedAt   time.Time // 24 bytes
+	UpdatedAt   time.Time // 24 bytes
+	Title       string    // 16 bytes
+	Description string    // 16 bytes
+	Author      string    // 16 bytes
+	State       string    // 16 bytes - "open", "closed", "merged"
+	HeadBranch  string    // 16 bytes
+	BaseBranch  string    // 16 bytes
 }
 
 // PRFile represents a file changed in a pull request
 type PRFile struct {
-	Filename  string
-	Status    string // "added", "modified", "removed", "renamed"
-	Additions int
-	Deletions int
-	Changes   int
-	Patch     string // Diff patch
+	Additions int    // 8 bytes
+	Deletions int    // 8 bytes
+	Changes   int    // 8 bytes
+	Filename  string // 16 bytes
+	Status    string // 16 bytes - "added", "modified", "removed", "renamed"
+	Patch     string // 16 bytes - Diff patch
 }
 
 // ClientInterface defines GitHub API operations

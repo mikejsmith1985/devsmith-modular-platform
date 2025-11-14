@@ -4,6 +4,7 @@ package logs_services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
@@ -26,7 +27,7 @@ func NewAnalysisService(aiAnalyzer *AIAnalyzer, patternMatcher *PatternMatcher) 
 func (s *AnalysisServiceImpl) AnalyzeLogEntry(ctx context.Context, entry *logs_models.LogEntry) (*AnalysisResult, error) {
 	// First classify the log to provide context to AI
 	issueType := s.patternMatcher.Classify(entry.Message)
-	
+
 	// Build analysis request
 	req := AnalysisRequest{
 		LogEntries: []logs_models.LogEntry{*entry},
@@ -40,7 +41,11 @@ func (s *AnalysisServiceImpl) AnalyzeLogEntry(ctx context.Context, entry *logs_m
 	}
 
 	// Store analysis in log entry (for future caching/persistence)
-	analysisJSON, _ := json.Marshal(result)
+	analysisJSON, err := json.Marshal(result)
+	if err != nil {
+		fmt.Printf("Warning: failed to marshal analysis result: %v\n", err)
+		analysisJSON = []byte("{}")
+	}
 	entry.AIAnalysis = analysisJSON
 	entry.IssueType = issueType
 	entry.SeverityScore = result.Severity
@@ -51,9 +56,9 @@ func (s *AnalysisServiceImpl) AnalyzeLogEntry(ctx context.Context, entry *logs_m
 // ClassifyLogEntry classifies a log entry into a known issue type
 func (s *AnalysisServiceImpl) ClassifyLogEntry(ctx context.Context, entry *logs_models.LogEntry) (string, error) {
 	issueType := s.patternMatcher.Classify(entry.Message)
-	
+
 	// Update entry with classification
 	entry.IssueType = issueType
-	
+
 	return issueType, nil
 }

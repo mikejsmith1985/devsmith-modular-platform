@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -14,19 +15,17 @@ import (
 )
 
 // LogEntry represents a log entry in the database.
-// nolint:govet // minor field alignment optimization not worth restructuring
 type LogEntry struct {
+	ID        int64
 	CreatedAt time.Time
 	Metadata  map[string]interface{}
 	Tags      []string // Auto-generated and manual tags
 	Message   string
 	Service   string
 	Level     string
-	ID        int64
 }
 
 // QueryFilters represents filtering options for log queries.
-// nolint:govet // minor field alignment optimization not worth restructuring
 type QueryFilters struct {
 	From       time.Time         // Filter logs created at or after this time
 	To         time.Time         // Filter logs created at or before this time
@@ -163,7 +162,7 @@ func buildWhereClause(filters *QueryFilters) ([]string, []interface{}, int) {
 }
 
 // Query retrieves log entries matching specified filters with pagination support.
-// nolint:gocognit // complexity is necessary for comprehensive query building and filtering
+// nolint:gocognit,gocyclo // complexity is necessary for comprehensive query building and filtering
 func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page PageOptions) ([]*LogEntry, error) {
 	// Validate pagination
 	if page.Limit <= 0 {
@@ -233,8 +232,11 @@ func (r *LogRepository) Query(ctx context.Context, filters *QueryFilters, page P
 
 		// Parse metadata JSON if it exists
 		if metadataJSON.Valid && metadataJSON.String != "" {
-			//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
-			_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+			if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
+				// Log the error but continue with empty metadata
+				log.Printf("Failed to unmarshal metadata for log entry %d: %v", entry.ID, err)
+				entry.Metadata = make(map[string]interface{})
+			}
 		}
 
 		entries = append(entries, entry)
@@ -297,8 +299,10 @@ func (r *LogRepository) GetByID(ctx context.Context, id int64) (*LogEntry, error
 
 	// Parse metadata JSON if it exists
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		//nolint:errcheck // Silently ignore metadata unmarshal errors - continue with empty metadata
-		_ = json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata)
+		if err := json.Unmarshal([]byte(metadataJSON.String), &entry.Metadata); err != nil {
+			log.Printf("Warning: Failed to unmarshal metadata JSON for log entry %d: %v", entry.ID, err)
+			// Continue with empty metadata map
+		}
 	}
 
 	return entry, nil
@@ -641,7 +645,10 @@ func (r *LogRepository) GetLogStatsByLevel(ctx context.Context) (map[string]int,
 		return nil, fmt.Errorf("failed to query log stats: %w", err)
 	}
 	defer func() {
-		_ = rows.Close() // Explicitly ignore close error in defer
+		if closeErr := rows.Close(); closeErr != nil {
+			// Log error but don't return it to avoid masking the primary error
+			fmt.Printf("Error closing rows: %v\n", closeErr)
+		}
 	}()
 
 	stats := map[string]int{

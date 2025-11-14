@@ -47,8 +47,8 @@ type Client struct {
 	// to ensure registration is complete before sending messages.
 	Registered chan struct{}
 	// done channel signals WritePump to exit gracefully
-	done   chan struct{}
-	mu     sync.Mutex
+	done chan struct{}
+	mu   sync.Mutex
 	// writeMu serializes concurrent writes to the websocket connection
 	writeMu  sync.Mutex
 	IsAuth   bool
@@ -179,7 +179,7 @@ func (h *WebSocketHub) broadcastAnalysisNotification(notif *AnalysisNotification
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	log.Printf("Broadcasting analysis notification: type=%s, issue_type=%s, log_id=%d", 
+	log.Printf("Broadcasting analysis notification: type=%s, issue_type=%s, log_id=%d",
 		notif.Type, notif.IssueType, notif.LogID)
 
 	// For analysis notifications, send to all authenticated clients
@@ -199,7 +199,7 @@ func (h *WebSocketHub) broadcastAnalysisNotification(notif *AnalysisNotification
 			IssueType: notif.IssueType,
 			CreatedAt: notif.Timestamp,
 			// Store the full analysis in Metadata for client-side parsing
-			Metadata:  encodeAnalysisToJSON(notif.Analysis),
+			Metadata: encodeAnalysisToJSON(notif.Analysis),
 		}
 
 		// Attempt to send with backpressure handling

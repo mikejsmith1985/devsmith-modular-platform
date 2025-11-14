@@ -200,6 +200,7 @@ func (c *DefaultClient) GetFileContent(ctx context.Context, owner, repo, path, b
 	}
 
 	if branch == "" {
+		//nolint:ineffassign // Setting default branch value is intentional
 		branch = "main"
 	}
 
