@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +39,13 @@ func resolveLLMConfig(lookupErr error, configID string, db *sql.DB) string {
 	case errors.Is(lookupErr, sql.ErrNoRows):
 		return handleMissingAppConfig(db)
 	case lookupErr != nil:
+		// Handle case where app_llm_preferences table doesn't exist yet (e.g., migrations not run)
+		// This prevents service crash in environments where Phase 1 migrations haven't been applied
+		if strings.Contains(lookupErr.Error(), "relation \"portal.app_llm_preferences\" does not exist") {
+			log.Println("WARN: app_llm_preferences table not found (Phase 1 migrations may not be applied)")
+			log.Println("Falling back to default LLM configuration")
+			return handleMissingAppConfig(db)
+		}
 		log.Fatalf("FATAL: Failed to query LLM preference from database: %v", lookupErr)
 	default:
 		log.Println("Using logs app-specific LLM configuration")
