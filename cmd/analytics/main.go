@@ -72,6 +72,7 @@ func main() {
 	exportService := analytics_services.NewExportService(aggregationRepo, logger)
 
 	apiHandler := analytics_handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
+	metricsHandler := analytics_handlers.NewMetricsDashboardHandler()
 
 	router := gin.Default()
 
@@ -94,6 +95,11 @@ func main() {
 
 	// Register API routes
 	apiHandler.RegisterRoutes(router)
+
+	// Register metrics dashboard routes
+	router.GET("/api/analytics/metrics/dashboard", metricsHandler.GetDashboardData)
+	router.GET("/api/analytics/metrics/trends", metricsHandler.GetTrends)
+	router.GET("/api/analytics/metrics/violations", metricsHandler.GetViolations)
 
 	// TODO: Add protected routes group when authentication is required
 	// Example:
