@@ -111,12 +111,12 @@ jobs:
       - name: Test Review API via Gateway
         run: |
           echo "Testing Review service accessibility via gateway..."
-          # Test that Review service is responding (302 redirect to auth = service is up)
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/review/)
-          if [ "$STATUS" = "302" ] || [ "$STATUS" = "200" ]; then
+          # Test public API endpoint (models list doesn't require auth)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/review/models)
+          if [ "$STATUS" = "200" ]; then
             echo "✓ Review API accessible via Traefik (HTTP $STATUS)"
           else
-            echo "Review API returned HTTP $STATUS (expected 302 or 200)"
+            echo "Review API returned HTTP $STATUS (expected 200)"
             exit 1
           fi
 
