@@ -144,7 +144,7 @@ func TestPerformanceRepository_HasIndexesOnQueryFields(t *testing.T) {
 		query := `
 			SELECT COUNT(*)
 			FROM pg_indexes
-			WHERE tablename = 'log_entries' AND indexname LIKE $1
+			WHERE tablename = 'entries' AND indexname LIKE $1
 		`
 		var count int
 		err := db.QueryRowContext(ctx, query, "%"+field+"%").Scan(&count)
@@ -163,7 +163,7 @@ func TestPerformanceRepository_CanExplainAnalyzeSlowQueries(t *testing.T) {
 	// Sample query to analyze
 	query := `
 		SELECT service, level, COUNT(*) as count
-		FROM logs.log_entries
+		FROM logs.entries
 		WHERE timestamp > NOW() - INTERVAL '1 day'
 		GROUP BY service, level
 	`
@@ -300,7 +300,7 @@ func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
 		// Execute a representative query
 		query := `
 			SELECT id, timestamp, level, message, service
-			FROM logs.log_entries
+			FROM logs.entries
 			WHERE service = 'portal'
 			LIMIT 10
 		`
