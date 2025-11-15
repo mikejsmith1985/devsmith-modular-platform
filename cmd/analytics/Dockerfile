@@ -22,5 +22,5 @@ RUN chown -R appuser:appuser /home/appuser
 USER appuser
 EXPOSE 8083
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-	CMD wget --no-verbose --tries=1 --spider http://localhost:8083/health || exit 1
+	CMD wget --no-verbose --tries=1 --spider http://localhost:8083/api/analytics/health || exit 1
 CMD ["./analytics"]
