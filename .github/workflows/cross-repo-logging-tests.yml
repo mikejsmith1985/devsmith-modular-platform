@@ -73,12 +73,10 @@ jobs:
         run: go mod download
 
       - name: Run Go logger tests
-        working-directory: docs/integrations/go
-        run: go test -v -race -coverprofile=coverage.out
+        run: go test -v -race -coverprofile=coverage.out ./internal/... ./cmd/... ./apps/...
 
       - name: Run Gin middleware tests
-        working-directory: docs/integrations/go
-        run: go test -v -race
+        run: go test -v -race ./internal/... ./cmd/... ./apps/...
 
   test-api:
     name: API Endpoint Tests (Node 20)
