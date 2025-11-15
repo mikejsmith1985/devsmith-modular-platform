@@ -35,7 +35,14 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci --include=dev
+
+      - name: Verify mocha installation
+        run: |
+          node -v
+          npm -v
+          ls -la node_modules/.bin || true
+          ./node_modules/.bin/mocha --version || npx mocha --version
 
       - name: Run JavaScript logger tests
         run: npm run test:logger:js
