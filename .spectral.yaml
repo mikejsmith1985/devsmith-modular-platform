@@ -7,9 +7,6 @@ rules:
   # Require descriptions for all paths
   operation-description: warn
   
-  # Require examples for all schemas
-  oas3-schema-example: warn
-  
   # Ensure proper HTTP status codes
   operation-success-response: error
   
