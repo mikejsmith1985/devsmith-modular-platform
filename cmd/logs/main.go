@@ -505,6 +505,15 @@ func main() {
 
 	// Health check endpoint (system-wide diagnostics)
 	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
+	
+	// Simple health endpoint for smoke tests
+	router.GET("/api/logs/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"service": "logs",
+			"status":  "healthy",
+			"version": "1.0.0",
+		})
+	})
 
 	// Phase 3: Health Intelligence - Initialize services
 	storageService := logs_services.NewHealthStorageService(dbConn)

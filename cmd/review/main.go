@@ -200,7 +200,7 @@ func main() {
 	)
 
 	// Health and root endpoints (registered after healthChecker initialization)
-	router.GET("/health", func(c *gin.Context) {
+	router.GET("/api/review/health", func(c *gin.Context) {
 		// Perform comprehensive health check
 		health, err := healthChecker.CheckHealth(c.Request.Context())
 		if err != nil {

@@ -96,6 +96,15 @@ func main() {
 	// Register API routes
 	apiHandler.RegisterRoutes(router)
 
+	// Simple health endpoint for smoke tests
+	router.GET("/api/analytics/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"service": "analytics",
+			"status":  "healthy",
+			"version": "1.0.0",
+		})
+	})
+
 	// Register metrics dashboard routes
 	router.GET("/api/analytics/metrics/dashboard", metricsHandler.GetDashboardData)
 	router.GET("/api/analytics/metrics/trends", metricsHandler.GetTrends)
