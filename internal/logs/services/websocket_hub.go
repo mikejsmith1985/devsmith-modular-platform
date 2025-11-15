@@ -285,7 +285,7 @@ func (h *WebSocketHub) closeInactiveClient(client *Client) {
 			log.Printf("error closing inactive client connection: %v", err)
 		}
 		c.writeMu.Unlock()
-		
+
 		// Use unregister channel to ensure thread-safe removal from hub
 		// This prevents race condition with hub.Run() goroutine
 		select {

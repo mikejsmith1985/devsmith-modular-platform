@@ -505,7 +505,7 @@ func main() {
 
 	// Health check endpoint (system-wide diagnostics)
 	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
-	
+
 	// Simple health endpoint for smoke tests
 	router.GET("/api/logs/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{

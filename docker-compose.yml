@@ -199,7 +199,7 @@ services:
       - "traefik.http.routers.review.service=review"
       # Service configuration
       - "traefik.http.services.review.loadbalancer.server.port=8081"
-      - "traefik.http.services.review.loadbalancer.healthcheck.path=/api/review/health"
+      - "traefik.http.services.review.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.review.loadbalancer.healthcheck.interval=10s"
   logs:
     build:

@@ -735,7 +735,7 @@ func TestLogger_StructuredFields_AppearsInSentLog(t *testing.T) {
 	logger.mu.RLock()
 	bufferExists := logger.batchBuffer != nil
 	logger.mu.RUnlock()
-	
+
 	assert.True(t, bufferExists, "Buffer should exist to store log entries")
 }
 

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 )
 
@@ -23,7 +25,7 @@ func NewProjectRepository(db *sql.DB) *ProjectRepository {
 // Create inserts a new project and returns the created project with ID.
 func (r *ProjectRepository) Create(ctx context.Context, project *logs_models.Project) (*logs_models.Project, error) {
 	query := `
-		INSERT INTO logs.projects (user_id, name, slug, description, repository_url, api_token, is_active)
+		INSERT INTO logs.projects (user_id, name, slug, description, repository_url, api_key_hash, is_active)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`
@@ -48,7 +50,7 @@ func (r *ProjectRepository) Create(ctx context.Context, project *logs_models.Pro
 // GetByID retrieves a project by its ID and user ID.
 func (r *ProjectRepository) GetByID(ctx context.Context, id int, userID int) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE id = $1 AND user_id = $2
@@ -82,7 +84,7 @@ func (r *ProjectRepository) GetByID(ctx context.Context, id int, userID int) (*l
 // Used for service operations that don't have user context.
 func (r *ProjectRepository) GetByIDGlobal(ctx context.Context, id int) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE id = $1
@@ -115,7 +117,7 @@ func (r *ProjectRepository) GetByIDGlobal(ctx context.Context, id int) (*logs_mo
 // GetBySlug retrieves a project by its slug and user ID.
 func (r *ProjectRepository) GetBySlug(ctx context.Context, slug string, userID int) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE slug = $1 AND user_id = $2
@@ -150,7 +152,7 @@ func (r *ProjectRepository) GetBySlug(ctx context.Context, slug string, userID i
 // Only returns active projects.
 func (r *ProjectRepository) GetBySlugGlobal(ctx context.Context, slug string) (*logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE slug = $1 AND is_active = true
@@ -180,44 +182,84 @@ func (r *ProjectRepository) GetBySlugGlobal(ctx context.Context, slug string) (*
 	return &project, nil
 }
 
-// FindByAPIToken retrieves a project by its plain API token (for authentication).
-// Uses indexed lookup for O(1) performance. Only returns active projects.
+// FindByAPIToken retrieves a project by validating the provided plain API token
+// against stored bcrypt hashes. Returns both active and inactive projects.
+// The caller (middleware) should check is_active status.
+// Note: This iterates through all projects - inefficient but secure.
+// Production should use Redis caching of token→project_id mapping.
 func (r *ProjectRepository) FindByAPIToken(ctx context.Context, token string) (*logs_models.Project, error) {
+	fmt.Printf("🔍 FindByAPIToken CALLED with token: %s...\n", token[:min(15, len(token))])
+
+	// Get all projects (we'll optimize with Redis later)
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
-		WHERE api_token = $1 AND is_active = true
+		ORDER BY created_at DESC
 	`
 
-	var project logs_models.Project
-	err := r.db.QueryRowContext(ctx, query, token).Scan(
-		&project.ID,
-		&project.UserID,
-		&project.Name,
-		&project.Slug,
-		&project.Description,
-		&project.RepositoryURL,
-		&project.APIKeyHash, // Model field still named APIKeyHash, but now stores plain token
-		&project.CreatedAt,
-		&project.UpdatedAt,
-		&project.IsActive,
-	)
-
+	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("db: project not found for api token")
+		fmt.Printf("❌ FindByAPIToken: Query failed: %v\n", err)
+		return nil, fmt.Errorf("db: failed to query projects: %w", err)
+	}
+	defer rows.Close()
+
+	projectCount := 0
+	// Iterate through projects and compare hashes
+	for rows.Next() {
+		projectCount++
+		var project logs_models.Project
+		err := rows.Scan(
+			&project.ID,
+			&project.UserID,
+			&project.Name,
+			&project.Slug,
+			&project.Description,
+			&project.RepositoryURL,
+			&project.APIKeyHash,
+			&project.CreatedAt,
+			&project.UpdatedAt,
+			&project.IsActive,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("db: failed to scan project: %w", err)
 		}
-		return nil, fmt.Errorf("db: failed to find project by api token: %w", err)
+
+		// Compare provided token with stored hash using bcrypt
+		if ValidateAPIKey(token, project.APIKeyHash) {
+			fmt.Printf("✅ FindByAPIToken: Found matching project ID=%d, slug=%s (checked %d projects)\n", project.ID, project.Slug, projectCount)
+			return &project, nil
+		}
 	}
 
-	return &project, nil
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("db: error iterating projects: %w", err)
+	}
+
+	// No matching project found
+	fmt.Printf("❌ FindByAPIToken: No match found after checking %d projects for token prefix: %s...\n", projectCount, token[:min(10, len(token))])
+	return nil, fmt.Errorf("db: project not found for api token")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// ValidateAPIKey checks if the provided API key matches the stored bcrypt hash
+func ValidateAPIKey(providedKey, storedHash string) bool {
+	// Import bcrypt at the top of this file
+	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(providedKey))
+	return err == nil
 }
 
 // ListByUserID retrieves all projects for a specific user.
 func (r *ProjectRepository) ListByUserID(ctx context.Context, userID int) ([]logs_models.Project, error) {
 	query := `
-		SELECT id, user_id, name, slug, description, repository_url, api_token, 
+		SELECT id, user_id, name, slug, description, repository_url, api_key_hash, 
 		       created_at, updated_at, is_active
 		FROM logs.projects
 		WHERE user_id = $1
@@ -299,7 +341,7 @@ func (r *ProjectRepository) Update(ctx context.Context, project *logs_models.Pro
 func (r *ProjectRepository) UpdateAPIToken(ctx context.Context, projectID int, newAPIToken string) error {
 	query := `
 		UPDATE logs.projects
-		SET api_token = $1, updated_at = $2
+		SET api_key_hash = $1, updated_at = $2
 		WHERE id = $3
 	`
 

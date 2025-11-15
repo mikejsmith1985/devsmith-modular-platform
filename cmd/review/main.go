@@ -227,6 +227,11 @@ func main() {
 		reviewLogger.Info("HEAD /health endpoint hit")
 		c.Status(200)
 	})
+	// Add GET handler for Traefik load balancer health check (uses GET by default)
+	router.GET("/health", func(c *gin.Context) {
+		reviewLogger.Info("GET /health endpoint hit")
+		c.Status(200)
+	})
 
 	// Prepare logging client to send lightweight events to Logs service (optional)
 	var logClient *logging.Client

@@ -261,7 +261,7 @@ func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
 	diagnosticGoroutines(t) // Key test: longest duration, stress test
 	fixture := newWSTestFixture(t)
 	conn := fixture.dialWebSocket()
-	
+
 	time.Sleep(50 * time.Millisecond)
 
 	conn.SetReadDeadline(time.Now().Add(35 * time.Second))
@@ -678,7 +678,7 @@ func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
 func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 	fixture := newWSTestFixture(t)
 	conn := fixture.dialWebSocket()
-	
+
 	time.Sleep(50 * time.Millisecond)
 
 	fixture.hub.broadcast <- &logs_models.LogEntry{
@@ -737,7 +737,7 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 
 func TestWebSocketHandler_RejectsInvalidLevel(t *testing.T) {
 	fixture := newWSTestFixture(t)
-	
+
 	// Try to dial with invalid level filter - should succeed connection but filter nothing
 	conn := fixture.dialWebSocket("level=INVALID_LEVEL")
 	assert.NotNil(t, conn, "Connection should succeed even with invalid filter")
@@ -745,7 +745,7 @@ func TestWebSocketHandler_RejectsInvalidLevel(t *testing.T) {
 
 func TestWebSocketHandler_RejectsInvalidService(t *testing.T) {
 	fixture := newWSTestFixture(t)
-	
+
 	// Try to dial with invalid service filter - should succeed connection but filter nothing
 	conn := fixture.dialWebSocket("service=INVALID_123")
 	assert.NotNil(t, conn, "Connection should succeed even with invalid filter")
@@ -786,7 +786,7 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 	conn2 := fixture.dialWebSocket()
 
 	time.Sleep(100 * time.Millisecond) // Ensure both clients registered
-	
+
 	conn1.Close()
 	time.Sleep(50 * time.Millisecond) // Allow hub to process unregister
 
@@ -807,7 +807,7 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	conn2 := fixture.dialWebSocket("level=INFO")
 
 	time.Sleep(200 * time.Millisecond) // Ensure both clients registered
-	
+
 	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
 	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
 
@@ -895,7 +895,7 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 	fixture := newWSTestFixture(t)
 	conn := fixture.dialWebSocket()
-	
+
 	time.Sleep(50 * time.Millisecond)
 
 	largeMessage := strings.Repeat("x", 10000)
@@ -914,7 +914,7 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 	fixture := newWSTestFixture(t)
 	conn := fixture.dialWebSocket()
-	
+
 	time.Sleep(50 * time.Millisecond)
 
 	fixture.hub.broadcast <- &logs_models.LogEntry{
