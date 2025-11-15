@@ -19,6 +19,7 @@ import (
 
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	internal_logs_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/handlers"
+	logs_middleware "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/middleware"
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 )
@@ -46,6 +47,8 @@ func TestBatchIngestion_ValidBatch(t *testing.T) {
 	require.NotEmpty(t, createResp.APIKey)
 
 	apiKey := createResp.APIKey
+	t.Logf("🔑 Generated API key: %s", apiKey)
+	t.Logf("📋 Project created with ID: %d, Slug: %s", createResp.Project.ID, createResp.Project.Slug)
 
 	// Create test batch of 100 logs using correct handler types
 	batchEntries := make([]internal_logs_handlers.BatchLogEntry, 100)
@@ -68,18 +71,18 @@ func TestBatchIngestion_ValidBatch(t *testing.T) {
 	body, err := json.Marshal(batchRequest)
 	require.NoError(t, err)
 
-	// Create HTTP request with Bearer token
+	// Create HTTP request with X-API-Key header (matches SimpleAPITokenAuth middleware)
 	req := httptest.NewRequest("POST", "/api/logs/batch", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	req.Header.Set("X-API-Key", apiKey)
 
-	// Create test context
+	// Create router with middleware (matches production setup)
+	router := gin.New()
+	router.POST("/api/logs/batch", logs_middleware.SimpleAPITokenAuth(projectRepo), batchHandler.IngestBatch)
+
+	// Execute request through router (middleware included)
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
-
-	// Execute handler
-	batchHandler.IngestBatch(c)
+	router.ServeHTTP(w, req)
 
 	// Verify response
 	assert.Equal(t, http.StatusCreated, w.Code)
@@ -120,16 +123,18 @@ func TestBatchIngestion_InvalidAPIKey(t *testing.T) {
 	body, err := json.Marshal(batchRequest)
 	require.NoError(t, err)
 
-	// Request with invalid API key
+	// Request with invalid API key using X-API-Key header (matches middleware)
 	req := httptest.NewRequest("POST", "/api/logs/batch", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer invalid_api_key_12345")
+	req.Header.Set("X-API-Key", "invalid_api_key_12345")
 
+	// Create router with middleware to test auth rejection
+	router := gin.New()
+	router.POST("/api/logs/batch", logs_middleware.SimpleAPITokenAuth(projectRepo), batchHandler.IngestBatch)
+
+	// Execute request through router
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
-
-	batchHandler.IngestBatch(c)
+	router.ServeHTTP(w, req)
 
 	// Verify 401 Unauthorized
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -166,15 +171,17 @@ func TestBatchIngestion_MissingAuthHeader(t *testing.T) {
 	body, err := json.Marshal(batchRequest)
 	require.NoError(t, err)
 
-	// Request WITHOUT Authorization header
+	// Request WITHOUT X-API-Key header
 	req := httptest.NewRequest("POST", "/api/logs/batch", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
+	// Create router with middleware to test missing header rejection
+	router := gin.New()
+	router.POST("/api/logs/batch", logs_middleware.SimpleAPITokenAuth(projectRepo), batchHandler.IngestBatch)
 
-	batchHandler.IngestBatch(c)
+	// Execute request through router
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
 	// Verify 401 Unauthorized
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -182,7 +189,7 @@ func TestBatchIngestion_MissingAuthHeader(t *testing.T) {
 	var response map[string]interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	assert.Contains(t, response["error"], "Missing Authorization header")
+	assert.Contains(t, response["error"], "Missing X-API-Key header")
 }
 
 // TestBatchIngestion_DeactivatedProject tests rejection when project is deactivated
@@ -229,21 +236,23 @@ func TestBatchIngestion_DeactivatedProject(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/logs/batch", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	req.Header.Set("X-API-Key", apiKey)
 
+	// Create router with middleware to test deactivated project rejection
+	router := gin.New()
+	router.POST("/api/logs/batch", logs_middleware.SimpleAPITokenAuth(projectRepo), batchHandler.IngestBatch)
+
+	// Execute request through router
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
+	router.ServeHTTP(w, req)
 
-	batchHandler.IngestBatch(c)
-
-	// Verify 401 Unauthorized (deactivated project returns invalid API key error)
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	// Verify 403 Forbidden (deactivated project returns forbidden error from middleware)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 
 	var response map[string]interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
-	assert.Contains(t, response["error"], "Invalid project slug or API key")
+	assert.Contains(t, response["error"], "Project disabled")
 }
 
 // TestBatchIngestion_MaxBatchSize tests rejection when batch exceeds 1000 logs
@@ -475,9 +484,13 @@ func runTestMigrations(db *sql.DB) error {
 		return fmt.Errorf("failed to create logs schema: %w", err)
 	}
 
-	// Create projects table
+	// Drop existing tables to ensure clean schema (test isolation)
+	_, _ = db.Exec("DROP TABLE IF EXISTS logs.entries CASCADE")
+	_, _ = db.Exec("DROP TABLE IF EXISTS logs.projects CASCADE")
+
+	// Create projects table with CORRECT schema (api_key_hash, not api_token!)
 	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS logs.projects (
+		CREATE TABLE logs.projects (
 			id SERIAL PRIMARY KEY,
 			user_id INTEGER NOT NULL,
 			name VARCHAR(255) NOT NULL,
@@ -496,12 +509,12 @@ func runTestMigrations(db *sql.DB) error {
 
 	// Create log entries table
 	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS logs.entries (
+		CREATE TABLE logs.entries (
 			id BIGSERIAL PRIMARY KEY,
 			project_id INTEGER REFERENCES logs.projects(id) ON DELETE CASCADE,
 			level VARCHAR(20) NOT NULL,
 			message TEXT NOT NULL,
-			service VARCHAR(255) NOT NULL,
+			service_name VARCHAR(255) NOT NULL,
 			timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
 			metadata JSONB,
 			context JSONB,

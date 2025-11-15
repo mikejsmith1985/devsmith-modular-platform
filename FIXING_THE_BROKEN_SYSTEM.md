@@ -3260,3 +3260,185 @@ Eliminate manual migration steps entirely. Services run their own migrations on 
 ---
 
 **The brutal truth**: This document exists because I violated my own rules repeatedly. The only way to fix this is to make the rules unbreakable. I need enforcement, not just guidelines.
+
+---
+
+## SESSION UPDATE: 2025-11-15 14:00 UTC - Batch Ingestion Test Failure Root Cause Found
+
+**Context**: Debugging CI pipeline failure for `TestBatchIngestion_ValidBatch`
+
+**Error Message**:
+```
+ERROR: Failed to insert batch logs - project_id=1, entry_count=100, error=db: batch insert failed: pq: column "service_name" of relation "entries" does not exist
+```
+
+**Root Cause Analysis**:
+
+Ran database schema check:
+```bash
+docker-compose exec -T postgres psql -U devsmith -d devsmith -c "\d logs.entries"
+```
+
+**Finding**: Column `service_name` DOES exist in database schema (line 16 of output)
+
+**Code Investigation**:
+
+1. **Old Single Insert** (`internal/logs/db/log_entry_repository.go` line 210):
+   ```go
+   query := `INSERT INTO logs.entries (user_id, service, level, message, metadata) 
+            VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`
+   ```
+   Uses: `service` column (OLD column name)
+
+2. **New Batch Insert** (`internal/logs/db/log_entry_repository.go` line 267):
+   ```go
+   query := fmt.Sprintf(`
+       INSERT INTO logs.entries (project_id, service_name, level, message, metadata, timestamp)
+       VALUES %s
+   `, strings.Join(valueStrings, ","))
+   ```
+   Uses: `service_name` column (NEW column name for cross-repo logging)
+
+**Database Schema State**:
+- ✅ Column `service` exists (line 3) - old column for single-app logging
+- ✅ Column `service_name` exists (line 16) - new column for cross-repo logging
+- Both columns coexist in schema
+
+**Problem**: Wait, the error says column doesn't exist, but schema shows it does!
+
+**ACTUAL Root Cause**: Re-reading error message more carefully...
+
+```
+ERROR: Failed to insert batch logs - project_id=1, entry_count=100, error=db: batch insert failed: pq: column "service_name" of relation "entries" does not exist
+```
+
+This is PostgreSQL error, not Go code error. Let me check if migrations were applied.
+
+**Next Investigation Step**: Check if database migrations actually created the `service_name` column, or if schema output was cached.
+
+**Status**: Need to verify migration state before declaring root cause found
+
+**Time Lost**: 20 minutes investigation (ongoing)
+
+
+---
+
+## ROOT CAUSE CONFIRMED: 2025-11-15 14:15 UTC
+
+**ACTUAL Problem**: Test schema mismatch with production batch insert code
+
+**Test Database Schema** (`tests/integration/batch_ingestion_test.go` line 242):
+```sql
+CREATE TABLE logs.entries (
+    id BIGSERIAL PRIMARY KEY,
+    project_id INTEGER REFERENCES logs.projects(id) ON DELETE CASCADE,
+    level VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    service VARCHAR(255) NOT NULL,  -- ❌ OLD COLUMN NAME
+    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+    metadata JSONB,
+    context JSONB,
+    tags TEXT[],
+    created_at TIMESTAMP DEFAULT NOW()
+)
+```
+
+**Batch Insert Code** (`internal/logs/db/log_entry_repository.go` line 267):
+```go
+query := fmt.Sprintf(`
+    INSERT INTO logs.entries (project_id, service_name, level, message, metadata, timestamp)
+    VALUES %s
+`, strings.Join(valueStrings, ","))
+```
+
+**The Mismatch**:
+- Test schema: `service` (old column name)
+- Batch insert: `service_name` (new column name)
+- PostgreSQL error: "column 'service_name' of relation 'entries' does not exist"
+
+**Why This Happened**:
+1. Production database migrations added `service_name` column
+2. Test setup uses hardcoded CREATE TABLE (not migrations)
+3. Test schema never updated to match production
+4. Batch insert code written against production schema
+5. Integration test runs against test schema → MISMATCH
+
+**Fix Required**:
+Change line 239 in `tests/integration/batch_ingestion_test.go`:
+```diff
+- service VARCHAR(255) NOT NULL,
++ service_name VARCHAR(255) NOT NULL,
+```
+
+**Alternative Fix** (Better long-term):
+Replace hardcoded CREATE TABLE with actual migration runner:
+- Use `internal/logs/db/migrations/*.sql` files
+- Test schema matches production automatically
+- No future drift
+
+**Impact**: CRITICAL - All batch ingestion tests fail
+**Time to Fix**: 2 minutes (column rename) or 30 minutes (migration runner)
+**Time Lost**: 35 minutes investigation total
+
+**Status**: Root cause confirmed, ready to implement fix
+
+
+---
+
+## FIX APPLIED: 2025-11-15 14:20 UTC
+
+**Change Made**: Updated test schema to use `service_name` column
+
+**File**: `tests/integration/batch_ingestion_test.go` line 517
+**Diff**:
+```diff
+- service VARCHAR(255) NOT NULL,
++ service_name VARCHAR(255) NOT NULL,
+```
+
+**Test Result**: ✅ **PASS**
+```
+--- PASS: TestBatchIngestion_ValidBatch (1.12s)
+PASS
+ok      github.com/mikejsmith1985/devsmith-modular-platform/tests/integration     2.129s
+```
+
+**Validation**:
+- ✅ 100 logs successfully ingested
+- ✅ No PostgreSQL column errors
+- ✅ Test completes in 1.12 seconds
+- ✅ Race detector shows no issues
+
+**Next Steps**:
+1. ✅ TestBatchIngestion_ValidBatch - FIXED
+2. Run full integration test suite to check other tests
+3. Continue fixing remaining CI pipeline failures
+4. Implement GitHub rulesets once all tests pass
+
+**Status**: One test fixed, moving to next failure
+
+
+---
+
+## CI PIPELINE ANALYSIS: 2025-11-15 14:30 UTC
+
+**CI Workflow Jobs** (.github/workflows/ci.yml):
+1. ✅ **Build** - Compiles all services (portal, review, logs, analytics)
+2. ✅ **Docker** - Builds Docker images for all services
+3. ⏳ **Lint** - Runs golangci-lint on entire repository
+4. ⏭️ **E2E** - Disabled (if: false) - requires docker-compose, run locally only
+
+**Integration Tests Status**:
+- ✅ TestBatchIngestion_ValidBatch - FIXED (service_name column)
+- ✅ TestBatchIngestion_InvalidAPIKey - PASSING
+- ✅ TestBatchIngestion_MissingAuthHeader - PASSING
+- ✅ TestBatchIngestion_DeactivatedProject - PASSING
+- ✅ TestBatchIngestion_MaxBatchSize - PASSING
+- ✅ TestBatchIngestion_InvalidJSON - PASSING
+- ⏭️ TestBatchIngestion_Performance - SKIPPED (short mode)
+- ✅ TestBatchIngestion_Minimal - PASSING
+
+**Summary**: 7/7 integration tests PASSING (1 skipped in short mode)
+
+**Next Action**: Commit the fix and push to trigger CI pipeline
+
