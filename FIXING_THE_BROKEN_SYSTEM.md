@@ -47,28 +47,33 @@ The Health app (accessed via http://localhost:3000/health) has **3 tabs**, not 4
 - **Review Service Healthcheck**: Changed Docker healthcheck to use `HEAD /health` (curl -I) to match service implementation. Container now reports healthy, Traefik registers routes correctly.
 - **Context Tracking**: Each time a key file (e.g., this doc) is updated, a chat message is posted to notify about the change and maintain context visibility.
 
-### Current State (2025-11-15 17:00 UTC)
+### Current State (2025-11-15 18:00 UTC)
 **Branch**: feature/phase1-metrics-dashboard
 
 **CI Failures Identified**:
 1. ❌ **Unit Tests** - Status: FAILURE (details being investigated)
-2. ❌ **Full Stack Smoke Test** - Status: FAILURE 
-   - Error: Review API not accessible (503)
-   - Error: `curl: (22) The requested URL returned error: 503`
-   - Root cause: Review service health check failing
+2. ⏳ **Full Stack Smoke Test** - Status: **FIX IN PROGRESS** (CI running)
+   - **ROOT CAUSE #1 FIXED**: Review service only had `HEAD /health` endpoint, but Traefik health checks use `GET` method by default
+   - **FIX APPLIED**: Added `router.GET("/health")` handler in `cmd/review/main.go` line 229 (Commit 856cbad)
+   - **ROOT CAUSE #2 IDENTIFIED**: CI waited only 5s for Traefik, but health check interval is 10s → test ran before service marked healthy
+   - **FIX APPLIED**: Increased wait time from 5s to 20s in smoke-test.yml (Commit f28aa66)
+   - **TESTING**: New CI run triggered, waiting for results
 3. ❌ **Quality Gate** - Status: FAILURE (related to unit tests and smoke tests)
 4. ❌ **GitGuardian Security Checks** - Status: FAILURE (need to identify specific secrets)
 5. ⏭️ **Integration Tests** - Status: SKIPPED (dependency on unit tests passing)
 6. ⏭️ **E2E Accessibility Tests** - Status: SKIPPED (dependency on smoke tests passing)
 
-**Next Steps**:
-1. Investigate local test failures with full output
-2. Identify GitGuardian secret findings
-3. Fix easiest issues first (likely false positive secrets)
-4. Fix Review service health check issue
-5. Re-run CI after each fix to validate
+**Fixes Completed**:
+- ✅ Smoke Test Issue #1: HTTP method mismatch (HEAD vs GET) - FIXED
+- ⏳ Smoke Test Issue #2: CI timing too aggressive - FIX DEPLOYED, TESTING
 
-**Ongoing**: Systematic fixing in progress - one issue at a time, validate, then proceed.
+**Next Steps**:
+1. ⏳ Monitor smoke test run (expected to pass with 20s wait)
+2. Investigate unit test failures with full output
+3. Investigate GitGuardian secret findings
+4. Re-run CI after each fix to validate
+
+**Ongoing**: Systematic fixing in progress - 2 smoke test root causes addressed, waiting for CI validation.
 
 ---
 

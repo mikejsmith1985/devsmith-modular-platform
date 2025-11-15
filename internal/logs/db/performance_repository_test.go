@@ -78,7 +78,7 @@ func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
 
 	// Verify all entries were inserted
 	var count int64
-	err = db.QueryRow("SELECT COUNT(*) FROM logs.log_entries WHERE service = 'logs'").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM logs.entries WHERE service = 'logs'").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), count, "All 1000 entries should be persisted")
 }
@@ -507,9 +507,9 @@ func setupPerformanceTestDB(t *testing.T) *sql.DB {
 	_, err = db.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS logs")
 	require.NoError(t, err)
 
-	// Create log_entries table
+	// Create entries table (matching actual migration schema)
 	_, err = db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS logs.log_entries (
+		CREATE TABLE IF NOT EXISTS logs.entries (
 			id BIGSERIAL PRIMARY KEY,
 			user_id BIGINT,
 			service TEXT NOT NULL,
@@ -526,12 +526,12 @@ func setupPerformanceTestDB(t *testing.T) *sql.DB {
 
 	// Create indexes on query fields for performance
 	_, err = db.ExecContext(ctx, `
-		CREATE INDEX IF NOT EXISTS idx_log_entries_service ON logs.log_entries(service);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_level ON logs.log_entries(level);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_timestamp ON logs.log_entries(timestamp DESC);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_correlation_id ON logs.log_entries(correlation_id);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_user_id ON logs.log_entries(user_id);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_service_level ON logs.log_entries(service, level)
+		CREATE INDEX IF NOT EXISTS idx_log_entries_service ON logs.entries(service);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_level ON logs.entries(level);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_timestamp ON logs.entries(timestamp DESC);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_correlation_id ON logs.entries(correlation_id);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_user_id ON logs.entries(user_id);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_service_level ON logs.entries(service, level)
 	`)
 	require.NoError(t, err)
 

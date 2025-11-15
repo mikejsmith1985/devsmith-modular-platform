@@ -1,7 +1,6 @@
-package go
 //go:build tools
 // +build tools
 
-// Package tools is a dummy package for documentation examples
+// Package gointegration is a dummy package for Go integration examples
 // These files are excluded from normal builds to prevent import conflicts
-package tools
+package gointegration
