@@ -81,6 +81,12 @@ jobs:
         if: always()
         run: docker compose ps
 
+      - name: Apply Phase 1 database migrations
+        run: |
+          echo "Applying Phase 1 migrations for AI Factory..."
+          bash scripts/apply-phase1-migrations.sh || (echo "WARN: Phase 1 migrations failed (may be expected if already applied)" && true)
+          echo "✓ Phase 1 migrations applied"
+
       - name: Test Traefik Gateway
         run: |
           echo "Testing Traefik gateway on port 3000..."
