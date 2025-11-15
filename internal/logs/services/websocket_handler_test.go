@@ -102,31 +102,25 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 }
 
 func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
-	diagnosticGoroutines(t)                                                                                                                                // Key test: representative filter test
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	// Add authentication header (required now)
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
-
+	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	diagnosticGoroutines(t)
+	
+	// Use new isolated fixture
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket("level=ERROR")
+	
 	// Wait for client to register
 	time.Sleep(50 * time.Millisecond)
 
-	hub := currentTestHub
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info msg", Service: "test"}
-	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error msg", Service: "test"}
-	hub.broadcast <- &logs_models.LogEntry{Level: "WARN", Message: "warn msg", Service: "test"}
+	// Broadcast different log levels
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info msg", Service: "test"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error msg", Service: "test"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "WARN", Message: "warn msg", Service: "test"}
 
+	// Should only receive ERROR level
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	assert.NoError(t, err, "Should receive filtered log")
 	assert.Equal(t, "ERROR", msg["level"])
 }
@@ -143,7 +137,7 @@ func TestWebSocketHandler_FiltersLogsByService(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Service: "review", Level: "INFO", Message: "review msg"}
 	hub.broadcast <- &logs_models.LogEntry{Service: "portal", Level: "INFO", Message: "portal msg"}
 	hub.broadcast <- &logs_models.LogEntry{Service: "analytics", Level: "INFO", Message: "analytics msg"}
@@ -167,7 +161,7 @@ func TestWebSocketHandler_FiltersByTags(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Tags: []string{"warning"}, Level: "INFO", Message: "warning log"}
 	hub.broadcast <- &logs_models.LogEntry{Tags: []string{"critical"}, Level: "ERROR", Message: "critical log"}
 
@@ -189,7 +183,7 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "review", Tags: []string{"critical"}}
 	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "portal", Tags: []string{"critical"}}
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Service: "review", Tags: []string{"critical"}}
@@ -270,7 +264,7 @@ func TestWebSocketHandler_AuthenticatedUsersSeeAllLogs(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private", Service: "test"}
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public", Service: "test"}
 
@@ -290,7 +284,7 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private"}
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public"}
 
@@ -326,16 +320,9 @@ func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
 }
 
 func TestWebSocketHandler_DisconnectsOnNoPong(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	// Use new isolated fixture
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
 	// Disable automatic pong responses on the client to simulate a client that does
 	// not respond to pings. This makes the test deterministic and avoids relying on
@@ -348,22 +335,20 @@ func TestWebSocketHandler_DisconnectsOnNoPong(t *testing.T) {
 	// Force the hub to treat this client as inactive by setting LastActivity to
 	// an old timestamp, then trigger a heartbeat check immediately. This avoids
 	// waiting for the regular 30s ticker in tests and makes the behavior deterministic.
-	if currentTestHub != nil {
-		currentTestHub.mu.RLock()
-		for c := range currentTestHub.clients {
-			c.mu.Lock()
-			c.LastActivity = time.Now().Add(-120 * time.Second)
-			c.mu.Unlock()
-		}
-		currentTestHub.mu.RUnlock()
-
-		// Trigger heartbeat processing synchronously in test to close inactive clients.
-		currentTestHub.sendHeartbeats()
+	fixture.hub.mu.RLock()
+	for c := range fixture.hub.clients {
+		c.mu.Lock()
+		c.LastActivity = time.Now().Add(-120 * time.Second)
+		c.mu.Unlock()
 	}
+	fixture.hub.mu.RUnlock()
+
+	// Trigger heartbeat processing synchronously in test to close inactive clients.
+	fixture.hub.sendHeartbeats()
 
 	// After triggering heartbeat, the server should close the connection quickly.
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	_, _, err = conn.ReadMessage()
+	_, _, err := conn.ReadMessage()
 
 	assert.Error(t, err, "Should disconnect after no pong")
 }
@@ -380,7 +365,7 @@ func TestWebSocketHandler_ResetsHeartbeatOnActivity(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "reset heartbeat"}
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	conn.ReadMessage()
@@ -484,7 +469,7 @@ func TestWebSocketHandler_DropsSlowConsumers(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	for i := 0; i < 1000; i++ {
 		hub.broadcast <- &logs_models.LogEntry{
 			Level:   "INFO",
@@ -517,7 +502,7 @@ func TestWebSocketHandler_QueuesMessagesForFastConsumers(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	go func() {
 		for i := 0; i < 100; i++ {
 			hub.broadcast <- &logs_models.LogEntry{
@@ -553,7 +538,7 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 
 	// Fill the broadcast channel quickly
 	sentCount := 0
@@ -749,7 +734,7 @@ func TestWebSocketHandler_BroadcastPerformance1000Connections(t *testing.T) {
 		}
 	}()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	startTime := time.Now()
 	for i := 0; i < 100; i++ {
 		hub.broadcast <- &logs_models.LogEntry{
@@ -775,7 +760,7 @@ func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	startTime := time.Now()
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "latency test"}
 
@@ -803,7 +788,7 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	time.Sleep(50 * time.Millisecond) // Ensure client is registered
 	hub.broadcast <- &logs_models.LogEntry{
 		ID:        123,
@@ -841,7 +826,7 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 	conn3, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
 	defer conn3.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	time.Sleep(50 * time.Millisecond) // Ensure clients are registered
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "broadcast message"}
 
@@ -915,7 +900,7 @@ func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
 		defer conn.Close()
 	}
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -971,7 +956,7 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 	// Give hub time to process the unregister before broadcasting
 	time.Sleep(50 * time.Millisecond)
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "after disconnect"}
 
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -1006,7 +991,7 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	}
 	defer conn2.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	time.Sleep(200 * time.Millisecond) // Ensure clients are registered
 	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
@@ -1076,7 +1061,7 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	// Give the client a brief moment to finish registration and start pumps
 	// Increased wait to avoid races under CI and on loaded machines
 	time.Sleep(200 * time.Millisecond)
@@ -1133,7 +1118,7 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	largeMessage := strings.Repeat("x", 10000)
 	hub.broadcast <- &logs_models.LogEntry{
 		Message: largeMessage,
@@ -1161,7 +1146,7 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 	}
 	defer conn.Close()
 
-	hub := currentTestHub
+	fixture := newWSTestFixture(t); hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{
 		Level:   "ERROR",
 		Message: "panic: nil pointer dereference",
@@ -1176,33 +1161,109 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 // ============================================================================
 // TEST HELPERS
 // ============================================================================
+// TEST INFRASTRUCTURE
+// ============================================================================
 
+// currentTestHub is a DEPRECATED package-level variable for backward compatibility
+// New tests should use newWSTestFixture() instead to get isolated test environments
+// This variable exists only to support tests that haven't been migrated yet
 var currentTestHub *WebSocketHub
 
-func setupWebSocketTestServer(t *testing.T) http.Handler {
-	// Ensure all log levels are visible to unauthenticated clients during tests
+// wsTestFixture encapsulates all WebSocket test resources to eliminate global state
+// and prevent test pollution. Each test gets its own isolated fixture.
+type wsTestFixture struct {
+	t      *testing.T
+	hub    *WebSocketHub
+	server *httptest.Server
+	wsURL  string
+}
+
+// newWSTestFixture creates an isolated WebSocket test environment with automatic cleanup
+func newWSTestFixture(t *testing.T) *wsTestFixture {
+	// Ensure all log levels visible in tests
 	_ = os.Setenv("LOGS_WEBSOCKET_PUBLIC_ALL", "1")
+	
+	// Create isolated hub for this test
 	hub := NewWebSocketHub()
 	go hub.Run()
-
-	// Store for access in tests
+	
+	// DEPRECATED: Set global for backward compatibility with unmigrated tests
+	// TODO: Remove this once all tests are migrated to use fixtures
 	currentTestHub = hub
-
-	// Register cleanup to gracefully stop hub after test
-	if t != nil {
-		t.Cleanup(func() {
-			hub.Stop()
-			// Allow hub.Run() goroutine and client goroutines to exit
-			// Increased to 500ms to ensure full cleanup before next test starts
-			time.Sleep(500 * time.Millisecond)
-		})
-	}
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	
+	// Create test HTTP server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == wsLogsPath {
 			handleWebSocketLogsConnection(w, r, hub)
 		}
 	})
+	server := httptest.NewServer(handler)
+	
+	// Generate WebSocket URL
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	
+	fixture := &wsTestFixture{
+		t:      t,
+		hub:    hub,
+		server: server,
+		wsURL:  wsURL,
+	}
+	
+	// Register cleanup handlers - order matters (reverse of setup)
+	t.Cleanup(func() {
+		// Close server first to stop accepting new connections
+		server.Close()
+		
+		// Stop hub and wait for goroutines to exit
+		hub.Stop()
+		time.Sleep(200 * time.Millisecond)
+		
+		// Clear global hub reference
+		currentTestHub = nil
+	})
+	
+	return fixture
+}
+
+// dialWebSocket creates an authenticated WebSocket connection with automatic cleanup
+func (f *wsTestFixture) dialWebSocket(filters ...string) *websocket.Conn {
+	url := f.wsURL
+	if len(filters) > 0 {
+		url += "?" + filters[0]
+	}
+	
+	header := http.Header{}
+	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
+	
+	conn, resp, err := websocket.DefaultDialer.Dial(url, header)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+	require.NoError(f.t, err, "Should connect to WebSocket")
+	
+	// Auto-cleanup connection
+	f.t.Cleanup(func() {
+		if conn != nil {
+			conn.Close()
+		}
+	})
+	
+	return conn
+}
+
+// Legacy function for backward compatibility - now creates isolated fixture
+func setupWebSocketTestServer(t *testing.T) http.Handler {
+	fixture := newWSTestFixture(t)
+	return fixture.server.Config.Handler
+}
+
+// getCurrentTestHub returns the hub from the current test fixture
+// DEPRECATED: Tests should use newWSTestFixture() instead
+func getCurrentTestHub(t *testing.T) *WebSocketHub {
+	// This is a temporary bridge function for tests that haven't been migrated yet
+	// Create a new fixture and return its hub
+	fixture := newWSTestFixture(t)
+	return fixture.hub
 }
 
 // handleWebSocketLogsConnection upgrades HTTP connection to WebSocket and sets up client
