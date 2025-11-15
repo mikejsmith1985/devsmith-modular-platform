@@ -87,6 +87,12 @@ jobs:
           bash scripts/apply-phase1-migrations.sh || (echo "WARN: Phase 1 migrations failed (may be expected if already applied)" && true)
           echo "✓ Phase 1 migrations applied"
 
+      - name: Wait for Traefik to discover routes
+        run: |
+          echo "Waiting for Traefik to discover Docker services..."
+          sleep 5
+          echo "✓ Route discovery grace period completed"
+
       - name: Test Traefik Gateway
         run: |
           echo "Testing Traefik gateway on port 3000..."
