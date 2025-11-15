@@ -20,6 +20,37 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Skipf("skipping: test database not available: %v", err)
 	}
 
+	// Create portal schema if not exists
+	ctx := context.Background()
+	_, err = db.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS portal")
+	if err != nil {
+		t.Fatalf("failed to create portal schema: %v", err)
+	}
+
+	// Create users table if not exists
+	createTableSQL := `
+		CREATE TABLE IF NOT EXISTS portal.users (
+			id SERIAL PRIMARY KEY,
+			github_id BIGINT UNIQUE NOT NULL,
+			username VARCHAR(255) NOT NULL,
+			email VARCHAR(255),
+			avatar_url VARCHAR(512),
+			github_access_token TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)
+	`
+	_, err = db.ExecContext(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("failed to create portal.users table: %v", err)
+	}
+
+	// Clean up test data before each test
+	_, err = db.ExecContext(ctx, "DELETE FROM portal.users WHERE github_id = 123456")
+	if err != nil {
+		t.Fatalf("failed to clean up test data: %v", err)
+	}
+
 	return db
 }
 

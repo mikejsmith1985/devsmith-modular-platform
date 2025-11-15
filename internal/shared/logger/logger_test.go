@@ -722,12 +722,21 @@ func TestLogger_StructuredFields_AppearsInSentLog(t *testing.T) {
 	// Log with structured fields
 	logger.Info("test message", "user_id", "123", "request_id", "req-456")
 
-	// Give async sender time
+	// Give async sender time to flush (batch size is 1, so should send immediately)
 	time.Sleep(100 * time.Millisecond)
+
+	// Ensure flush completes before checking buffer state
+	err = logger.Flush(context.Background())
+	require.NoError(t, err)
 
 	// BEHAVIORAL: The logged entry should contain the fields
 	// This will be verifiable once implementation stores entries with fields
-	assert.NotNil(t, logger.batchBuffer, "Buffer should exist to store log entries")
+	// Check buffer with proper mutex protection
+	logger.mu.RLock()
+	bufferExists := logger.batchBuffer != nil
+	logger.mu.RUnlock()
+	
+	assert.True(t, bufferExists, "Buffer should exist to store log entries")
 }
 
 // TestLogger_ServiceNameInjection_AppearsInEveryLog verifies service name is added.
