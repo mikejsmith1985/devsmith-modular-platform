@@ -39,11 +39,8 @@ jobs:
           # JWT
           JWT_SECRET=test_jwt_secret_for_ci
 
-          # Services
-          PORTAL_PORT=3001
-          REVIEW_PORT=8081
-          LOGS_PORT=8082
-          ANALYTICS_PORT=8083
+          # Services (ports unified via gateway)
+          # All service access is via Traefik gateway on port 3000
 
           # Ollama (mock in CI)
           OLLAMA_BASE_URL=http://mock-ollama:11434
