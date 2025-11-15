@@ -489,6 +489,9 @@ fillLoop:
 // ============================================================================
 
 func TestWebSocketHandler_BroadcastsViaPubSub(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping Redis pubsub test in short mode")
+	}
 	redis1 := setupTestRedis(t)
 	redis2 := setupTestRedis(t)
 	handler1 := setupWebSocketWithRedis(t, redis1)
@@ -528,6 +531,9 @@ func TestWebSocketHandler_BroadcastsViaPubSub(t *testing.T) {
 }
 
 func TestWebSocketHandler_PubSubScalesTo100Instances(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping Redis pubsub scaling test in short mode")
+	}
 	numInstances := 100
 	servers := make([]*httptest.Server, numInstances)
 	for i := 0; i < numInstances; i++ {
@@ -560,42 +566,26 @@ func TestWebSocketHandler_PubSubScalesTo100Instances(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_Supports100ConcurrentConnections(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
+	fixture := newWSTestFixture(t)
 
 	var wg sync.WaitGroup
-	connections := make([]*websocket.Conn, 100)
 	var mu sync.Mutex
 	connectedCount := 0
 
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		go func() {
 			defer wg.Done()
-			header := http.Header{}
-			header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-			conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-			if err == nil {
+			conn := fixture.dialWebSocket()
+			if conn != nil {
 				mu.Lock()
-				connections[idx] = conn
 				connectedCount++
 				mu.Unlock()
 			}
-		}(i)
+		}()
 	}
 
 	wg.Wait()
-	defer func() {
-		for _, conn := range connections {
-			if conn != nil {
-				conn.Close()
-			}
-		}
-	}()
-
 	assert.Equal(t, 100, connectedCount, "Should support 100 concurrent connections")
 }
 
@@ -745,54 +735,28 @@ func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_RejectsInvalidLevel(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=INVALID_LEVEL"
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	if err == nil && conn != nil {
-		conn.Close()
-	}
+	fixture := newWSTestFixture(t)
+	
+	// Try to dial with invalid level filter - should succeed connection but filter nothing
+	conn := fixture.dialWebSocket("level=INVALID_LEVEL")
+	assert.NotNil(t, conn, "Connection should succeed even with invalid filter")
 }
 
 func TestWebSocketHandler_RejectsInvalidService(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?service=INVALID_123"
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	if err == nil && conn != nil {
-		conn.Close()
-	}
+	fixture := newWSTestFixture(t)
+	
+	// Try to dial with invalid service filter - should succeed connection but filter nothing
+	conn := fixture.dialWebSocket("service=INVALID_123")
+	assert.NotNil(t, conn, "Connection should succeed even with invalid filter")
 }
 
 func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	if conn != nil {
-		defer conn.Close()
-	}
-
 	fixture := newWSTestFixture(t)
-	hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Service: "test"}
+	conn := fixture.dialWebSocket()
+	time.Sleep(50 * time.Millisecond)
+
+	// Broadcast entry missing required fields
+	fixture.hub.broadcast <- &logs_models.LogEntry{Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	_, _, _ = conn.ReadMessage()
@@ -803,53 +767,29 @@ func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_CloseConnectionOnDisconnect(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	require.NoError(t, err)
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
+	time.Sleep(50 * time.Millisecond)
 
 	conn.Close()
 
 	time.Sleep(100 * time.Millisecond)
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	_, _, err = conn.ReadMessage()
+	_, _, err := conn.ReadMessage()
 	assert.Error(t, err, "Should not be able to read after close")
 }
 
 func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp1 != nil && resp1.Body != nil {
-		resp1.Body.Close()
-	}
-	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp2 != nil && resp2.Body != nil {
-		resp2.Body.Close()
-	}
-	defer conn2.Close()
-
-	conn1.Close()
-
-	// Give hub time to process the unregister before broadcasting
-	time.Sleep(50 * time.Millisecond)
-
 	fixture := newWSTestFixture(t)
-	hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "after disconnect"}
+	conn1 := fixture.dialWebSocket()
+	conn2 := fixture.dialWebSocket()
+
+	time.Sleep(100 * time.Millisecond) // Ensure both clients registered
+	
+	conn1.Close()
+	time.Sleep(50 * time.Millisecond) // Allow hub to process unregister
+
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "after disconnect"}
 
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	_, _, err := conn2.ReadMessage()
@@ -861,33 +801,14 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn1, resp1, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp1 != nil && resp1.Body != nil {
-		resp1.Body.Close()
-	}
-	defer conn1.Close()
-	// Use base path for second connection so query parameters are correct
-	wsURLBase := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header2 := http.Header{}
-	header2.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn2, resp2, _ := websocket.DefaultDialer.Dial(wsURLBase+"?level=INFO", header2)
-	if resp2 != nil && resp2.Body != nil {
-		resp2.Body.Close()
-	}
-	defer conn2.Close()
-
 	fixture := newWSTestFixture(t)
-	hub := fixture.hub
-	time.Sleep(200 * time.Millisecond) // Ensure clients are registered
-	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
+	conn1 := fixture.dialWebSocket("level=ERROR")
+	conn2 := fixture.dialWebSocket("level=INFO")
+
+	time.Sleep(200 * time.Millisecond) // Ensure both clients registered
+	
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
 
 	conn1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -911,20 +832,9 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 }
 
 func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR"
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	require.NoError(t, err)
-	//nolint:gocritic // defer conn.Close() is needed for cleanup even though it's before return
-	defer conn.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket("level=ERROR")
+	assert.NotNil(t, conn, "Connection should succeed with initial filter")
 }
 
 // ============================================================================
@@ -938,30 +848,10 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 	})
 
 	diagnosticGoroutines(t) // Key test: stress under load
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	require.NoError(t, err)
-	defer func() {
-		// Send close message before closing connection
-		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		conn.Close()
-		// Allow goroutines to clean up
-		time.Sleep(50 * time.Millisecond)
-	}()
-
 	fixture := newWSTestFixture(t)
-	hub := fixture.hub
-	// Give the client a brief moment to finish registration and start pumps
-	// Increased wait to avoid races under CI and on loaded machines
+	conn := fixture.dialWebSocket()
+
+	// Give the client time to finish registration and start pumps
 	time.Sleep(200 * time.Millisecond)
 
 	// Publish at a high but slightly throttled rate so the hub and client
@@ -971,7 +861,7 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 		defer close(done)
 		for i := 0; i < 1000; i++ {
 			select {
-			case hub.broadcast <- &logs_models.LogEntry{
+			case fixture.hub.broadcast <- &logs_models.LogEntry{
 				Message: fmt.Sprintf("msg %d", i),
 				Level:   "INFO",
 				Service: "test",
@@ -1002,24 +892,13 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 }
 
 func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	require.NoError(t, err)
-	defer conn.Close()
-
 	fixture := newWSTestFixture(t)
-	hub := fixture.hub
+	conn := fixture.dialWebSocket()
+	
+	time.Sleep(50 * time.Millisecond)
+
 	largeMessage := strings.Repeat("x", 10000)
-	hub.broadcast <- &logs_models.LogEntry{
+	fixture.hub.broadcast <- &logs_models.LogEntry{
 		Message: largeMessage,
 		Level:   "ERROR",
 		Service: "test",
@@ -1032,22 +911,12 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 }
 
 func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	defer conn.Close()
-
 	fixture := newWSTestFixture(t)
-	hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{
+	conn := fixture.dialWebSocket()
+	
+	time.Sleep(50 * time.Millisecond)
+
+	fixture.hub.broadcast <- &logs_models.LogEntry{
 		Level:   "ERROR",
 		Message: "panic: nil pointer dereference",
 		Service: "review",
