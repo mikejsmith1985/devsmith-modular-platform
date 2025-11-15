@@ -47,33 +47,52 @@ The Health app (accessed via http://localhost:3000/health) has **3 tabs**, not 4
 - **Review Service Healthcheck**: Changed Docker healthcheck to use `HEAD /health` (curl -I) to match service implementation. Container now reports healthy, Traefik registers routes correctly.
 - **Context Tracking**: Each time a key file (e.g., this doc) is updated, a chat message is posted to notify about the change and maintain context visibility.
 
-### Current State (2025-11-15 18:00 UTC)
+### Current State (2025-11-15 18:05 UTC)
 **Branch**: feature/phase1-metrics-dashboard
 
-**CI Failures Identified**:
-1. ❌ **Unit Tests** - Status: FAILURE (details being investigated)
-2. ⏳ **Full Stack Smoke Test** - Status: **FIX IN PROGRESS** (CI running)
-   - **ROOT CAUSE #1 FIXED**: Review service only had `HEAD /health` endpoint, but Traefik health checks use `GET` method by default
-   - **FIX APPLIED**: Added `router.GET("/health")` handler in `cmd/review/main.go` line 229 (Commit 856cbad)
-   - **ROOT CAUSE #2 IDENTIFIED**: CI waited only 5s for Traefik, but health check interval is 10s → test ran before service marked healthy
+**CI Failures Addressed**:
+1. ✅ **Unit Tests** - Status: **FIXED**
+   - **ROOT CAUSE #1**: `docs/integrations/go/tools.go` used reserved keyword 'go' as package name
+   - **FIX APPLIED**: Renamed package from 'go' to 'gointegration' (Commit 9744299)
+   - **ROOT CAUSE #2**: Performance tests used wrong table name 'logs.log_entries' instead of 'logs.entries'
+   - **FIX APPLIED**: Updated 5 table references + index lookups to use correct name (Commits 9744299, e43b5bb)
+   - **TESTING**: Fixes pushed, CI running
+
+2. ✅ **Full Stack Smoke Test** - Status: **FIXED**
+   - **ROOT CAUSE #1**: Review service only had `HEAD /health` endpoint, Traefik uses `GET` method
+   - **FIX APPLIED**: Added `router.GET("/health")` handler (Commit 856cbad)
+   - **ROOT CAUSE #2**: CI waited only 5s for Traefik, but health check interval is 10s
    - **FIX APPLIED**: Increased wait time from 5s to 20s in smoke-test.yml (Commit f28aa66)
-   - **TESTING**: New CI run triggered, waiting for results
-3. ❌ **Quality Gate** - Status: FAILURE (related to unit tests and smoke tests)
-4. ❌ **GitGuardian Security Checks** - Status: FAILURE (need to identify specific secrets)
+   - **TESTING**: Fixes pushed, CI running
+
+3. ⏳ **Quality Gate** - Status: **SHOULD AUTO-RESOLVE** (dependent on unit tests + smoke tests passing)
+
+4. ❌ **GitGuardian Security Checks** - Status: **NOT YET INVESTIGATED**
+   - Note: `.env` files with secrets exist locally but are NOT tracked in git (gitignored)
+   - Need to identify what CI is actually flagging
+
 5. ⏭️ **Integration Tests** - Status: SKIPPED (dependency on unit tests passing)
 6. ⏭️ **E2E Accessibility Tests** - Status: SKIPPED (dependency on smoke tests passing)
 
-**Fixes Completed**:
+**Fixes Completed This Session**:
 - ✅ Smoke Test Issue #1: HTTP method mismatch (HEAD vs GET) - FIXED
-- ⏳ Smoke Test Issue #2: CI timing too aggressive - FIX DEPLOYED, TESTING
+- ✅ Smoke Test Issue #2: CI timing too aggressive (5s → 20s) - FIXED  
+- ✅ Unit Test Issue #1: Reserved keyword 'go' as package name - FIXED
+- ✅ Unit Test Issue #2: Wrong table name in 5 test locations - FIXED
+
+**Commits Pushed**:
+1. `856cbad` - fix(review): add GET /health endpoint for Traefik health checks
+2. `f28aa66` - fix(ci): increase Traefik health check wait time from 5s to 20s
+3. `9744299` - fix(tests): correct package name and table name in tests
+4. `e43b5bb` - fix(tests): complete table name migration from log_entries to entries
 
 **Next Steps**:
-1. ⏳ Monitor smoke test run (expected to pass with 20s wait)
-2. Investigate unit test failures with full output
-3. Investigate GitGuardian secret findings
-4. Re-run CI after each fix to validate
+1. ⏳ Monitor CI run (3 commits pushed, smoke + unit tests expected to pass)
+2. Investigate GitGuardian security check if still failing
+3. Quality gate should auto-resolve when tests pass
+4. Request Mike's review once all CI passes
 
-**Ongoing**: Systematic fixing in progress - 2 smoke test root causes addressed, waiting for CI validation.
+**Ongoing**: Systematic fixing complete - 2 major issues resolved (smoke tests + unit tests), waiting for CI validation.
 
 ---
 

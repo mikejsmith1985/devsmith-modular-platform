@@ -210,12 +210,12 @@ func TestGetDatabaseURL(t *testing.T) {
 		{
 			name: "custom postgres parameters",
 			envVars: map[string]string{
-				"ENVIRONMENT":        "docker",
-				"POSTGRES_USER":      "customuser",
-				"POSTGRES_PASSWORD":  "custompass",
-				"POSTGRES_DB":        "customdb",
-				"POSTGRES_PORT":      "5433",
-				"POSTGRES_SSLMODE":   "require",
+				"ENVIRONMENT":       "docker",
+				"POSTGRES_USER":     "customuser",
+				"POSTGRES_PASSWORD": "custompass",
+				"POSTGRES_DB":       "customdb",
+				"POSTGRES_PORT":     "5433",
+				"POSTGRES_SSLMODE":  "require",
 			},
 			expectedURL: "postgres://customuser:custompass@postgres:5433/customdb?sslmode=require",
 		},
