@@ -232,6 +232,7 @@ EOF
 git commit  # Opens editor
 docker-compose ps  # May paginate output
 bash script.sh  # Prompts for user input
+npx @stoplight/spectral-cli lint file.yaml  # Interactive prompt
 
 # ✅ CORRECT (non-interactive)
 git commit -m "feat: add feature"
@@ -247,6 +248,44 @@ docker-compose exec postgres psql -U devsmith -d devsmith -c "\d logs.entries"
 # ✅ CORRECT
 docker-compose exec -T postgres psql -U devsmith -d devsmith -c "\d logs.entries"
 ```
+
+**CRITICAL: Run Validation Commands in Background with isBackground=true**
+
+When running commands that may hang or wait for input:
+- ✅ **Use `isBackground: true`** for commands that might hang
+- ✅ **Check output with `get_terminal_output`** after starting
+- ✅ **Tell user what to expect** in explanation field
+- ❌ **NEVER run validation commands with `isBackground: false`** - they hang the terminal
+
+**Examples**:
+```typescript
+// ❌ WRONG - hangs terminal waiting for Spectral to finish
+run_in_terminal({
+  command: "npx @stoplight/spectral-cli lint file.yaml",
+  isBackground: false  // BAD!
+})
+
+// ✅ CORRECT - runs in background, check output later
+run_in_terminal({
+  command: "npx @stoplight/spectral-cli lint file.yaml 2>&1",
+  explanation: "Running OpenAPI validation (will complete in ~5 seconds)",
+  isBackground: true  // GOOD!
+})
+// Then check: get_terminal_output()
+
+// ✅ CORRECT - run docker-compose tests in background
+run_in_terminal({
+  command: "docker-compose up logs 2>&1 | head -50",
+  explanation: "Starting logs service to verify startup (will show first 50 log lines)",
+  isBackground: true
+})
+```
+
+**When User Cancels Command:**
+- Acknowledge the cancellation
+- Explain what the command was testing
+- Provide alternative approach (e.g., background execution)
+- Continue with next task
 
 ### Rule 6: Complete Task Lists Before Requesting Review
 
