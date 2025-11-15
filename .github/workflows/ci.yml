@@ -140,7 +140,7 @@ jobs:
     needs: [build, docker]
     if: false  # INTENTIONAL: E2E tests require full docker-compose networking that doesn't work reliably in GitHub Actions CI.
                # E2E tests ARE developed and run locally (they pass). They validate:
-               # - Cross-service routing through nginx
+               # - Cross-service routing through Traefik
                # - Health endpoints and service availability
                # - Platform integration as a whole
                # Run locally with: `docker-compose up -d && npx playwright test tests/e2e/`
