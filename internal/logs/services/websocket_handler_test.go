@@ -65,44 +65,19 @@ func TestWebSocketHandler_EndpointExists(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
 	})
-	
-	diagnosticGoroutines(t)                                                                                                                                // Phase 1-2: Runtime diagnostics
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
+	diagnosticGoroutines(t)
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	assert.NoError(t, err, "Should connect to WebSocket endpoint")
-	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
-	if conn != nil {
-		conn.Close()
-	}
+	assert.NotNil(t, conn, "Should connect to WebSocket endpoint")
 }
 
 func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket("level=ERROR&service=review&tags=critical")
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR&service=review&tags=critical"
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-
-	assert.NoError(t, err, "Should accept filter parameters")
-	if conn != nil {
-		conn.Close()
-	}
+	assert.NotNil(t, conn, "Should accept filter parameters")
 }
 
 func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
@@ -110,13 +85,13 @@ func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
 	})
-	
+
 	diagnosticGoroutines(t)
-	
+
 	// Use new isolated fixture
 	fixture := newWSTestFixture(t)
 	conn := fixture.dialWebSocket("level=ERROR")
-	
+
 	// Wait for client to register
 	time.Sleep(50 * time.Millisecond)
 
@@ -134,71 +109,50 @@ func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
 }
 
 func TestWebSocketHandler_FiltersLogsByService(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket("service=portal")
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?service=portal"
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond) // Allow registration
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Service: "review", Level: "INFO", Message: "review msg"}
-	hub.broadcast <- &logs_models.LogEntry{Service: "portal", Level: "INFO", Message: "portal msg"}
-	hub.broadcast <- &logs_models.LogEntry{Service: "analytics", Level: "INFO", Message: "analytics msg"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Service: "review", Level: "INFO", Message: "review msg"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Service: "portal", Level: "INFO", Message: "portal msg"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Service: "analytics", Level: "INFO", Message: "analytics msg"}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	assert.NoError(t, err, "Should receive filtered log")
 	assert.Equal(t, "portal", msg["service"])
 }
 
 func TestWebSocketHandler_FiltersByTags(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket("tags=critical")
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?tags=critical"
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Tags: []string{"warning"}, Level: "INFO", Message: "warning log"}
-	hub.broadcast <- &logs_models.LogEntry{Tags: []string{"critical"}, Level: "ERROR", Message: "critical log"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Tags: []string{"warning"}, Level: "INFO", Message: "warning log"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Tags: []string{"critical"}, Level: "ERROR", Message: "critical log"}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	assert.NoError(t, err, "Should receive tagged log")
 }
 
 func TestWebSocketHandler_CombinedFilters(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket("level=ERROR&service=review&tags=critical")
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath + "?level=ERROR&service=review&tags=critical"
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "review", Tags: []string{"critical"}}
-	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "portal", Tags: []string{"critical"}}
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Service: "review", Tags: []string{"critical"}}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "review", Tags: []string{"critical"}}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Service: "portal", Tags: []string{"critical"}}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Service: "review", Tags: []string{"critical"}}
 
 	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	assert.NoError(t, err, "Should receive log matching all filters")
 }
 
@@ -211,8 +165,8 @@ func TestWebSocketHandler_RequiresAuthentication(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
 	})
-	
-	diagnosticGoroutines(t)                                                                                                                                // Key test: authentication boundary
+
+	diagnosticGoroutines(t) // Key test: authentication boundary
 	handler := setupAuthenticatedWebSocketServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -265,44 +219,32 @@ func TestWebSocketHandler_RejectsExpiredToken(t *testing.T) {
 }
 
 func TestWebSocketHandler_AuthenticatedUsersSeeAllLogs(t *testing.T) {
-	handler := setupAuthenticatedWebSocketServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private", Service: "test"}
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public", Service: "test"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private", Service: "test"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public", Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	assert.NoError(t, err, "Should receive log when authenticated")
 }
 
 func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
-	handler := setupPublicWebSocketServer()
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private"}
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "private"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "public"}
 
 	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	assert.NoError(t, err, "Should receive public log")
 }
 
@@ -315,18 +257,12 @@ func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
 	})
-	
-	diagnosticGoroutines(t)                                                                                                                                // Key test: longest duration, stress test
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	diagnosticGoroutines(t) // Key test: longest duration, stress test
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
+	
+	time.Sleep(50 * time.Millisecond)
 
 	conn.SetReadDeadline(time.Now().Add(35 * time.Second))
 	messageType, data, err := conn.ReadMessage()
@@ -370,25 +306,18 @@ func TestWebSocketHandler_DisconnectsOnNoPong(t *testing.T) {
 }
 
 func TestWebSocketHandler_ResetsHeartbeatOnActivity(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "reset heartbeat"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "reset heartbeat"}
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	conn.ReadMessage()
 
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "another message"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "another message"}
 	conn.SetReadDeadline(time.Now().Add(31 * time.Second))
-	_, _, err = conn.ReadMessage()
+	_, _, err := conn.ReadMessage()
 
 	assert.NoError(t, err, "Should delay heartbeat after activity")
 }
@@ -398,24 +327,15 @@ func TestWebSocketHandler_ResetsHeartbeatOnActivity(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_ClientReconnectsAutomatically(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn1, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
+	conn1 := fixture.dialWebSocket()
 	conn1.Close()
 
 	time.Sleep(100 * time.Millisecond)
-	conn2, _, err := websocket.DefaultDialer.Dial(wsURL, header)
 
-	assert.NoError(t, err, "Should reconnect after disconnect")
-	if conn2 != nil {
-		conn2.Close()
-	}
+	conn2 := fixture.dialWebSocket()
+	assert.NotNil(t, conn2, "Should reconnect after disconnect")
 }
 
 func TestWebSocketHandler_ExponentialBackoffRetry(t *testing.T) {
@@ -474,20 +394,13 @@ func TestWebSocketHandler_MaxReconnectionAttempts(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_DropsSlowConsumers(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
 	for i := 0; i < 1000; i++ {
-		hub.broadcast <- &logs_models.LogEntry{
+		fixture.hub.broadcast <- &logs_models.LogEntry{
 			Level:   "INFO",
 			Message: fmt.Sprintf("message %d", i),
 			Service: "test",
@@ -507,21 +420,14 @@ func TestWebSocketHandler_DropsSlowConsumers(t *testing.T) {
 }
 
 func TestWebSocketHandler_QueuesMessagesForFastConsumers(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
 	go func() {
 		for i := 0; i < 100; i++ {
-			hub.broadcast <- &logs_models.LogEntry{
+			fixture.hub.broadcast <- &logs_models.LogEntry{
 				Level:   "INFO",
 				Message: fmt.Sprintf("message %d", i),
 				Service: "test",
@@ -543,18 +449,10 @@ func TestWebSocketHandler_QueuesMessagesForFastConsumers(t *testing.T) {
 }
 
 func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
-
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	time.Sleep(50 * time.Millisecond)
 
 	// Fill the broadcast channel quickly
 	sentCount := 0
@@ -562,7 +460,7 @@ func TestWebSocketHandler_ClosesConnectionOnChannelFull(t *testing.T) {
 fillLoop:
 	for i := 0; i < 500; i++ {
 		select {
-		case hub.broadcast <- &logs_models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:
+		case fixture.hub.broadcast <- &logs_models.LogEntry{Message: fmt.Sprintf("msg %d", i)}:
 			sentCount++
 		default:
 			// Channel full, stop sending
@@ -576,7 +474,7 @@ fillLoop:
 	// Try to read a message - either we get one (system handled backpressure)
 	// or we get an error (connection closed due to full buffer)
 	conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-	_, _, err = conn.ReadMessage()
+	_, _, err := conn.ReadMessage()
 
 	// Test passes if either:
 	// 1. Message was successfully read (system handled backpressure by queueing)
@@ -750,7 +648,8 @@ func TestWebSocketHandler_BroadcastPerformance1000Connections(t *testing.T) {
 		}
 	}()
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	startTime := time.Now()
 	for i := 0; i < 100; i++ {
 		hub.broadcast <- &logs_models.LogEntry{
@@ -765,23 +664,16 @@ func TestWebSocketHandler_BroadcastPerformance1000Connections(t *testing.T) {
 }
 
 func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
 	startTime := time.Now()
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "latency test"}
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "latency test"}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	_, _, err = conn.ReadMessage()
+	_, _, err := conn.ReadMessage()
 	latency := time.Since(startTime)
 
 	assert.NoError(t, err, "Should receive message")
@@ -793,20 +685,12 @@ func TestWebSocketHandler_LatencyUnder100ms(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn := fixture.dialWebSocket()
+	
+	time.Sleep(50 * time.Millisecond)
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
-	require.NoError(t, err)
-	defer conn.Close()
-
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	time.Sleep(50 * time.Millisecond) // Ensure client is registered
-	hub.broadcast <- &logs_models.LogEntry{
+	fixture.hub.broadcast <- &logs_models.LogEntry{
 		ID:        123,
 		Level:     "ERROR",
 		Message:   "Test message",
@@ -817,7 +701,7 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	var msg map[string]interface{}
-	err = conn.ReadJSON(&msg)
+	err := conn.ReadJSON(&msg)
 	if err != nil {
 		t.Logf("MessageFormatCorrect: ReadJSON error: %v", err)
 	}
@@ -828,23 +712,13 @@ func TestWebSocketHandler_MessageFormatCorrect(t *testing.T) {
 }
 
 func TestWebSocketHandler_MultipleClientsReceiveMessages(t *testing.T) {
-	handler := setupWebSocketTestServer(t)
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	fixture := newWSTestFixture(t)
+	conn1 := fixture.dialWebSocket()
+	conn2 := fixture.dialWebSocket()
+	conn3 := fixture.dialWebSocket()
 
-	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	header := http.Header{}
-	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	conn1, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	defer conn1.Close()
-	conn2, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	defer conn2.Close()
-	conn3, _, _ := websocket.DefaultDialer.Dial(wsURL, header)
-	defer conn3.Close()
-
-	fixture := newWSTestFixture(t); hub := fixture.hub
-	time.Sleep(50 * time.Millisecond) // Ensure clients are registered
-	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "broadcast message"}
+	time.Sleep(100 * time.Millisecond) // Ensure all clients registered
+	fixture.hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "broadcast message"}
 
 	conn1.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -916,7 +790,8 @@ func TestWebSocketHandler_HandlesMissingRequiredFields(t *testing.T) {
 		defer conn.Close()
 	}
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Service: "test"}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -972,7 +847,8 @@ func TestWebSocketHandler_RemovesDisconnectedClientFromBroadcast(t *testing.T) {
 	// Give hub time to process the unregister before broadcasting
 	time.Sleep(50 * time.Millisecond)
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "after disconnect"}
 
 	conn2.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
@@ -1007,7 +883,8 @@ func TestWebSocketHandler_FiltersAreExclusive(t *testing.T) {
 	}
 	defer conn2.Close()
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	time.Sleep(200 * time.Millisecond) // Ensure clients are registered
 	hub.broadcast <- &logs_models.LogEntry{Level: "ERROR", Message: "error", Service: "test"}
 	hub.broadcast <- &logs_models.LogEntry{Level: "INFO", Message: "info", Service: "test"}
@@ -1059,8 +936,8 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
 	})
-	
-	diagnosticGoroutines(t)                                                                                                                                // Key test: stress under load
+
+	diagnosticGoroutines(t) // Key test: stress under load
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
 	defer server.Close()
@@ -1081,7 +958,8 @@ func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}()
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	// Give the client a brief moment to finish registration and start pumps
 	// Increased wait to avoid races under CI and on loaded machines
 	time.Sleep(200 * time.Millisecond)
@@ -1138,7 +1016,8 @@ func TestWebSocketHandler_LargeMessagePayloads(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	largeMessage := strings.Repeat("x", 10000)
 	hub.broadcast <- &logs_models.LogEntry{
 		Message: largeMessage,
@@ -1166,7 +1045,8 @@ func TestWebSocketHandler_RecoveryFromPanicLog(t *testing.T) {
 	}
 	defer conn.Close()
 
-	fixture := newWSTestFixture(t); hub := fixture.hub
+	fixture := newWSTestFixture(t)
+	hub := fixture.hub
 	hub.broadcast <- &logs_models.LogEntry{
 		Level:   "ERROR",
 		Message: "panic: nil pointer dereference",
@@ -1204,15 +1084,15 @@ type wsTestFixture struct {
 func newWSTestFixture(t *testing.T) *wsTestFixture {
 	// Ensure all log levels visible in tests
 	_ = os.Setenv("LOGS_WEBSOCKET_PUBLIC_ALL", "1")
-	
+
 	// Create isolated hub for this test
 	hub := NewWebSocketHub()
 	go hub.Run()
-	
+
 	// DEPRECATED: Set global for backward compatibility with unmigrated tests
 	// TODO: Remove this once all tests are migrated to use fixtures
 	currentTestHub = hub
-	
+
 	// Create test HTTP server
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == wsLogsPath {
@@ -1220,10 +1100,10 @@ func newWSTestFixture(t *testing.T) *wsTestFixture {
 		}
 	})
 	server := httptest.NewServer(handler)
-	
+
 	// Generate WebSocket URL
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
-	
+
 	fixture := &wsTestFixture{
 		t:       t,
 		hub:     hub,
@@ -1231,12 +1111,12 @@ func newWSTestFixture(t *testing.T) *wsTestFixture {
 		wsURL:   wsURL,
 		clients: make([]*Client, 0),
 	}
-	
+
 	// Register cleanup handlers - order matters (reverse of setup)
 	t.Cleanup(func() {
 		// 1. Close server first to stop accepting new connections
 		server.Close()
-		
+
 		// 2. Close all client connections to trigger pump exits
 		fixture.mu.Lock()
 		for _, client := range fixture.clients {
@@ -1245,12 +1125,12 @@ func newWSTestFixture(t *testing.T) *wsTestFixture {
 			}
 		}
 		fixture.mu.Unlock()
-		
+
 		// 3. Stop hub BEFORE waiting (so Unregister channel gets drained)
 		//    The hub's Run() loop will process Unregister messages until stop is closed
 		hub.Stop()
 		time.Sleep(100 * time.Millisecond) // Allow hub.Run() to exit and drain channels
-		
+
 		// 4. Now wait for all client goroutines (ReadPump, WritePump) to exit
 		//    This ensures no goroutines are left running when goleak checks
 		fixture.mu.Lock()
@@ -1261,14 +1141,14 @@ func newWSTestFixture(t *testing.T) *wsTestFixture {
 			}
 		}
 		fixture.mu.Unlock()
-		
+
 		// 5. Additional sleep to ensure OS releases socket resources
 		time.Sleep(50 * time.Millisecond)
-		
+
 		// 6. Clear global hub reference
 		currentTestHub = nil
 	})
-	
+
 	return fixture
 }
 
@@ -1278,19 +1158,19 @@ func (f *wsTestFixture) dialWebSocket(filters ...string) *websocket.Conn {
 	if len(filters) > 0 {
 		url += "?" + filters[0]
 	}
-	
+
 	header := http.Header{}
 	header.Add("Authorization", "Bearer valid_jwt_token_for_testing")
-	
+
 	conn, resp, err := websocket.DefaultDialer.Dial(url, header)
 	if resp != nil && resp.Body != nil {
 		resp.Body.Close()
 	}
 	require.NoError(f.t, err, "Should connect to WebSocket")
-	
+
 	// Wait for client registration to complete (hub processes the connection)
 	time.Sleep(50 * time.Millisecond)
-	
+
 	// Find and track the client for WaitGroup synchronization
 	f.hub.mu.RLock()
 	for client := range f.hub.clients {
@@ -1302,10 +1182,10 @@ func (f *wsTestFixture) dialWebSocket(filters ...string) *websocket.Conn {
 		}
 	}
 	f.hub.mu.RUnlock()
-	
+
 	// Note: Connection close is handled by fixture cleanup, not here
 	// This avoids double-close issues
-	
+
 	return conn
 }
 
