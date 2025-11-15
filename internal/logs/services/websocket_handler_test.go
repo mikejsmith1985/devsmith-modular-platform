@@ -287,13 +287,14 @@ func TestWebSocketHandler_DisconnectsOnNoPong(t *testing.T) {
 	// Force the hub to treat this client as inactive by setting LastActivity to
 	// an old timestamp, then trigger a heartbeat check immediately. This avoids
 	// waiting for the regular 30s ticker in tests and makes the behavior deterministic.
-	fixture.hub.mu.RLock()
+	// Note: We must hold the hub lock while modifying client fields to avoid race with Unregister
+	fixture.hub.mu.Lock()
 	for c := range fixture.hub.clients {
 		c.mu.Lock()
 		c.LastActivity = time.Now().Add(-120 * time.Second)
 		c.mu.Unlock()
 	}
-	fixture.hub.mu.RUnlock()
+	fixture.hub.mu.Unlock()
 
 	// Trigger heartbeat processing synchronously in test to close inactive clients.
 	fixture.hub.sendHeartbeats()
