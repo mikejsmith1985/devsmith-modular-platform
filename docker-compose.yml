@@ -187,7 +187,7 @@ services:
       - "traefik.enable=true"
       # Review UI - serve React SPA for /review paths
       # Review UI - handle /review route (embedded UI)
-      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`)"
+      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`) && !PathPrefix(`/api/review`)"
       - "traefik.http.routers.review-ui.entrypoints=web"
       - "traefik.http.routers.review-ui.priority=150"
       - "traefik.http.routers.review-ui.service=review"
