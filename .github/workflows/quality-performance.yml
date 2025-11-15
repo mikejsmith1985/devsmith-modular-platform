@@ -36,7 +36,10 @@ jobs:
       - name: Generate coverage report
         run: |
           echo "Generating coverage report..."
-          go test -coverprofile=coverage.out -short ./...
+          # Exclude template packages and cmd/main packages from coverage
+          # Templates are generated code, cmd packages are entry points with minimal logic
+          PACKAGES=$(go list ./... | grep -v '/templates' | grep -v '/cmd/' | tr '\n' ' ')
+          go test -coverprofile=coverage.out -short $PACKAGES
           go tool cover -func=coverage.out
 
       - name: Check test coverage threshold
