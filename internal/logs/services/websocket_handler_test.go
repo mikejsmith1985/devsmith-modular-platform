@@ -61,7 +61,11 @@ func diagnosticGoroutines(t *testing.T) {
 }
 
 func TestWebSocketHandler_EndpointExists(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
+	// Register goleak check FIRST (runs LAST in cleanup, after all resources cleaned)
+	t.Cleanup(func() {
+		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	})
+	
 	diagnosticGoroutines(t)                                                                                                                                // Phase 1-2: Runtime diagnostics
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
@@ -102,7 +106,11 @@ func TestWebSocketHandler_AcceptsFilterParams(t *testing.T) {
 }
 
 func TestWebSocketHandler_FiltersLogsByLevel(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	// Register goleak check FIRST (runs LAST in cleanup, after all resources cleaned)
+	t.Cleanup(func() {
+		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	})
+	
 	diagnosticGoroutines(t)
 	
 	// Use new isolated fixture
@@ -199,7 +207,11 @@ func TestWebSocketHandler_CombinedFilters(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_RequiresAuthentication(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
+	// Register goleak check FIRST (runs LAST in cleanup, after all resources cleaned)
+	t.Cleanup(func() {
+		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	})
+	
 	diagnosticGoroutines(t)                                                                                                                                // Key test: authentication boundary
 	handler := setupAuthenticatedWebSocketServer(t)
 	server := httptest.NewServer(handler)
@@ -299,7 +311,11 @@ func TestWebSocketHandler_UnauthenticatedSeesOnlyPublic(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_SendsHeartbeatEvery30Seconds(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
+	// Register goleak check FIRST (runs LAST in cleanup, after all resources cleaned)
+	t.Cleanup(func() {
+		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	})
+	
 	diagnosticGoroutines(t)                                                                                                                                // Key test: longest duration, stress test
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
@@ -1039,7 +1055,11 @@ func TestWebSocketHandler_UpdateFiltersWhileConnected(t *testing.T) {
 // ============================================================================
 
 func TestWebSocketHandler_HighFrequencyMessageStream(t *testing.T) {
-	defer goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run")) // Phase 3: Compile-time goroutine leak detection
+	// Register goleak check FIRST (runs LAST in cleanup, after all resources cleaned)
+	t.Cleanup(func() {
+		goleak.VerifyNone(t, goleak.IgnoreTopFunction("github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services.(*WebSocketHub).Run"))
+	})
+	
 	diagnosticGoroutines(t)                                                                                                                                // Key test: stress under load
 	handler := setupWebSocketTestServer(t)
 	server := httptest.NewServer(handler)
@@ -1172,10 +1192,12 @@ var currentTestHub *WebSocketHub
 // wsTestFixture encapsulates all WebSocket test resources to eliminate global state
 // and prevent test pollution. Each test gets its own isolated fixture.
 type wsTestFixture struct {
-	t      *testing.T
-	hub    *WebSocketHub
-	server *httptest.Server
-	wsURL  string
+	t       *testing.T
+	hub     *WebSocketHub
+	server  *httptest.Server
+	wsURL   string
+	clients []*Client // Track all clients for proper cleanup
+	mu      sync.Mutex
 }
 
 // newWSTestFixture creates an isolated WebSocket test environment with automatic cleanup
@@ -1203,22 +1225,47 @@ func newWSTestFixture(t *testing.T) *wsTestFixture {
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsLogsPath
 	
 	fixture := &wsTestFixture{
-		t:      t,
-		hub:    hub,
-		server: server,
-		wsURL:  wsURL,
+		t:       t,
+		hub:     hub,
+		server:  server,
+		wsURL:   wsURL,
+		clients: make([]*Client, 0),
 	}
 	
 	// Register cleanup handlers - order matters (reverse of setup)
 	t.Cleanup(func() {
-		// Close server first to stop accepting new connections
+		// 1. Close server first to stop accepting new connections
 		server.Close()
 		
-		// Stop hub and wait for goroutines to exit
-		hub.Stop()
-		time.Sleep(200 * time.Millisecond)
+		// 2. Close all client connections to trigger pump exits
+		fixture.mu.Lock()
+		for _, client := range fixture.clients {
+			if client != nil && client.Conn != nil {
+				client.Conn.Close()
+			}
+		}
+		fixture.mu.Unlock()
 		
-		// Clear global hub reference
+		// 3. Stop hub BEFORE waiting (so Unregister channel gets drained)
+		//    The hub's Run() loop will process Unregister messages until stop is closed
+		hub.Stop()
+		time.Sleep(100 * time.Millisecond) // Allow hub.Run() to exit and drain channels
+		
+		// 4. Now wait for all client goroutines (ReadPump, WritePump) to exit
+		//    This ensures no goroutines are left running when goleak checks
+		fixture.mu.Lock()
+		for _, client := range fixture.clients {
+			if client != nil {
+				// Wait for both ReadPump and WritePump to finish
+				client.wg.Wait()
+			}
+		}
+		fixture.mu.Unlock()
+		
+		// 5. Additional sleep to ensure OS releases socket resources
+		time.Sleep(50 * time.Millisecond)
+		
+		// 6. Clear global hub reference
 		currentTestHub = nil
 	})
 	
@@ -1241,12 +1288,23 @@ func (f *wsTestFixture) dialWebSocket(filters ...string) *websocket.Conn {
 	}
 	require.NoError(f.t, err, "Should connect to WebSocket")
 	
-	// Auto-cleanup connection
-	f.t.Cleanup(func() {
-		if conn != nil {
-			conn.Close()
+	// Wait for client registration to complete (hub processes the connection)
+	time.Sleep(50 * time.Millisecond)
+	
+	// Find and track the client for WaitGroup synchronization
+	f.hub.mu.RLock()
+	for client := range f.hub.clients {
+		if client.Conn == conn {
+			f.mu.Lock()
+			f.clients = append(f.clients, client)
+			f.mu.Unlock()
+			break
 		}
-	})
+	}
+	f.hub.mu.RUnlock()
+	
+	// Note: Connection close is handled by fixture cleanup, not here
+	// This avoids double-close issues
 	
 	return conn
 }
