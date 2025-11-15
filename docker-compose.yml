@@ -178,7 +178,7 @@ services:
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD", "curl", "-I", "-f", "http://localhost:8081/health"]
       interval: 10s
       timeout: 10s
       retries: 10
