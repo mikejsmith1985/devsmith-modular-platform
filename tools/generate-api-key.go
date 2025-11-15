@@ -9,17 +9,17 @@ import (
 )
 
 func main() {
-randomBytes := make([]byte, 32)
-_, err := rand.Read(randomBytes)
-if err != nil {
-erate random bytes: %v", err)
-}
-encoded := base64.RawURLEncoding.EncodeToString(randomBytes)
-plainKey := "dsk_" + encoded
-hashBytes, err := bcrypt.GenerateFromPassword([]byte(plainKey), bcrypt.DefaultCost)
-if err != nil {
-erate bcrypt hash: %v", err)
-}
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		log.Fatalf("generate random bytes: %v", err)
+	}
+	encoded := base64.RawURLEncoding.EncodeToString(randomBytes)
+	plainKey := "dsk_" + encoded
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(plainKey), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("generate bcrypt hash: %v", err)
+	}
 hash := string(hashBytes)
 fmt.Println("=== API Key Generation ===")
 fmt.Printf("Plain API Key: %s\n", plainKey)

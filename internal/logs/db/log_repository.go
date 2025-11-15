@@ -73,16 +73,22 @@ func (r *LogRepository) Save(ctx context.Context, entry *LogEntry) (int64, error
 		return 0, fmt.Errorf("created_at is required")
 	}
 
+	// If no database connection, return mock ID for testing
+	if r.db == nil {
+		// Still check context deadline even for mock responses
+		select {
+		case <-ctx.Done():
+			return 0, fmt.Errorf("context cancelled: %w", ctx.Err())
+		default:
+		}
+		return 1, nil
+	}
+
 	// Check context is not cancelled
 	select {
 	case <-ctx.Done():
 		return 0, fmt.Errorf("context cancelled: %w", ctx.Err())
 	default:
-	}
-
-	// If no database connection, return mock ID for testing
-	if r.db == nil {
-		return 1, nil
 	}
 
 	// Marshal metadata to JSON
