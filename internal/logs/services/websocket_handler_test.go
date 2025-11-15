@@ -1192,8 +1192,9 @@ func setupWebSocketTestServer(t *testing.T) http.Handler {
 	if t != nil {
 		t.Cleanup(func() {
 			hub.Stop()
-			// Allow hub.Run() goroutine and client goroutines to exit - increased from 10ms to 100ms
-			time.Sleep(100 * time.Millisecond)
+			// Allow hub.Run() goroutine and client goroutines to exit
+			// Increased to 500ms to ensure full cleanup before next test starts
+			time.Sleep(500 * time.Millisecond)
 		})
 	}
 
@@ -1277,13 +1278,10 @@ func handleWebSocketLogsConnection(w http.ResponseWriter, r *http.Request, hub *
 		// timed out; continue anyway
 	}
 
-	// Note: Client cleanup happens when connection closes
-	// When conn closes, ReadPump and WritePump will exit
-	// WaitGroup ensures goroutines complete before function returns
-	go func() {
-		<-client.done
-		wg.Wait()
-	}()
+	// Note: Client cleanup happens automatically when connection closes
+	// ReadPump and WritePump will both exit and call wg.Done()
+	// The WaitGroup will complete when both goroutines finish
+	// Test cleanup (hub.Stop() + sleep in setupWebSocketTestServer) ensures proper shutdown
 }
 
 func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
@@ -1297,8 +1295,9 @@ func setupAuthenticatedWebSocketServer(t *testing.T) http.Handler {
 	if t != nil {
 		t.Cleanup(func() {
 			hub.Stop()
-			// Allow hub.Run() goroutine and client goroutines to exit - increased from 10ms to 100ms
-			time.Sleep(100 * time.Millisecond)
+			// Allow hub.Run() goroutine and client goroutines to exit
+			// Increased to 500ms to ensure full cleanup before next test starts
+			time.Sleep(500 * time.Millisecond)
 		})
 	}
 
