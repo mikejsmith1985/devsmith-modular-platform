@@ -232,11 +232,6 @@ func main() {
 		reviewLogger.Info("GET /health endpoint hit")
 		c.Status(200)
 	})
-	// Add /api/review/health for Traefik gateway routing (Traefik forwards with full path)
-	router.GET("/api/review/health", func(c *gin.Context) {
-		reviewLogger.Info("GET /api/review/health endpoint hit (via Traefik)")
-		c.Status(200)
-	})
 
 	// Prepare logging client to send lightweight events to Logs service (optional)
 	var logClient *logging.Client
