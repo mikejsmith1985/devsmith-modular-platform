@@ -271,8 +271,8 @@ jobs:
 
           # Benchmarks are informational only (don't block)
           if [ "${{ needs.unit-tests.result }}" != "success" ] || \
-             [ "${{ needs.integration-tests.result }}" != "success" ] || \
-             [ "${{ needs.e2e-accessibility.result }}" != "success" ] || \
+             { [ "${{ needs.integration-tests.result }}" != "success" ] && [ "${{ needs.integration-tests.result }}" != "skipped" ]; } || \
+             { [ "${{ needs.e2e-accessibility.result }}" != "success" ] && [ "${{ needs.e2e-accessibility.result }}" != "skipped" ]; } || \
              [ "${{ needs.openapi.result }}" != "success" ]; then
             echo "❌ Quality gate failed"
             exit 1
