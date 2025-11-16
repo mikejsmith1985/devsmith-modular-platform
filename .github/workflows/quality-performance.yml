@@ -175,8 +175,8 @@ jobs:
           POSTGRES_DB=devsmith
           DATABASE_URL=postgresql://devsmith:devsmith123@postgres:5432/devsmith
           REDIS_URL=redis://redis:6379
-          GITHUB_CLIENT_ID=test_client_id
-          GITHUB_CLIENT_SECRET=test_client_secret
+          GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}
           ENABLE_TEST_AUTH=true
           JWT_SECRET=test_jwt_secret_for_ci
           ENVIRONMENT=ci
