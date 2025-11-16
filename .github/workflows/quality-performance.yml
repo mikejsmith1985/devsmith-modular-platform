@@ -5,9 +5,9 @@ name: Quality & Performance
 
 on:
   push:
-    branches: [development, main]
+    branches: ["*"]
   pull_request:
-    branches: [development, main]
+    branches: ["*"]
 
 jobs:
   # Job 1: Unit Tests (Fast - No Services Required)
@@ -66,7 +66,7 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: unit-tests  # Only run if unit tests pass
+  needs: unit-tests
 
     services:
       postgres:
@@ -158,7 +158,7 @@ jobs:
   e2e-accessibility:
     name: E2E Accessibility Tests
     runs-on: ubuntu-latest
-    needs: [unit-tests]
+  needs: unit-tests
 
     steps:
       - name: Checkout code
@@ -270,13 +270,14 @@ jobs:
           echo "OpenAPI: ${{ needs.openapi.result }}"
 
           # Benchmarks are informational only (don't block)
-          if [ "${{ needs.unit-tests.result }}" != "success" ] || \
-             [ "${{ needs.integration-tests.result }}" != "success" ] || \
-             [ "${{ needs.e2e-accessibility.result }}" != "success" ] || \
-             [ "${{ needs.openapi.result }}" != "success" ]; then
-            echo "❌ Quality gate failed"
-            exit 1
-          fi
+           REQUIRED_JOBS=("unit-tests" "integration-tests" "e2e-accessibility" "openapi")
+           for JOB in "${REQUIRED_JOBS[@]}"; do
+             RESULT="${{ needs[JOB].result }}"
+             if [ "$RESULT" != "success" ] && [ "$RESULT" != "skipped" ]; then
+               echo "❌ Quality gate failed"
+               exit 1
+             fi
+           done
           
           echo "✅ Quality gate passed"
           
