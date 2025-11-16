@@ -167,7 +167,7 @@ jobs:
                # See: tests/e2e/README.md for local E2E testing guide.
 
     steps:
-    # Removed empty steps block to fix YAML error
+
   # Summary job (optional, useful for branch protection rules)
   ci-summary:
     name: CI Summary
