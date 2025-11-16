@@ -1,0 +1,39 @@
+name: Enforce Completion
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+    branches:
+      - main
+      - development
+jobs:
+  enforce-completion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Validate completion certificate
+        run: |
+          if [ ! -f "AI_INSIGHTS_COMPLETE.md" ]; then
+            echo "Completion certificate missing. Block merge." && exit 1
+          fi
+          grep -q "100% complete" AI_INSIGHTS_COMPLETE.md || (echo "Completion not verified." && exit 1)
+      - name: Validate manual verification
+        run: |
+          if [ ! -d "test-results/manual-verification-*" ]; then
+            echo "Manual verification screenshots missing." && exit 1
+          fi
+          find test-results/manual-verification-* -name VERIFICATION.md | grep -q VERIFICATION.md || (echo "Verification document missing." && exit 1)
+      - name: Validate regression tests
+        run: |
+          bash scripts/regression-test.sh || (echo "Regression tests failed." && exit 1)
+      - name: Validate ERROR_LOG.md
+        run: |
+          if [ ! -f ".docs/ERROR_LOG.md" ]; then
+            echo "ERROR_LOG.md missing." && exit 1
+          fi
+      - name: Block merge if any step fails
+        run: |
+          echo "All completion gates passed."

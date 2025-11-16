@@ -55,4 +55,8 @@ CREATE TABLE IF NOT EXISTS logs.entries (
 
 CREATE INDEX IF NOT EXISTS idx_logs_service_level ON logs.entries(service, level, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_logs_user ON logs.entries(user_id, created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_logs_created ON logs.entries(created_at DESC);
+
+-- Grant CREATEDB privilege to devsmith user
+GRANT CREATEDB TO devsmith;

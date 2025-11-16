@@ -143,7 +143,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(report.Timestamp.Format("2006-01-02 15:04:05"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 61, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 61, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -156,7 +156,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(report.Duration.String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 64, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 64, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -169,7 +169,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(report.Summary.Total)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 74, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 74, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -182,7 +182,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(report.Summary.Passed)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 78, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 78, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -195,7 +195,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(report.Summary.Warned)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 82, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 82, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -208,7 +208,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(string(rune(report.Summary.Failed)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 86, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 86, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -246,7 +246,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(check.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 106, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 106, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -279,7 +279,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(check.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 116, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 116, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -297,7 +297,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(check.Error)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 119, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 119, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -315,7 +315,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(check.Duration.String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 123, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 123, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -333,7 +333,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(formatDetails(check.Details))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 133, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 133, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -356,7 +356,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(report.SystemInfo.Environment)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 150, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 150, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -369,7 +369,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(report.SystemInfo.Hostname)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 153, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 153, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -382,7 +382,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(report.SystemInfo.GoVersion)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 156, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 156, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -395,7 +395,7 @@ func HealthStatusTab(report healthcheck.HealthReport) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(report.SystemInfo.Timestamp.Format("2006-01-02 15:04:05"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/logs/templates/healthcheck.templ`, Line: 159, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `healthcheck.templ`, Line: 159, Col: 107}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {

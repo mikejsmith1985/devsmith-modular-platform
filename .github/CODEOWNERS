@@ -1,0 +1,15 @@
+# CODEOWNERS for DevSmith Modular Platform
+# Protect all enforcement, validation, and documentation files
+* @mikejsmith1985
+.github/workflows/* @mikejsmith1985
+scripts/declare-complete.sh @mikejsmith1985
+scripts/nuclear-complete-rebuild.sh @mikejsmith1985
+.git/hooks/pre-push @mikejsmith1985
+.git/hooks/pre-commit @mikejsmith1985
+.github/copilot-instructions.md @mikejsmith1985
+README.md @mikejsmith1985
+ARCHITECTURE.md @mikejsmith1985
+Requirements.md @mikejsmith1985
+DevsmithTDD.md @mikejsmith1985
+DevSmithRoles.md @mikejsmith1985
+.docs/ERROR_LOG.md @mikejsmith1985

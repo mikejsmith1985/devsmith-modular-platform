@@ -1,0 +1,43 @@
+name: Enforce Rules
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+    branches:
+      - main
+      - development
+jobs:
+  enforce-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Validate CODEOWNERS
+        run: |
+          if [ ! -f ".github/CODEOWNERS" ]; then
+            echo "CODEOWNERS missing." && exit 1
+          fi
+      - name: Validate copilot instructions
+        run: |
+          if [ ! -f ".github/copilot-instructions.md" ]; then
+            echo "Copilot instructions missing." && exit 1
+          fi
+      - name: Validate hooks and scripts
+        run: |
+          if [ ! -f "scripts/declare-complete.sh" ]; then
+            echo "declare-complete.sh missing." && exit 1
+          fi
+          if [ ! -f "scripts/nuclear-complete-rebuild.sh" ]; then
+            echo "nuclear-complete-rebuild.sh missing." && exit 1
+          fi
+          if [ ! -f ".git/hooks/pre-push" ]; then
+            echo "pre-push hook missing." && exit 1
+          fi
+          if [ ! -f ".git/hooks/pre-commit" ]; then
+            echo "pre-commit hook missing." && exit 1
+          fi
+      - name: Block merge if any step fails
+        run: |
+          echo "All rule gates passed."
