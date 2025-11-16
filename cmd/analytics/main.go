@@ -72,6 +72,7 @@ func main() {
 	exportService := analytics_services.NewExportService(aggregationRepo, logger)
 
 	apiHandler := analytics_handlers.NewAnalyticsHandler(aggregatorService, trendService, anomalyService, topIssuesService, exportService, logger)
+	metricsHandler := analytics_handlers.NewMetricsDashboardHandler()
 
 	router := gin.Default()
 
@@ -94,6 +95,20 @@ func main() {
 
 	// Register API routes
 	apiHandler.RegisterRoutes(router)
+
+	// Simple health endpoint for smoke tests
+	router.GET("/api/analytics/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"service": "analytics",
+			"status":  "healthy",
+			"version": "1.0.0",
+		})
+	})
+
+	// Register metrics dashboard routes
+	router.GET("/api/analytics/metrics/dashboard", metricsHandler.GetDashboardData)
+	router.GET("/api/analytics/metrics/trends", metricsHandler.GetTrends)
+	router.GET("/api/analytics/metrics/violations", metricsHandler.GetViolations)
 
 	// TODO: Add protected routes group when authentication is required
 	// Example:

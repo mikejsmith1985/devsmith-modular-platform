@@ -220,8 +220,21 @@ func (s *LLMConfigService) GetEffectiveConfig(
 		return defaultConfig, nil
 	}
 
-	// No fallback - user must configure an LLM in AI Factory
-	return nil, fmt.Errorf("no LLM configured for user %d (app: %s). Please configure an LLM in AI Factory", userID, appName)
+	// Priority 3: Return system default (Ollama with deepseek-coder:6.7b)
+	systemDefault := &portal_repositories.LLMConfig{
+		ID:              "system-default",
+		UserID:          userID,
+		Provider:        "ollama",
+		ModelName:       "deepseek-coder:6.7b",
+		APIEndpoint:     sql.NullString{String: "http://localhost:11434", Valid: true},
+		APIKeyEncrypted: sql.NullString{Valid: false}, // NULL for Ollama
+		IsDefault:       false,
+		MaxTokens:       8192,
+		Temperature:     0.7,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+	return systemDefault, nil
 }
 
 // SetAppPreference sets the preferred LLM configuration for a specific app

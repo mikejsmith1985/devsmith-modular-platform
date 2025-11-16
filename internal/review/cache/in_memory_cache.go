@@ -201,5 +201,15 @@ func (c *InMemoryCache) cleanupExpired() {
 
 // Stop gracefully stops the cache cleanup goroutine
 func (c *InMemoryCache) Stop() {
-	close(c.stopCleanup)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Guard against double-close
+	select {
+	case <-c.stopCleanup:
+		// Channel already closed
+		return
+	default:
+		close(c.stopCleanup)
+	}
 }

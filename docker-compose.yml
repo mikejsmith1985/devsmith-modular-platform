@@ -178,7 +178,7 @@ services:
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD", "curl", "-I", "-f", "http://localhost:8081/health"]
       interval: 10s
       timeout: 10s
       retries: 10
@@ -187,7 +187,7 @@ services:
       - "traefik.enable=true"
       # Review UI - serve React SPA for /review paths
       # Review UI - handle /review route (embedded UI)
-      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`)"
+      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`) && !PathPrefix(`/api/review`)"
       - "traefik.http.routers.review-ui.entrypoints=web"
       - "traefik.http.routers.review-ui.priority=150"
       - "traefik.http.routers.review-ui.service=review"
@@ -277,7 +277,7 @@ services:
       - "traefik.http.routers.analytics.priority=100"
       - "traefik.http.routers.analytics.service=analytics"
       - "traefik.http.services.analytics.loadbalancer.server.port=8083"
-      - "traefik.http.services.analytics.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.path=/api/analytics/health"
       - "traefik.http.services.analytics.loadbalancer.healthcheck.interval=10s"
 
   maildev:

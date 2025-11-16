@@ -10,6 +10,26 @@ on:
     branches: [development, main]
 
 jobs:
+  migration-ordering:
+    name: Migration Ordering Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Validate migration file ordering
+        run: |
+          echo "Checking migration file naming and ordering..."
+          find db/migrations internal/*/db/migrations -type f -name "*.sql" | while read file; do
+            fname=$(basename "$file")
+            if ! echo "$fname" | grep -Eq "^[0-9]{8}_[0-9]{3}_.+\.sql$"; then
+              echo "❌ Migration file $file does not follow YYYYMMDD_NNN_description.sql format. See ERROR_LOG.md."
+              exit 1
+            fi
+          done
+          echo "✓ All migration files follow timestamped naming convention."
+      - name: Document migration ordering risk
+        run: |
+          echo "If CI runs migrations alphabetically, but architecture requires timestamped migration files, migration failures may occur. See ERROR_LOG.md for details."
   # Job 1: Verify code builds (catches --no-verify commits)
   build:
     name: Build Services
@@ -140,7 +160,7 @@ jobs:
     needs: [build, docker]
     if: false  # INTENTIONAL: E2E tests require full docker-compose networking that doesn't work reliably in GitHub Actions CI.
                # E2E tests ARE developed and run locally (they pass). They validate:
-               # - Cross-service routing through nginx
+               # - Cross-service routing through Traefik
                # - Health endpoints and service availability
                # - Platform integration as a whole
                # Run locally with: `docker-compose up -d && npx playwright test tests/e2e/`

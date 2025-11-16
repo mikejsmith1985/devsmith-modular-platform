@@ -136,9 +136,9 @@ func (f *ClientFactory) GetClientForApp(ctx context.Context, userID int, appName
 	// Get user configuration
 	client, err := f.createClientFromConfig(ctx, userID, appName)
 	if err != nil {
-		// Log the error but return default client instead of failing
-		// This ensures platform always has working LLM
-		return f.createDefaultOllamaClient(), nil
+		// Propagate errors (especially decryption failures) instead of silently falling back
+		// Security: If encrypted API key can't be decrypted, fail loudly
+		return nil, err
 	}
 
 	// Cache client (write lock)

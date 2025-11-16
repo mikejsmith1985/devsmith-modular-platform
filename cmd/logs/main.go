@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +39,13 @@ func resolveLLMConfig(lookupErr error, configID string, db *sql.DB) string {
 	case errors.Is(lookupErr, sql.ErrNoRows):
 		return handleMissingAppConfig(db)
 	case lookupErr != nil:
+		// Handle case where app_llm_preferences table doesn't exist yet (e.g., migrations not run)
+		// This prevents service crash in environments where Phase 1 migrations haven't been applied
+		if strings.Contains(lookupErr.Error(), "relation \"portal.app_llm_preferences\" does not exist") {
+			log.Println("WARN: app_llm_preferences table not found (Phase 1 migrations may not be applied)")
+			log.Println("Falling back to default LLM configuration")
+			return handleMissingAppConfig(db)
+		}
 		log.Fatalf("FATAL: Failed to query LLM preference from database: %v", lookupErr)
 	default:
 		log.Println("Using logs app-specific LLM configuration")
@@ -56,9 +64,18 @@ func handleMissingAppConfig(db *sql.DB) string {
 	`).Scan(&defaultConfigID)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		log.Fatal("FATAL: No LLM configured in AI Factory.\nPlease configure an LLM in AI Factory (http://localhost:3000/ai-factory) and set it as default.")
+		log.Println("WARN: No default LLM configured in AI Factory")
+		log.Println("INFO: Logs service will continue without AI analysis features")
+		log.Println("INFO: Configure an LLM in AI Factory (http://localhost:3000/ai-factory) for AI-powered diagnostics")
+		return "" // Return empty string to indicate no LLM available
 	}
 	if err != nil {
+		// Check if table doesn't exist (Portal migrations not yet run)
+		if strings.Contains(err.Error(), "relation \"portal.llm_configs\" does not exist") {
+			log.Println("WARN: portal.llm_configs table not found (Portal migrations may not be applied)")
+			log.Println("INFO: Logs service will continue without AI analysis features")
+			return "" // Return empty string to indicate no LLM available
+		}
 		log.Fatalf("FATAL: Failed to query default LLM config: %v", err)
 	}
 	log.Println("Using default LLM configuration")
@@ -199,83 +216,112 @@ func main() {
 	// Handle LLM configuration lookup results
 	logsConfigID = resolveLLMConfig(err, logsConfigID, dbConn)
 
-	// Query for the specific LLM configuration
-	var (
-		configName  string
-		provider    string
-		modelName   string
-		apiEndpoint sql.NullString
-		apiKeyEnc   sql.NullString
-	)
-	err = dbConn.QueryRow(`
-		SELECT id, provider, model_name, api_endpoint, api_key_encrypted
-		FROM portal.llm_configs
-		WHERE id = $1
-		LIMIT 1
-	`, logsConfigID).Scan(&configName, &provider, &modelName, &apiEndpoint, &apiKeyEnc)
-
-	if errors.Is(err, sql.ErrNoRows) {
-		log.Fatalf("FATAL: LLM config %s not found in AI Factory database", logsConfigID)
-	}
-	if err != nil {
-		log.Fatalf("FATAL: Failed to query LLM config from database: %v", err)
-	}
-
-	log.Printf("AI Factory configuration loaded: %s (%s - %s)\n", configName, provider, modelName)
-
-	// Decrypt API key (AI Factory stores encrypted keys)
-	var apiKey string
-	if apiKeyEnc.Valid && apiKeyEnc.String != "" {
-		// TODO: Implement decryption using Portal's encryption service
-		// For now, assume keys are stored as base64-encoded
-		apiKey = apiKeyEnc.String
-	}
-
-	endpoint := apiEndpoint.String
-	if endpoint == "" && provider == "ollama" {
-		endpoint = "http://host.docker.internal:11434" // Default Ollama endpoint
-	}
-
-	// Initialize AI provider based on configuration
+	// Initialize AI provider (if LLM configured)
 	var rawAIClient ai.Provider
 	var adaptedAIClient logs_services.AIProvider
 
-	switch provider {
-	case "anthropic":
-		if apiKey == "" {
-			log.Fatalf("FATAL: Anthropic API key not set in AI Factory for config '%s'", configName)
-		}
-		anthropicClient := providers.NewAnthropicClient(apiKey, modelName)
-		rawAIClient = anthropicClient
-		adaptedAIClient = logs_services.NewAnthropicAdapter(anthropicClient)
-		log.Printf("✓ AI provider ready: Anthropic (%s)\n", modelName)
+	if logsConfigID == "" {
+		// No LLM configured - continue without AI features
+		log.Println("INFO: Logs service starting without AI analysis (no LLM configured)")
+		rawAIClient = nil
+		adaptedAIClient = nil
+	} else {
+		// Query for the specific LLM configuration
+		var (
+			configName  string
+			provider    string
+			modelName   string
+			apiEndpoint sql.NullString
+			apiKeyEnc   sql.NullString
+		)
+		err = dbConn.QueryRow(`
+			SELECT id, provider, model_name, api_endpoint, api_key_encrypted
+			FROM portal.llm_configs
+			WHERE id = $1
+			LIMIT 1
+		`, logsConfigID).Scan(&configName, &provider, &modelName, &apiEndpoint, &apiKeyEnc)
 
-	case "ollama":
-		if endpoint == "" {
-			log.Fatal("FATAL: Ollama endpoint not configured in AI Factory.\nPlease set the endpoint in AI Factory configuration.")
-		}
-		ollamaClient := providers.NewOllamaClient(endpoint, modelName)
-		rawAIClient = ollamaClient
-		adaptedAIClient = logs_services.NewOllamaAdapter(ollamaClient)
-		log.Printf("✓ AI provider ready: Ollama (%s - %s)\n", endpoint, modelName)
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("WARN: LLM config %s not found in AI Factory database - continuing without AI", logsConfigID)
+			rawAIClient = nil
+			adaptedAIClient = nil
+		} else if err != nil {
+			log.Printf("WARN: Failed to query LLM config from database: %v - continuing without AI", err)
+			rawAIClient = nil
+			adaptedAIClient = nil
+		} else {
+			log.Printf("AI Factory configuration loaded: %s (%s - %s)\n", configName, provider, modelName)
 
-	case "openai":
-		if apiKey == "" {
-			log.Fatalf("FATAL: OpenAI API key not set in AI Factory for config '%s'", configName)
-		}
-		// OpenAI client implementation would go here
-		log.Fatalf("FATAL: OpenAI provider not yet implemented. Please use Anthropic or Ollama.")
+			// Decrypt API key (AI Factory stores encrypted keys)
+			var apiKey string
+			if apiKeyEnc.Valid && apiKeyEnc.String != "" {
+				// TODO: Implement decryption using Portal's encryption service
+				// For now, assume keys are stored as base64-encoded
+				apiKey = apiKeyEnc.String
+			}
 
-	default:
-		log.Fatalf("FATAL: Unsupported AI provider '%s' configured in AI Factory.\nSupported providers: anthropic, ollama", provider)
+			endpoint := apiEndpoint.String
+			if endpoint == "" && provider == "ollama" {
+				endpoint = "http://host.docker.internal:11434" // Default Ollama endpoint
+			}
+
+			// Initialize AI provider based on configuration
+			switch provider {
+			case "anthropic":
+				if apiKey == "" {
+					log.Printf("WARN: Anthropic API key not set in AI Factory for config '%s' - continuing without AI", configName)
+					rawAIClient = nil
+					adaptedAIClient = nil
+				} else {
+					anthropicClient := providers.NewAnthropicClient(apiKey, modelName)
+					rawAIClient = anthropicClient
+					adaptedAIClient = logs_services.NewAnthropicAdapter(anthropicClient)
+					log.Printf("✓ AI provider ready: Anthropic (%s)\n", modelName)
+				}
+
+			case "ollama":
+				if endpoint == "" {
+					log.Printf("WARN: Ollama endpoint not configured in AI Factory - continuing without AI")
+					rawAIClient = nil
+					adaptedAIClient = nil
+				} else {
+					ollamaClient := providers.NewOllamaClient(endpoint, modelName)
+					rawAIClient = ollamaClient
+					adaptedAIClient = logs_services.NewOllamaAdapter(ollamaClient)
+					log.Printf("✓ AI provider ready: Ollama (%s - %s)\n", endpoint, modelName)
+				}
+
+			case "openai":
+				if apiKey == "" {
+					log.Printf("WARN: OpenAI API key not set in AI Factory for config '%s' - continuing without AI", configName)
+					rawAIClient = nil
+					adaptedAIClient = nil
+				} else {
+					// OpenAI client implementation would go here
+					log.Printf("WARN: OpenAI provider not yet implemented - continuing without AI")
+					rawAIClient = nil
+					adaptedAIClient = nil
+				}
+
+			default:
+				log.Printf("WARN: Unsupported AI provider '%s' in AI Factory - continuing without AI", provider)
+				rawAIClient = nil
+				adaptedAIClient = nil
+			}
+		}
 	}
 
-	aiAnalyzer := logs_services.NewAIAnalyzer(rawAIClient)
-	patternMatcher := logs_services.NewPatternMatcher()
-	analysisService := logs_services.NewAnalysisService(aiAnalyzer, patternMatcher)
-	analysisHandler := internal_logs_handlers.NewAnalysisHandler(analysisService, logger)
-
-	log.Printf("✓ AI analysis services ready\n")
+	// Initialize AI analysis services (if AI available)
+	var analysisHandler *internal_logs_handlers.AnalysisHandler
+	if rawAIClient != nil {
+		aiAnalyzer := logs_services.NewAIAnalyzer(rawAIClient)
+		patternMatcher := logs_services.NewPatternMatcher()
+		analysisService := logs_services.NewAnalysisService(aiAnalyzer, patternMatcher)
+		analysisHandler = internal_logs_handlers.NewAnalysisHandler(analysisService, logger)
+		log.Printf("✓ AI analysis services ready\n")
+	} else {
+		log.Printf("INFO: AI analysis services disabled (no LLM configured)\n")
+	}
 
 	// Week 1: Cross-Repository Logging - Initialize batch ingestion services
 	projectRepo := logs_db.NewProjectRepository(dbConn)
@@ -389,21 +435,41 @@ func main() {
 		resthandlers.UpdateAlertConfig(alertSvc)(c)
 	})
 
-	// Phase 1: AI-Driven Diagnostics - Analysis endpoints
-	router.POST("/api/logs/analyze", analysisHandler.AnalyzeLog)
-	router.POST("/api/logs/classify", analysisHandler.ClassifyLog)
+	// Phase 1: AI-Driven Diagnostics - Analysis endpoints (if AI available)
+	if analysisHandler != nil {
+		router.POST("/api/logs/analyze", analysisHandler.AnalyzeLog)
+		router.POST("/api/logs/classify", analysisHandler.ClassifyLog)
+	} else {
+		router.POST("/api/logs/analyze", func(c *gin.Context) {
+			c.JSON(503, gin.H{"error": "AI analysis not available - no LLM configured"})
+		})
+		router.POST("/api/logs/classify", func(c *gin.Context) {
+			c.JSON(503, gin.H{"error": "AI classification not available - no LLM configured"})
+		})
+	}
 
-	// Phase 2: AI Insights - Initialize AI insights services
-	aiInsightsRepo := logs_db.NewAIInsightsRepository(dbConn)
-	logRepoAdapter := logs_services.NewLogRepositoryAdapter(logRepo)
-	aiInsightsService := logs_services.NewAIInsightsService(adaptedAIClient, logRepoAdapter, aiInsightsRepo)
-	aiInsightsHandler := internal_logs_handlers.NewAIInsightsHandler(aiInsightsService, logger, logEntryRepo)
+	// Phase 2: AI Insights - Initialize AI insights services (if AI available)
+	var aiInsightsHandler *internal_logs_handlers.AIInsightsHandler
+	if adaptedAIClient != nil {
+		aiInsightsRepo := logs_db.NewAIInsightsRepository(dbConn)
+		logRepoAdapter := logs_services.NewLogRepositoryAdapter(logRepo)
+		aiInsightsService := logs_services.NewAIInsightsService(adaptedAIClient, logRepoAdapter, aiInsightsRepo)
+		aiInsightsHandler = internal_logs_handlers.NewAIInsightsHandler(aiInsightsService, logger, logEntryRepo)
+		log.Println("AI insights service initialized - ready for log analysis")
+	}
 
-	// AI insights endpoints
-	router.POST("/api/logs/:id/insights", aiInsightsHandler.GenerateInsights)
-	router.GET("/api/logs/:id/insights", aiInsightsHandler.GetInsights)
-
-	log.Println("AI insights service initialized - ready for log analysis")
+	// AI insights endpoints (if AI available)
+	if aiInsightsHandler != nil {
+		router.POST("/api/logs/:id/insights", aiInsightsHandler.GenerateInsights)
+		router.GET("/api/logs/:id/insights", aiInsightsHandler.GetInsights)
+	} else {
+		router.POST("/api/logs/:id/insights", func(c *gin.Context) {
+			c.JSON(503, gin.H{"error": "AI insights not available - no LLM configured"})
+		})
+		router.GET("/api/logs/:id/insights", func(c *gin.Context) {
+			c.JSON(503, gin.H{"error": "AI insights not available - no LLM configured"})
+		})
+	}
 
 	// Phase 3: Smart Tagging System - Initialize tag management
 	tagsHandler := internal_logs_handlers.NewTagsHandler(logRepo)
@@ -439,6 +505,15 @@ func main() {
 
 	// Health check endpoint (system-wide diagnostics)
 	router.GET("/api/logs/healthcheck", resthandlers.GetHealthCheck)
+
+	// Simple health endpoint for smoke tests
+	router.GET("/api/logs/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"service": "logs",
+			"status":  "healthy",
+			"version": "1.0.0",
+		})
+	})
 
 	// Phase 3: Health Intelligence - Initialize services
 	storageService := logs_services.NewHealthStorageService(dbConn)

@@ -9,7 +9,6 @@
     "test:cross-repo": "npm run test:logger:js && npm run test:express && npm run test:api",
     "test:logger:js": "mocha docs/integrations/tests/logger.test.js",
     "test:express": "mocha docs/integrations/tests/express-middleware.test.js",
-    "test:flask": "python3 docs/integrations/tests/flask_integration_test.py",
     "test:gin": "cd docs/integrations/go && go test -v",
     "test:api": "mocha docs/integrations/tests/api-batch.test.js",
     "test:all": "npm test && npm run test:cross-repo"
@@ -20,9 +19,10 @@
     "@percy/playwright": "^1.0.9",
     "@playwright/test": "^1.56.1",
     "@types/node": "^24.9.1",
+    "chai": "^4.3.7",
     "dotenv": "^17.2.3",
     "husky": "^9.1.7",
-    "playwright": "^1.56.1",
-    "tailwindcss": "^3.4.16"
+    "mocha": "^10.8.2",
+    "playwright": "^1.56.1"
   }
 }

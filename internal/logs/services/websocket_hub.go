@@ -53,6 +53,8 @@ type Client struct {
 	writeMu  sync.Mutex
 	IsAuth   bool
 	IsPublic bool
+	// wg tracks goroutines (ReadPump, WritePump) for clean shutdown
+	wg sync.WaitGroup
 }
 
 // NewWebSocketHub creates and returns a new WebSocketHub instance.
@@ -283,7 +285,14 @@ func (h *WebSocketHub) closeInactiveClient(client *Client) {
 			log.Printf("error closing inactive client connection: %v", err)
 		}
 		c.writeMu.Unlock()
-		h.closeClient(c)
+
+		// Use unregister channel to ensure thread-safe removal from hub
+		// This prevents race condition with hub.Run() goroutine
+		select {
+		case h.unregister <- c:
+		default:
+			// If unregister channel is full, hub is shutting down
+		}
 	}(client)
 }
 
@@ -372,12 +381,19 @@ func (h *WebSocketHub) Register(client *Client) {
 // WritePump sends messages from the client's Send channel to the WebSocket connection.
 // It runs in its own goroutine for each client and closes when the connection is lost.
 func (c *Client) WritePump(hub *WebSocketHub) {
+	c.wg.Add(1)
+	defer c.wg.Done()
 	defer func() {
 		if err := c.Conn.Close(); err != nil {
 			log.Printf("Error closing WebSocket connection: %v", err)
 		}
-		// Unregister when write pump exits
-		hub.unregister <- c
+		// Unregister when write pump exits (non-blocking to avoid deadlock during shutdown)
+		select {
+		case hub.unregister <- c:
+			// Successfully unregistered
+		default:
+			// Hub stopped, registration no longer possible (this is OK during test cleanup)
+		}
 	}()
 
 	for {
@@ -408,14 +424,21 @@ func (c *Client) WritePump(hub *WebSocketHub) {
 // It runs in its own goroutine for each client and handles the pong handler
 // for heartbeat responses. It closes when the connection is lost.
 func (c *Client) ReadPump(hub *WebSocketHub) {
+	c.wg.Add(1)
+	defer c.wg.Done()
 	defer func() {
 		// Close done channel to signal WritePump to exit
 		close(c.done)
 		if err := c.Conn.Close(); err != nil {
 			log.Printf("Error closing WebSocket connection: %v", err)
 		}
-		// Unregister when read pump exits
-		hub.unregister <- c
+		// Unregister when read pump exits (non-blocking to avoid deadlock during shutdown)
+		select {
+		case hub.unregister <- c:
+			// Successfully unregistered
+		default:
+			// Hub stopped, registration no longer possible (this is OK during test cleanup)
+		}
 	}()
 
 	if err := c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {

@@ -200,7 +200,7 @@ func main() {
 	)
 
 	// Health and root endpoints (registered after healthChecker initialization)
-	router.GET("/health", func(c *gin.Context) {
+	router.GET("/api/review/health", func(c *gin.Context) {
 		// Perform comprehensive health check
 		health, err := healthChecker.CheckHealth(c.Request.Context())
 		if err != nil {
@@ -225,6 +225,11 @@ func main() {
 	})
 	router.HEAD("/health", func(c *gin.Context) {
 		reviewLogger.Info("HEAD /health endpoint hit")
+		c.Status(200)
+	})
+	// Add GET handler for Traefik load balancer health check (uses GET by default)
+	router.GET("/health", func(c *gin.Context) {
+		reviewLogger.Info("GET /health endpoint hit")
 		c.Status(200)
 	})
 

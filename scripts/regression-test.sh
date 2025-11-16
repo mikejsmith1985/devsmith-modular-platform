@@ -156,13 +156,13 @@ if ! docker-compose ps 2>&1 | grep -q "Up"; then
     exit 1
 fi
 
-# Check all service health
-log_info "Checking service health..."
-check_service "$BASE_URL" "Gateway (Nginx)" || exit 1
+# Check all service health through Traefik gateway (ALL access must go through localhost:3000)
+log_info "Checking service health through Traefik gateway..."
+check_service "$BASE_URL" "Gateway (Traefik)" || exit 1
 check_service "$BASE_URL/health" "Portal" || exit 1
-check_service "http://localhost:8081/health" "Review" || exit 1
-check_service "http://localhost:8082/health" "Logs" || exit 1
-check_service "http://localhost:8083/health" "Analytics" || exit 1
+check_service "$BASE_URL/api/review/health" "Review" || exit 1
+check_service "$BASE_URL/api/logs/health" "Logs" || exit 1
+check_service "$BASE_URL/api/analytics/health" "Analytics" || exit 1
 
 log_success "All services healthy"
 echo ""
@@ -204,13 +204,13 @@ fi
 
 log_info "━━━ TEST 2: Review Service UI ━━━"
 
-take_screenshot "http://localhost:8081/review" "02-review-landing.png" "Review service landing"
+take_screenshot "http://localhost:3000/review" "02-review-landing.png" "Review service landing"
 
 # Review service should respond with either:
 # 1. JSON error ({"error":"Authentication required"}) for API requests
 # 2. HTML redirect to login for browser requests
 # 3. 401 status code
-REVIEW_RESPONSE=$(curl -s -w "\n%{http_code}" "http://localhost:8081/review" 2>&1 || echo "")
+REVIEW_RESPONSE=$(curl -s -w "\n%{http_code}" "http://localhost:3000/review" 2>&1 || echo "")
 
 # Check if service is responding correctly (401 or JSON error or redirect)
 if echo "$REVIEW_RESPONSE" | grep -q -i "Authentication required\|401\|302\|Found"; then
@@ -225,9 +225,9 @@ fi
 
 log_info "━━━ TEST 3: Logs Service UI ━━━"
 
-take_screenshot "http://localhost:8082" "03-logs-landing.png" "Logs service landing"
+take_screenshot "http://localhost:3000/logs" "03-logs-landing.png" "Logs service landing"
 
-LOGS_HTML=$(curl -s "http://localhost:8082" || echo "")
+LOGS_HTML=$(curl -s "http://localhost:3000/logs" || echo "")
 
 if echo "$LOGS_HTML" | grep -q -i "log\|entry\|monitor"; then
     record_test "Logs Service Accessible" "pass" "Logs service responding" "03-logs-landing.png"
@@ -241,9 +241,9 @@ fi
 
 log_info "━━━ TEST 4: Analytics Service UI ━━━"
 
-take_screenshot "http://localhost:8083" "04-analytics-landing.png" "Analytics service landing"
+take_screenshot "http://localhost:3000/analytics" "04-analytics-landing.png" "Analytics service landing"
 
-ANALYTICS_HTML=$(curl -s "http://localhost:8083" || echo "")
+ANALYTICS_HTML=$(curl -s "http://localhost:3000/analytics" || echo "")
 
 if echo "$ANALYTICS_HTML" | grep -q -i "analytic\|metric\|trend"; then
     record_test "Analytics Service Accessible" "pass" "Analytics service responding" "04-analytics-landing.png"
@@ -265,24 +265,24 @@ else
     record_test "Portal API Health Endpoint" "fail" "Portal API health check failed or invalid JSON" ""
 fi
 
-# Review health
-REVIEW_HEALTH=$(curl -s "http://localhost:8081/health" || echo '{}')
+# Review health - use Traefik gateway
+REVIEW_HEALTH=$(curl -s "http://localhost:3000/api/review/health" || echo '{}')
 if echo "$REVIEW_HEALTH" | jq -e '.status' > /dev/null 2>&1; then
     record_test "Review Health Endpoint" "pass" "Health check passed" ""
 else
     record_test "Review Health Endpoint" "fail" "Health check failed or invalid JSON" ""
 fi
 
-# Logs health
-LOGS_HEALTH=$(curl -s "http://localhost:8082/health" || echo '{}')
+# Logs health - use Traefik gateway
+LOGS_HEALTH=$(curl -s "http://localhost:3000/api/logs/health" || echo '{}')
 if echo "$LOGS_HEALTH" | jq -e '.status' > /dev/null 2>&1; then
     record_test "Logs Health Endpoint" "pass" "Health check passed" ""
 else
     record_test "Logs Health Endpoint" "fail" "Health check failed or invalid JSON" ""
 fi
 
-# Analytics health
-ANALYTICS_HEALTH=$(curl -s "http://localhost:8083/health" || echo '{}')
+# Analytics health - use Traefik gateway
+ANALYTICS_HEALTH=$(curl -s "http://localhost:3000/api/analytics/health" || echo '{}')
 if echo "$ANALYTICS_HEALTH" | jq -e '.status' > /dev/null 2>&1; then
     record_test "Analytics Health Endpoint" "pass" "Health check passed" ""
 else
@@ -341,7 +341,7 @@ log_info "━━━ TEST 8: Mode Variation Feature ━━━"
 # (AI output validation requires running services with Ollama)
 
 # Test 1: Beginner + Full mode
-MODE_TEST_BEGINNER=$(curl -s -X POST "http://localhost:8081/api/review/modes/preview" \
+MODE_TEST_BEGINNER=$(curl -s -X POST "http://localhost:3000/api/review/modes/preview" \
     -H "Content-Type: application/json" \
     -d '{"code": "func test() {}", "user_mode": "beginner", "output_mode": "full"}' \
     -o /dev/null -w "%{http_code}")
@@ -354,7 +354,7 @@ else
 fi
 
 # Test 2: Expert + Quick mode
-MODE_TEST_EXPERT=$(curl -s -X POST "http://localhost:8081/api/review/modes/preview" \
+MODE_TEST_EXPERT=$(curl -s -X POST "http://localhost:3000/api/review/modes/preview" \
     -H "Content-Type: application/json" \
     -d '{"code": "func test() {}", "user_mode": "expert", "output_mode": "quick"}' \
     -o /dev/null -w "%{http_code}")
@@ -366,7 +366,7 @@ else
 fi
 
 # Test 3: No modes (should use defaults: intermediate/quick)
-MODE_TEST_DEFAULT=$(curl -s -X POST "http://localhost:8081/api/review/modes/preview" \
+MODE_TEST_DEFAULT=$(curl -s -X POST "http://localhost:3000/api/review/modes/preview" \
     -H "Content-Type: application/json" \
     -d '{"code": "func test() {}"}' \
     -o /dev/null -w "%{http_code}")
@@ -379,7 +379,7 @@ fi
 
 # Test 4: All experience levels accepted (beginner, novice, intermediate, expert)
 for mode in "beginner" "novice" "intermediate" "expert"; do
-    MODE_TEST=$(curl -s -X POST "http://localhost:8081/api/review/modes/preview" \
+    MODE_TEST=$(curl -s -X POST "http://localhost:3000/api/review/modes/preview" \
         -H "Content-Type: application/json" \
         -d "{\"code\": \"test\", \"user_mode\": \"$mode\", \"output_mode\": \"quick\"}" \
         -o /dev/null -w "%{http_code}")
@@ -393,7 +393,7 @@ done
 
 # Test 5: Both output modes accepted (quick, full)
 for output in "quick" "full"; do
-    MODE_TEST=$(curl -s -X POST "http://localhost:8081/api/review/modes/preview" \
+    MODE_TEST=$(curl -s -X POST "http://localhost:3000/api/review/modes/preview" \
         -H "Content-Type: application/json" \
         -d "{\"code\": \"test\", \"user_mode\": \"intermediate\", \"output_mode\": \"$output\"}" \
         -o /dev/null -w "%{http_code}")
@@ -407,7 +407,7 @@ done
 
 # Test 6: GitHub Quick Scan with modes (if authenticated)
 # This test validates GitHub Quick Scan accepts mode query parameters
-GITHUB_MODE_TEST=$(curl -s -X GET "http://localhost:8081/api/review/github/quick-scan?url=https://github.com/test/repo&user_mode=expert&output_mode=full" \
+GITHUB_MODE_TEST=$(curl -s -X GET "http://localhost:3000/api/review/github/quick-scan?url=https://github.com/test/repo&user_mode=expert&output_mode=full" \
     -o /dev/null -w "%{http_code}")
 
 if [ "$GITHUB_MODE_TEST" = "401" ]; then
