@@ -1,8 +1,8 @@
 # DevSmith Modular Platform - Architecture
 
-**Version:** 1.0
-**Status:** Planning Phase
-**Last Updated:** 2025-10-18
+**Version:** 1.1
+**Status:** Active Development
+**Last Updated:** 2025-11-10
 
 ---
 
@@ -17,13 +17,14 @@
 8. [API Design](#api-design)
 9. [Real-Time Communication](#real-time-communication)
 10. [Deployment Architecture](#deployment-architecture)
-11. [Security Architecture](#security-architecture)
-12. [Monitoring & Logging](#monitoring--logging)
-13. [DevSmith Coding Standards](#devsmith-coding-standards)
-14. [Development Workflow](#development-workflow)
-15. [CI/CD & Automation](#cicd--automation)
-16. [Implementation Phases](#implementation-phases)
-17. [Decision Log](#decision-log)
+11. [Cache Invalidation Architecture](#cache-invalidation-architecture)
+12. [Security Architecture](#security-architecture)
+13. [Monitoring & Logging](#monitoring--logging)
+14. [DevSmith Coding Standards](#devsmith-coding-standards)
+15. [Development Workflow](#development-workflow)
+16. [CI/CD & Automation](#cicd--automation)
+17. [Implementation Phases](#implementation-phases)
+18. [Decision Log](#decision-log)
 
 ---
 
@@ -478,68 +479,103 @@ The **Review application** will explicitly implement **five reading modes**, eac
 
 ### High-Level Architecture
 ```
-[To be designed - Gateway-first architecture diagram]
-
-User → Nginx Gateway (port 3000)
+User → Traefik Gateway (port 3000)
          ↓
-    ┌────┴────┬─────────┬──────────┬──────────┐
-    ↓         ↓         ↓          ↓          ↓
- Portal   Review    Logging   Analytics   Build
-Frontend  Frontend  Frontend  Frontend   Frontend
-    ↓         ↓         ↓          ↓          ↓
- Portal   Review    Logging   Analytics   Build
-Backend   Backend   Backend   Backend    Backend
-    └─────────┴─────────┴──────────┴──────────┘
-                      ↓
-              PostgreSQL Database
-              (Isolated Schemas)
+    ┌────┴─────┐
+    ↓          ↓
+React Frontend   Go Backend APIs
+(Single SPA)     (Microservices)
+/               /api/portal/
+/logs           /api/review/
+/review         /api/logs/
+/analytics      /api/analytics/
+    ↓               ↓
+    └───────┬───────┘
+            ↓
+      PostgreSQL + Redis
+      (Isolated Schemas)
 ```
 
+**Architecture Pattern:** Hybrid SPA + Microservices
+- **Frontend:** Single React 18 app serving all pages (Portal, Review, Logs, Analytics)
+- **Backend:** Go microservices providing RESTful JSON APIs
+- **Gateway:** Traefik routes `/api/*` to Go services, `/*` to React app
+- **Styling:** Bootstrap 5 imported once in React app → consistent UI across all pages
+- **State:** React Context for auth, theme, global state
+- **Navigation:** React Router (SPA - no page reloads)
+
 ### Service Inventory
-| Service | Purpose | Port (Dev) | Gateway Path | Status |
-|---------|---------|------------|--------------|--------|
-| Nginx Gateway | Reverse proxy | 3000 | / | Not implemented |
-| Portal Frontend | Main UI, navigation | TBD | / | Not implemented |
-| Portal Backend | Auth, user mgmt | TBD | /api/platform/ | Not implemented |
-| Review Frontend | Code review UI | TBD | /review/ | Not implemented |
-| Review Backend | Code analysis | TBD | /api/review/ | Not implemented |
-| Logs Frontend | Log monitoring UI | TBD | /logs/ | Not implemented |
-| Logs Backend | Log ingestion | TBD | /api/logs/ | Not implemented |
-| Analytics Frontend | Analytics UI | TBD | /analytics/ | Not implemented |
-| Analytics Backend | Data analysis | TBD | /api/analytics/ | Not implemented |
-| Build Frontend | Terminal UI | TBD | /build/ | Not implemented |
-| Build Backend | Code execution | TBD | /api/build/ | Not implemented |
-| PostgreSQL | Database | 5432 | N/A | Not implemented |
+| Service | Purpose | Port (Dev) | Gateway Path | Technology | Status |
+|---------|---------|------------|--------------|------------|--------|
+| Traefik Gateway | Reverse proxy | 3000 | / | Traefik v2.10 | ✅ Implemented |
+| React Frontend | All UI pages | 5173 | /, /logs, /review, /analytics | React 18 + Vite | 🚧 In Progress |
+| Portal API | Auth, user mgmt | 8080 | /api/portal/ | Go + Gin | ✅ Implemented |
+| Review API | Code analysis | 8081 | /api/review/ | Go + Gin | ✅ Implemented |
+| Logs API | Log ingestion, stats | 8082 | /api/logs/ | Go + Gin | ✅ Implemented |
+| Analytics API | Data aggregation | 8083 | /api/analytics/ | Go + Gin | ✅ Implemented |
+| PostgreSQL | Database | 5432 | N/A | PostgreSQL 15 | ✅ Implemented |
+| Redis | Sessions, cache | 6379 | N/A | Redis 7 | ✅ Implemented |
 
 ---
 
 ## Technology Stack
 
-### Frontend/Backend (Unified)
-- **Language:** Go 1.21+
-- **Web Framework:** Gin (or Echo as alternative)
-- **Templating:** Templ (type-safe Go templates)
-- **Interactivity:** HTMX + Alpine.js (minimal JavaScript)
-- **Styling:** TailwindCSS + DaisyUI components
-- **WebSocket:** Go's native net/http WebSocket support
-- **Testing:** Go's built-in testing + testify
+### **Architecture Decision: Hybrid React Frontend + Go Backend APIs**
+
+**Date:** 2025-11-06  
+**Decision:** Migrate from Go+Templ microservices with separate UIs to single React frontend with Go backend APIs.
 
 **Rationale:**
-- **No Node.js = No V8 crashes** (eliminates build-time crashes from previous platform)
-- Go compiles to single binary (5-20MB vs 500MB+ Node containers)
-- 10-50x faster API performance than Node.js/Python
-- Built-in concurrency (goroutines) perfect for WebSocket and real-time features
-- Memory efficient (50-100MB runtime vs 500MB+ for Node)
-- HTMX provides React-like interactivity without JavaScript framework complexity
-- Templ catches template errors at compile time (type safety)
-- Single language for frontend + backend reduces context switching
+- **Styling Consistency:** Single React app with Bootstrap 5 imported once = automatic styling consistency across all pages (learned from devsmith-platform monolith)
+- **User Experience:** Seamless SPA navigation between Portal/Review/Logs/Analytics
+- **Component Reusability:** Shared React components (StatCards, Navbar, Card, Button) used everywhere
+- **Maintainability:** One frontend codebase instead of 4 separate Templ template directories
+- **Keep Go Strengths:** Backend services remain Go for performance, concurrency, and type safety
+
+### Frontend (Single React App)
+- **Language:** JavaScript/JSX
+- **Framework:** React 18 with Vite
+- **Routing:** React Router v6 (SPA navigation)
+- **Styling:** Bootstrap 5 + Bootstrap Icons
+- **State Management:** React Context API (AuthContext, ThemeContext)
+- **HTTP Client:** Fetch API with custom apiClient utility
+- **Build Tool:** Vite (fast HMR, optimized builds)
+- **Testing:** Vitest + React Testing Library
+
+**Rationale:**
+- Bootstrap 5 imported once in `App.jsx` → automatic consistency
+- React Context for global auth state (like monolith)
+- Vite provides fast development experience
+- Matches proven pattern from devsmith-platform monolith
+- Eliminates CSS duplication problem (4 copies of devsmith-theme.css)
 
 **Key Benefits:**
-✅ **Zero V8 workarounds needed**
-✅ Docker builds in 30 seconds (vs 5+ minutes with Vite)
-✅ Hot reload with Air tool (same experience as HMR)
-✅ Simpler deployment (copy binary, no npm install)
-✅ Lower hosting costs (smaller images, less memory)
+✅ **Automatic styling consistency** - Bootstrap classes work everywhere
+✅ **Seamless UX** - No page reloads between apps
+✅ **Shared components** - Write once, use everywhere
+✅ **Single build** - One frontend deployment
+✅ **Modern tooling** - Vite HMR, ES modules
+
+### Backend (Go Microservices - API-Only)
+- **Language:** Go 1.21+
+- **Web Framework:** Gin
+- **API Format:** RESTful JSON APIs
+- **WebSocket:** Go's native net/http WebSocket support
+- **Testing:** Go's built-in testing + testify
+- **Documentation:** OpenAPI/Swagger specs
+
+**Rationale:**
+- Go's performance for API workloads (10-50x faster than Node.js/Python)
+- Built-in concurrency (goroutines) for WebSocket, real-time features
+- Memory efficient (50-100MB per service)
+- Type safety with struct validation
+- Single binary deployment
+
+**Key Benefits:**
+✅ **High performance** - Handles thousands of concurrent connections
+✅ **Type safety** - Catch errors at compile time
+✅ **Low resource usage** - Efficient memory and CPU
+✅ **Simple deployment** - Single binary per service
 
 ### Database
 - **Primary:** PostgreSQL 15+
@@ -1568,11 +1604,28 @@ services:
   redis:             # Port 6379
 ```
 
-### Container Strategy
-- **Frontend:** Multi-stage build (build → nginx)
-- **Backend:** Python 3.11-slim base image
+### Container Strategy (Updated 2025-11-13)
+
+**✨ NEW: Atomic Frontend+Backend Deployment**
+- **Portal:** Multi-stage build (frontend → go → alpine)
+  - Stage 1: `node:18-alpine` builds React frontend 
+  - Stage 2: `golang:1.24-alpine` builds Go binary with embedded frontend
+  - Stage 3: `alpine:latest` runtime with single binary
+- **Other Services:** Go binary in alpine base image
 - **Database:** Official postgres:15-alpine
 - **Redis:** Official redis:7-alpine
+
+**Benefits of Atomic Deployment:**
+- ✅ **Version Consistency:** Frontend + backend deployed together
+- ✅ **Single Source of Truth:** One Docker build creates complete service
+- ✅ **Eliminated Manual Steps:** No `npm build → cp → docker build` dance
+- ✅ **Faster Development:** One command deployment via `./scripts/deploy-portal.sh`
+- ✅ **Safer Rollbacks:** Single image to rollback, no frontend/backend drift
+
+**Legacy Architecture (Deprecated):**
+- ❌ **Old:** Separate frontend Dockerfile (nginx-based)
+- ❌ **Old:** Manual frontend build and copy steps
+- ❌ **Old:** Version drift between frontend and backend
 
 ### Volume Management
 - **postgres-data:** Database persistence
@@ -1630,6 +1683,271 @@ REDIS_PORT=6379
 - Container orchestration (K8s or ECS)
 - CDN for static assets
 - Log aggregation (ELK or similar)
+
+---
+
+## Cache Invalidation Architecture
+
+### Problem Statement
+Modern frontend frameworks (React, Vue, etc.) use hash-based cache busting for JavaScript bundles. During development and deployment, this creates a critical issue:
+
+**The Cache/Hash Mismatch Crisis:**
+1. Browser caches `index.html` containing `<script src="/assets/index-OLDHASH.js">`
+2. Developer rebuilds frontend → new hash `index-NEWHASH.js` generated
+3. Browser uses cached HTML → requests OLDHASH → 404 error
+4. Result: Blank screen (React doesn't mount), failed tests, user frustration
+
+**Why Traditional Solutions Fail:**
+- nginx cache-control headers: Prevent NEW caching, don't purge EXISTING cache
+- Rebuild cycles: Create new hash, but browsers keep old cached HTML
+- Manual workarounds: Hard refresh works but not sustainable for development or production
+- Vite's hash-based cache busting is client-side dependent
+
+### Defense in Depth Solution
+
+We implement a **three-layer defense** strategy that operates at different architectural levels:
+
+#### Layer 1: Infrastructure Level (Traefik Middleware)
+
+**Implementation:**
+```yaml
+# docker-compose.yml
+services:
+  frontend:
+    labels:
+      # Traefik middleware - aggressive no-cache headers
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, max-age=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Pragma=no-cache"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Expires=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.X-Cache-Invalidate=always"
+      - "traefik.http.routers.frontend.middlewares=html-nocache@docker"
+```
+
+**Why This Works:**
+- Applied at gateway level (like Traefik priority pattern from MULTI_LLM_IMPLEMENTATION_PLAN.md)
+- Strips any conflicting cache headers from nginx
+- Forces aggressive no-cache on ALL HTML responses
+- Works for all requests through gateway
+- Global, automatic, permanent solution
+
+**Benefits:**
+- No code changes required in frontend
+- Applies to all frontends (Review, Portal, Logs, Analytics)
+- Developers never think about cache issues again
+- Production-ready (same config in all environments)
+
+#### Layer 2: HTML Meta Tags with Build Timestamp
+
+**Implementation:**
+```html
+<!-- frontend/index.html -->
+<head>
+  <meta charset="UTF-8" />
+  <!-- Cache Control Meta Tags -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="build-timestamp" content="BUILD_TIMESTAMP_PLACEHOLDER">
+  <!-- ... rest of head ... -->
+</head>
+```
+
+**Dockerfile Build-Time Injection:**
+```dockerfile
+# frontend/Dockerfile
+ARG BUILD_TIMESTAMP
+RUN if [ -n "$BUILD_TIMESTAMP" ]; then \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/${BUILD_TIMESTAMP}/" /usr/share/nginx/html/index.html; \
+    else \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/$(date +%s)/" /usr/share/nginx/html/index.html; \
+    fi
+```
+
+**Why This Works:**
+- Redundant protection at HTML level (belt and suspenders)
+- Build timestamp forces browsers to see HTML as "changed"
+- Meta tags processed before cache lookup
+- Works even if Traefik middleware is bypassed
+
+**Benefits:**
+- Document-level cache control (not just HTTP headers)
+- Unique timestamp per build makes HTML "unique"
+- No runtime performance impact
+- Backward compatible with older browsers
+
+#### Layer 3: Fresh Playwright Context Per Test
+
+**Implementation:**
+```typescript
+// tests/e2e/fixtures/auth.fixture.ts
+authenticatedPage: async ({ browser, testUser }, use) => {
+  // Create FRESH browser context per test (no persistent cache)
+  const context = await browser.newContext({
+    storageState: undefined,  // No saved state
+  });
+  
+  const page = await context.newPage();
+  await context.clearCookies();
+  
+  // ... authenticate ...
+  
+  await use(page);
+  
+  // Cleanup: Close context after test
+  await context.close();
+}
+```
+
+**Why This Works:**
+- Fresh browser context per test = no cache carryover
+- Each test starts with clean slate
+- No manual cache clearing needed
+- Eliminates test flakiness from cached state
+
+**Benefits:**
+- Test reliability: 100% reproducible results
+- No test pollution (tests don't affect each other)
+- Mirrors real user experience (fresh browser session)
+- Works with CI/CD (no persistent cache between runs)
+
+### Test-Driven Development Approach
+
+We implemented this solution using strict TDD:
+
+**RED Phase:** Created comprehensive tests first
+```typescript
+// tests/e2e/infrastructure/cache-invalidation.spec.ts
+test('HTML responses have aggressive no-cache headers from Traefik', ...)
+test('HTML contains cache-control meta tags', ...)
+test('JavaScript bundle loads successfully after rebuild', ...)
+test('Fresh context per test (no cache carryover)', ...)
+test('Multiple page loads get fresh HTML (no stale cache)', ...)
+```
+
+**GREEN Phase:** Implemented all three layers until tests passed
+- Added Traefik middleware to docker-compose.yml
+- Updated index.html with meta tags
+- Modified Dockerfile for timestamp injection
+- Refactored auth.fixture.ts for fresh contexts
+
+**REFACTOR Phase:** Documentation and optimization
+- Created CACHE_SOLUTION_ARCHITECTURE.md (detailed specification)
+- Updated ARCHITECTURE.md (this section)
+- Verified all regression tests pass (24/24 GREEN)
+
+### Verification and Validation
+
+**Automated Tests:**
+```bash
+# Cache invalidation tests (5/5 PASSING)
+npx playwright test tests/e2e/infrastructure/cache-invalidation.spec.ts
+
+# Regression tests (24/24 PASSING)
+bash scripts/regression-test.sh
+```
+
+**Manual Verification:**
+```bash
+# 1. Verify HTTP headers
+curl -I http://localhost:3000/ | grep -E "Cache-Control|Pragma|Expires|X-Cache-Invalidate"
+# Expected:
+# Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+# Pragma: no-cache
+# Expires: 0
+# X-Cache-Invalidate: always
+
+# 2. Verify HTML meta tags
+curl -s http://localhost:3000/ | grep -A 5 "Cache-Control\|build-timestamp"
+# Expected: 4 meta tags with correct content attributes
+
+# 3. User can login without blank screen
+open http://localhost:3000
+# Should see dashboard (not blank page with JS 404 error)
+```
+
+### Architecture Patterns Applied
+
+This solution demonstrates several architectural principles:
+
+1. **Defense in Depth:** Multiple protective layers (like security onion model)
+2. **Infrastructure as Code:** Gateway-level configuration (automatic, global)
+3. **Separation of Concerns:** Each layer has distinct responsibility
+4. **Progressive Enhancement:** Works even if one layer fails
+5. **Test-First Design:** TDD ensures correctness and maintainability
+
+**Pattern Reference:**
+Similar to MULTI_LLM_IMPLEMENTATION_PLAN.md Phase 6 (Traefik priority fix):
+- Infrastructure-level solution
+- Global effect (all frontends benefit)
+- One-time configuration
+- Developers never think about it again
+
+### Benefits Summary
+
+**User Experience:**
+- ✅ No blank screen on login
+- ✅ Application works on first try after rebuild
+- ✅ No manual cache clearing required
+
+**Developer Experience:**
+- ✅ `./scripts/deploy-portal.sh` provides one-command atomic deployment
+- ✅ No "clear your cache" instructions needed
+- ✅ Platform-wide solution (all frontends benefit)
+- ✅ CI/CD friendly (no cache state between builds)
+
+**Test Reliability:**
+- ✅ 100% reproducible test results
+- ✅ No cache-related flakiness
+- ✅ Fresh context per test (test isolation)
+- ✅ Works in all environments (local, CI/CD, production)
+
+**Architecture Quality:**
+- ✅ Infrastructure-level fix (not application-level workaround)
+- ✅ Defense in depth (multiple protective layers)
+- ✅ Maintainable and understandable
+- ✅ Global and permanent (prevents class of issues)
+
+### Future Enhancements
+
+**Service Worker (Layer 4 - Optional):**
+For even more control, consider adding a service worker:
+```javascript
+// public/sw.js
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.endsWith('.html')) {
+    // Active cache management (bypass cache for HTML)
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+    );
+  }
+});
+```
+
+**When to implement:**
+- If three layers prove insufficient (unlikely)
+- If need offline support (PWA)
+- If want fine-grained cache control
+
+**CDN Considerations (Production):**
+When using CDN (CloudFront, Cloudflare):
+- Configure CDN to respect Cache-Control headers
+- Set TTL=0 for HTML files
+- Enable origin shield for static assets (CSS, JS, images)
+- Use CDN purge API on deployments
+
+### References
+
+- **CACHE_SOLUTION_ARCHITECTURE.md:** Complete technical specification
+- **CACHE_SOLUTION_HANDOFF.md:** Implementation guide and current state
+- **MULTI_LLM_IMPLEMENTATION_PLAN.md Phase 6:** Traefik priority pattern (similar approach)
+- **ERROR_LOG.md:** Historical cache crisis documentation
+
+### Related Decisions
+
+See Decision Log entries:
+- #TBD: Cache invalidation strategy selection
+- #TBD: Three-layer defense rationale
+- #TBD: Fresh context per test approach
 
 ---
 

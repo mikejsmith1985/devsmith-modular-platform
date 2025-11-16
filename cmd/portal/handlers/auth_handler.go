@@ -29,20 +29,36 @@ func RegisterAuthRoutes(r *gin.Engine, dbConn *sql.DB) {
 		c.Redirect(http.StatusFound, url)
 	})
 
-	r.GET("/auth/github/callback", func(c *gin.Context) {
-		code := c.Query("code")
-		if code == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code"})
+	// PKCE token exchange endpoint for React frontend
+	r.POST("/api/portal/auth/token", func(c *gin.Context) {
+		var req struct {
+			Code         string `json:"code" binding:"required"`
+			State        string `json:"state" binding:"required"`
+			CodeVerifier string `json:"code_verifier" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 			return
 		}
-		user, token, err := authService.AuthenticateWithGitHub(c.Request.Context(), code)
+
+		// TODO: Validate PKCE code_verifier against stored code_challenge
+		// For now, just exchange the code for a token
+		user, token, err := authService.AuthenticateWithGitHub(c.Request.Context(), req.Code)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed: " + err.Error()})
 			return
 		}
-		// Set JWT as cookie
-		c.SetCookie("devsmith_token", token, 86400, "/", "", false, true)
-		c.JSON(http.StatusOK, gin.H{"user": user, "token": token})
+
+		// Return token to frontend
+		c.JSON(http.StatusOK, gin.H{
+			"token": token,
+			"user": gin.H{
+				"id":       user.ID,
+				"username": user.Username,
+				"email":    user.Email,
+			},
+		})
 	})
 
 	r.POST("/auth/logout", func(c *gin.Context) {

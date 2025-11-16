@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/templates"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/security"
 )
 
 // DashboardHandler serves the main dashboard page
@@ -127,10 +128,7 @@ func LogsDashboardHandler(c *gin.Context) {
 	}
 
 	// Fetch dashboard data from logs service API
-	logsServiceURL := os.Getenv("LOGS_SERVICE_URL")
-	if logsServiceURL == "" {
-		logsServiceURL = "http://localhost:8082"
-	}
+	logsServiceURL := config.GetServiceURL("logs")
 
 	// Fetch dashboard stats
 	stats, err := fetchLogsData(c.Request.Context(), logsServiceURL+"/api/logs/dashboard/stats")
@@ -221,5 +219,5 @@ func fetchLogsData(ctx context.Context, url string) (interface{}, error) {
 
 // getJWTKey returns the shared JWT signing key.
 func getJWTKey() []byte {
-	return []byte("your-secret-key")
+	return security.GetJWTSecret()
 }

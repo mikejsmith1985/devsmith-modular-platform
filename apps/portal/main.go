@@ -12,6 +12,10 @@ func main() {
 	// Initialize Gin router
 	r := gin.Default()
 
+	// Authentication routes
+	r.GET("/auth/login", portal_handlers.HandleGitHubOAuthLogin)
+	r.GET("/auth/github/callback", portal_handlers.HandleGitHubOAuthCallback)
+
 	// Dashboard routes (middleware temporarily disabled for testing)
 	r.GET("/dashboard", portal_handlers.DashboardHandler)
 	r.GET("/api/v1/dashboard/user", portal_handlers.GetUserInfoHandler)

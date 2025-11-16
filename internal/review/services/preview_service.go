@@ -2,58 +2,121 @@ package review_services
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
+	review_errors "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/errors"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 )
 
-// PreviewResult holds the analysis for Preview Mode
-type PreviewResult struct {
-	FileTree                []FileNode
-	BoundedContexts         []string
-	TechStack               []string
-	ArchitecturePattern     string
-	EntryPoints             []string
-	ExternalDependencies    []string
-	Summary                 string
-	FunctionImplementations []string // Should be empty in Preview Mode
-}
-
-// FileNode represents a node in the file/folder tree
-type FileNode struct {
-	Name        string
-	Path        string
-	Description string
-	Children    []FileNode
-}
-
-// PreviewService provides Preview Mode analysis
+// PreviewService provides Preview Mode analysis for code review sessions.
 type PreviewService struct {
-	logger logger.Interface
+	ollamaClient OllamaClientInterface
+	logger       logger.Interface
 }
 
-// NewPreviewService creates a new PreviewService with logger.
-func NewPreviewService(logger logger.Interface) *PreviewService {
-	return &PreviewService{logger: logger}
-}
-
-// AnalyzePreview analyzes the codebase in Preview Mode.
-// It returns a PreviewResult containing high-level structure and context for the given codebase.
-func (s *PreviewService) AnalyzePreview(ctx context.Context, code string) (*PreviewResult, error) {
-	correlationID := ctx.Value(logger.CorrelationIDKey)
-	s.logger.Info("AnalyzePreview called", "correlation_id", correlationID)
-
-	// TODO: Integrate AI analysis logic here
-	// For now, return mock data
-	result := &PreviewResult{
-		FileTree:                []FileNode{{Name: "main.go", Path: "/main.go", Description: "Main entry point", Children: nil}},
-		BoundedContexts:         []string{"Auth domain", "Review domain"},
-		TechStack:               []string{"Go", "Gin"},
-		ArchitecturePattern:     "layered",
-		EntryPoints:             []string{"main.go"},
-		ExternalDependencies:    []string{"PostgreSQL", "Redis"},
-		Summary:                 "This is a Go microservice using Gin and PostgreSQL.",
-		FunctionImplementations: []string{},
+// NewPreviewService creates a new PreviewService with the given dependencies.
+func NewPreviewService(ollamaClient OllamaClientInterface, logger logger.Interface) *PreviewService {
+	return &PreviewService{
+		ollamaClient: ollamaClient,
+		logger:       logger,
 	}
-	s.logger.Info("AnalyzePreview completed", "correlation_id", correlationID, "result_summary", result.Summary)
-	return result, nil
+}
+
+// AnalyzePreview performs Preview Mode analysis for the given code.
+// Returns rapid structural assessment.
+// userMode: beginner, novice, intermediate, expert (adjusts explanation tone)
+// outputMode: quick (concise), full (includes reasoning trace)
+// Returns error if analysis fails.
+func (s *PreviewService) AnalyzePreview(ctx context.Context, code, userMode, outputMode string) (*review_models.PreviewModeOutput, error) {
+	// Start tracing span
+	tracer := otel.Tracer("devsmith-review")
+	ctx, span := tracer.Start(ctx, "PreviewService.AnalyzePreview",
+		trace.WithAttributes(
+			attribute.Int("code_length", len(code)),
+			attribute.String("user_mode", userMode),
+			attribute.String("output_mode", outputMode),
+		),
+	)
+	defer span.End()
+
+	correlationID := ctx.Value(logger.CorrelationIDKey)
+	s.logger.Info("AnalyzePreview called", "correlation_id", correlationID, "code_length", len(code), "user_mode", userMode, "output_mode", outputMode)
+
+	// Build prompt using template with user/output modes
+	prompt := BuildPreviewPrompt(code, userMode, outputMode)
+	span.SetAttributes(attribute.Int("prompt_length", len(prompt)))
+
+	start := time.Now()
+	rawOutput, err := s.ollamaClient.Generate(ctx, prompt)
+	duration := time.Since(start)
+	span.SetAttributes(
+		attribute.Int64("ollama_duration_ms", duration.Milliseconds()),
+		attribute.Int("response_length", len(rawOutput)),
+	)
+
+	if err != nil {
+		s.logger.Error("PreviewService: AI call failed", "correlation_id", correlationID, "error", err, "duration_ms", duration.Milliseconds())
+		aiErr := &review_errors.InfrastructureError{
+			Code:       "ERR_OLLAMA_UNAVAILABLE",
+			Message:    "AI analysis service is unavailable",
+			Cause:      err,
+			HTTPStatus: http.StatusServiceUnavailable,
+		}
+		span.RecordError(aiErr)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, aiErr
+	}
+	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
+
+	// Extract JSON from response (handles cases where AI adds extra text)
+	jsonStr, extractErr := ExtractJSON(rawOutput)
+	if extractErr != nil {
+		s.logger.Error("PreviewService: failed to extract JSON", "correlation_id", correlationID, "error", extractErr)
+		extractErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      extractErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(extractErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, extractErrWrapped
+	}
+
+	// Parse JSON response
+	var output review_models.PreviewModeOutput
+	if parseErr := json.Unmarshal([]byte(jsonStr), &output); parseErr != nil {
+		s.logger.Error("PreviewService: failed to parse AI output", "correlation_id", correlationID, "error", parseErr)
+		parseErrWrapped := &review_errors.InfrastructureError{
+			Code:       "ERR_AI_RESPONSE_INVALID",
+			Message:    "AI returned invalid response format",
+			Cause:      parseErr,
+			HTTPStatus: http.StatusBadGateway,
+		}
+		span.RecordError(parseErrWrapped)
+		span.SetAttributes(attribute.Bool("error", true))
+		return nil, parseErrWrapped
+	}
+
+	// Validate output structure
+	if output.Summary == "" {
+		output.Summary = "No summary provided by AI"
+	}
+
+	span.SetAttributes(
+		attribute.Bool("error", false),
+		attribute.Bool("success", true),
+		attribute.Int("bounded_contexts_count", len(output.BoundedContexts)),
+		attribute.Int("tech_stack_count", len(output.TechStack)),
+	)
+
+	s.logger.Info("PreviewService: analysis completed successfully", "correlation_id", correlationID, "bounded_contexts_count", len(output.BoundedContexts))
+	return &output, nil
 }

@@ -50,6 +50,10 @@ import (
 
 // TestPerformanceRepository_BulkInsert_1000Logs tests bulk insert functionality for 1000 logs
 func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -74,13 +78,17 @@ func TestPerformanceRepository_BulkInsert_1000Logs(t *testing.T) {
 
 	// Verify all entries were inserted
 	var count int64
-	err = db.QueryRow("SELECT COUNT(*) FROM logs.log_entries WHERE service = 'logs'").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM logs.entries WHERE service = 'logs'").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), count, "All 1000 entries should be persisted")
 }
 
 // TestPerformanceRepository_BulkInsert_CompletesUnder500ms tests that bulk insert of 1000 logs completes quickly
 func TestPerformanceRepository_BulkInsert_CompletesUnder500ms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -136,7 +144,7 @@ func TestPerformanceRepository_HasIndexesOnQueryFields(t *testing.T) {
 		query := `
 			SELECT COUNT(*)
 			FROM pg_indexes
-			WHERE tablename = 'log_entries' AND indexname LIKE $1
+			WHERE tablename = 'entries' AND indexname LIKE $1
 		`
 		var count int
 		err := db.QueryRowContext(ctx, query, "%"+field+"%").Scan(&count)
@@ -155,7 +163,7 @@ func TestPerformanceRepository_CanExplainAnalyzeSlowQueries(t *testing.T) {
 	// Sample query to analyze
 	query := `
 		SELECT service, level, COUNT(*) as count
-		FROM logs.log_entries
+		FROM logs.entries
 		WHERE timestamp > NOW() - INTERVAL '1 day'
 		GROUP BY service, level
 	`
@@ -179,6 +187,10 @@ func TestPerformanceRepository_CanExplainAnalyzeSlowQueries(t *testing.T) {
 
 // TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond tests 1000 logs/sec sustained throughput
 func TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -218,6 +230,10 @@ func TestPerformanceRepository_Ingestion_Achieves1000LogsPerSecond(t *testing.T)
 
 // TestPerformanceRepository_Ingestion_LatencyUnder50msP95 tests ingestion latency
 func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -251,6 +267,10 @@ func TestPerformanceRepository_Ingestion_LatencyUnder50msP95(t *testing.T) {
 
 // TestPerformanceRepository_QueryLatency_Under100msP95 tests query latency
 func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -280,7 +300,7 @@ func TestPerformanceRepository_QueryLatency_Under100msP95(t *testing.T) {
 		// Execute a representative query
 		query := `
 			SELECT id, timestamp, level, message, service
-			FROM logs.log_entries
+			FROM logs.entries
 			WHERE service = 'portal'
 			LIMIT 10
 		`
@@ -352,6 +372,10 @@ func BenchmarkPerformanceRepository_SingleInsert(b *testing.B) {
 
 // TestPerformanceRepository_WebSocket_100ConcurrentClients tests concurrent WebSocket clients
 func TestPerformanceRepository_WebSocket_100ConcurrentClients(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test that requires Docker/testcontainers in short mode")
+	}
+
 	db := setupPerformanceTestDB(t)
 	defer teardownPerformanceTestDB(t, db)
 
@@ -483,9 +507,9 @@ func setupPerformanceTestDB(t *testing.T) *sql.DB {
 	_, err = db.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS logs")
 	require.NoError(t, err)
 
-	// Create log_entries table
+	// Create entries table (matching actual migration schema)
 	_, err = db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS logs.log_entries (
+		CREATE TABLE IF NOT EXISTS logs.entries (
 			id BIGSERIAL PRIMARY KEY,
 			user_id BIGINT,
 			service TEXT NOT NULL,
@@ -502,12 +526,12 @@ func setupPerformanceTestDB(t *testing.T) *sql.DB {
 
 	// Create indexes on query fields for performance
 	_, err = db.ExecContext(ctx, `
-		CREATE INDEX IF NOT EXISTS idx_log_entries_service ON logs.log_entries(service);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_level ON logs.log_entries(level);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_timestamp ON logs.log_entries(timestamp DESC);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_correlation_id ON logs.log_entries(correlation_id);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_user_id ON logs.log_entries(user_id);
-		CREATE INDEX IF NOT EXISTS idx_log_entries_service_level ON logs.log_entries(service, level)
+		CREATE INDEX IF NOT EXISTS idx_log_entries_service ON logs.entries(service);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_level ON logs.entries(level);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_timestamp ON logs.entries(timestamp DESC);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_correlation_id ON logs.entries(correlation_id);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_user_id ON logs.entries(user_id);
+		CREATE INDEX IF NOT EXISTS idx_log_entries_service_level ON logs.entries(service, level)
 	`)
 	require.NoError(t, err)
 

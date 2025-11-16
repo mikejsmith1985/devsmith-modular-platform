@@ -27,7 +27,8 @@ func RegisterPreviewRoutes(router *gin.Engine, previewService *review_services.P
 		}
 
 		// For now, use a mock codebase path
-		result, err := previewService.AnalyzePreview(c.Request.Context(), "testdata/sample_project")
+		// Use default modes: intermediate (user) and quick (output)
+		result, err := previewService.AnalyzePreview(c.Request.Context(), "testdata/sample_project", "intermediate", "quick")
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Analysis failed"})
 			return

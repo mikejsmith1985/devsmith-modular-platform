@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	portalModels "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/models"
 	reviewModels "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
@@ -73,6 +74,11 @@ func (m *MockAnalysisRepository) Create(ctx context.Context, result *reviewModel
 func (m *MockAnalysisRepository) FindByReviewAndMode(ctx context.Context, reviewID int64, mode string) (*reviewModels.AnalysisResult, error) {
 	args := m.Called(ctx, reviewID, mode)
 	return args.Get(0).(*reviewModels.AnalysisResult), args.Error(1)
+}
+
+func (m *MockAnalysisRepository) DeleteOlderThan(ctx context.Context, cutoff time.Time) error {
+	args := m.Called(ctx, cutoff)
+	return args.Error(0)
 }
 
 func TestAuthService_AuthenticateWithGitHub(t *testing.T) {

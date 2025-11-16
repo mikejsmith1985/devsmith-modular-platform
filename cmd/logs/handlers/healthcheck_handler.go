@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
 )
 
@@ -23,10 +24,10 @@ func GetHealthCheck(c *gin.Context) {
 
 	// Add service health endpoint checks
 	services := map[string]string{
-		"gateway": "http://localhost:3000/",
-		"portal":  "http://localhost:8080/health",
-		"review":  "http://localhost:8081/health",
-		"logs":    "http://localhost:8082/health",
+		"gateway": config.GetServiceHealthURL("gateway"),
+		"portal":  config.GetServiceHealthURL("portal"),
+		"review":  config.GetServiceHealthURL("review"),
+		"logs":    config.GetServiceHealthURL("logs"),
 	}
 
 	for name, url := range services {
@@ -39,7 +40,7 @@ func GetHealthCheck(c *gin.Context) {
 	// Add database check
 	runner.AddChecker(&healthcheck.DatabaseChecker{
 		CheckName:     "database",
-		ConnectionURL: c.GetString("DATABASE_URL"),
+		ConnectionURL: config.GetDatabaseURL(),
 	})
 
 	// Phase 2: Advanced Diagnostics
@@ -48,17 +49,17 @@ func GetHealthCheck(c *gin.Context) {
 		runner.AddChecker(&healthcheck.GatewayChecker{
 			CheckName:  "gateway_routing",
 			ConfigPath: "docker/nginx/nginx.conf",
-			GatewayURL: "http://localhost:3000",
+			GatewayURL: config.GetGatewayURL(),
 		})
 
 		// Performance metrics
 		runner.AddChecker(&healthcheck.MetricsChecker{
 			CheckName: "performance_metrics",
 			Endpoints: []healthcheck.MetricEndpoint{
-				{Name: "portal", URL: "http://localhost:8080/health"},
-				{Name: "review", URL: "http://localhost:8081/health"},
-				{Name: "logs", URL: "http://localhost:8082/health"},
-				{Name: "gateway", URL: "http://localhost:3000/"},
+				{Name: "portal", URL: config.GetServiceHealthURL("portal")},
+				{Name: "review", URL: config.GetServiceHealthURL("review")},
+				{Name: "logs", URL: config.GetServiceHealthURL("logs")},
+				{Name: "gateway", URL: config.GetServiceHealthURL("gateway")},
 			},
 		})
 
@@ -72,10 +73,10 @@ func GetHealthCheck(c *gin.Context) {
 				"analytics": {"logs"},
 			},
 			HealthChecks: map[string]string{
-				"portal":    "http://localhost:8080/health",
-				"review":    "http://localhost:8081/health",
-				"logs":      "http://localhost:8082/health",
-				"analytics": "http://localhost:8083/health",
+				"portal":    config.GetServiceHealthURL("portal"),
+				"review":    config.GetServiceHealthURL("review"),
+				"logs":      config.GetServiceHealthURL("logs"),
+				"analytics": config.GetServiceHealthURL("analytics"),
 			},
 		})
 	}

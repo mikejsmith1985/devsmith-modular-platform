@@ -1,0 +1,152 @@
+package card
+
+import "fmt"
+
+// LogCardProps represents properties for displaying a log entry as a card
+type LogCardProps struct {
+	ID        string
+	Level     string // info, warn, error, debug
+	Service   string
+	Message   string
+	Timestamp string
+	StackTrace string
+	Metadata  map[string]interface{}
+}
+
+// Severity level to color mapping
+func severityColor(level string) string {
+	switch level {
+	case "error":
+		return "red"
+	case "warn", "warning":
+		return "yellow"
+	case "info":
+		return "blue"
+	case "debug":
+		return "gray"
+	default:
+		return "gray"
+	}
+}
+
+// Severity level to border color mapping
+func severityBorderClass(level string) string {
+	switch level {
+	case "error":
+		return "border-l-4 border-l-red-500"
+	case "warn", "warning":
+		return "border-l-4 border-l-yellow-500"
+	case "info":
+		return "border-l-4 border-l-blue-500"
+	case "debug":
+		return "border-l-4 border-l-gray-500"
+	default:
+		return "border-l-4 border-l-gray-500"
+	}
+}
+
+// Severity level badge
+func severityBadge(level string) string {
+	switch level {
+	case "error":
+		return "🔴"
+	case "warn", "warning":
+		return "🟡"
+	case "info":
+		return "🔵"
+	case "debug":
+		return "⚫"
+	default:
+		return "⚪"
+	}
+}
+
+templ LogCard(props LogCardProps) {
+	<div
+		class={ "bg-white dark:bg-gray-900 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden", severityBorderClass(props.Level) }
+		role="article"
+		data-log-id={ props.ID }
+	>
+		<!-- Card header with severity badge and timestamp -->
+		<div class="p-4 border-b border-gray-200 dark:border-gray-700">
+			<div class="flex items-start justify-between gap-3">
+				<div class="flex items-center gap-2 flex-1">
+					<span class="text-lg">{ severityBadge(props.Level) }</span>
+					<div>
+						<div class="flex items-center gap-2">
+							<span class={ "px-2.5 py-0.5 rounded-full text-xs font-medium", badgeClass(severityColor(props.Level)) }>
+								{ props.Level }
+							</span>
+							<span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+								{ props.Service }
+							</span>
+						</div>
+						<time class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+							{ props.Timestamp }
+						</time>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Card body with message -->
+		<div class="p-4">
+			<p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
+				{ props.Message }
+			</p>
+		</div>
+
+		<!-- Stack trace if present (Alpine.js collapsible) -->
+		if props.StackTrace != "" {
+			<div 
+				x-data="{ expanded: false }"
+				class="px-4 pb-3">
+				<button 
+					@click="expanded = !expanded"
+					class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center gap-1 w-full">
+					<svg :class="{ 'rotate-90': expanded }" class="w-4 h-4 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+					</svg>
+					<span>📋 Stack Trace</span>
+				</button>
+				<pre 
+					x-show="expanded"
+					x-collapse
+					class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs text-gray-700 dark:text-gray-300 overflow-auto max-h-40">{ props.StackTrace }</pre>
+			</div>
+		}
+
+		<!-- Metadata if present (Alpine.js collapsible) -->
+		if len(props.Metadata) > 0 {
+			<div 
+				x-data="{ expanded: false }"
+				class="px-4 pb-4">
+				<button 
+					@click="expanded = !expanded"
+					class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors flex items-center gap-1 w-full">
+					<svg :class="{ 'rotate-90': expanded }" class="w-4 h-4 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+						<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+					</svg>
+					<span>🏷️ Metadata ({ len(props.Metadata) })</span>
+				</button>
+				<div 
+					x-show="expanded"
+					x-collapse
+					class="mt-2 space-y-1">
+					for key, value := range props.Metadata {
+						<div class="text-xs text-gray-700 dark:text-gray-300">
+							<span class="font-medium">{ key }:</span>
+							<span class="text-gray-600 dark:text-gray-400">
+								if str, ok := value.(string); ok {
+									{ str }
+								} else {
+									{ fmt.Sprintf("%v", value) }
+								}
+							</span>
+						</div>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}

@@ -1,0 +1,7 @@
+version: '3.8'
+services:
+  review:
+    environment:
+      - OLLAMA_MOCK=true
+      # Ensure endpoint points to localhost inside container (mock binds to 127.0.0.1:11434)
+      - OLLAMA_ENDPOINT=http://127.0.0.1:11434

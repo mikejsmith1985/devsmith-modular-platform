@@ -1,0 +1,137 @@
+package templates
+
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+)
+
+// Helper functions for file tree rendering
+func getFileName(path string) string {
+	return filepath.Base(path)
+}
+
+func getFileExtension(path string) string {
+	ext := filepath.Ext(path)
+	return strings.TrimPrefix(ext, ".")
+}
+
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	units := []rune{'K', 'M', 'G', 'T', 'P', 'E'}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), units[exp])
+}
+
+// FileTreeData contains data for rendering the file tree
+type FileTreeData struct {
+	SessionID int64
+	Owner     string
+	Repo      string
+	Branch    string
+	RootNodes []review_models.TreeNode
+}
+
+// FileTree renders the complete file tree navigation component
+templ FileTree(data FileTreeData) {
+	<div class="file-tree-container" id="file-tree">
+		<div class="file-tree-header">
+			<h3 class="text-lg font-semibold">{ data.Owner }/{ data.Repo }</h3>
+			<span class="text-sm text-gray-600">Branch: { data.Branch }</span>
+		</div>
+		<div class="file-tree-content">
+			for _, node := range data.RootNodes {
+				@FileTreeNode(node, data.SessionID, 0)
+			}
+		</div>
+	</div>
+}
+
+// FileTreeNode renders a single tree node (file or directory) recursively
+templ FileTreeNode(node review_models.TreeNode, sessionID int64, depth int) {
+	<div class="tree-node" data-path={ node.Path } data-type={ node.Type } style={ templ.KV("padding-left", templ.SafeCSSProperty(fmt.Sprintf("%dpx", depth*20))) }>
+		if node.Type == "dir" {
+			<!-- Directory: expandable/collapsible -->
+			<div class="tree-node-dir" data-expanded="false">
+				<span class="tree-node-icon dir-icon" onclick="toggleDirectory(this)">
+					<svg class="icon-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<polyline points="9 18 15 12 9 6"></polyline>
+					</svg>
+					<svg class="icon-folder" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+					</svg>
+				</span>
+				<span class="tree-node-label">{ getFileName(node.Path) }</span>
+			</div>
+			<!-- Children (hidden by default) -->
+			<div class="tree-node-children" style="display: none;">
+				for _, child := range node.Children {
+					@FileTreeNode(child, sessionID, depth+1)
+				}
+			</div>
+		} else {
+			<!-- File: clickable to open in tab -->
+			<div 
+				class="tree-node-file"
+				hx-post={ fmt.Sprintf("/review/sessions/%d/files", sessionID) }
+				hx-vals={ `{"file_path": "` + node.Path + `"}` }
+				hx-target="#file-tabs"
+				hx-swap="beforeend"
+				onclick="markFileActive(this)"
+			>
+				<span class="tree-node-icon file-icon">
+					@FileIcon(getFileExtension(node.Path))
+				</span>
+				<span class="tree-node-label">{ getFileName(node.Path) }</span>
+				<span class="tree-node-size text-xs text-gray-500">{ formatFileSize(node.Size) }</span>
+			</div>
+		}
+	</div>
+}
+
+// FileIcon renders an icon based on file extension
+templ FileIcon(ext string) {
+	switch ext {
+		case "go":
+			<svg class="file-icon-go" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#00ADD8">
+				<path d="M1.811 10.231c-.047 0-.058-.023-.035-.059l.246-.315c.023-.035.081-.058.128-.058h4.172c.046 0 .058.035.035.07l-.199.303c-.023.036-.082.07-.117.07zM.047 11.306c-.047 0-.059-.023-.035-.058l.245-.316c.023-.035.082-.058.129-.058h5.328c.047 0 .07.035.058.07l-.093.28c-.012.047-.058.07-.105.07zm2.828 1.058c-.047 0-.059-.035-.035-.07l.163-.292c.023-.035.07-.07.117-.07h2.337c.047 0 .07.035.07.082l-.023.28c0 .047-.047.082-.082.082zM22.957 11.47c0-.305-.012-.6-.035-.894l-.023-.152c-.105-.7-.35-1.27-.738-1.714-.411-.48-1.031-.738-1.843-.738-.199 0-.387.012-.574.035-.199.023-.387.058-.574.105-.188.047-.352.117-.503.199-.152.082-.281.175-.387.292l-.117.129-.035-.082c-.059-.129-.152-.211-.281-.246l-1.41-.023c-.047 0-.094.023-.117.058v4.328c0 .035.047.07.117.07h1.621c.058 0 .105-.023.117-.07v-2.59c0-.246.047-.48.129-.691.082-.211.188-.387.328-.527.129-.14.281-.246.457-.328.175-.082.375-.117.574-.117.246 0 .457.035.644.117.188.082.328.199.434.352.105.152.175.328.21.527.035.199.047.421.047.644v2.602c0 .035.047.07.117.07h1.621c.059 0 .106-.023.118-.07v-2.996z"/>
+			</svg>
+		case "js", "jsx":
+			<svg class="file-icon-js" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#F7DF1E">
+				<path d="M0 0h24v24H0V0zm22.034 18.276c-.175-1.095-.888-2.015-3.003-2.873-.736-.345-1.554-.585-1.797-1.14-.091-.33-.105-.51-.046-.705.15-.646.915-.84 1.515-.66.39.12.75.42.976.9 1.034-.676 1.034-.676 1.755-1.125-.27-.42-.404-.601-.586-.78-.63-.705-1.469-1.065-2.834-1.034l-.705.089c-.676.165-1.32.525-1.71 1.005-1.14 1.291-.811 3.541.569 4.471 1.365 1.02 3.361 1.244 3.616 2.205.24 1.17-.87 1.545-1.966 1.41-.811-.18-1.26-.586-1.755-1.336l-1.83 1.051c.21.48.45.689.81 1.109 1.74 1.756 6.09 1.666 6.871-1.004.029-.09.24-.705.074-1.65l.046.067zm-8.983-7.245h-2.248c0 1.938-.009 3.864-.009 5.805 0 1.232.063 2.363-.138 2.711-.33.689-1.18.601-1.566.48-.396-.196-.597-.466-.83-.855-.063-.105-.11-.196-.127-.196l-1.825 1.125c.305.63.75 1.172 1.324 1.517.855.51 2.004.675 3.207.405.783-.226 1.458-.691 1.811-1.411.51-.93.402-2.07.397-3.346.012-2.054 0-4.109 0-6.179l.004-.056z"/>
+			</svg>
+		case "ts", "tsx":
+			<svg class="file-icon-ts" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#3178C6">
+				<path d="M0 12v12h24V0H0zm19.341-.956c.61.152 1.074.423 1.501.865.221.236.549.666.575.728.008.018-1.036.73-1.668 1.146-.023.015-.115-.084-.217-.236-.31-.45-.633-.644-1.128-.678-.728-.05-1.196.331-1.196.967 0 .188.023.332.077.473.082.216.245.406.627.716.685.555 1.147.947 1.476 1.262.645.62.925 1.33.925 2.353 0 .883-.09 1.378-.38 2.009-.312.675-.821 1.156-1.503 1.42-.414.16-.862.248-1.461.288-.731.05-1.738-.15-2.392-.476-.877-.438-1.743-1.353-1.968-2.081-.038-.122.115-.854.265-.982.031-.026.148.026.34.151.509.329 1.013.494 1.645.547.9.075 1.665-.198 1.949-.698.153-.27.203-.721.103-1.023-.122-.368-.418-.63-1.157-1.012-.849-.439-1.402-.72-1.878-1.163-.683-.634-1.018-1.402-1.018-2.352 0-.853.226-1.517.696-2.057.438-.506 1.117-.905 1.902-1.116.422-.113 1.428-.099 1.886.026z"/>
+			</svg>
+		case "py":
+			<svg class="file-icon-py" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#3776AB">
+				<path d="M11.914 0C5.82 0 6.2 2.657 6.2 2.657l.01 2.758h5.762v.813H3.9S0 5.789 0 11.969c0 6.18 3.403 5.96 3.403 5.96h2.03v-2.867s-.11-3.403 3.35-3.403h5.718s3.24.052 3.24-3.13V3.2S18.28 0 11.913 0zM8.7 1.877c.58 0 1.05.47 1.05 1.05 0 .58-.47 1.05-1.05 1.05-.58 0-1.05-.47-1.05-1.05 0-.58.47-1.05 1.05-1.05z"/>
+			</svg>
+		case "md":
+			<svg class="file-icon-md" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+				<polyline points="14 2 14 8 20 8"/>
+				<line x1="16" y1="13" x2="8" y2="13"/>
+				<line x1="16" y1="17" x2="8" y2="17"/>
+			</svg>
+		case "json", "yaml", "yml":
+			<svg class="file-icon-config" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+				<polyline points="14 2 14 8 20 8"/>
+			</svg>
+		default:
+			<svg class="file-icon-default" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+				<polyline points="14 2 14 8 20 8"/>
+			</svg>
+	}
+}

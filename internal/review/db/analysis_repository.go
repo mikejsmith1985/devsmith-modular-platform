@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
@@ -39,6 +40,16 @@ func (r *AnalysisRepository) Create(ctx context.Context, result *review_models.A
 		result.ReviewID, result.Mode, result.Prompt, result.Summary, result.Metadata, result.ModelUsed, result.RawOutput)
 	if err != nil {
 		return fmt.Errorf("db: failed to create analysis result: %w", err)
+	}
+	return nil
+}
+
+// DeleteOlderThan removes analysis results older than the provided cutoff time.
+func (r *AnalysisRepository) DeleteOlderThan(ctx context.Context, cutoff time.Time) error {
+	// NOTE: The table is expected to have a created_at column.
+	_, err := r.DB.ExecContext(ctx, `DELETE FROM reviews.analysis_results WHERE created_at < $1`, cutoff)
+	if err != nil {
+		return fmt.Errorf("db: failed to delete old analysis results: %w", err)
 	}
 	return nil
 }

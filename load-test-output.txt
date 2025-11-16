@@ -1,0 +1,60 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: scripts/load-test-batch.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 100 max VUs, 4m10s max duration (incl. graceful stop):
+              * ramp_up: Up to 100 looping VUs for 4m0s over 4 stages (gracefulRampDown: 10s, gracefulStop: 30s)
+
+time="2025-11-12T06:21:55-05:00" level=info msg="🚀 Starting load test..." source=console
+time="2025-11-12T06:21:55-05:00" level=info msg="   API URL: http://localhost:8082" source=console
+time="2025-11-12T06:21:55-05:00" level=info msg="   Service: load-test" source=console
+time="2025-11-12T06:21:55-05:00" level=info msg="   Target: 14,000-33,000 logs/second" source=console
+time="2025-11-12T06:21:55-05:00" level=info source=console
+time="2025-11-12T06:21:55-05:00" level=error msg="❌ API key validation failed: 401 {\"error\":\"Invalid project slug or API key\"}" source=console
+time="2025-11-12T06:21:55-05:00" level=error msg="TypeError: Cannot read property 'values' of undefined\n\tat handleSummary (file:///home/mikej/projects/DevSmith-Modular-Platform/scripts/load-test-batch.js:184:52(4))\n" hint="script exception"
+
+
+  █ THRESHOLDS 
+
+    batch_duration
+    ✓ 'p(95)<500' p(95)=0
+
+    errors
+    ✓ 'rate<0.01' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(95)<500' p(95)=4.41ms
+    ✓ 'p(99)<1000' p(99)=4.41ms
+
+    http_req_failed
+    ✗ 'rate<0.01' rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    CUSTOM
+    batch_duration......: avg=0      min=0      med=0      max=0      p(90)=0      p(95)=0     
+    errors..............: 0.00%   0 out of 0
+
+    HTTP
+    http_req_duration...: avg=4.41ms min=4.41ms med=4.41ms max=4.41ms p(90)=4.41ms p(95)=4.41ms
+    http_req_failed.....: 100.00% 1 out of 1
+    http_reqs...........: 1       62.687518/s
+
+    NETWORK
+    data_received.......: 176 B   11 kB/s
+    data_sent...........: 432 B   27 kB/s
+
+
+
+
+Run       [ 100% ] setup()
+ramp_up   [   0% ]
+time="2025-11-12T06:21:56-05:00" level=error msg="Error: Invalid API key or service unavailable\n\tat setup (file:///home/mikej/projects/DevSmith-Modular-Platform/scripts/load-test-batch.js:169:11(81))\n" hint="script exception"

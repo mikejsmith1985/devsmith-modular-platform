@@ -1,8 +1,11 @@
+//go:build integration
+
 package integration
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +13,11 @@ import (
 	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	// Set JWT_SECRET for integration tests
+	os.Setenv("JWT_SECRET", "test-secret-key-for-integration-tests")
+}
 
 type UserClaims struct {
 	Username  string `json:"username"`
@@ -25,7 +33,7 @@ func TestDashboardWithOAuthCookies(t *testing.T) {
 	router.GET("/dashboard", portal_handlers.DashboardHandler)
 
 	// Generate a valid JWT for the devsmith_token cookie
-	jwtKey := []byte("your-secret-key")
+	jwtKey := []byte(os.Getenv("JWT_SECRET"))
 	claims := UserClaims{
 		Username:  "testuser",
 		Email:     "testuser@example.com",

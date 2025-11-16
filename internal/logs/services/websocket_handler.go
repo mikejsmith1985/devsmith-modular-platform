@@ -35,16 +35,20 @@ func RegisterWebSocketRoutes(router *gin.Engine, hub *WebSocketHub) {
 //   - tags: Tag filter (exact match, single tag)
 //
 // Authentication is checked via the Authorization header (Bearer token).
+// Unauthenticated connections are rejected with HTTP 401.
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	// Parse and validate authentication
 	authHeader := c.GetHeader("Authorization")
 	isAuthenticated := h.validateAuth(authHeader)
 
+	// Require authentication - reject unauthenticated connections
+	if !isAuthenticated {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
 	// Parse filter parameters from query string
 	filters := h.parseFilterParams(c)
-
-	// Determine visibility: authenticated users see all logs, others see only public
-	isPublic := !isAuthenticated
 
 	// Upgrade HTTP connection to WebSocket
 	upgrader := websocket.Upgrader{
@@ -59,16 +63,18 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Create client with filters and auth info
+	// Create client with filters - all clients are authenticated
 	client := &Client{
 		Conn:         conn,
 		Send:         make(chan *logs_models.LogEntry, 256),
 		Filters:      filters,
-		IsAuth:       isAuthenticated,
-		IsPublic:     isPublic,
+		IsAuth:       true, // Always true since we reject unauthenticated above
+		IsPublic:     false,
 		LastActivity: time.Now(),
 		// Initialized so the hub can signal registration completion.
 		Registered: make(chan struct{}),
+		// done channel signals WritePump to exit when ReadPump detects disconnect
+		done: make(chan struct{}),
 	}
 
 	// Register client with hub and start message pumps

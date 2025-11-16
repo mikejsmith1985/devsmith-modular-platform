@@ -3,6 +3,7 @@ package logs_services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -10,6 +11,13 @@ import (
 
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	"github.com/sirupsen/logrus"
+)
+
+// Size limits for log entries (in bytes)
+const (
+	MaxMessageSize  = 10 * 1024 * 1024 // 10MB max message size
+	MaxMetadataSize = 5 * 1024 * 1024  // 5MB max metadata size
+	MaxTotalSize    = 15 * 1024 * 1024 // 15MB max total entry size
 )
 
 // RestLogService implements REST API operations for logs.
@@ -26,17 +34,60 @@ func NewRestLogService(repo *logs_db.LogRepository, logger *logrus.Logger) *Rest
 	}
 }
 
-// Insert creates a new log entry.
+// Insert creates a new log entry with size validation.
 func (s *RestLogService) Insert(ctx context.Context, entry map[string]interface{}) (int64, error) {
 	if s.repo == nil {
 		return 0, errors.New("repository not configured")
 	}
 
+	message := extractString(entry, "message")
+	metadata := extractMetadata(entry, "metadata")
+
+	// Validate message size
+	truncationSuffix := "... [truncated]"
+	if len(message) > MaxMessageSize {
+		s.logger.WithFields(logrus.Fields{
+			"message_size": len(message),
+			"max_size":     MaxMessageSize,
+			"service":      extractString(entry, "service"),
+		}).Warn("Log message exceeds maximum size, truncating")
+		// Truncate to leave room for the suffix
+		truncateAt := MaxMessageSize - len(truncationSuffix)
+		if truncateAt < 0 {
+			truncateAt = 0
+		}
+		message = message[:truncateAt] + truncationSuffix
+	}
+
+	// Validate metadata size
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		s.logger.Warn("Failed to marshal metadata for size validation")
+		metadataJSON = []byte("{}")
+	}
+	if len(metadataJSON) > MaxMetadataSize {
+		s.logger.WithFields(logrus.Fields{
+			"metadata_size": len(metadataJSON),
+			"max_size":      MaxMetadataSize,
+			"service":       extractString(entry, "service"),
+		}).Warn("Log metadata exceeds maximum size, truncating")
+		metadata = map[string]interface{}{
+			"error":         "metadata too large, truncated",
+			"original_size": len(metadataJSON),
+		}
+	}
+
+	// Validate total entry size
+	totalSize := len(message) + len(metadataJSON)
+	if totalSize > MaxTotalSize {
+		return 0, fmt.Errorf("log entry too large: %d bytes (max: %d bytes)", totalSize, MaxTotalSize)
+	}
+
 	logEntry := &logs_db.LogEntry{
 		Service:   extractString(entry, "service"),
 		Level:     extractString(entry, "level"),
-		Message:   extractString(entry, "message"),
-		Metadata:  extractMetadata(entry, "metadata"),
+		Message:   message,
+		Metadata:  metadata,
 		CreatedAt: time.Now(),
 	}
 

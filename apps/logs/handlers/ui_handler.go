@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/templates"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
 	services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
@@ -61,10 +62,10 @@ func (h *UIHandler) HealthCheckDashboardHandler(c *gin.Context) {
 	})
 
 	services := map[string]string{
-		"gateway": "http://localhost:3000/",
-		"portal":  "http://localhost:8080/health",
-		"review":  "http://localhost:8081/health",
-		"logs":    "http://localhost:8082/health",
+		"gateway": config.GetServiceHealthURL("gateway"),
+		"portal":  config.GetServiceHealthURL("portal"),
+		"review":  config.GetServiceHealthURL("review"),
+		"logs":    config.GetServiceHealthURL("logs"),
 	}
 
 	for name, url := range services {
@@ -83,16 +84,16 @@ func (h *UIHandler) HealthCheckDashboardHandler(c *gin.Context) {
 	runner.AddChecker(&healthcheck.GatewayChecker{
 		CheckName:  "gateway_routing",
 		ConfigPath: "docker/nginx/nginx.conf",
-		GatewayURL: "http://localhost:3000",
+		GatewayURL: config.GetGatewayURL(),
 	})
 
 	runner.AddChecker(&healthcheck.MetricsChecker{
 		CheckName: "performance_metrics",
 		Endpoints: []healthcheck.MetricEndpoint{
-			{Name: "portal", URL: "http://localhost:8080/health"},
-			{Name: "review", URL: "http://localhost:8081/health"},
-			{Name: "logs", URL: "http://localhost:8082/health"},
-			{Name: "gateway", URL: "http://localhost:3000/"},
+			{Name: "portal", URL: config.GetServiceHealthURL("portal")},
+			{Name: "review", URL: config.GetServiceHealthURL("review")},
+			{Name: "logs", URL: config.GetServiceHealthURL("logs")},
+			{Name: "gateway", URL: config.GetServiceHealthURL("gateway")},
 		},
 	})
 
@@ -105,10 +106,10 @@ func (h *UIHandler) HealthCheckDashboardHandler(c *gin.Context) {
 			"analytics": {"logs"},
 		},
 		HealthChecks: map[string]string{
-			"portal":    "http://localhost:8080/health",
-			"review":    "http://localhost:8081/health",
-			"logs":      "http://localhost:8082/health",
-			"analytics": "http://localhost:8083/health",
+			"portal":    config.GetServiceHealthURL("portal"),
+			"review":    config.GetServiceHealthURL("review"),
+			"logs":      config.GetServiceHealthURL("logs"),
+			"analytics": config.GetServiceHealthURL("analytics"),
 		},
 	})
 
@@ -136,6 +137,7 @@ func RegisterUIRoutes(router *gin.Engine, uiHandler *UIHandler) {
 	// Dashboard UI route
 	router.GET("/", uiHandler.DashboardHandler)
 	router.GET("/dashboard", uiHandler.DashboardHandler)
+	router.GET("/logs", uiHandler.DashboardHandler) // Route from nginx proxy /logs
 
 	// Health check dashboard UI
 	router.GET("/healthcheck", uiHandler.HealthCheckDashboardHandler)

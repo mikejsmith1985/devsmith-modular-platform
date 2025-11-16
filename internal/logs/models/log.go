@@ -8,16 +8,21 @@ import "time"
 //
 //nolint:govet // fieldalignment: organized by type for readability
 type LogEntry struct {
-	CreatedAt time.Time           `json:"created_at"`
-	Timestamp time.Time           `json:"timestamp"`
-	Context   *CorrelationContext `json:"context,omitempty"`
-	Service   string              `json:"service"`
-	Level     string              `json:"level"`
-	Message   string              `json:"message"`
-	Metadata  []byte              `json:"metadata"`
-	Tags      []string            `json:"tags"`
-	ID        int64               `json:"id"`
-	UserID    int64               `json:"user_id"`
+	CreatedAt     time.Time           `json:"created_at"`
+	Timestamp     time.Time           `json:"timestamp"`
+	Context       *CorrelationContext `json:"context,omitempty"`
+	Service       string              `json:"service"`
+	Level         string              `json:"level"`
+	Message       string              `json:"message"`
+	IssueType     string              `json:"issue_type,omitempty"`
+	ServiceName   string              `json:"service_name,omitempty"` // Microservice identifier (cross-repo logging)
+	Metadata      []byte              `json:"metadata"`
+	AIAnalysis    []byte              `json:"ai_analysis,omitempty"`
+	Tags          []string            `json:"tags"`
+	ID            int64               `json:"id"`
+	UserID        int64               `json:"user_id"`
+	ProjectID     *int64              `json:"project_id,omitempty"` // Cross-repo project reference (nullable)
+	SeverityScore int                 `json:"severity_score,omitempty"`
 }
 
 // LogStats represents aggregated statistics for logs in a time window.

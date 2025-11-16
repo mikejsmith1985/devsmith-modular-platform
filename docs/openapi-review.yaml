@@ -1,0 +1,371 @@
+openapi: 3.0.3
+info:
+  title: DevSmith Review Service API
+  description: |
+    AI-powered code analysis service with 5 reading modes for effective code comprehension.
+    
+    **Reading Modes:**
+    - **Preview**: Quick 2-3 minute structural overview
+    - **Skim**: 5-7 minute surface-level scan of architecture
+    - **Scan**: 3-5 minute targeted search for specific patterns
+    - **Detailed**: 10-15 minute deep line-by-line analysis
+    - **Critical**: 15-20 minute quality evaluation and issue detection
+    
+    **Architecture:**
+    - Circuit breaker protection (5 failures → open, 60s timeout)
+    - Graceful shutdown (30s timeout for in-flight requests)
+    - Health checks every 30s
+    - OpenTelemetry tracing to Jaeger
+  version: 1.0.0
+  contact:
+    name: DevSmith Platform Team
+    url: https://github.com/mikejsmith1985/devsmith-modular-platform
+servers:
+  - url: http://localhost:8081
+    description: Local development
+  - url: http://localhost:3000
+    description: Local via nginx gateway
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns health status of all components (database, Ollama, services)
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service healthy or degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  
+  /:
+    get:
+      summary: Review service home page
+      description: Returns HTML for the Review service UI
+      operationId: homePage
+      tags:
+        - UI
+      responses:
+        '200':
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+  
+  /api/review/modes/preview:
+    post:
+      summary: Analyze code in Preview mode
+      description: Quick structural overview (2-3 minutes)
+      operationId: analyzePreview
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Analysis result (HTML for HTMX)
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Invalid request
+          content:
+            text/html:
+              schema:
+                type: string
+        '503':
+          description: Service unavailable (Ollama down or circuit open)
+          content:
+            text/html:
+              schema:
+                type: string
+  
+  /api/review/modes/skim:
+    post:
+      summary: Analyze code in Skim mode
+      description: Surface-level scan (5-7 minutes)
+      operationId: analyzeSkim
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Analysis result (HTML for HTMX)
+        '400':
+          description: Invalid request
+        '503':
+          description: Service unavailable
+  
+  /api/review/modes/scan:
+    post:
+      summary: Analyze code in Scan mode
+      description: Targeted search (3-5 minutes)
+      operationId: analyzeScan
+      tags:
+        - Analysis
+      parameters:
+        - name: query
+          in: query
+          description: Search query (e.g., "find validation")
+          required: false
+          schema:
+            type: string
+            default: "find issues and improvements"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Analysis result (HTML for HTMX)
+        '400':
+          description: Invalid request
+        '503':
+          description: Service unavailable
+  
+  /api/review/modes/detailed:
+    post:
+      summary: Analyze code in Detailed mode
+      description: Deep line-by-line analysis (10-15 minutes)
+      operationId: analyzeDetailed
+      tags:
+        - Analysis
+      parameters:
+        - name: filename
+          in: query
+          description: Target filename for analysis
+          required: false
+          schema:
+            type: string
+            default: "main.go"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Analysis result (HTML for HTMX)
+        '400':
+          description: Invalid request
+        '503':
+          description: Service unavailable
+  
+  /api/review/modes/critical:
+    post:
+      summary: Analyze code in Critical mode
+      description: Quality evaluation and issue detection (15-20 minutes)
+      operationId: analyzeCritical
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+      responses:
+        '200':
+          description: Analysis result with issues (HTML for HTMX)
+        '400':
+          description: Invalid request
+        '503':
+          description: Service unavailable
+  
+  /debug/trace:
+    get:
+      summary: Generate test trace for Jaeger
+      description: Creates deterministic spans for OpenTelemetry validation
+      operationId: debugTrace
+      tags:
+        - Debug
+      responses:
+        '200':
+          description: Trace information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceResponse'
+    post:
+      summary: Generate test trace for Jaeger
+      description: Creates deterministic spans for OpenTelemetry validation
+      operationId: debugTracePost
+      tags:
+        - Debug
+      responses:
+        '200':
+          description: Trace information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - components
+        - summary
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Overall health status
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentHealth'
+        summary:
+          type: string
+          description: Human-readable summary
+      example:
+        status: healthy
+        timestamp: "2025-11-02T15:00:00Z"
+        components:
+          - name: database
+            status: healthy
+            message: "Database connected and reviews schema present"
+            response_time_ms: 277
+          - name: ollama_connectivity
+            status: healthy
+            message: "Ollama service is reachable"
+            response_time_ms: 3278
+          - name: ollama_model
+            status: healthy
+            message: "Model mistral:7b-instruct is available"
+            response_time_ms: 3059
+          - name: preview_service
+            status: healthy
+            message: "Preview service operational"
+            response_time_ms: 144
+          - name: skim_service
+            status: healthy
+            message: "Skim service operational"
+            response_time_ms: 32
+          - name: scan_service
+            status: healthy
+            message: "Scan service operational"
+            response_time_ms: 23
+          - name: detailed_service
+            status: healthy
+            message: "Detailed service operational"
+            response_time_ms: 22
+          - name: critical_service
+            status: healthy
+            message: "Critical service operational"
+            response_time_ms: 23
+        summary: "All components are healthy"
+    
+    ComponentHealth:
+      type: object
+      required:
+        - name
+        - status
+        - message
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        message:
+          type: string
+        response_time_ms:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties: true
+    
+    AnalysisRequest:
+      type: object
+      required:
+        - pasted_code
+      properties:
+        pasted_code:
+          type: string
+          description: Code to analyze
+          example: |
+            package main
+            
+            func main() {
+              println("Hello world")
+            }
+        model:
+          type: string
+          description: Ollama model to use
+          default: mistral:7b-instruct
+          enum:
+            - mistral:7b-instruct
+            - codellama:13b
+            - llama2:13b
+            - deepseek-coder:6.7b
+            - deepseek-coder-v2:16b
+    
+    TraceResponse:
+      type: object
+      required:
+        - trace_id
+        - span_id
+        - message
+      properties:
+        trace_id:
+          type: string
+          description: OpenTelemetry trace ID
+        span_id:
+          type: string
+          description: Span ID
+        message:
+          type: string
+        instructions:
+          type: string
+        jaeger_query:
+          type: string
+          description: URL to view trace in Jaeger UI
+      example:
+        trace_id: "1234567890abcdef1234567890abcdef"
+        span_id: "abcdef1234567890"
+        message: "Trace created successfully"
+        instructions: "Check Jaeger UI for devsmith-review service traces"
+        jaeger_query: "http://localhost:16686/search?service=devsmith-review&start=..."
+
+  securitySchemes: {}
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: UI
+    description: HTML UI endpoints
+  - name: Analysis
+    description: Code analysis endpoints (HTMX-compatible)
+  - name: Debug
+    description: Debug and diagnostics endpoints

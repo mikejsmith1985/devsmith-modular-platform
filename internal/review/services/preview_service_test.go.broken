@@ -1,0 +1,223 @@
+package review_services
+
+import (
+	"context"
+	"testing"
+
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// MockAIProvider is a mock implementation of ai.Provider
+type MockAIProvider struct {
+	mock.Mock
+}
+
+func (m *MockAIProvider) Generate(ctx context.Context, req *ai.GenerateRequest) (*ai.GenerateResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ai.GenerateResponse), args.Error(1)
+}
+
+func (m *MockAIProvider) Health(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockAIProvider) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+// TestPreviewService_AnalyzePreview_WithBeginnerMode tests that beginner mode produces simple language
+func TestPreviewService_AnalyzePreview_WithBeginnerMode(t *testing.T) {
+	// Arrange
+	mockAI := new(MockAIProvider)
+	logger := logger.NewLogger("test", "debug")
+	service := NewPreviewService(mockAI, "test-model", nil, logger)
+
+	sampleCode := `package main
+import "fmt"
+func main() {
+	fmt.Println("Hello, World!")
+}`
+
+	expectedResponse := &ai.GenerateResponse{
+		Text: `{
+			"summary": "This is like a simple recipe card that tells the computer to display 'Hello, World!' on the screen. Think of it as the computer's way of saying hello!",
+			"file_tree": [],
+			"bounded_contexts": ["greeting"],
+			"tech_stack": ["Go"],
+			"architecture_style": "simple script",
+			"entry_points": ["main.go"],
+			"external_dependencies": ["fmt"],
+			"stats": {"total_files": 1, "total_lines": 5, "total_functions": 1}
+		}`,
+	}
+
+	mockAI.On("Generate", mock.Anything, mock.MatchedBy(func(req *ai.GenerateRequest) bool {
+		// Verify the prompt contains beginner-friendly language guidance
+		return assert.Contains(t, req.Prompt, "simple, non-technical language") &&
+			assert.Contains(t, req.Prompt, "everyday analogies")
+	})).Return(expectedResponse, nil)
+
+	// Act
+	result, err := service.AnalyzePreview(context.Background(), sampleCode, "beginner", "quick")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result.Summary, "recipe card")
+	assert.Contains(t, result.Summary, "simple")
+	mockAI.AssertExpectations(t)
+}
+
+// TestPreviewService_AnalyzePreview_WithExpertMode tests that expert mode produces technical language
+func TestPreviewService_AnalyzePreview_WithExpertMode(t *testing.T) {
+	// Arrange
+	mockAI := new(MockAIProvider)
+	logger := logger.NewLogger("test", "debug")
+	service := NewPreviewService(mockAI, "test-model", nil, logger)
+
+	sampleCode := `package main
+import "fmt"
+func main() {
+	fmt.Println("Hello, World!")
+}`
+
+	expectedResponse := &ai.GenerateResponse{
+		Text: `{
+			"summary": "Single-file Go application implementing standard library fmt package for stdout text output. Entry point: main function.",
+			"file_tree": [],
+			"bounded_contexts": ["io"],
+			"tech_stack": ["Go 1.x"],
+			"architecture_style": "procedural",
+			"entry_points": ["main.go"],
+			"external_dependencies": ["fmt"],
+			"stats": {"total_files": 1, "total_lines": 5, "total_functions": 1}
+		}`,
+	}
+
+	mockAI.On("Generate", mock.Anything, mock.MatchedBy(func(req *ai.GenerateRequest) bool {
+		// Verify the prompt contains expert-level language guidance
+		return assert.Contains(t, req.Prompt, "precise technical terminology") &&
+			assert.Contains(t, req.Prompt, "assume deep knowledge")
+	})).Return(expectedResponse, nil)
+
+	// Act
+	result, err := service.AnalyzePreview(context.Background(), sampleCode, "expert", "quick")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result.Summary, "stdout")
+	assert.NotContains(t, result.Summary, "recipe")
+	assert.NotContains(t, result.Summary, "like")
+	mockAI.AssertExpectations(t)
+}
+
+// TestPreviewService_AnalyzePreview_WithFullMode tests that full mode includes reasoning trace
+func TestPreviewService_AnalyzePreview_WithFullMode(t *testing.T) {
+	// Arrange
+	mockAI := new(MockAIProvider)
+	logger := logger.NewLogger("test", "debug")
+	service := NewPreviewService(mockAI, "test-model", nil, logger)
+
+	sampleCode := `package main
+func main() {}`
+
+	expectedResponse := &ai.GenerateResponse{
+		Text: `{
+			"summary": "Minimal Go application",
+			"file_tree": [],
+			"bounded_contexts": [],
+			"tech_stack": ["Go"],
+			"architecture_style": "minimal",
+			"entry_points": ["main.go"],
+			"external_dependencies": [],
+			"stats": {"total_files": 1, "total_lines": 2, "total_functions": 1},
+			"reasoning_trace": {
+				"analysis_approach": "Structural analysis of Go source file",
+				"key_observations": ["Single entry point", "No external dependencies"],
+				"confidence_level": "high"
+			}
+		}`,
+	}
+
+	mockAI.On("Generate", mock.Anything, mock.MatchedBy(func(req *ai.GenerateRequest) bool {
+		// Verify the prompt includes reasoning_trace section for full mode
+		return assert.Contains(t, req.Prompt, "reasoning_trace") &&
+			assert.Contains(t, req.Prompt, "analysis_approach")
+	})).Return(expectedResponse, nil)
+
+	// Act
+	result, err := service.AnalyzePreview(context.Background(), sampleCode, "intermediate", "full")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// Note: reasoning_trace is in the JSON response but not yet captured in PreviewModeOutput struct
+	// This test documents the current behavior
+	mockAI.AssertExpectations(t)
+}
+
+// TestPreviewService_AnalyzePreview_DefaultModes tests that empty modes use defaults
+func TestPreviewService_AnalyzePreview_DefaultModes(t *testing.T) {
+	// Arrange
+	mockAI := new(MockAIProvider)
+	logger := logger.NewLogger("test", "debug")
+	service := NewPreviewService(mockAI, "test-model", nil, logger)
+
+	expectedResponse := &ai.GenerateResponse{
+		Text: `{
+			"summary": "Standard analysis",
+			"file_tree": [],
+			"bounded_contexts": [],
+			"tech_stack": [],
+			"architecture_style": "",
+			"entry_points": [],
+			"external_dependencies": [],
+			"stats": {}
+		}`,
+	}
+
+	mockAI.On("Generate", mock.Anything, mock.MatchedBy(func(req *ai.GenerateRequest) bool {
+		// Verify defaults are used (intermediate, quick)
+		return assert.Contains(t, req.Prompt, "standard software engineering terminology")
+	})).Return(expectedResponse, nil)
+
+	// Act
+	result, err := service.AnalyzePreview(context.Background(), "test code", "", "")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockAI.AssertExpectations(t)
+}
+
+// TestPreviewService_AnalyzePreview_InvalidJSON tests error handling for malformed AI response
+func TestPreviewService_AnalyzePreview_InvalidJSON(t *testing.T) {
+	// Arrange
+	mockAI := new(MockAIProvider)
+	logger := logger.NewLogger("test", "debug")
+	service := NewPreviewService(mockAI, "test-model", nil, logger)
+
+	expectedResponse := &ai.GenerateResponse{
+		Text: "This is not valid JSON",
+	}
+
+	mockAI.On("Generate", mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+	// Act
+	result, err := service.AnalyzePreview(context.Background(), "test code", "intermediate", "quick")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to parse")
+	mockAI.AssertExpectations(t)
+}

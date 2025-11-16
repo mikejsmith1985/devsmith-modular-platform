@@ -1,0 +1,52 @@
+[0;34m═══════════════════════════════════════════════════════[0m
+[0;34m  BATCH LOG INGESTION LOAD TEST[0m
+[0;34m═══════════════════════════════════════════════════════[0m
+
+Configuration:
+  API URL: http://localhost:8082/api/logs/batch
+  Total Requests: 1000
+  Concurrent: 10
+  Batch Size: 100 logs per request
+  Total Logs: 100000
+
+[1;33mStarting load test...[0m
+
+Progress: 10/1000 (1%)  Progress: 20/1000 (2%)  Progress: 30/1000 (3%)  Progress: 40/1000 (4%)  Progress: 50/1000 (5%)  Progress: 60/1000 (6%)  Progress: 70/1000 (7%)  Progress: 80/1000 (8%)  Progress: 90/1000 (9%)  Progress: 100/1000 (10%)  Progress: 110/1000 (11%)  Progress: 120/1000 (12%)  Progress: 130/1000 (13%)  Progress: 140/1000 (14%)  Progress: 150/1000 (15%)  Progress: 160/1000 (16%)  Progress: 170/1000 (17%)  Progress: 180/1000 (18%)  Progress: 190/1000 (19%)  Progress: 200/1000 (20%)  Progress: 210/1000 (21%)  Progress: 220/1000 (22%)  Progress: 230/1000 (23%)  Progress: 240/1000 (24%)  Progress: 250/1000 (25%)  Progress: 260/1000 (26%)  Progress: 270/1000 (27%)  Progress: 280/1000 (28%)  Progress: 290/1000 (29%)  Progress: 300/1000 (30%)  Progress: 310/1000 (31%)  Progress: 320/1000 (32%)  Progress: 330/1000 (33%)  Progress: 340/1000 (34%)  Progress: 350/1000 (35%)  Progress: 360/1000 (36%)  Progress: 370/1000 (37%)  Progress: 380/1000 (38%)  Progress: 390/1000 (39%)  Progress: 400/1000 (40%)  Progress: 410/1000 (41%)  Progress: 420/1000 (42%)  Progress: 430/1000 (43%)  Progress: 440/1000 (44%)  Progress: 450/1000 (45%)  Progress: 460/1000 (46%)  Progress: 470/1000 (47%)  Progress: 480/1000 (48%)  Progress: 490/1000 (49%)  Progress: 500/1000 (50%)  Progress: 510/1000 (51%)  Progress: 520/1000 (52%)  Progress: 530/1000 (53%)  Progress: 540/1000 (54%)  Progress: 550/1000 (55%)  Progress: 560/1000 (56%)  Progress: 570/1000 (57%)  Progress: 580/1000 (58%)  Progress: 590/1000 (59%)  Progress: 600/1000 (60%)  Progress: 610/1000 (61%)  Progress: 620/1000 (62%)  Progress: 630/1000 (63%)  Progress: 640/1000 (64%)  Progress: 650/1000 (65%)  Progress: 660/1000 (66%)  Progress: 670/1000 (67%)  Progress: 680/1000 (68%)  Progress: 690/1000 (69%)  Progress: 700/1000 (70%)  Progress: 710/1000 (71%)  Progress: 720/1000 (72%)  Progress: 730/1000 (73%)  Progress: 740/1000 (74%)  Progress: 750/1000 (75%)  Progress: 760/1000 (76%)  Progress: 770/1000 (77%)  Progress: 780/1000 (78%)  Progress: 790/1000 (79%)  Progress: 800/1000 (80%)  Progress: 810/1000 (81%)  Progress: 820/1000 (82%)  Progress: 830/1000 (83%)  Progress: 840/1000 (84%)  Progress: 850/1000 (85%)  Progress: 860/1000 (86%)  Progress: 870/1000 (87%)  Progress: 880/1000 (88%)  Progress: 890/1000 (89%)  Progress: 900/1000 (90%)  Progress: 910/1000 (91%)  Progress: 920/1000 (92%)  Progress: 930/1000 (93%)  Progress: 940/1000 (94%)  Progress: 950/1000 (95%)  Progress: 960/1000 (96%)  Progress: 970/1000 (97%)  Progress: 980/1000 (98%)  Progress: 990/1000 (99%)  Progress: 1000/1000 (100%)  
+
+[0;34m═══════════════════════════════════════════════════════[0m
+[0;34m  RESULTS[0m
+[0;34m═══════════════════════════════════════════════════════[0m
+
+Test Duration: 3s
+
+Requests:
+  Total: 1000
+  Success: [0;32m1000[0m
+  Failed: [0;32m0[0m
+  Failure Rate: 0.00%
+
+Response Times (ms):
+  Average: 11ms
+  Min: 5ms
+  Max: 20ms
+
+Throughput:
+  Requests/sec: 333.33
+  Logs/sec: 33333.33
+  Total Logs: 100000
+
+[0;34m═══════════════════════════════════════════════════════[0m
+[0;34m  COMPARISON TO PHASE 13 BASELINE[0m
+[0;34m═══════════════════════════════════════════════════════[0m
+
+Phase 13 Baseline:
+  Average Response Time: 330ms
+  Failure Rate: 0%
+  Throughput: 118+ req/s
+
+Current Results:
+  [0;32m✓[0m Average Response Time: 11ms (target: ≤340ms)
+  [0;32m✓[0m Failure Rate: 0.00% (target: 0%)
+  [0;32m✓[0m Throughput: 333.33 req/s (target: ≥118 req/s)
+
+[0;32m✓ PASS: Performance meets Phase 13 baseline![0m

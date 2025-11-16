@@ -1,0 +1,18 @@
+# k6 Test Results
+*.json
+results/
+test-results/
+
+# Local Performance Baselines
+*.baseline
+*.comparison
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

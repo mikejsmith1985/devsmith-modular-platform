@@ -18,16 +18,18 @@ type Entry struct {
 
 // InMemoryCache provides in-memory caching for analysis results
 type InMemoryCache struct {
-	store   map[string]*Entry
-	mu      sync.RWMutex
-	statsMu sync.RWMutex
-	stats   Stats
+	store       map[string]*Entry
+	mu          sync.RWMutex
+	statsMu     sync.RWMutex
+	stats       Stats
+	stopCleanup chan struct{} // Channel to signal cleanup goroutine to stop
 }
 
 // NewInMemoryCache creates a new in-memory cache for analysis results
 func NewInMemoryCache() *InMemoryCache {
 	cache := &InMemoryCache{
-		store: make(map[string]*Entry),
+		store:       make(map[string]*Entry),
+		stopCleanup: make(chan struct{}),
 	}
 	// Start cleanup goroutine to evict expired entries
 	go cache.cleanupExpired()
@@ -170,23 +172,44 @@ func (c *InMemoryCache) cleanupExpired() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		c.mu.Lock()
-		now := time.Now()
-		evicted := 0
+	for {
+		select {
+		case <-ticker.C:
+			c.mu.Lock()
+			now := time.Now()
+			evicted := 0
 
-		for key, entry := range c.store {
-			if now.After(entry.ExpiresAt) {
-				delete(c.store, key)
-				evicted++
+			for key, entry := range c.store {
+				if now.After(entry.ExpiresAt) {
+					delete(c.store, key)
+					evicted++
+				}
 			}
-		}
-		c.mu.Unlock()
+			c.mu.Unlock()
 
-		if evicted > 0 {
-			for i := 0; i < evicted; i++ {
-				c.recordEviction()
+			if evicted > 0 {
+				for i := 0; i < evicted; i++ {
+					c.recordEviction()
+				}
 			}
+		case <-c.stopCleanup:
+			// Stop signal received - exit goroutine
+			return
 		}
+	}
+}
+
+// Stop gracefully stops the cache cleanup goroutine
+func (c *InMemoryCache) Stop() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Guard against double-close
+	select {
+	case <-c.stopCleanup:
+		// Channel already closed
+		return
+	default:
+		close(c.stopCleanup)
 	}
 }

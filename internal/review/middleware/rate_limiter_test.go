@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -155,6 +156,7 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
 	userID := "concurrent-user"
 
 	// WHEN: Making 100 concurrent requests
+	var mu sync.Mutex
 	successCount := 0
 	errorCount := 0
 	done := make(chan bool)
@@ -163,11 +165,13 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
 		go func() {
 			defer func() { done <- true }()
 			err := limiter.CheckLimit(ctx, userID)
+			mu.Lock()
 			if err == nil {
 				successCount++
 			} else if errors.Is(err, ErrRateLimited) {
 				errorCount++
 			}
+			mu.Unlock()
 		}()
 	}
 
@@ -177,7 +181,9 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
 	}
 
 	// THEN: Exactly 100 succeed (all within limit)
+	mu.Lock()
 	assert.Equal(t, 100, successCount, "All 100 concurrent requests should succeed")
+	mu.Unlock()
 	assert.Equal(t, 0, errorCount, "No requests should exceed limit")
 }
 

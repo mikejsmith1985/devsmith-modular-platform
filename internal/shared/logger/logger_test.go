@@ -13,15 +13,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// httptestServerHelper returns a test HTTP server for log endpoint tests.
+func httptestServerHelper(t *testing.T) *http.Server {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":true}`))
+	})
+	server := &http.Server{Addr: "127.0.0.1:0", Handler: handler}
+	go func() {
+		_ = server.ListenAndServe()
+	}()
+	t.Cleanup(func() { server.Close() })
+	return server
+}
+
 // TestNewLogger_WithValidConfig_ReturnsLogger tests logger initialization.
 func TestNewLogger_WithValidConfig_ReturnsLogger(t *testing.T) {
+	// Use httptest server to simulate unreachable endpoint for CI reliability
+	_ = httptestServerHelper(t)
 	config := &Config{
-		ServiceName: "test-service",
-		LogLevel:    "info",
+		ServiceName:  "test-service",
+		LogLevel:     "info",
+		LogURL:       "http://127.0.0.1:0/api/logs", // test server
+		LogToStdout:  true,
+		EnableStdout: true,
 	}
-
 	logger, err := NewLogger(config)
-
 	assert.NoError(t, err)
 	assert.NotNil(t, logger)
 	assert.Equal(t, "test-service", logger.serviceName)
@@ -539,7 +556,7 @@ func TestLogger_LogURLConfiguration_IsUsedWhenProvided(t *testing.T) {
 	config := &Config{
 		ServiceName:  "test-service",
 		LogLevel:     "info",
-		LogURL:       "http://localhost:8082/api/logs",
+		LogURL:       "http://localhost:3000/api/logs",
 		LogToStdout:  true,
 		EnableStdout: true,
 	}
@@ -573,7 +590,7 @@ func TestLogger_SendLog_HitsLoggingService(t *testing.T) {
 	config := &Config{
 		ServiceName:     "test-service",
 		LogLevel:        "info",
-		LogURL:          "http://localhost:8082/api/logs",
+		LogURL:          "http://localhost:3000/api/logs",
 		BatchSize:       1, // Send immediately
 		BatchTimeoutSec: 1,
 		LogToStdout:     true,
@@ -618,7 +635,7 @@ func TestLogger_BatchSending_DoesNotSendImmediately(t *testing.T) {
 	config := &Config{
 		ServiceName:     "test-service",
 		LogLevel:        "info",
-		LogURL:          "http://localhost:8082/api/logs",
+		LogURL:          "http://localhost:3000/api/logs",
 		BatchSize:       100,
 		BatchTimeoutSec: 60, // Long timeout
 		LogToStdout:     true,
@@ -646,7 +663,7 @@ func TestLogger_BatchSending_SendsWhenFull(t *testing.T) {
 	config := &Config{
 		ServiceName:     "test-service",
 		LogLevel:        "info",
-		LogURL:          "http://localhost:8082/api/logs",
+		LogURL:          "http://localhost:3000/api/logs",
 		BatchSize:       5,
 		BatchTimeoutSec: 60,
 		LogToStdout:     false,
@@ -722,12 +739,21 @@ func TestLogger_StructuredFields_AppearsInSentLog(t *testing.T) {
 	// Log with structured fields
 	logger.Info("test message", "user_id", "123", "request_id", "req-456")
 
-	// Give async sender time
+	// Give async sender time to flush (batch size is 1, so should send immediately)
 	time.Sleep(100 * time.Millisecond)
+
+	// Ensure flush completes before checking buffer state
+	err = logger.Flush(context.Background())
+	require.NoError(t, err)
 
 	// BEHAVIORAL: The logged entry should contain the fields
 	// This will be verifiable once implementation stores entries with fields
-	assert.NotNil(t, logger.batchBuffer, "Buffer should exist to store log entries")
+	// Check buffer with proper mutex protection
+	logger.mu.RLock()
+	bufferExists := logger.batchBuffer != nil
+	logger.mu.RUnlock()
+
+	assert.True(t, bufferExists, "Buffer should exist to store log entries")
 }
 
 // TestLogger_ServiceNameInjection_AppearsInEveryLog verifies service name is added.

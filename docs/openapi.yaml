@@ -1,0 +1,754 @@
+openapi: 3.0.3
+info:
+  title: DevSmith Platform API
+  description: |
+    Comprehensive API documentation for the DevSmith Modular Platform.
+    
+    ## Services
+    
+    - **Portal**: Authentication, session management, app launcher
+    - **Review**: AI-powered code analysis with 5 reading modes
+    - **Logs**: Real-time log ingestion and streaming
+    - **Analytics**: Log analysis and insights
+    
+    ## Authentication
+    
+    All protected endpoints require authentication via JWT token in the `Authorization` header:
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+    
+    Or via cookie (preferred for browser requests):
+    ```
+    Cookie: devsmith_token=<jwt_token>
+    ```
+    
+    ## Base URL
+    
+    Development: `http://localhost:3000`
+    Production: `https://devsmith.example.com`
+    
+  version: 1.0.0
+  contact:
+    name: DevSmith Platform Team
+    email: support@devsmith.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://devsmith.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Portal
+    description: Dashboard and app launcher
+  - name: Review
+    description: AI-powered code analysis
+  - name: Logs
+    description: Log ingestion and streaming
+  - name: Analytics
+    description: Log analysis and insights
+
+paths:
+  # ==================== Authentication ====================
+  
+  /auth/github/login:
+    get:
+      tags:
+        - Authentication
+      summary: Initiate GitHub OAuth login
+      description: Redirects user to GitHub OAuth authorization page
+      responses:
+        '302':
+          description: Redirect to GitHub OAuth
+          headers:
+            Location:
+              schema:
+                type: string
+                example: https://github.com/login/oauth/authorize?client_id=...
+        '500':
+          description: OAuth configuration error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/github/callback:
+    get:
+      tags:
+        - Authentication
+      summary: GitHub OAuth callback
+      description: Handles OAuth callback from GitHub, creates session, returns JWT token
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: GitHub OAuth authorization code
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          description: CSRF protection state parameter
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Successful authentication, redirect to dashboard
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /dashboard
+            Set-Cookie:
+              schema:
+                type: string
+                example: devsmith_token=eyJhbGc...;HttpOnly;SameSite=Lax;Max-Age=86400
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error during authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/test-login:
+    post:
+      tags:
+        - Authentication
+      summary: Test login (E2E tests only)
+      description: Creates test session without GitHub OAuth (disabled in production)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: testuser
+                email:
+                  type: string
+                  example: test@example.com
+                avatar_url:
+                  type: string
+                  example: https://example.com/avatar.png
+                github_id:
+                  type: string
+                  example: "123456"
+      responses:
+        '200':
+          description: Test session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token
+                  user:
+                    $ref: '#/components/schemas/User'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        '403':
+          description: Test login disabled in production
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Returns authenticated user's profile
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /auth/logout:
+    get:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Destroys session and clears cookie
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '302':
+          description: Logged out, redirect to home
+          headers:
+            Location:
+              schema:
+                type: string
+                example: /
+            Set-Cookie:
+              schema:
+                type: string
+                example: devsmith_token=;Max-Age=0
+  
+  # ==================== Portal ====================
+  
+  /dashboard:
+    get:
+      tags:
+        - Portal
+      summary: Dashboard page
+      description: Returns HTML dashboard with app launcher cards
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Dashboard HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Not authenticated, redirect to login
+  
+  /api/apps:
+    get:
+      tags:
+        - Portal
+      summary: List available apps
+      description: Returns list of available services with status
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: List of apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/App'
+  
+  # ==================== Review ====================
+  
+  /review/workspace/{workspaceId}:
+    get:
+      tags:
+        - Review
+      summary: Review workspace page
+      description: Returns HTML workspace for code analysis
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: Workspace ID or 'demo' for demo workspace
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workspace HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Not authenticated
+        '404':
+          description: Workspace not found
+  
+  /api/review/sessions:
+    post:
+      tags:
+        - Review
+      summary: Create review session
+      description: Creates a new code review session
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "User Authentication Review"
+                code_source:
+                  type: string
+                  enum: [github, paste, upload]
+                  example: github
+                github_repo:
+                  type: string
+                  example: mikejsmith1985/devsmith-platform
+                github_branch:
+                  type: string
+                  example: main
+                pasted_code:
+                  type: string
+                  description: Code content (if code_source=paste)
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSession'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    get:
+      tags:
+        - Review
+      summary: List review sessions
+      description: Returns user's review sessions
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewSession'
+  
+  /api/review/sessions/{sessionId}/analyze:
+    post:
+      tags:
+        - Review
+      summary: Run AI analysis
+      description: Analyzes code in specified reading mode
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reading_mode:
+                  type: string
+                  enum: [preview, skim, scan, detailed, critical]
+                  example: critical
+                target_path:
+                  type: string
+                  description: Specific file/function (for detailed mode)
+                  example: /internal/auth/service.go
+                scan_query:
+                  type: string
+                  description: Search query (for scan mode)
+                  example: "Where is authentication validated?"
+      responses:
+        '200':
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+        '404':
+          description: Session not found
+        '500':
+          description: AI analysis failed
+  
+  # ==================== Logs ====================
+  
+  /api/logs:
+    post:
+      tags:
+        - Logs
+      summary: Ingest log entry
+      description: Creates a new log entry
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogEntry'
+      responses:
+        '201':
+          description: Log entry created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: Invalid log entry
+    
+    get:
+      tags:
+        - Logs
+      summary: Query logs
+      description: Returns logs with optional filters
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: service
+          in: query
+          schema:
+            type: string
+            example: portal
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [debug, info, warn, error]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LogEntry'
+  
+  /ws/logs:
+    get:
+      tags:
+        - Logs
+      summary: WebSocket log streaming
+      description: Real-time log streaming via WebSocket
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+      responses:
+        '101':
+          description: WebSocket connection established
+  
+  # ==================== Analytics ====================
+  
+  /api/analytics/trends:
+    get:
+      tags:
+        - Analytics
+      summary: Trend analysis
+      description: Returns log trends over time
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: metric
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [error_rate, response_time, request_count]
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 24
+      responses:
+        '200':
+          description: Trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrendDataPoint'
+  
+  /api/analytics/top-issues:
+    get:
+      tags:
+        - Analytics
+      summary: Top issues
+      description: Returns most common issues
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: time_range
+          in: query
+          schema:
+            type: string
+            enum: [1h, 24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: Top issues list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: devsmith_token
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        github_id:
+          type: string
+          example: "123456789"
+        username:
+          type: string
+          example: mikejsmith1985
+        email:
+          type: string
+          example: mike@example.com
+        avatar_url:
+          type: string
+          example: https://avatars.githubusercontent.com/u/123456789
+        created_at:
+          type: string
+          format: date-time
+    
+    App:
+      type: object
+      properties:
+        id:
+          type: string
+          example: review
+        name:
+          type: string
+          example: Code Review
+        description:
+          type: string
+          example: AI-powered code analysis with 5 reading modes
+        url:
+          type: string
+          example: /review
+        icon:
+          type: string
+          example: bi-code-slash
+        status:
+          type: string
+          enum: [ready, coming_soon]
+          example: ready
+    
+    ReviewSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        user_id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: User Authentication Review
+        code_source:
+          type: string
+          enum: [github, paste, upload]
+          example: github
+        github_repo:
+          type: string
+          example: mikejsmith1985/devsmith-platform
+        github_branch:
+          type: string
+          example: main
+        created_at:
+          type: string
+          format: date-time
+        last_accessed:
+          type: string
+          format: date-time
+    
+    AnalysisResult:
+      type: object
+      properties:
+        analysis:
+          type: object
+          description: Analysis results (structure varies by reading mode)
+        cached:
+          type: boolean
+          description: Whether results were retrieved from cache
+    
+    LogEntry:
+      type: object
+      required:
+        - level
+        - message
+        - service
+      properties:
+        id:
+          type: integer
+          example: 12345
+        user_id:
+          type: integer
+          example: 1
+        service:
+          type: string
+          example: portal
+          enum: [portal, review, logs, analytics]
+        level:
+          type: string
+          example: error
+          enum: [debug, info, warn, error]
+        message:
+          type: string
+          example: Database connection failed
+        metadata:
+          type: object
+          description: Additional context (flexible structure)
+        created_at:
+          type: string
+          format: date-time
+    
+    TrendDataPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          example: 0.05
+        service:
+          type: string
+          example: portal
+    
+    Issue:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Database connection timeout
+        count:
+          type: integer
+          example: 23
+        first_seen:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        affected_services:
+          type: array
+          items:
+            type: string
+          example: [portal, review]
+    
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Authentication required
+        code:
+          type: string
+          example: UNAUTHORIZED
+        details:
+          type: object
+          description: Additional error context

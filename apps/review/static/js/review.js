@@ -1,12 +1,185 @@
 let selectedMode = null;
+let currentSessionId = null;
+let currentCode = null;
 
-// Mode selection (keeping for future use)
+// Mode selection and API trigger
 document.querySelectorAll('.btn-select-mode').forEach(btn => {
-  btn.addEventListener('click', (e) => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
     selectedMode = e.target.dataset.mode;
-    // Mode selection logic can be added here later
+    console.log(`Selected mode: ${selectedMode}`);
+    
+    // If we have code/session, trigger analysis immediately
+    if (currentSessionId && currentCode) {
+      await triggerReadingModeAnalysis(selectedMode);
+    }
   });
 });
+
+/**
+ * Trigger reading mode analysis via API
+ */
+async function triggerReadingModeAnalysis(mode) {
+  const resultsContainer = document.getElementById('reading-mode-demo');
+  if (!resultsContainer) return;
+  
+  // Show loading
+  resultsContainer.innerHTML = `
+    <div class="flex items-center gap-3 p-4">
+      <span class="loading loading-spinner loading-sm"></span>
+      <span>Analyzing code in ${mode} mode...</span>
+    </div>
+  `;
+  
+  try {
+    let requestData = { code: currentCode };
+    let endpoint = `/api/review/sessions/${currentSessionId}/modes/${mode}`;
+    
+    // Customize request based on mode
+    if (mode === 'skim') {
+      requestData = { repo_owner: 'devsmith', repo_name: 'platform' };
+    } else if (mode === 'scan') {
+      requestData = { query: 'error handling' };
+    } else if (mode === 'detailed') {
+      requestData = { file: 'main.go' };
+    } else if (mode === 'critical') {
+      requestData = { full_code: currentCode };
+    }
+    
+    // Call API
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestData),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Analysis failed: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    displayReadingModeResults(mode, result, resultsContainer);
+    
+  } catch (error) {
+    resultsContainer.innerHTML = `
+      <div class="alert alert-error">
+        <span>Error: ${error.message}</span>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Display reading mode results in the appropriate format
+ */
+function displayReadingModeResults(mode, result, container) {
+  let html = '';
+  
+  if (mode === 'preview') {
+    html = `
+      <section class="card">
+        <h3 class="text-xl font-bold mb-4">👁️ Preview Mode Results</h3>
+        <div class="space-y-4">
+          <div>
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">Bounded Contexts</h4>
+            <ul class="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
+              ${result.BoundedContexts?.map(ctx => `<li>${ctx}</li>`).join('') || '<li>N/A</li>'}
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">Tech Stack</h4>
+            <div class="flex gap-2 flex-wrap">
+              ${result.TechStack?.map(tech => `<span class="badge badge-primary">${tech}</span>`).join('') || 'N/A'}
+            </div>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-700 dark:text-gray-300">Summary</h4>
+            <p class="text-sm text-gray-600 dark:text-gray-400">${result.Summary || 'N/A'}</p>
+          </div>
+        </div>
+      </section>
+    `;
+  } else if (mode === 'skim') {
+    html = `
+      <section class="card">
+        <h3 class="text-xl font-bold mb-4">⚡ Skim Mode Results</h3>
+        <div class="space-y-4">
+          <div>
+            <h4 class="font-semibold">Functions</h4>
+            <ul class="list-disc list-inside">
+              ${result.Functions?.map(fn => `<li class="text-sm">${fn}</li>`).join('') || '<li>N/A</li>'}
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold">Key Imports</h4>
+            <div class="flex gap-2 flex-wrap">
+              ${result.Imports?.map(imp => `<code class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs">${imp}</code>`).join('') || 'N/A'}
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+  } else if (mode === 'scan') {
+    html = `
+      <section class="card">
+        <h3 class="text-xl font-bold mb-4">🔎 Scan Mode Results</h3>
+        <div class="space-y-3">
+          <p class="text-sm text-gray-600 dark:text-gray-400">Query: <strong>${result.Query}</strong></p>
+          ${result.Matches?.map(match => `
+            <div class="border-l-4 border-blue-500 pl-3">
+              <p class="text-sm font-mono">${match.File}:${match.Line}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-400">${match.Content}</p>
+              <p class="text-xs text-blue-600">Relevance: ${(match.Relevance * 100).toFixed(0)}%</p>
+            </div>
+          `).join('') || '<p class="text-sm text-gray-500">No matches found</p>'}
+        </div>
+      </section>
+    `;
+  } else if (mode === 'detailed') {
+    html = `
+      <section class="card">
+        <h3 class="text-xl font-bold mb-4">📖 Detailed Mode Results</h3>
+        <div class="space-y-3">
+          <p class="text-sm font-semibold">File: ${result.File}</p>
+          ${result.LineByLine?.map(line => `
+            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded">
+              <p class="text-xs font-mono text-gray-700 dark:text-gray-300">Line ${line.LineNumber}: ${line.Code}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">${line.Explanation}</p>
+            </div>
+          `).join('') || '<p class="text-sm text-gray-500">No lines</p>'}
+        </div>
+      </section>
+    `;
+  } else if (mode === 'critical') {
+    html = `
+      <section class="card">
+        <h3 class="text-xl font-bold mb-4">🔬 Critical Mode Results</h3>
+        <div class="mb-4">
+          <div class="text-2xl font-bold text-center">
+            <span class="text-${result.OverallQuality >= 80 ? 'green' : result.OverallQuality >= 60 ? 'yellow' : 'red'}-600">
+              ${result.OverallQuality}%
+            </span>
+          </div>
+          <p class="text-xs text-center text-gray-500">${result.Summary}</p>
+        </div>
+        <div class="space-y-2">
+          ${result.Issues?.map(issue => `
+            <div class="alert alert-${issue.Severity === 'CRITICAL' ? 'error' : 'warning'}">
+              <div>
+                <p class="font-semibold text-sm">${issue.Category}: ${issue.Description}</p>
+                <p class="text-xs opacity-80">Line ${issue.Line}</p>
+                <p class="text-xs opacity-80">Suggestion: ${issue.Suggestion}</p>
+              </div>
+            </div>
+          `).join('') || '<p class="text-sm text-green-600">No issues found!</p>'}
+        </div>
+      </section>
+    `;
+  }
+  
+  container.innerHTML = html;
+}
 
 // Form submission for session creation
 document.getElementById('review-session-form')?.addEventListener('submit', async (e) => {
@@ -59,6 +232,8 @@ document.getElementById('review-session-form')?.addEventListener('submit', async
     }
 
     const result = await response.json();
+    currentSessionId = result.session_id;
+    currentCode = pastedCode || ''; // Assuming pastedCode is the primary source for now
 
     // Update progress to show session created
     updateProgress(10);
