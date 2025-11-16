@@ -1277,6 +1277,7 @@ GET    /api/analytics/validation/agent-stats - AI agent fix success rate
 |---------|------|--------|---------|
 | 1.0 | 2025-10-18 | Claude | Initial requirements document |
 | 2.0 | 2025-10-18 | Claude | Complete rewrite with mental models, cognitive load, hybrid AI workflow, Go stack |
+| 2.1 | 2025-11-16 | Copilot | Updated to reflect template improvements and review routing fixes. See commit ef3b0c4. |
 
 ---
 
