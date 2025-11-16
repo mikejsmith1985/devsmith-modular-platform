@@ -9,7 +9,6 @@
     "test:cross-repo": "npm run test:logger:js && npm run test:express && npm run test:api",
     "test:logger:js": "mocha docs/integrations/tests/logger.test.js",
     "test:express": "mocha docs/integrations/tests/express-middleware.test.js",
-    "test:flask": "python3 docs/integrations/tests/flask_integration_test.py",
     "test:gin": "cd docs/integrations/go && go test -v",
     "test:api": "mocha docs/integrations/tests/api-batch.test.js",
     "test:all": "npm test && npm run test:cross-repo"
