@@ -29,7 +29,7 @@ templ Dashboard(user DashboardUser) {
 					BadgeText:   "Ready",
 					BadgeColor:  "green",
 					ActionText:  "Open Review",
-					ActionURL:   "http://localhost:8081",
+					ActionURL:   "/review",
 					StatLabel:   "Reading Modes",
 					StatValue:   "5",
 				})
@@ -42,9 +42,9 @@ templ Dashboard(user DashboardUser) {
 					BadgeText:   "Ready",
 					BadgeColor:  "green",
 					ActionText:  "Open Logs",
-					ActionURL:   "http://localhost:8082",
-					StatLabel:   "Health Check",
-					StatValue:   "Active",
+					ActionURL:   "/logs",
+					StatLabel:   "Status",
+					StatValue:   "Operational",
 				})
 
 				<!-- Analytics Service Card -->
@@ -52,12 +52,12 @@ templ Dashboard(user DashboardUser) {
 					Title:       "Analytics",
 					Description: "Usage trends, AI cost monitoring, and performance insights",
 					Icon:        "📊",
-					BadgeText:   "Ready",
-					BadgeColor:  "green",
-					ActionText:  "Open Analytics",
-					ActionURL:   "http://localhost:8083",
-					StatLabel:   "Metrics",
-					StatValue:   "Live",
+					BadgeText:   "Coming Soon",
+					BadgeColor:  "gray",
+					ActionText:  "Coming Soon",
+					ActionURL:   "",
+					StatLabel:   "Status",
+					StatValue:   "In Development",
 				})
 
 				<!-- Healthcheck Service Card -->
@@ -65,12 +65,12 @@ templ Dashboard(user DashboardUser) {
 					Title:       "System Health",
 					Description: "Platform health status, diagnostics, and service monitoring",
 					Icon:        "🏥",
-					BadgeText:   "Monitor",
-					BadgeColor:  "blue",
-					ActionText:  "Check Status",
-					ActionURL:   "http://localhost:8082/api/logs/healthcheck",
+					BadgeText:   "Coming Soon",
+					BadgeColor:  "gray",
+					ActionText:  "Coming Soon",
+					ActionURL:   "",
 					StatLabel:   "Status",
-					StatValue:   "Check",
+					StatValue:   "In Development",
 				})
 			</div>
 
@@ -81,7 +81,7 @@ templ Dashboard(user DashboardUser) {
 					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
 						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
 						<p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">All Online</p>
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">3/3 services operational</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">4/4 services operational</p>
 					</div>
 					<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
 						<p class="text-sm font-medium text-gray-500 dark:text-gray-400">AI Model</p>
@@ -161,7 +161,7 @@ templ LogsDashboard(data LogsDashboardData) {
 				<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">⚠️ Alert Configuration</h3>
 				<div class="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
 					<p class="text-gray-600 dark:text-gray-400 mb-4">View the full Logs dashboard with real-time data at the Logs service.</p>
-					<a href="http://localhost:8082" class="inline-block px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-colors">
+					<a href="/logs" class="inline-block px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 transition-colors">
 						View Full Dashboard
 					</a>
 				</div>

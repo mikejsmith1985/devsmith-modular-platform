@@ -1,11 +1,28 @@
 {
   "scripts": {
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "test": "playwright test",
+    "test:visual": "percy exec -- playwright test tests/e2e/visual-regression.spec.ts",
+    "test:visual:local": "playwright test tests/e2e/visual-regression.spec.ts",
+    "percy:snapshot": "percy exec -- playwright test tests/e2e/visual-regression.spec.ts",
+    "test:a11y": "playwright test tests/e2e/accessibility.spec.ts --workers=1",
+    "test:cross-repo": "npm run test:logger:js && npm run test:express && npm run test:api",
+    "test:logger:js": "mocha docs/integrations/tests/logger.test.js",
+    "test:express": "mocha docs/integrations/tests/express-middleware.test.js",
+    "test:gin": "cd docs/integrations/go && go test -v",
+    "test:api": "mocha docs/integrations/tests/api-batch.test.js",
+    "test:all": "npm test && npm run test:cross-repo"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@percy/cli": "^1.31.4",
+    "@percy/playwright": "^1.0.9",
     "@playwright/test": "^1.56.1",
     "@types/node": "^24.9.1",
+    "chai": "^4.3.7",
+    "dotenv": "^17.2.3",
     "husky": "^9.1.7",
+    "mocha": "^10.8.2",
     "playwright": "^1.56.1"
   }
 }

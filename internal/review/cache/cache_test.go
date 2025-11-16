@@ -13,6 +13,8 @@ import (
 
 func TestInMemoryCache_Set_Get_Success(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: A cache and analysis result
@@ -38,6 +40,7 @@ func TestInMemoryCache_Set_Get_Success(t *testing.T) {
 
 func TestInMemoryCache_Get_Miss(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// WHEN: Getting non-existent key
@@ -50,6 +53,7 @@ func TestInMemoryCache_Get_Miss(t *testing.T) {
 
 func TestInMemoryCache_Expiration(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: A cache entry with short TTL
@@ -78,6 +82,7 @@ func TestInMemoryCache_Expiration(t *testing.T) {
 
 func TestInMemoryCache_Delete(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: A cached entry
@@ -103,6 +108,7 @@ func TestInMemoryCache_Delete(t *testing.T) {
 
 func TestInMemoryCache_Clear(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: Multiple cached entries
@@ -132,6 +138,7 @@ func TestInMemoryCache_Clear(t *testing.T) {
 
 func TestInMemoryCache_Stats_HitRate(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: Cache with some data
@@ -160,6 +167,7 @@ func TestInMemoryCache_Stats_HitRate(t *testing.T) {
 
 func TestInMemoryCache_Stats_Size(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: Empty cache
@@ -183,6 +191,7 @@ func TestInMemoryCache_Stats_Size(t *testing.T) {
 
 func TestInMemoryCache_ContextCancellation(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -204,6 +213,7 @@ func TestInMemoryCache_ContextCancellation(t *testing.T) {
 
 func TestInMemoryCache_NilResultRejected(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// WHEN: Trying to set nil result
@@ -216,6 +226,7 @@ func TestInMemoryCache_NilResultRejected(t *testing.T) {
 
 func TestInMemoryCache_MultipleModes_SameReview(t *testing.T) {
 	cache := NewInMemoryCache()
+	defer cache.Stop() // Ensure cleanup goroutine stops
 	ctx := context.Background()
 
 	// GIVEN: Same review ID with different modes

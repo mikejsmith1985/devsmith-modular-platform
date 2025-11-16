@@ -1,4 +1,21 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - devsmith-network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   postgres:
     build:
       context: ./docker/postgres
@@ -7,6 +24,12 @@ services:
       POSTGRES_USER: devsmith
       POSTGRES_PASSWORD: devsmith
       POSTGRES_DB: devsmith
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
     volumes:
       - ./docker/postgres/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql
       - postgres_data:/var/lib/postgresql/data
@@ -16,127 +39,226 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U devsmith -d devsmith"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 10s
-  nginx:
-    build:
-      context: ./docker/nginx
-      dockerfile: Dockerfile
-    volumes:
-      - ${PWD}/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./apps/portal/static/:/usr/share/nginx/html:ro
-      # Ensure nginx can create runtime cache/temp directories
-      - nginx-cache:/var/cache/nginx
+      start_period: 8s
+  traefik:
+    image: traefik:v2.10
+    container_name: devsmith-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:3000"
+      - "--log.level=INFO"
+      - "--accesslog=true"
     ports:
-      - "3000:80" # Changed: map host 3000 to container 80 (nginx listens on 80)
+      - "3000:3000"   # Main gateway
+      - "8090:8080"   # Traefik dashboard (changed from 8080 to avoid conflict with Portal)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       portal:
         condition: service_healthy
       review:
-        condition: service_healthy
+        condition: service_started
       logs:
         condition: service_healthy
       analytics:
         condition: service_healthy
     networks:
       - devsmith-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    restart: unless-stopped
+
+  # OLD FRONTEND SERVICE REMOVED 2025-11-12
+  # Was serving stale React build (Nov 11) with max Traefik priority
+  # Blocking new Review service with Portal AI Factory integration
+  # Review service now handles both UI and API routes
+
   portal:
     build:
       context: .
       dockerfile: cmd/portal/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
-      - "8080:8080"
+      - "3001:3001"
     environment:
-      - PORT=8080
+      - PORT=3001
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
-      - GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
-      - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
-      - REDIRECT_URI=http://localhost:3000/auth/github/callback
+      - REDIS_URL=redis:6379
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-dev-encryption-key-32-chars-min}
+      - REDIRECT_URI=http://localhost:3000/oauth/pkce-callback
       - ENABLE_TEST_AUTH=true
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       logs:
         condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      # Portal API - /api/portal routes go to backend
+      # Shared cache-busting middleware (used by Portal and Review)
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Cache-Control=no-store, no-cache, must-revalidate, max-age=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Pragma=no-cache"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.Expires=0"
+      - "traefik.http.middlewares.html-nocache.headers.customresponseheaders.X-Cache-Invalidate=always"
+      # Portal API - handle /api/portal/* routes
+      - "traefik.http.routers.portal-api.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/portal`)"
+      - "traefik.http.routers.portal-api.entrypoints=web"
+      - "traefik.http.routers.portal-api.priority=100"
+      - "traefik.http.routers.portal-api.service=portal"
+      # Portal Auth - /auth routes (OAuth flow)
+      - "traefik.http.routers.portal-auth.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/auth`)"
+      - "traefik.http.routers.portal-auth.entrypoints=web"
+      - "traefik.http.routers.portal-auth.priority=99"
+      - "traefik.http.routers.portal-auth.service=portal"
+      - "traefik.http.routers.portal-auth.middlewares=html-nocache@docker"
+      # Portal Static - /static for assets (CSS, JS, fonts, images)
+      - "traefik.http.routers.portal-static.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/static`)"
+      - "traefik.http.routers.portal-static.entrypoints=web"
+      - "traefik.http.routers.portal-static.priority=97"
+      - "traefik.http.routers.portal-static.service=portal"
+      # Portal UI - serve React SPA (root, dashboard, all UI routes)
+      # Priority 50 (lowest) - catches all non-matched routes for client-side routing
+      - "traefik.http.routers.portal-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/`)"
+      - "traefik.http.routers.portal-ui.entrypoints=web"
+      - "traefik.http.routers.portal-ui.priority=50"
+      - "traefik.http.routers.portal-ui.service=portal"
+      - "traefik.http.routers.portal-ui.middlewares=html-nocache@docker"
+      # Service definition with health check
+      - "traefik.http.services.portal.loadbalancer.server.port=3001"
+      - "traefik.http.services.portal.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.portal.loadbalancer.healthcheck.interval=10s"
   review:
     build:
       context: .
       dockerfile: cmd/review/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "8081:8081"
     environment:
       - PORT=8081
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
       - REVIEW_DB_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
+      - PORTAL_URL=http://portal:3001
+      - OLLAMA_ENDPOINT=http://host.docker.internal:11434
       - ENVIRONMENT=docker
+        - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4318
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       logs:
+        condition: service_healthy
+      jaeger:
         condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-I", "-f", "http://localhost:8081/health"]
+      interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 10
       start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      # Review UI - serve React SPA for /review paths
+      # Review UI - handle /review route (embedded UI)
+      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`) && !PathPrefix(`/api/review`)"
+      - "traefik.http.routers.review-ui.entrypoints=web"
+      - "traefik.http.routers.review-ui.priority=150"
+      - "traefik.http.routers.review-ui.service=review"
+      - "traefik.http.routers.review-ui.middlewares=html-nocache@docker"
+      # Review API - handle /api/review/* routes
+      - "traefik.http.routers.review.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/review`)"
+      - "traefik.http.routers.review.entrypoints=web"
+      - "traefik.http.routers.review.priority=100"
+      - "traefik.http.routers.review.service=review"
+      # Service configuration
+      - "traefik.http.services.review.loadbalancer.server.port=8081"
+      - "traefik.http.services.review.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.review.loadbalancer.healthcheck.interval=10s"
   logs:
     build:
       context: .
       dockerfile: cmd/logs/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "8082:8082"
     environment:
       - PORT=8082
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
-      - GITHUB_CLIENT_ID=Ov23liaV4He3p1k7VziT
-      - GITHUB_CLIENT_SECRET=38a572a8b527e670ca5b9b03e9645c243b517f98
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - REDIRECT_URI=http://localhost:3000/auth/github/callback
+      - PORTAL_URL=http://portal:3001
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.logs.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/logs`)"
+      - "traefik.http.routers.logs.entrypoints=web"
+      - "traefik.http.routers.logs.priority=100"
+      - "traefik.http.routers.logs.service=logs"
+      - "traefik.http.services.logs.loadbalancer.server.port=8082"
+      - "traefik.http.services.logs.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.logs.loadbalancer.healthcheck.interval=10s"
   analytics:
     build:
       context: .
       dockerfile: cmd/analytics/Dockerfile
+      args:
+        BUILD_TIMESTAMP: ${BUILD_TIMESTAMP:-0}
     ports:
       - "8083:8083"
     environment:
       - PORT=8083
       - DATABASE_URL=postgres://devsmith:devsmith@postgres:5432/devsmith?sslmode=disable
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
       - ENVIRONMENT=docker
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       logs:
         condition: service_healthy
@@ -144,25 +266,91 @@ services:
       - devsmith-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 5
-      start_period: 40s
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.analytics.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/analytics`)"
+      - "traefik.http.routers.analytics.entrypoints=web"
+      - "traefik.http.routers.analytics.priority=100"
+      - "traefik.http.routers.analytics.service=analytics"
+      - "traefik.http.services.analytics.loadbalancer.server.port=8083"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.path=/api/analytics/health"
+      - "traefik.http.services.analytics.loadbalancer.healthcheck.interval=10s"
 
   maildev:
     image: maildev/maildev:latest
+    profiles: ["dev-tools"]
     ports:
       - "1025:1025" # SMTP
       - "1080:1080" # Web UI
     networks:
       - devsmith-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:1080/" ]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "nc", "-z", "localhost", "1080"]
+      interval: 5s
+      timeout: 3s
       retries: 3
+      start_period: 8s
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4318:4318"   # OTLP HTTP receiver
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
       start_period: 10s
 
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    profiles: ["dev-tools"]
+    ports:
+      - "8090:8080"
+    environment:
+      - SWAGGER_JSON=/docs/openapi-review.yaml
+      - BASE_URL=/docs/review
+    volumes:
+      - ./docs:/docs:ro
+    networks:
+      - devsmith-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Playwright test runner - runs E2E tests inside the Docker network so
+  # tests exercise the nginx gateway and services via their container names.
+  # This service is intended for local CI / developer smoke runs. It uses
+  # the Playwright official image which includes browsers.
+  playwright:
+    image: mcr.microsoft.com/playwright:latest
+    working_dir: /work
+    volumes:
+      - ./:/work:cached
+    environment:
+      - PLAYWRIGHT_IN_DOCKER=1
+      - PLAYWRIGHT_BASE_URL=http://traefik:3000
+      - CI=1
+    depends_on:
+      traefik:
+        condition: service_started
+    networks:
+      - devsmith-network
+    # Install deps and run smoke tests by default. You can override the
+    # command to run a different project or reporter.
+    command: sh -c "npm ci --silent || true && npx playwright install --with-deps || true && npx playwright test --project=smoke --reporter=list"
 
 networks:
   devsmith-network:
@@ -170,4 +358,4 @@ networks:
 
 volumes:
   postgres_data:
-  nginx-cache:
+  redis_data:

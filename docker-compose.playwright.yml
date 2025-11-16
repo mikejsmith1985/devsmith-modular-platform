@@ -1,0 +1,14 @@
+services:
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.56.1-jammy
+    working_dir: /app
+    volumes:
+      - .:/app
+    network_mode: ${PLAYWRIGHT_NETWORK:-host}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Basic Auth for nginx-protected endpoints (testuser:devsmith default credentials)
+      PLAYWRIGHT_BASIC_AUTH: ${PLAYWRIGHT_BASIC_AUTH:-testuser:devsmith}
+      PLAYWRIGHT_BASE_URL: ${PLAYWRIGHT_BASE_URL:-http://host.docker.internal:3000}
+    command: bash -c "npm ci && npx playwright test tests/e2e/smoke/ --project=smoke --workers=6"

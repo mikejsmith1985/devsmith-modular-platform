@@ -86,9 +86,9 @@ func TestUIHandler_DashboardHandler_ContainsScripts(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	assert.Contains(t, body, "websocket.js")
-	assert.Contains(t, body, "logs.js")
-	assert.Contains(t, body, "bootstrap.bundle.min.js")
+	assert.Contains(t, body, "devsmith-theme.css", "Should include devsmith-theme.css")
+	assert.Contains(t, body, "alpinejs", "Should include Alpine.js for interactivity")
+	assert.Contains(t, body, "logs-output", "Should include logs output container")
 }
 
 func TestUIHandler_DashboardHandler_ContainsStylesheet(t *testing.T) {
@@ -106,7 +106,7 @@ func TestUIHandler_DashboardHandler_ContainsStylesheet(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	assert.Contains(t, body, "logs.css")
+	assert.Contains(t, body, "devsmith-theme.css")
 }
 
 func TestUIHandler_HealthHandler_Success(t *testing.T) {
@@ -298,7 +298,7 @@ func TestUIHandler_DashboardHandler_ValidHTML(t *testing.T) {
 	assert.Contains(t, body, "</html>")
 	assert.Contains(t, body, "<head>")
 	assert.Contains(t, body, "</head>")
-	assert.Contains(t, body, "<body>")
+	assert.Contains(t, body, "<body") // Check for body tag with any attributes
 	assert.Contains(t, body, "</body>")
 
 	// Check tags are properly closed
@@ -322,8 +322,8 @@ func TestUIHandler_DashboardHandler_NavbarPresent(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	body := w.Body.String()
-	assert.Contains(t, body, "navbar")
-	assert.Contains(t, body, "navbar-brand")
+	assert.Contains(t, body, "<nav")
+	assert.Contains(t, body, "DevSmith", "Should have DevSmith branding")
 }
 
 func TestUIHandler_DashboardHandler_MetaTags(t *testing.T) {

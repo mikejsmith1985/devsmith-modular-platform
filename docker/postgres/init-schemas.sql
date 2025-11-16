@@ -5,9 +5,17 @@ CREATE SCHEMA IF NOT EXISTS logs;
 CREATE SCHEMA IF NOT EXISTS analytics;
 CREATE SCHEMA IF NOT EXISTS builds;
 
--- Create roles for authentication
-CREATE ROLE devsmith WITH LOGIN PASSWORD 'test_password';
-CREATE ROLE root WITH LOGIN PASSWORD 'test_password';
+-- Create roles for authentication (check if they exist first)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'devsmith') THEN
+    CREATE ROLE devsmith WITH LOGIN PASSWORD 'test_password';
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'root') THEN
+    CREATE ROLE root WITH LOGIN PASSWORD 'test_password';
+  END IF;
+END
+$$;
 
 -- Create reviews.sessions table for Review Service
 CREATE TABLE IF NOT EXISTS reviews.sessions (

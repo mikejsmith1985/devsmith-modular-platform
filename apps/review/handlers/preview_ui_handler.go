@@ -10,8 +10,8 @@ import (
 // RegisterPreviewUIRoutes registers the UI routes for preview mode in the review app.
 func RegisterPreviewUIRoutes(router *gin.Engine, previewService *review_services.PreviewService) {
 	router.GET("/review/preview", func(c *gin.Context) {
-		// For demo, use mock session ID and codebase
-		result, err := previewService.AnalyzePreview(c.Request.Context(), "testdata/sample_project")
+		// For demo, use mock session ID and codebase with default modes
+		result, err := previewService.AnalyzePreview(c.Request.Context(), "testdata/sample_project", "intermediate", "quick")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Analysis failed")
 			return
@@ -21,9 +21,9 @@ func RegisterPreviewUIRoutes(router *gin.Engine, previewService *review_services
 			"FileTree":             result.FileTree,
 			"BoundedContexts":      result.BoundedContexts,
 			"TechStack":            result.TechStack,
-			"ArchitecturePattern":  result.ArchitecturePattern,
+			"ArchitecturePattern":  result.ArchitectureStyle,
 			"EntryPoints":          result.EntryPoints,
-			"ExternalDependencies": result.ExternalDependencies,
+			"ExternalDependencies": result.ExternalDeps,
 			"Summary":              result.Summary,
 			"SessionID":            "demo-session",
 		})

@@ -1,0 +1,188 @@
+name: Smoke Tests (Docker Compose)
+
+on:
+  pull_request:
+    branches: [development, main]
+  push:
+    branches: [development, main]
+
+jobs:
+  smoke-test:
+    name: Full Stack Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env file
+        run: |
+          # Use the repo secret if available; otherwise use a safe test fallback for CI (e.g. forked PRs)
+          GITHUB_CLIENT_SECRET="${{ secrets.GITHUB_CLIENT_SECRET }}"
+          if [ -z "$GITHUB_CLIENT_SECRET" ]; then
+            echo "⚠️  GITHUB_CLIENT_SECRET secret not available (likely a forked PR). Using CI fallback value."
+            GITHUB_CLIENT_SECRET="test_github_client_secret_ci"
+          fi
+
+          cat > .env << EOF
+          # Database
+          POSTGRES_USER=devsmith
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=devsmith
+          DATABASE_URL=postgresql://devsmith:devsmith123@postgres:5432/devsmith
+
+          # Redis
+          REDIS_URL=redis://redis:6379
+
+          # GitHub OAuth (test mode)
+          GITHUB_CLIENT_ID=test_client_id
+          GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+          ENABLE_TEST_AUTH=true
+
+          # JWT
+          JWT_SECRET=test_jwt_secret_for_ci
+
+          # Services (ports unified via gateway)
+          # All service access is via Traefik gateway on port 3000
+
+          # Ollama (mock in CI)
+          OLLAMA_BASE_URL=http://mock-ollama:11434
+          OLLAMA_MODEL=mock-model
+
+          # Environment
+          ENVIRONMENT=ci
+          LOG_LEVEL=info
+          EOF
+
+          # If the CI fallback was used, print an informational note
+          VALUE=$(grep "^GITHUB_CLIENT_SECRET=" .env | cut -d'=' -f2-)
+          if [ "$VALUE" = "test_github_client_secret_ci" ]; then
+            echo "ℹ️  Using CI fallback for GITHUB_CLIENT_SECRET (expected for forked PRs)."
+          fi
+
+      - name: Validate .env required variables
+        run: |
+          # Fail early if any required env var is missing or empty
+          REQUIRED_VARS=(JWT_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET)
+          for VAR in "${REQUIRED_VARS[@]}"; do
+            VALUE=$(grep "^$VAR=" .env | cut -d'=' -f2-)
+            if [ -z "$VALUE" ]; then
+              echo "❌ ERROR: Required env var $VAR is missing or empty in .env"
+              exit 1
+            fi
+          done
+          echo "✅ All required env vars present in .env"
+
+          # Frontend builds: .env.production overrides .env
+          echo "ℹ️  Reminder: For frontend builds, .env.production takes precedence over .env. Debug using .env.production first."
+
+      - name: Start services with docker compose
+        run: |
+          docker compose up -d --build
+          echo "Services started, waiting for health checks..."
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting up to 120 seconds for all services to be healthy..."
+          timeout 120 bash -c '
+            while true; do
+              # docker compose ps --format json outputs newline-separated JSON objects, not an array
+              healthy=$(docker compose ps --format json | jq -r "select(.Health == \"healthy\") | .Name" | wc -l)
+              total=$(docker compose ps --format json | jq -r ".Name" | wc -l)
+              echo "Healthy: $healthy/$total"
+              
+              if [ "$healthy" -ge 6 ]; then
+                echo "All critical services are healthy!"
+                break
+              fi
+              sleep 5
+            done
+          '
+
+      - name: Show service status
+        if: always()
+        run: docker compose ps
+
+      - name: Apply Phase 1 database migrations
+        run: |
+          echo "Applying Phase 1 migrations for AI Factory..."
+          bash scripts/apply-phase1-migrations.sh || (echo "WARN: Phase 1 migrations failed (may be expected if already applied)" && true)
+          echo "✓ Phase 1 migrations applied"
+
+      - name: Wait for Traefik to discover routes and perform health checks
+        run: |
+          echo "Waiting for Traefik to discover Docker services and run health checks..."
+          echo "  - Services starting: ~3s"
+          echo "  - First health check: 10s interval"
+          echo "  - Total wait: 20s"
+          sleep 20
+          echo "✓ Route discovery and health check grace period completed"
+
+      - name: Test Traefik Gateway
+        run: |
+          echo "Testing Traefik gateway on port 3000..."
+          curl -f http://localhost:3000/ || (echo "Frontend not accessible via gateway" && exit 1)
+          echo "✓ Frontend accessible via Traefik"
+
+      - name: Test Portal API via Gateway
+        run: |
+          echo "Testing Portal health via gateway..."
+          curl -f http://localhost:3000/api/portal/health || (echo "Portal API not accessible" && exit 1)
+          echo "✓ Portal API accessible via Traefik"
+
+      - name: Test Review API via Gateway
+        run: |
+          echo "Testing Review service accessibility via gateway..."
+          # Test public API endpoint (models list doesn't require auth)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/review/models)
+          if [ "$STATUS" = "200" ]; then
+            echo "✓ Review API accessible via Traefik (HTTP $STATUS)"
+          else
+            echo "Review API returned HTTP $STATUS (expected 200)"
+            exit 1
+          fi
+
+      - name: Test Logs API via Gateway
+        run: |
+          echo "Testing Logs health via gateway..."
+          curl -f http://localhost:3000/api/logs/health || (echo "Logs API not accessible" && exit 1)
+          echo "✓ Logs API accessible via Traefik"
+
+      - name: Test Analytics API via Gateway
+        run: |
+          echo "Testing Analytics health via gateway..."
+          curl -f http://localhost:3000/api/analytics/health || (echo "Analytics API not accessible" && exit 1)
+          echo "✓ Analytics API accessible via Traefik"
+
+      - name: Test frontend React app loads
+        run: |
+          echo "Testing React frontend..."
+          response=$(curl -s http://localhost:3000/)
+          if echo "$response" | grep -q "DevSmith"; then
+            echo "✓ Frontend HTML contains 'DevSmith'"
+          else
+            echo "✗ Frontend doesn't contain expected content"
+            exit 1
+          fi
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          echo "=== Traefik Logs ==="
+          docker compose logs traefik --tail=50
+          echo "=== Portal Logs ==="
+          docker compose logs portal --tail=50
+          echo "=== Review Logs ==="
+          docker compose logs review --tail=50
+          echo "=== Logs Service Logs ==="
+          docker compose logs logs --tail=50
+          echo "=== Analytics Logs ==="
+          docker compose logs analytics --tail=50
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

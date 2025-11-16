@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Cache Control Meta Tags - Infrastructure-Level Cache Invalidation -->
+    <!-- Reference: CACHE_SOLUTION_ARCHITECTURE.md - Layer 2 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="build-timestamp" content="BUILD_TIMESTAMP_PLACEHOLDER">
+    <!-- Favicon - gracefully fallback if missing -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" onerror="this.onerror=null; this.href='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22></svg>';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevSmith Platform</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

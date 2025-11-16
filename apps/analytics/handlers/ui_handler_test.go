@@ -86,7 +86,8 @@ func TestDashboardHandler_ContainsScripts(t *testing.T) {
 	// Check for required script tags
 	assert.Contains(t, body, "chart.js", "Should include Chart.js library")
 	assert.Contains(t, body, "analytics.js", "Should include analytics.js script")
-	assert.Contains(t, body, "bootstrap", "Should include Bootstrap")
+	assert.Contains(t, body, "devsmith-theme.css", "Should include devsmith-theme.css")
+	assert.Contains(t, body, "alpinejs", "Should include Alpine.js for interactivity")
 }
 
 func TestDashboardHandler_ContainsNavigation(t *testing.T) {
@@ -105,8 +106,8 @@ func TestDashboardHandler_ContainsNavigation(t *testing.T) {
 	body := w.Body.String()
 
 	// Check for navigation elements
-	assert.Contains(t, body, "navbar", "Should contain navbar")
-	assert.Contains(t, body, "Dashboard", "Should have Dashboard link")
+	assert.Contains(t, body, "<nav", "Should contain nav element")
+	assert.Contains(t, body, "Analytics", "Should have Analytics link")
 }
 
 func TestHealthHandler_Success(t *testing.T) {

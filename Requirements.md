@@ -441,13 +441,27 @@ CREATE TABLE logs.entries (
     service VARCHAR(50),      -- 'portal', 'review', 'logging', etc.
     level VARCHAR(20),        -- 'debug', 'info', 'warn', 'error'
     message TEXT,
-    metadata JSONB,
+    metadata JSONB,           -- Generic metadata for flexibility
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- NEW: Browser debugging data (network tab + console output)
+CREATE TABLE logs.browser_debug_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INT,
+    session_name VARCHAR(255),
+    user_action TEXT,         -- "Clicked Review card from dashboard"
+    network_log JSONB,        -- Full DevTools Network tab output
+    console_log JSONB,        -- Full DevTools Console output
+    page_errors JSONB,        -- JavaScript errors
+    navigation_events JSONB,  -- URL changes, redirects
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_logs_service_level ON logs.entries(service, level, created_at DESC);
 CREATE INDEX idx_logs_user ON logs.entries(user_id, created_at DESC);
 CREATE INDEX idx_logs_created ON logs.entries(created_at DESC);
+CREATE INDEX idx_browser_debug_user ON logs.browser_debug_sessions(user_id, created_at DESC);
 ```
 
 **API Endpoints**:
@@ -456,6 +470,11 @@ POST   /api/logs              - Ingest log entry
 GET    /api/logs              - Query logs (with filters)
 GET    /api/logs/stats        - Statistics (count by level, service)
 WS     /ws/logs               - Real-time log stream
+
+-- NEW: Browser debugging endpoints
+POST   /api/logs/browser-debug          - Submit browser debug session
+GET    /api/logs/browser-debug/:id      - Retrieve debug session
+GET    /api/logs/browser-debug/user/:id - Get all debug sessions for user
 ```
 
 **Features**:
@@ -1258,6 +1277,455 @@ GET    /api/analytics/validation/agent-stats - AI agent fix success rate
 |---------|------|--------|---------|
 | 1.0 | 2025-10-18 | Claude | Initial requirements document |
 | 2.0 | 2025-10-18 | Claude | Complete rewrite with mental models, cognitive load, hybrid AI workflow, Go stack |
+
+---
+
+## GitHub Repository Integration - Phased Implementation Plan
+
+### Overview
+Multi-phase approach to GitHub repository integration with the Review service, balancing immediate value delivery with long-term scalability and performance optimization.
+
+---
+
+### Phase 1: Lazy-Load MVP (Week 1) 🚀 **START HERE**
+
+**Goal**: Deliver working GitHub integration with minimal bandwidth usage and instant setup.
+
+**Architecture**: Lazy-load tree structure, fetch files on-demand.
+
+#### Features
+
+**1. Simple Repo Scan Mode** (NEW!)
+- **Purpose**: Instant repository profiling without downloading all files
+- **What It Fetches**:
+  - `README.md` (or README.rst, README.txt) - Project overview
+  - `package.json` / `go.mod` / `requirements.txt` / `Cargo.toml` - Dependencies
+  - `LICENSE` - Licensing information
+  - `CONTRIBUTING.md` - Contribution guidelines (if exists)
+  - Root-level config: `.gitignore`, `docker-compose.yml`, `Makefile`, `.github/workflows/*`
+  - Entry point files (auto-detected by language):
+    - Go: `main.go`, `cmd/*/main.go`
+    - JavaScript: `index.js`, `src/index.js`, `app.js`
+    - Python: `main.py`, `app.py`, `__init__.py`
+    - Rust: `main.rs`, `lib.rs`
+- **AI Analysis**: Runs in **Preview Mode** on fetched files
+- **Output**:
+  - Project description (extracted from README)
+  - Technology stack (detected from dependency files)
+  - Architecture pattern (inferred from structure)
+  - Setup instructions (parsed from README)
+  - Key entry points identified
+  - Dependencies summary
+- **Performance**: ~5-8 files, ~50-100KB total, **<2 seconds**
+- **UI**: Single button "Quick Repo Scan" → instant results
+
+**2. Full Repository Browser**
+- **Tree Structure**: Fetch GitHub tree API (~100KB for 1000-file repo)
+- **On-Demand File Fetch**: Only fetch file contents when user clicks/selects
+- **Multi-Select**: Select multiple files → batch fetch → analyze
+- **Search/Filter**: Client-side tree filtering (no API calls)
+- **Progress Indicator**: "Fetching repository structure..." during tree load
+
+#### Technical Implementation
+
+**Authentication**:
+- Reuse Portal's GitHub OAuth token from Redis session
+- Token passed to Review service via session store
+- No separate GitHub token input required
+
+**Backend Endpoints**:
+```go
+// Fetch repository tree structure (no file contents)
+GET /api/review/github/tree
+  Query: ?url=github.com/owner/repo&branch=main
+  Response: { tree: [...], entry_points: [...] }
+
+// Fetch single file contents
+GET /api/review/github/file
+  Query: ?url=github.com/owner/repo&path=src/main.go&branch=main
+  Response: { content: "...", language: "go", size: 1234 }
+
+// Quick repo scan (Simple Repo Scan Mode)
+GET /api/review/github/quick-scan
+  Query: ?url=github.com/owner/repo&branch=main
+  Response: { 
+    readme: "...",
+    dependencies: {...},
+    entry_points: [...],
+    config_files: [...],
+    ai_analysis: {...}  // Preview mode analysis
+  }
+```
+
+**Frontend Components** (Already Created):
+- ✅ `FileTabs.jsx` - Tab management for multiple open files
+- ✅ `FileTreeBrowser.jsx` - Hierarchical tree with search, multi-select
+- ⏳ `RepoImportModal.jsx` - GitHub URL input, branch selection, scan mode choice
+
+**UI Flow**:
+```
+1. User clicks "Import from GitHub" button
+2. Modal opens with:
+   - GitHub URL input (e.g., github.com/owner/repo)
+   - Branch dropdown (auto-populated from API)
+   - Two buttons:
+     a) "Quick Repo Scan" (Simple Mode) - Instant profile
+     b) "Full Repository Browser" - Explore all files
+3a. Quick Scan:
+   - Fetches ~5-8 core files (~100KB)
+   - Runs Preview Mode AI analysis
+   - Shows results in Analysis pane
+   - ~2 seconds total
+3b. Full Browser:
+   - Fetches tree structure (~100KB)
+   - Shows FileTreeBrowser in sidebar
+   - User selects files → fetched on-demand
+   - Opens in FileTabs for editing/analysis
+```
+
+**Performance Benefits**:
+- **Simple Scan**: 100KB vs 50MB full clone (500x smaller)
+- **Full Browser**: Fetch 5 files = 25KB vs 50MB (2000x smaller)
+- **Time Savings**: 2s vs 30-60s for clone
+- **Rate Limits**: 5,000 API calls/hour (authenticated) vs 60/hour (unauthenticated)
+
+#### Limitations (Accept for MVP)
+- ❌ No file caching (re-fetch on page refresh)
+- ❌ No offline support
+- ❌ No semantic search across files
+- ❌ Max 100 files per analysis (prevent API overload)
+
+#### Deliverables
+- [ ] Backend: `/api/review/github/tree` endpoint
+- [ ] Backend: `/api/review/github/file` endpoint
+- [ ] Backend: `/api/review/github/quick-scan` endpoint
+- [ ] Frontend: `RepoImportModal.jsx` component
+- [ ] Frontend: Integrate FileTreeBrowser into ReviewPage sidebar
+- [ ] Frontend: Connect file selection to FileTabs
+- [ ] UI: Loading states and progress indicators
+- [ ] UI: "Quick Repo Scan" vs "Full Browser" mode selection
+- [ ] Testing: E2E test for full workflow
+- [ ] Docs: Update user guide with GitHub integration
+
+**Acceptance Criteria**:
+- ✅ User can paste GitHub URL and see repo structure in <3 seconds
+- ✅ Quick Repo Scan completes in <2 seconds with meaningful analysis
+- ✅ User can select files and open them in tabs
+- ✅ Multiple files can be analyzed together
+- ✅ GitHub rate limits respected (authenticated token)
+- ✅ Error handling for private repos (403) and rate limits (429)
+
+---
+
+### Phase 2: Performance Optimization (Week 2-3)
+
+**Goal**: Improve user experience with caching and smarter prefetching.
+
+#### Features
+
+**1. Browser-Side Caching (IndexedDB)**
+- Cache fetched file contents keyed by `${repoUrl}:${filePath}:${commitSHA}`
+- Persist across page refreshes
+- Auto-expire after 7 days or on new commits
+- Cache size limit: 50MB per repository
+
+**2. Intelligent Prefetching**
+- When user opens folder in tree, prefetch immediate children (if <10 files)
+- When user opens file, prefetch files in same directory
+- Prefetch entry point files automatically (main.go, index.js, etc.)
+
+**3. Batch API Optimization**
+- Combine multiple file requests into single GitHub API call
+- Use GitHub's blob API with multiple SHAs
+- Reduces API calls by 80% for multi-file workflows
+
+#### Technical Implementation
+
+**IndexedDB Schema**:
+```javascript
+// Database: devsmith-review-cache
+// Store: github-files
+{
+  key: "github.com/owner/repo:src/main.go:abc123",  // repoUrl:path:commitSHA
+  value: {
+    content: "...",
+    language: "go",
+    size: 1234,
+    cached_at: "2025-11-07T12:00:00Z",
+    commit_sha: "abc123"
+  }
+}
+```
+
+**Cache Wrapper**:
+```javascript
+class GitHubCache {
+  async getFile(repoUrl, path, commitSHA) {
+    const key = `${repoUrl}:${path}:${commitSHA}`;
+    
+    // Check cache first
+    const cached = await this.db.get(key);
+    if (cached && !this.isExpired(cached)) {
+      return cached;
+    }
+    
+    // Fetch from API
+    const file = await api.fetchFile(repoUrl, path);
+    
+    // Cache result
+    await this.db.put(key, { ...file, cached_at: new Date() });
+    
+    return file;
+  }
+  
+  isExpired(cached) {
+    const age = Date.now() - new Date(cached.cached_at);
+    return age > 7 * 24 * 60 * 60 * 1000;  // 7 days
+  }
+}
+```
+
+#### Deliverables
+- [ ] IndexedDB cache implementation
+- [ ] Cache invalidation on new commits
+- [ ] Prefetching heuristics
+- [ ] Batch API optimization
+- [ ] Cache statistics in UI (hit rate, storage used)
+
+**Acceptance Criteria**:
+- ✅ Previously viewed files load instantly from cache
+- ✅ Cache persists across browser sessions
+- ✅ Cache invalidates on repo updates
+- ✅ Prefetching reduces wait time for common workflows
+- ✅ Batch API reduces GitHub API calls by 80%
+
+---
+
+### Phase 3: Backend Indexing (Optional - Month 2+)
+
+**Goal**: Enable advanced features like semantic search and offline analysis.
+
+**⚠️ Note**: Only implement if Phase 1-2 prove insufficient for user needs.
+
+#### Features
+
+**1. Background Repository Indexing**
+- User triggers: "Index this repository for offline use"
+- Background job fetches entire repo asynchronously
+- Stores in PostgreSQL `reviews.repo_cache` table
+- Shows progress: "Indexing... 234/1000 files (23%)"
+
+**2. Semantic Search Across Repository**
+- "Find all error handling patterns" → searches indexed content
+- "Show all database queries" → finds SQL across all files
+- AI-powered search (not just text matching)
+
+**3. Offline Analysis**
+- Once indexed, no GitHub API calls needed
+- Instant file access from database cache
+- Analysis works even if GitHub is down
+
+**4. Cache Management**
+- Auto-update: Re-index on webhook events (new commits)
+- Manual trigger: "Re-index now" button
+- Cache expiry: Remove repos not accessed in 30 days
+- Storage limits: Max 100 repos or 10GB per user
+
+#### Technical Implementation
+
+**Database Schema**:
+```sql
+-- Indexed repositories
+CREATE TABLE reviews.repo_index (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    repo_url VARCHAR(255) NOT NULL,
+    branch VARCHAR(100) DEFAULT 'main',
+    last_commit_sha VARCHAR(40),
+    file_count INT,
+    total_size_bytes BIGINT,
+    indexed_at TIMESTAMP,
+    last_accessed TIMESTAMP,
+    status VARCHAR(20),  -- 'indexing', 'complete', 'failed'
+    UNIQUE(user_id, repo_url, branch)
+);
+
+-- Cached file contents
+CREATE TABLE reviews.repo_files (
+    id BIGSERIAL PRIMARY KEY,
+    repo_id INT REFERENCES reviews.repo_index(id) ON DELETE CASCADE,
+    file_path VARCHAR(500) NOT NULL,
+    content TEXT,
+    content_hash VARCHAR(64),  -- SHA256 for deduplication
+    language VARCHAR(50),
+    size_bytes INT,
+    ast_data JSONB,  -- Abstract Syntax Tree for advanced search
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(repo_id, file_path)
+);
+
+CREATE INDEX idx_repo_files_path ON reviews.repo_files(repo_id, file_path);
+CREATE INDEX idx_repo_files_hash ON reviews.repo_files(content_hash);
+CREATE INDEX idx_repo_index_user ON reviews.repo_index(user_id, last_accessed DESC);
+```
+
+**Background Indexing Worker**:
+```go
+// Background job triggered by user or webhook
+func IndexRepository(ctx context.Context, repoURL, branch string, userID int) error {
+    // Update status to 'indexing'
+    repo := createRepoIndex(userID, repoURL, branch, "indexing")
+    
+    // Fetch tree
+    tree, err := github.GetTree(ctx, repoURL, branch, recursive=true)
+    repo.FileCount = len(tree.Entries)
+    repo.Save()
+    
+    // Fetch files in batches of 10
+    for i := 0; i < len(tree.Entries); i += 10 {
+        batch := tree.Entries[i:min(i+10, len(tree.Entries))]
+        
+        // Parallel fetch
+        files := fetchFilesBatch(ctx, repoURL, branch, batch)
+        
+        // Store in database
+        for _, file := range files {
+            saveRepoFile(repo.ID, file)
+        }
+        
+        // Update progress
+        progress := float64(i) / float64(len(tree.Entries)) * 100
+        notifyProgress(userID, repo.ID, progress)
+    }
+    
+    // Mark complete
+    repo.Status = "complete"
+    repo.IndexedAt = time.Now()
+    repo.Save()
+    
+    return nil
+}
+```
+
+**API Endpoints**:
+```
+POST   /api/review/repos/index
+  Body: { repo_url: "...", branch: "main" }
+  Response: { job_id: 123, status: "indexing" }
+
+GET    /api/review/repos/:id/status
+  Response: { status: "indexing", progress: 45, files: 450/1000 }
+
+GET    /api/review/repos/:id/search
+  Query: ?q=error handling patterns&mode=semantic
+  Response: { matches: [...] }
+
+DELETE /api/review/repos/:id
+  Response: { deleted: true }
+```
+
+#### Deliverables
+- [ ] Database schema for repo indexing
+- [ ] Background indexing worker
+- [ ] Progress tracking (WebSocket or polling)
+- [ ] Semantic search implementation
+- [ ] Cache invalidation (webhook or TTL)
+- [ ] Storage quota management
+- [ ] UI for indexed repos management
+
+**Acceptance Criteria**:
+- ✅ User can trigger repository indexing
+- ✅ Indexing shows progress (234/1000 files)
+- ✅ Once indexed, files load instantly (no API calls)
+- ✅ Semantic search works across entire repo
+- ✅ Cache invalidates on new commits (webhook)
+- ✅ Storage limits enforced (100 repos or 10GB)
+
+---
+
+### Phase 4: Enterprise Features (Future)
+
+**Goal**: Scale to team and enterprise use cases.
+
+#### Features
+- **Shared Repository Cache**: Team members share indexed repos
+- **Webhook Integration**: Auto-update cache on GitHub push events
+- **Custom Indexing Rules**: Skip node_modules, vendor, etc.
+- **Multi-Repository Analysis**: Compare patterns across repos
+- **AI Model Fine-Tuning**: Train on team's codebase patterns
+- **Private GitHub Enterprise**: Support GHE instances
+
+---
+
+### Implementation Roadmap
+
+**Week 1** (Phase 1 MVP):
+- Day 1-2: Backend tree/file/quick-scan endpoints
+- Day 3-4: RepoImportModal component + sidebar integration
+- Day 5: Testing + documentation
+
+**Week 2-3** (Phase 2 Optimization):
+- Week 2: IndexedDB caching implementation
+- Week 3: Prefetching + batch API optimization
+
+**Month 2+** (Phase 3 - If Needed):
+- Week 1-2: Database schema + indexing worker
+- Week 3: Semantic search
+- Week 4: UI + cache management
+
+---
+
+### Success Metrics
+
+**Phase 1**:
+- ⏱️ Time to repo profile: <2 seconds (Quick Scan)
+- ⏱️ Time to tree load: <3 seconds
+- 📦 Bandwidth saved: 95%+ vs full clone
+- 🎯 User satisfaction: "Feels like GitHub" experience
+
+**Phase 2**:
+- 📈 Cache hit rate: >60% for repeat visits
+- ⚡ File load time: <100ms for cached files
+- 📉 API calls reduced: 80% via batching
+
+**Phase 3** (If implemented):
+- 🔍 Semantic search accuracy: >90%
+- 💾 Storage efficiency: <100MB per 1000-file repo
+- ⚙️ Indexing speed: >10 files/second
+
+---
+
+### Decision Gates
+
+**Before Phase 2**: Ask users:
+- "Do you return to the same repos frequently?"
+- "Do you want files to load instantly on revisits?"
+- If YES → Implement caching
+
+**Before Phase 3**: Analyze metrics:
+- Cache hit rate >60%?
+- Users requesting "search all files" feature?
+- Users hitting GitHub rate limits?
+- If YES to 2+ → Implement indexing
+
+---
+
+### Technical Constraints
+
+**GitHub API Rate Limits**:
+- Authenticated: 5,000 requests/hour
+- Per-user: ~83 requests/minute
+- Strategy: Batch requests, cache aggressively
+
+**Browser Storage**:
+- IndexedDB: ~50MB default quota
+- Can request more (usually up to 1GB)
+- Strategy: LRU eviction when quota reached
+
+**Database Storage**:
+- PostgreSQL: Unlimited (within server capacity)
+- Estimate: 100KB per file average
+- Strategy: Compression + deduplication by content hash
 
 ---
 

@@ -1,3 +1,21 @@
+// Enable debug logging only in development mode
+const DEBUG_ENABLED = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' ||
+                      window.DEBUG_ENABLED === true;
+
+// Internal debug logger - only logs if DEBUG_ENABLED
+function _debug(message, ...args) {
+  if (DEBUG_ENABLED) {
+    console.log(`[Analytics] ${message}`, ...args);
+  }
+}
+
+function _error(message, ...args) {
+  if (DEBUG_ENABLED) {
+    console.error(`[Analytics] ${message}`, ...args);
+  }
+}
+
 let currentTimeRange = '24h';
 let trendsChart = null;
 
@@ -67,7 +85,7 @@ async function loadTrends() {
       trendsLoading.style.display = 'none';
     }
   } catch (error) {
-    console.error('Failed to load trends:', error);
+    _error('Failed to load trends:', error);
     showError('trends-chart', 'Failed to load trend data');
   }
 }
@@ -86,7 +104,7 @@ async function loadAnomalies() {
     const anomalies = await response.json();
     renderAnomalies(anomalies || []);
   } catch (error) {
-    console.error('Failed to load anomalies:', error);
+    _error('Failed to load anomalies:', error);
     showError('anomalies-container', 'Failed to load anomalies');
   }
 }
@@ -110,7 +128,7 @@ async function loadTopIssues() {
     const issues = await response.json();
     renderTopIssues(issues || []);
   } catch (error) {
-    console.error('Failed to load top issues:', error);
+    _error('Failed to load top issues:', error);
     showError('issues-container', 'Failed to load top issues');
   }
 }
@@ -300,7 +318,7 @@ async function exportData(format) {
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('Export failed:', error);
+    _error('Export failed:', error);
     alert('Failed to export data. Please try again.');
   }
 }

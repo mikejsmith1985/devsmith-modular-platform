@@ -11,14 +11,19 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx PostgreSQL driver for DB connection
 	handlers "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/handlers"
-	middleware "github.com/mikejsmith1985/devsmith-modular-platform/apps/portal/middleware"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/common/debug"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/instrumentation"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/middleware"
+	portal_handlers "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/handlers"
+	portal_repositories "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/repositories"
+	portal_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/services"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 )
 
 func main() {
@@ -56,21 +61,13 @@ func main() {
 		c.Next()
 	})
 
-	// Health check endpoint (required for Docker health checks)
-	router.GET("/health", func(c *gin.Context) {
-		//nolint:errcheck,gosec // Logger always returns nil, safe to ignore
-		instrLogger.LogEvent(c.Request.Context(), "health_check", map[string]interface{}{
-			"status": "healthy",
-		})
+	// Health check endpoint - moved to /api/portal/health to avoid conflict with frontend /health route
+	router.GET("/api/portal/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"service": "portal",
 			"status":  "healthy",
+			"service": "portal",
+			"version": "1.0.0",
 		})
-	})
-
-	// Root endpoint: render login page
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.html", nil)
 	})
 
 	// Database connection
@@ -81,6 +78,12 @@ func main() {
 		return
 	}
 
+	// Configure connection pool to prevent exhaustion
+	dbConn.SetMaxOpenConns(10)               // Max 10 connections per service
+	dbConn.SetMaxIdleConns(5)                // Keep 5 idle
+	dbConn.SetConnMaxLifetime(3600000000000) // 1 hour
+	dbConn.SetConnMaxIdleTime(600000000000)  // 10 minutes
+
 	// Ping the database to verify connection
 	if err := dbConn.Ping(); err != nil {
 		log.Printf("Failed to ping database: %v", err)
@@ -90,42 +93,82 @@ func main() {
 		return
 	}
 
-	// Register authentication routes
-	handlers.RegisterAuthRoutes(router, dbConn)
+	// Initialize Redis session store
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "localhost:6379" // Default for local development
+	}
+	sessionStore, err := session.NewRedisStore(redisURL, 7*24*time.Hour) // 7 day session TTL
+	if err != nil {
+		log.Printf("Failed to connect to Redis: %v", err)
+		if closeErr := dbConn.Close(); closeErr != nil {
+			log.Printf("Error closing DB connection: %v", closeErr)
+		}
+		return
+	}
+	defer func() {
+		if closeErr := sessionStore.Close(); closeErr != nil {
+			log.Printf("Error closing Redis connection: %v", closeErr)
+		}
+	}()
+	log.Printf("Redis session store initialized at %s", redisURL)
+
+	// Initialize LLM configuration services
+	encryptionService := portal_services.NewEncryptionService()
+	llmConfigRepo := portal_repositories.NewLLMConfigRepository(dbConn)
+	llmConfigService := portal_services.NewLLMConfigService(llmConfigRepo, encryptionService)
+
+	// Register authentication routes (pass session store)
+	handlers.RegisterAuthRoutesWithSession(router, dbConn, sessionStore)
+
+	// Register version endpoint (public - no auth required)
+	router.GET("/api/portal/version", handlers.HandleVersion)
+	router.GET("/version", handlers.HandleVersionShort)
 
 	// Register debug routes (development only)
 	debug.RegisterDebugRoutes(router, "portal")
 
-	// Register dashboard routes
+	// Register dashboard routes (use RedisSessionAuth for SSO)
 	authenticated := router.Group("/")
-	authenticated.Use(middleware.JWTAuthMiddleware())
+	authenticated.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
 	authenticated.GET("/dashboard", handlers.DashboardHandler)
 	authenticated.GET("/dashboard/logs", handlers.LogsDashboardHandler)
 	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
 
-	// Load templates (path works in both local dev and Docker)
-	templatePath := "apps/portal/templates/*.html"
-	if _, err := os.Stat("./templates"); err == nil {
-		// Running in Docker container
-		templatePath = "./templates/*.html"
-	}
-	router.LoadHTMLGlob(templatePath)
-	router.GET("/login", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "login.html", nil)
-	})
+	// Register LLM configuration routes (requires authentication)
+	apiAuthenticated := router.Group("/api/portal")
+	apiAuthenticated.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
+	portal_handlers.RegisterLLMConfigRoutes(apiAuthenticated, llmConfigService)
 
 	// Serve static files (path works in both local dev and Docker)
 	staticPath := "apps/portal/static"
-	if _, err := os.Stat("./static"); err == nil {
+	if _, err = os.Stat("./static"); err == nil {
 		// Running in Docker container
 		staticPath = "./static"
 	}
 	router.Static("/static", staticPath)
+	router.Static("/assets", staticPath+"/assets") // Serve React app assets (JS, CSS, fonts)
 
-	// Custom 404 handler
+	// Serve React SPA
+	// Root route - serves index.html (portal dashboard / login page)
+	router.GET("/", func(c *gin.Context) {
+		indexPath := staticPath + "/index.html"
+		c.File(indexPath)
+	})
+
+	// SPA fallback - catch all non-API routes for client-side routing
+	// This allows React Router to handle routes like /dashboard, /projects, etc.
 	router.NoRoute(func(c *gin.Context) {
-		log.Printf("404 Not Found: %s", c.Request.URL.Path)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+		// If it's an API call, return 404 JSON
+		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+			log.Printf("404 Not Found (API): %s", c.Request.URL.Path)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+			return
+		}
+		// For non-API routes, serve index.html (SPA will handle routing)
+		log.Printf("SPA fallback route: %s", c.Request.URL.Path)
+		indexPath := staticPath + "/index.html"
+		c.File(indexPath)
 	})
 
 	// Validate required OAuth environment variables

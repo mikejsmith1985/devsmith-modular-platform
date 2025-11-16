@@ -2,6 +2,7 @@ package templates
 
 import (
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ui/components/nav"
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/version"
 )
 
 templ Layout(title string, user *DashboardUser) {
@@ -12,22 +13,50 @@ templ Layout(title string, user *DashboardUser) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
 		<title>{ title } - DevSmith</title>
-		<script src="https://cdn.tailwindcss.com"></script>
+		<!-- Unified DevSmith Theme with cache-busting -->
+		<link rel="stylesheet" href={ "/static/css/devsmith-theme.css?" + version.QueryParam() }/>
+		<link rel="stylesheet" href={ "/static/fonts/bootstrap-icons.css?" + version.QueryParam() }/>
 		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-		<link rel="stylesheet" href="/static/dashboard.css"/>
 		<style>
 			/* Prevent layout shift when scrollbar appears */
 			html {
 				overflow-y: scroll;
 			}
-			
-			/* Smooth transitions for theme changes */
-			* {
-				@apply transition-colors duration-200;
-			}
+
+			/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
+			[x-cloak] { display: none !important; }
 		</style>
+		<script>
+			// Alpine.js Dark Mode Store
+			function darkModeStore() {
+				return {
+					dark: localStorage.getItem('darkMode') === 'true' || 
+						  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches),
+					toggleDark() {
+						this.dark = !this.dark;
+						this.updateDOM();
+					},
+					updateDOM() {
+						document.documentElement.classList.toggle('dark', this.dark);
+						localStorage.setItem('darkMode', this.dark ? 'true' : 'false');
+					}
+				};
+			}
+			
+			function initDarkMode() {
+				// Initialize on mount
+				const isDark = localStorage.getItem('darkMode') === 'true' || 
+							  (!localStorage.getItem('darkMode') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+				document.documentElement.classList.toggle('dark', isDark);
+			}
+		</script>
 	</head>
 	<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50">
+		<!-- Skip to main content link for keyboard navigation -->
+		<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded focus:shadow-lg">
+			Skip to main content
+		</a>
+		
 		<!-- Navigation -->
 		@nav.Navigation(nav.NavProps{
 			CurrentUser: &nav.NavUser{
@@ -39,7 +68,7 @@ templ Layout(title string, user *DashboardUser) {
 		})
 
 		<!-- Main Content -->
-		<main class="flex-1">
+		<main id="main-content" class="flex-1">
 			{ children... }
 		</main>
 
@@ -64,15 +93,14 @@ templ LayoutWithoutNav(title string) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 		<meta name="description" content="DevSmith Platform - AI-assisted code review and development analytics"/>
 		<title>{ title } - DevSmith</title>
-		<script src="https://cdn.tailwindcss.com"></script>
+		<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 		<style>
 			html {
 				overflow-y: scroll;
 			}
-			
-			* {
-				@apply transition-colors duration-200;
-			}
+
+			/* Prevent FOUC (Flash of Unstyled Content) with Alpine.js */
+			[x-cloak] { display: none !important; }
 		</style>
 	</head>
 	<body class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">

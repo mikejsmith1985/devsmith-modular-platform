@@ -1,0 +1,20 @@
+extends: [[spectral:oas, all]]
+
+rules:
+  # Require operation IDs for all operations
+  operation-operationId: error
+  
+  # Require descriptions for all paths
+  operation-description: warn
+  
+  # Ensure proper HTTP status codes
+  operation-success-response: error
+  
+  # Require security definitions
+  oas3-api-servers: warn
+  
+  # Require contact information
+  info-contact: warn
+  
+  # Require license information
+  info-license: warn

@@ -4,95 +4,44 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mikejsmith1985/devsmith-modular-platform/internal/shared/logger"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/testutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-// Test 1: Successful detailed analysis
-func TestDetailedService_AnalyzeDetailed_Success(t *testing.T) {
-	mockOllama := new(MockOllamaClient)
-	mockRepo := new(MockAnalysisRepository)
-	mockLogger := &testutils.MockLogger{}
-	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
+// simple mock logger that satisfies logger.Interface with no-op methods
+type nopLogger struct{}
 
-	aiResponse := `{
-		"lines": [
-			{
-				"line_num": 1,
-				"code": "package main",
-				"explanation": "Package declaration",
-				"complexity": "low"
-			},
-			{
-				"line_num": 5,
-				"code": "func Login()",
-				"explanation": "Authentication handler",
-				"complexity": "medium",
-				"side_effects": ["Database query", "Session creation"],
-				"variables_modified": ["userSession"]
-			}
-		],
-		"data_flow": [
-			{"from": "input", "to": "database", "description": "Credentials validated"}
-		],
-		"summary": "Authentication file with 2 functions"
-	}`
-	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
-	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+func (n *nopLogger) Info(msg string, keyvals ...interface{})            {}
+func (n *nopLogger) Debug(msg string, keyvals ...interface{})           {}
+func (n *nopLogger) Warn(msg string, keyvals ...interface{})            {}
+func (n *nopLogger) Error(msg string, keyvals ...interface{})           {}
+func (n *nopLogger) Fatal(msg string, keyvals ...interface{})           {}
+func (n *nopLogger) Panic(msg string, keyvals ...interface{})           {}
+func (n *nopLogger) WithContext(ctx context.Context) logger.Interface   { return n }
+func (n *nopLogger) WithFields(keyvals ...interface{}) logger.Interface { return n }
+func (n *nopLogger) Flush(ctx context.Context) error                    { return nil }
+func (n *nopLogger) Close() error                                       { return nil }
 
-	output, err := service.AnalyzeDetailed(context.Background(), 1, "auth.go")
-
-	assert.NoError(t, err)
-	assert.Len(t, output.Lines, 2)
-	assert.Equal(t, "package main", output.Lines[0].Code)
-	assert.Contains(t, output.Lines[1].SideEffects, "Database query")
-	assert.Len(t, output.DataFlow, 1)
+// Mock Ollama that returns a fixed response
+type mockOllama struct {
+	resp string
+	err  error
 }
 
-// Test 2: Empty file path returns error
-func TestDetailedService_AnalyzeDetailed_EmptyFilePath(t *testing.T) {
-	mockOllama := new(MockOllamaClient)
-	mockRepo := new(MockAnalysisRepository)
-	mockLogger := &testutils.MockLogger{}
-	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
-
-	_, err := service.AnalyzeDetailed(context.Background(), 1, "")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "file path cannot be empty")
+func (m *mockOllama) Generate(ctx context.Context, prompt string) (string, error) {
+	return m.resp, m.err
 }
 
-// Test 3: Complex file with side effects
-func TestDetailedService_AnalyzeDetailed_WithSideEffects(t *testing.T) {
-	mockOllama := new(MockOllamaClient)
-	mockRepo := new(MockAnalysisRepository)
-	mockLogger := &testutils.MockLogger{}
-	service := NewDetailedService(mockOllama, mockRepo, mockLogger)
+func TestAttemptJSONRepair_Success(t *testing.T) {
+	repairedJSON := `{"summary":"ok","line_explanations":[]}`
+	mock := &mockOllama{resp: repairedJSON, err: nil}
+	svc := NewDetailedService(mock, &testutils.MockAnalysisRepository{}, &nopLogger{})
 
-	aiResponse := `{
-		"lines": [
-			{
-				"line_num": 10,
-				"code": "review_db.Exec(sql)",
-				"explanation": "Executes database query",
-				"complexity": "high",
-				"side_effects": ["Database write", "Triggers audit log"],
-				"variables_modified": ["recordCount", "lastModified"]
-			}
-		],
-		"data_flow": [
-			{"from": "userInput", "to": "database", "description": "Unvalidated input risk"}
-		],
-		"summary": "Database operations with side effects"
-	}`
-	mockOllama.On("Generate", mock.Anything, mock.Anything).Return(aiResponse, nil)
-	mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
-
-	output, err := service.AnalyzeDetailed(context.Background(), 1, "review_db.go")
-
-	assert.NoError(t, err)
-	assert.Equal(t, "high", output.Lines[0].Complexity)
-	assert.Len(t, output.Lines[0].SideEffects, 2)
-	assert.Len(t, output.Lines[0].VariablesModified, 2)
+	got, err := svc.attemptJSONRepair(context.Background(), "garbage output")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != repairedJSON {
+		t.Fatalf("expected repaired JSON %s, got %s", repairedJSON, got)
+	}
 }

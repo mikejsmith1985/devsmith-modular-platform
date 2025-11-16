@@ -134,3 +134,148 @@ func (c *DefaultClient) GetRateLimit(ctx context.Context, token string) (remaini
 	// In production, this would call GitHub API /rate_limit endpoint
 	return 5000, time.Now().Add(1 * time.Hour), nil
 }
+
+// GetRepoTree retrieves the complete file tree structure for a repository
+func (c *DefaultClient) GetRepoTree(ctx context.Context, owner, repo, branch, token string) (*RepoTree, error) {
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+	}
+
+	if owner == "" || repo == "" {
+		return nil, &URLParseError{URL: "", Reason: "owner or repo is empty"}
+	}
+
+	if branch == "" {
+		branch = "main"
+	}
+
+	// Stub implementation - returns mock tree structure
+	// In production, this would call GitHub API /repos/{owner}/{repo}/git/trees/{sha}?recursive=1
+	return &RepoTree{
+		Owner:  owner,
+		Repo:   repo,
+		Branch: branch,
+		RootNodes: []TreeNode{
+			{
+				Path: "README.md",
+				Type: "file",
+				SHA:  "stub_readme_sha",
+				Size: 1024,
+			},
+			{
+				Path: "go.mod",
+				Type: "file",
+				SHA:  "stub_gomod_sha",
+				Size: 512,
+			},
+			{
+				Path: "internal",
+				Type: "dir",
+				SHA:  "stub_internal_sha",
+				Children: []TreeNode{
+					{
+						Path: "internal/main.go",
+						Type: "file",
+						SHA:  "stub_main_sha",
+						Size: 2048,
+					},
+				},
+			},
+		},
+	}, nil
+}
+
+// GetFileContent retrieves the content of a specific file from the repository
+func (c *DefaultClient) GetFileContent(ctx context.Context, owner, repo, path, branch, token string) (*FileContent, error) {
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+	}
+
+	if owner == "" || repo == "" {
+		return nil, &URLParseError{URL: "", Reason: "owner or repo is empty"}
+	}
+
+	if path == "" {
+		return nil, &URLParseError{URL: "", Reason: "path is empty"}
+	}
+
+	if branch == "" {
+		//nolint:ineffassign // Setting default branch value is intentional
+		branch = "main"
+	}
+
+	// Stub implementation - returns mock file content
+	// In production, this would call GitHub API /repos/{owner}/{repo}/contents/{path}?ref={branch}
+	// and decode the base64 content
+	return &FileContent{
+		Path:    path,
+		Content: fmt.Sprintf("// Stub content for file: %s\npackage main\n\nfunc main() {\n\t// Implementation\n}", path),
+		SHA:     "stub_file_sha",
+		Size:    256,
+	}, nil
+}
+
+// GetPullRequest retrieves metadata for a specific pull request
+func (c *DefaultClient) GetPullRequest(ctx context.Context, owner, repo string, prNumber int, token string) (*PullRequest, error) {
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+	}
+
+	if owner == "" || repo == "" {
+		return nil, &URLParseError{URL: "", Reason: "owner or repo is empty"}
+	}
+
+	if prNumber <= 0 {
+		return nil, &URLParseError{URL: "", Reason: "invalid PR number"}
+	}
+
+	// Stub implementation - returns mock PR metadata
+	// In production, this would call GitHub API /repos/{owner}/{repo}/pulls/{prNumber}
+	return &PullRequest{
+		Number:      prNumber,
+		Title:       fmt.Sprintf("Pull Request #%d", prNumber),
+		Description: "Stub PR description",
+		Author:      "stubauthor",
+		State:       "open",
+		HeadBranch:  "feature/stub",
+		BaseBranch:  "main",
+		CreatedAt:   time.Now().Add(-24 * time.Hour),
+		UpdatedAt:   time.Now(),
+	}, nil
+}
+
+// GetPRFiles retrieves the list of files changed in a pull request
+func (c *DefaultClient) GetPRFiles(ctx context.Context, owner, repo string, prNumber int, token string) ([]PRFile, error) {
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("context cancelled: %w", ctx.Err())
+	}
+
+	if owner == "" || repo == "" {
+		return nil, &URLParseError{URL: "", Reason: "owner or repo is empty"}
+	}
+
+	if prNumber <= 0 {
+		return nil, &URLParseError{URL: "", Reason: "invalid PR number"}
+	}
+
+	// Stub implementation - returns mock PR files
+	// In production, this would call GitHub API /repos/{owner}/{repo}/pulls/{prNumber}/files
+	return []PRFile{
+		{
+			Filename:  "main.go",
+			Status:    "modified",
+			Additions: 10,
+			Deletions: 5,
+			Changes:   15,
+			Patch:     "@@ -1,3 +1,8 @@\n package main\n+\n+func newFunc() {}",
+		},
+		{
+			Filename:  "test.go",
+			Status:    "added",
+			Additions: 20,
+			Deletions: 0,
+			Changes:   20,
+			Patch:     "@@ -0,0 +1,20 @@\n+package main\n+\n+func Test() {}",
+		},
+	}, nil
+}

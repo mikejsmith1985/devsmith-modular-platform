@@ -25,6 +25,54 @@ type CodeFetch struct {
 	Branch    string
 }
 
+// TreeNode represents a file or directory in the repository tree
+type TreeNode struct {
+	Size     int64      `json:"size,omitempty"`     // 8 bytes
+	Path     string     `json:"path"`               // 16 bytes
+	Type     string     `json:"type"`               // 16 bytes - "file" or "dir"
+	SHA      string     `json:"sha"`                // 16 bytes
+	Children []TreeNode `json:"children,omitempty"` // 24 bytes
+}
+
+// RepoTree represents the complete repository file structure
+type RepoTree struct {
+	Owner     string
+	Repo      string
+	Branch    string
+	RootNodes []TreeNode
+}
+
+// FileContent represents the content of a single file
+type FileContent struct {
+	Path    string
+	Content string // Base64 decoded content
+	SHA     string
+	Size    int64
+}
+
+// PullRequest represents GitHub PR metadata
+type PullRequest struct {
+	Number      int       // 8 bytes
+	CreatedAt   time.Time // 24 bytes
+	UpdatedAt   time.Time // 24 bytes
+	Title       string    // 16 bytes
+	Description string    // 16 bytes
+	Author      string    // 16 bytes
+	State       string    // 16 bytes - "open", "closed", "merged"
+	HeadBranch  string    // 16 bytes
+	BaseBranch  string    // 16 bytes
+}
+
+// PRFile represents a file changed in a pull request
+type PRFile struct {
+	Additions int    // 8 bytes
+	Deletions int    // 8 bytes
+	Changes   int    // 8 bytes
+	Filename  string // 16 bytes
+	Status    string // 16 bytes - "added", "modified", "removed", "renamed"
+	Patch     string // 16 bytes - Diff patch
+}
+
 // ClientInterface defines GitHub API operations
 type ClientInterface interface {
 	// FetchCode retrieves code from a GitHub repository
@@ -38,6 +86,18 @@ type ClientInterface interface {
 
 	// GetRateLimit returns remaining API calls for the token
 	GetRateLimit(ctx context.Context, token string) (remaining int, resetTime time.Time, err error)
+
+	// GetRepoTree retrieves the complete file tree structure for a repository
+	GetRepoTree(ctx context.Context, owner, repo, branch, token string) (*RepoTree, error)
+
+	// GetFileContent retrieves the content of a specific file from the repository
+	GetFileContent(ctx context.Context, owner, repo, path, branch, token string) (*FileContent, error)
+
+	// GetPullRequest retrieves metadata for a specific pull request
+	GetPullRequest(ctx context.Context, owner, repo string, prNumber int, token string) (*PullRequest, error)
+
+	// GetPRFiles retrieves the list of files changed in a pull request
+	GetPRFiles(ctx context.Context, owner, repo string, prNumber int, token string) ([]PRFile, error)
 }
 
 // URLParseError indicates URL parsing failed
