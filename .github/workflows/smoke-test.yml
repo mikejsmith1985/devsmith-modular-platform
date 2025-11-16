@@ -24,8 +24,7 @@ jobs:
           cat > .env << EOF
           # Database
           POSTGRES_USER=devsmith
-          # ggignore: test credential, safe to ignore for GitGuardian
-          POSTGRES_PASSWORD=devsmith123
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB=devsmith
           DATABASE_URL=postgresql://devsmith:devsmith123@postgres:5432/devsmith
 
@@ -34,8 +33,7 @@ jobs:
 
           # GitHub OAuth (test mode)
           GITHUB_CLIENT_ID=test_client_id
-          # ggignore: test credential, safe to ignore for GitGuardian
-          GITHUB_CLIENT_SECRET=test_client_secret
+          GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}
           ENABLE_TEST_AUTH=true
 
           # JWT
