@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Load environment variables from .env if present
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
+# Best practice: Do NOT commit .env files with secrets. Ensure .env is in .gitignore.
+set -e
+
 echo "Creating databases and schemas..."
 
 DB_USER="${POSTGRES_USER:-devsmith}"
@@ -11,7 +19,6 @@ MAIN_DB="${POSTGRES_DB:-devsmith}"
 
 
 
-# Create main database if missing (connect to default 'postgres' database)
 PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$MAIN_DB'" | grep -q 1 || \
   PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d postgres -c "CREATE DATABASE $MAIN_DB"
 
@@ -25,7 +32,6 @@ PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$MAIN_D
 echo "✓ Schemas created"
 
 
-# Create users (if not exist, using devsmith user)
 PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -tc "SELECT 1 FROM pg_roles WHERE rolname='portal_user'" | grep -q 1 || \
   PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -c "CREATE USER portal_user WITH PASSWORD 'portal_pass'"
 
@@ -40,7 +46,6 @@ PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -tc "SELECT
 
 echo "✓ Users created"
 
-# Grant permissions
 PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$PORTAL_DB" -c "GRANT ALL PRIVILEGES ON SCHEMA portal TO portal_user"
 PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$REVIEW_DB" -c "GRANT ALL PRIVILEGES ON SCHEMA review TO review_user"
 PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$LOGS_DB" -c "GRANT ALL PRIVILEGES ON SCHEMA logs TO logs_user"
@@ -52,3 +57,8 @@ PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$LOGS_D
 PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$LOGS_DB" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA logs GRANT SELECT ON TABLES TO analytics_user"
 
 echo "✓ Permissions granted"
+
+PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$MAIN_DB" -c "CREATE TABLE IF NOT EXISTS logs.health_policies (service VARCHAR(50) PRIMARY KEY, policy_json JSONB NOT NULL DEFAULT '{}');"
+PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -p "$DB_PORT" -d "$MAIN_DB" -c "INSERT INTO logs.health_policies (service, policy_json) VALUES ('portal', '{}'), ('review', '{}'), ('logs', '{}'), ('analytics', '{}') ON CONFLICT (service) DO NOTHING;"
+
+echo "✓ Health policies seeded"

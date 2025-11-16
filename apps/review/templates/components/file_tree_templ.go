@@ -5,14 +5,16 @@ package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
 import (
 	"fmt"
-	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
+
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+
 	"path/filepath"
 	"strings"
+
+	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
 )
 
 // Helper functions for file tree rendering

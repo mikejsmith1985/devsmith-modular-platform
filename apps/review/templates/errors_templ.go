@@ -5,8 +5,10 @@ package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
+import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+)
 
 // ErrorDisplay shows user-friendly error messages with retry capability
 func ErrorDisplay(errorType string, title string, message string, canRetry bool, retryAction string) templ.Component {
