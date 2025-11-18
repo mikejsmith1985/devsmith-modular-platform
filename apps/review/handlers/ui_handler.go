@@ -64,62 +64,75 @@ type CodeRequest struct {
 	OutputMode string `form:"output_mode" json:"output_mode"` // quick, full
 }
 
+// tryBindUploadedFile attempts to extract code from an uploaded file
+func (h *UIHandler) tryBindUploadedFile(c *gin.Context) (*CodeRequest, bool) {
+	fileHeader, err := c.FormFile("pasted_code")
+	if err != nil {
+		return nil, false
+	}
+
+	fh, err := fileHeader.Open()
+	if err != nil {
+		return nil, false
+	}
+
+	defer func() {
+		if closeErr := fh.Close(); closeErr != nil {
+			h.logger.Error("Failed to close file handle", "error", closeErr.Error())
+		}
+	}()
+
+	data, err := io.ReadAll(fh)
+	if err != nil {
+		return nil, false
+	}
+
+	req := &CodeRequest{PastedCode: string(data)}
+
+	// Bind optional fields from form
+	if m := c.PostForm("model"); m != "" {
+		req.Model = m
+	}
+	if um := c.PostForm("user_mode"); um != "" {
+		req.UserMode = um
+	}
+	if om := c.PostForm("output_mode"); om != "" {
+		req.OutputMode = om
+	}
+
+	h.logger.Info("Code request bound from uploaded file",
+		"code_length", len(req.PastedCode),
+		"filename", fileHeader.Filename,
+		"content-type", c.GetHeader("Content-Type"),
+		"user_mode", req.UserMode,
+		"output_mode", req.OutputMode)
+
+	return req, true
+}
+
+// applyDefaults sets default values for optional fields
+func (h *UIHandler) applyDefaults(req *CodeRequest) {
+	if req.Model == "" {
+		req.Model = "mistral:7b-instruct"
+	}
+	if req.UserMode == "" {
+		req.UserMode = "intermediate"
+	}
+	if req.OutputMode == "" {
+		req.OutputMode = "quick"
+	}
+}
+
 // bindCodeRequest binds code from JSON or form data using Gin's binding
 func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 	var req CodeRequest
 
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
-		// If binding failed, attempt to accept a file upload fallback
-		// Some clients may POST a file part (e.g. curl -F '@-') instead of a plain form field.
-		// Try to read an uploaded file named 'pasted_code' and use its contents.
-		if fileHeader, ferr := c.FormFile("pasted_code"); ferr == nil {
-			fh, openErr := fileHeader.Open()
-			if openErr == nil {
-				defer func() {
-					if closeErr := fh.Close(); closeErr != nil {
-						h.logger.Error("Failed to close file handle", "error", closeErr.Error())
-					}
-				}()
-				if data, readErr := io.ReadAll(fh); readErr == nil {
-					req.PastedCode = string(data)
-					// try to bind model separately (optional)
-					if m := c.PostForm("model"); m != "" {
-						req.Model = m
-					}
-					// try to bind user_mode (optional)
-					if um := c.PostForm("user_mode"); um != "" {
-						req.UserMode = um
-					}
-					// try to bind output_mode (optional)
-					if om := c.PostForm("output_mode"); om != "" {
-						req.OutputMode = om
-					}
-					h.logger.Info("Code request bound from uploaded file",
-						"code_length", len(req.PastedCode),
-						"filename", fileHeader.Filename,
-						"content-type", c.GetHeader("Content-Type"),
-						"user_mode", req.UserMode,
-						"output_mode", req.OutputMode)
-
-					// Default model if not provided
-					if req.Model == "" {
-						req.Model = "mistral:7b-instruct"
-					}
-
-					// Default user_mode if not provided
-					if req.UserMode == "" {
-						req.UserMode = "intermediate"
-					}
-
-					// Default output_mode if not provided
-					if req.OutputMode == "" {
-						req.OutputMode = "quick"
-					}
-
-					return &req, true
-				}
-			}
+		// If binding failed, try uploaded file fallback
+		if uploadedReq, ok := h.tryBindUploadedFile(c); ok {
+			h.applyDefaults(uploadedReq)
+			return uploadedReq, true
 		}
 
 		h.logger.Warn("Failed to bind code request",
@@ -129,20 +142,8 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 		return nil, false
 	}
 
-	// Default model if not provided
-	if req.Model == "" {
-		req.Model = "mistral:7b-instruct"
-	}
-
-	// Default user_mode if not provided (defaults to intermediate)
-	if req.UserMode == "" {
-		req.UserMode = "intermediate"
-	}
-
-	// Default output_mode if not provided (defaults to quick)
-	if req.OutputMode == "" {
-		req.OutputMode = "quick"
-	}
+	// Apply defaults to form-bound request
+	h.applyDefaults(&req)
 
 	h.logger.Info("Code request bound successfully",
 		"code_length", len(req.PastedCode),
@@ -172,6 +173,64 @@ func looksLikeCode(s string) bool {
 	return score >= 1
 }
 
+// classifyAndRenderError determines the appropriate error template and renders it
+func (h *UIHandler) classifyAndRenderError(c *gin.Context, errMsg string, fallbackMessage string) {
+	switch {
+	case strings.Contains(errMsg, "circuit breaker is open") || strings.Contains(errMsg, "ErrOpenState"):
+		h.renderTemplate(c, templates.CircuitOpen(), "circuit open template")
+	case strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout"):
+		h.renderTemplate(c, templates.AITimeout(), "AI timeout template")
+	case strings.Contains(errMsg, "ollama") && strings.Contains(errMsg, "unavailable"):
+		h.renderTemplate(c, templates.AIServiceUnavailable(), "AI service unavailable template")
+	case strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host"):
+		h.renderTemplate(c, templates.AIServiceUnavailable(), "AI service unavailable template")
+	case strings.Contains(errMsg, "ERR_AI_RESPONSE_INVALID") || strings.Contains(strings.ToLower(errMsg), "invalid response"):
+		h.renderInvalidResponseError(c, errMsg)
+	default:
+		h.renderGenericError(c, errMsg, fallbackMessage)
+	}
+}
+
+// renderTemplate renders a template and logs any errors
+func (h *UIHandler) renderTemplate(c *gin.Context, template interface {
+	Render(context.Context, io.Writer) error
+}, templateName string) {
+	if renderErr := template.Render(c.Request.Context(), c.Writer); renderErr != nil {
+		h.logger.Error(fmt.Sprintf("Failed to render %s", templateName), "error", renderErr.Error())
+	}
+}
+
+// renderInvalidResponseError handles rendering for invalid AI response errors
+func (h *UIHandler) renderInvalidResponseError(c *gin.Context, errMsg string) {
+	excerpt := errMsg
+	if idx := strings.Index(errMsg, "Raw response excerpt:"); idx != -1 {
+		excerpt = errMsg[idx:]
+	} else if idx := strings.Index(errMsg, "Excerpt:"); idx != -1 {
+		excerpt = errMsg[idx:]
+	}
+	if len(excerpt) > 1200 {
+		excerpt = excerpt[:1200] + "..."
+	}
+	html := fmt.Sprintf(`<div class="p-6 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
+		<h3 class="text-lg font-semibold text-yellow-900 dark:text-yellow-50">Analysis could not be parsed</h3>
+		<p class="mt-2 text-sm text-gray-700 dark:text-yellow-100">The AI returned an unexpected response format and automatic repair failed. We've captured a short excerpt below to help debugging.</p>
+		<pre class="mt-3 p-3 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-200 overflow-auto">%s</pre>
+		<p class="mt-3 text-sm text-gray-600 dark:text-gray-300">We saved the full AI output for 14 days for troubleshooting. Try again or choose a different model.</p>
+	</div>`, templateEscape(excerpt))
+	c.String(http.StatusOK, html)
+}
+
+// renderGenericError renders a generic error message
+func (h *UIHandler) renderGenericError(c *gin.Context, errMsg string, fallbackMessage string) {
+	message := fallbackMessage
+	if message == "" {
+		message = fmt.Sprintf("Analysis failed: %v", errMsg)
+	}
+	if renderErr := templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer); renderErr != nil {
+		h.logger.Error("Failed to render error display template", "error", renderErr.Error())
+	}
+}
+
 // renderError classifies the error and renders appropriate HTMX-compatible error template
 func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage string) {
 	h.logger.Error("Request error", "error", err.Error(), "path", c.Request.URL.Path)
@@ -179,55 +238,7 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Status(http.StatusInternalServerError)
 
-	// Classify error and render appropriate template
-	errMsg := err.Error()
-	switch {
-	case strings.Contains(errMsg, "circuit breaker is open") || strings.Contains(errMsg, "ErrOpenState"):
-		if renderErr := templates.CircuitOpen().Render(c.Request.Context(), c.Writer); renderErr != nil {
-			h.logger.Error("Failed to render circuit open template", "error", renderErr.Error())
-		}
-	case strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout"):
-		if renderErr := templates.AITimeout().Render(c.Request.Context(), c.Writer); renderErr != nil {
-			h.logger.Error("Failed to render AI timeout template", "error", renderErr.Error())
-		}
-	case strings.Contains(errMsg, "ollama") && strings.Contains(errMsg, "unavailable"):
-		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
-			h.logger.Error("Failed to render AI service unavailable template", "error", renderErr.Error())
-		}
-	case strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host"):
-		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
-			h.logger.Error("Failed to render AI service unavailable template", "error", renderErr.Error())
-		}
-	case strings.Contains(errMsg, "ERR_AI_RESPONSE_INVALID") || strings.Contains(strings.ToLower(errMsg), "invalid response"):
-		// AI returned malformed JSON or couldn't be repaired. Show a helpful message
-		// including any excerpt available in the error string to aid troubleshooting.
-		excerpt := errMsg
-		// attempt to extract a raw response excerpt marker if present
-		if idx := strings.Index(errMsg, "Raw response excerpt:"); idx != -1 {
-			excerpt = errMsg[idx:]
-		} else if idx := strings.Index(errMsg, "Excerpt:"); idx != -1 {
-			excerpt = errMsg[idx:]
-		}
-		if len(excerpt) > 1200 {
-			excerpt = excerpt[:1200] + "..."
-		}
-		html := fmt.Sprintf(`<div class="p-6 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
-			<h3 class="text-lg font-semibold text-yellow-900 dark:text-yellow-50">Analysis could not be parsed</h3>
-			<p class="mt-2 text-sm text-gray-700 dark:text-yellow-100">The AI returned an unexpected response format and automatic repair failed. We've captured a short excerpt below to help debugging.</p>
-			<pre class="mt-3 p-3 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-200 overflow-auto">%s</pre>
-			<p class="mt-3 text-sm text-gray-600 dark:text-gray-300">We saved the full AI output for 14 days for troubleshooting. Try again or choose a different model.</p>
-		</div>`, templateEscape(excerpt))
-		c.String(http.StatusOK, html)
-	default:
-		// Generic error
-		message := fallbackMessage
-		if message == "" {
-			message = fmt.Sprintf("Analysis failed: %v", err)
-		}
-		if renderErr := templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer); renderErr != nil {
-			h.logger.Error("Failed to render error display template", "error", renderErr.Error())
-		}
-	}
+	h.classifyAndRenderError(c, err.Error(), fallbackMessage)
 }
 
 // templateEscape performs a minimal HTML escape for safe insertion into templates
@@ -469,14 +480,45 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
-func (h *UIHandler) HandleScanMode(c *gin.Context) {
-	req, ok := h.bindCodeRequest(c)
-	if !ok {
-		return
+// performLocalTextSearch executes a case-insensitive text search on pasted content
+func (h *UIHandler) performLocalTextSearch(code string, query string) *review_models.ScanModeOutput {
+	lines := strings.Split(code, "\n")
+	matches := make([]review_models.CodeMatch, 0)
+	qLower := strings.ToLower(query)
+	for i, line := range lines {
+		if !strings.Contains(strings.ToLower(line), qLower) {
+			continue
+		}
+		ctxBefore := ""
+		if i-2 >= 0 {
+			ctxBefore = lines[i-2] + "\n"
+		}
+		if i-1 >= 0 {
+			ctxBefore += lines[i-1]
+		}
+		ctxAfter := ""
+		if i+1 < len(lines) {
+			ctxAfter = "\n" + lines[i+1]
+		}
+		match := review_models.CodeMatch{
+			FilePath:    "pasted_input",
+			CodeSnippet: strings.TrimSpace(line),
+			Context:     strings.TrimSpace(ctxBefore + "\n" + line + ctxAfter),
+			Relevance:   1.0,
+			Line:        i + 1,
+		}
+		matches = append(matches, match)
 	}
+	return &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
+}
 
-	query := c.DefaultQuery("query", "find issues and improvements")
+// shouldUseLocalSearch determines if a local text search should be performed instead of AI analysis
+func (h *UIHandler) shouldUseLocalSearch(code string, query string) bool {
+	return !looksLikeCode(code) && strings.TrimSpace(query) != "" && query != "find issues and improvements"
+}
 
+// validateScanService ensures the scan service is initialized and accessible
+func (h *UIHandler) validateScanService(c *gin.Context) bool {
 	if h.scanService == nil {
 		h.logger.Warn("Scan service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -484,20 +526,49 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
 			h.logger.Error("Failed to render AIServiceUnavailable template in scan", "error", renderErr.Error())
 		}
-		return
+		return false
 	}
+	return true
+}
 
-	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+// extractSessionTokenForScan retrieves the session token from context with proper error handling
+func (h *UIHandler) extractSessionTokenForScan(c *gin.Context) (string, bool) {
 	sessionToken, exists := c.Get("session_token")
 	if !exists {
 		h.logger.Warn("Session token not found in context for scan mode")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token missing"})
-		return
+		return "", false
 	}
 	sessionTokenStr, ok := sessionToken.(string)
 	if !ok {
 		h.logger.Warn("Session token type assertion failed in scan mode")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session token"})
+		return "", false
+	}
+	return sessionTokenStr, true
+}
+
+func (h *UIHandler) HandleScanMode(c *gin.Context) {
+	req, ok := h.bindCodeRequest(c)
+	if !ok {
+		return
+	}
+
+	if !h.validateScanService(c) {
+		return
+	}
+
+	sessionTokenStr, ok := h.extractSessionTokenForScan(c)
+	if !ok {
+		return
+	}
+
+	query := c.DefaultQuery("query", "find issues and improvements")
+
+	// Check if local text search should be used
+	if h.shouldUseLocalSearch(req.PastedCode, query) {
+		result := h.performLocalTextSearch(req.PastedCode, query)
+		c.JSON(http.StatusOK, result)
 		return
 	}
 
@@ -507,39 +578,6 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	// Pass both model and session token to service via context
 	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
-	if !looksLikeCode(req.PastedCode) && strings.TrimSpace(query) != "" && query != "find issues and improvements" {
-		// If user provided a query, run a local text search (case-insensitive).
-		lines := strings.Split(req.PastedCode, "\n")
-		matches := make([]review_models.CodeMatch, 0)
-		qLower := strings.ToLower(query)
-		for i, line := range lines {
-			if !strings.Contains(strings.ToLower(line), qLower) {
-				continue
-			}
-			ctxBefore := ""
-			if i-2 >= 0 {
-				ctxBefore = lines[i-2] + "\n"
-			}
-			if i-1 >= 0 {
-				ctxBefore += lines[i-1]
-			}
-			ctxAfter := ""
-			if i+1 < len(lines) {
-				ctxAfter = "\n" + lines[i+1]
-			}
-			match := review_models.CodeMatch{
-				FilePath:    "pasted_input",
-				CodeSnippet: strings.TrimSpace(line),
-				Context:     strings.TrimSpace(ctxBefore + "\n" + line + ctxAfter),
-				Relevance:   1.0,
-				Line:        i + 1,
-			}
-			matches = append(matches, match)
-		}
-		out := &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
-		c.JSON(http.StatusOK, out)
-		return
-	}
 
 	// If code or no query, use AI service analysis
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode, req.UserMode, req.OutputMode)

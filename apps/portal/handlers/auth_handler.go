@@ -1020,17 +1020,13 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 // Deprecated: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
 // The frontend now handles OAuth callbacks via /api/portal/auth/token endpoint.
 // This endpoint is kept for backward compatibility only.
-func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
-	log.Println("[OAUTH] Deprecated: Go OAuth callback (use /api/portal/auth/token instead)")
-	log.Println("[OAUTH] Step 3: Callback received from GitHub")
-
-	// Extract parameters
-	code := c.Query("code")
-	state := c.Query("state")
+// validateOAuthCallbackParams checks GitHub callback parameters for errors and missing values
+func validateOAuthCallbackParams(c *gin.Context) (code, state string, err error) {
+	code = c.Query("code")
+	state = c.Query("state")
 	errorParam := c.Query("error")
 	errorDesc := c.Query("error_description")
 
-	// Log all parameters (except sensitive code)
 	log.Printf("[OAUTH] Callback params: state=%s, error=%s, code_present=%v",
 		state, errorParam, code != "")
 
@@ -1043,7 +1039,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":     "Please try logging in again. If this persists, contact support.",
 			"error_code": "GITHUB_OAUTH_" + strings.ToUpper(errorParam),
 		})
-		return
+		return "", "", fmt.Errorf("github oauth error: %s", errorParam)
 	}
 
 	// Validate code parameter
@@ -1054,7 +1050,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"details": "GitHub did not provide an authorization code. This may indicate a configuration issue.",
 			"action":  "Please try logging in again. If this persists, contact support with error code: OAUTH_CODE_MISSING",
 		})
-		return
+		return "", "", fmt.Errorf("missing authorization code")
 	}
 
 	// Validate state parameter (CSRF protection)
@@ -1065,13 +1061,11 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"details": "Security validation failed. This may indicate a CSRF attack or configuration issue.",
 			"action":  "Please try logging in again. If this persists, contact support with error code: OAUTH_STATE_MISSING",
 		})
-		return
+		return "", "", fmt.Errorf("missing state parameter")
 	}
 
 	if !validateOAuthState(state) {
 		log.Printf("[WARN] OAuth state validation failed: received=%s", state)
-
-		// Check if this might be from a cached GitHub authorization (passkey logins)
 		log.Println("[INFO] State validation failed - this may be from a cached GitHub authorization.")
 		log.Println("[INFO] If you use passkeys/security keys, GitHub may bypass consent and return stale state.")
 		log.Println("[INFO] Solution: Revoke app at https://github.com/settings/applications")
@@ -1082,11 +1076,15 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":       "Please revoke this app at https://github.com/settings/applications, then try logging in again. Error code: OAUTH_STATE_INVALID",
 			"passkey_note": "Passkey logins can cause GitHub to bypass the consent screen and return stale authorization codes.",
 		})
-		return
+		return "", "", fmt.Errorf("invalid state parameter")
 	}
 
 	log.Println("[OAUTH] Step 4: State validated successfully")
+	return code, state, nil
+}
 
+// exchangeCodeAndFetchUser performs token exchange and user info retrieval
+func exchangeCodeAndFetchUser(c *gin.Context, code string) (*GitHubUser, string, error) {
 	// Validate OAuth configuration
 	if !ValidateOAuthConfig() {
 		log.Println("[ERROR] OAuth configuration validation failed")
@@ -1095,7 +1093,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"details": "Server OAuth credentials are missing or invalid.",
 			"action":  "Contact administrator with error code: OAUTH_CONFIG_INVALID",
 		})
-		return
+		return nil, "", fmt.Errorf("oauth not configured")
 	}
 
 	log.Println("[OAUTH] Step 5: Exchanging authorization code for access token")
@@ -1111,7 +1109,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":            "Try logging in again. If this persists, contact support.",
 			"technical_details": err.Error(),
 		})
-		return
+		return nil, "", err
 	}
 
 	log.Println("[OAUTH] Step 6: Token received, fetching user information from GitHub")
@@ -1127,13 +1125,15 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":            "Try logging in again. If this persists, contact support.",
 			"technical_details": err.Error(),
 		})
-		return
+		return nil, "", err
 	}
 
 	log.Printf("[OAUTH] Step 7: User authenticated: %s (GitHub ID: %d)", user.Login, user.ID)
+	return user, accessToken, nil
+}
 
-	// Persist user to database (insert or update if already exists)
-	// This ensures user exists in portal.users for foreign key relationships (e.g., llm_configs)
+// persistUserToDatabase creates or updates user record in the database
+func persistUserToDatabase(c *gin.Context, user *GitHubUser, accessToken string) (int, error) {
 	log.Println("[OAUTH] Step 7.5: Persisting user to database")
 	upsertQuery := `
 		INSERT INTO portal.users (github_id, username, email, avatar_url, github_access_token, created_at, updated_at)
@@ -1149,7 +1149,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 	`
 
 	var userID int
-	err = dbConn.QueryRowContext(c.Request.Context(), upsertQuery,
+	err := dbConn.QueryRowContext(c.Request.Context(), upsertQuery,
 		user.ID,        // github_id (bigint from GitHub)
 		user.Login,     // username
 		user.Email,     // email (may be empty)
@@ -1166,11 +1166,15 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":            "Try logging in again. If this persists, contact support.",
 			"technical_details": err.Error(),
 		})
-		return
+		return 0, err
 	}
 
 	log.Printf("[OAUTH] Step 7.6: User persisted to database: ID=%d (GitHub ID=%d)", userID, user.ID)
+	return userID, nil
+}
 
+// createRedisSessionAndJWT creates session in Redis and generates JWT token
+func createRedisSessionAndJWT(c *gin.Context, userID int, user *GitHubUser, accessToken string) (string, error) {
 	// Validate session store availability
 	if sessionStore == nil {
 		log.Println("[ERROR] Session store not initialized")
@@ -1179,11 +1183,10 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"details": "Server session storage is not available.",
 			"action":  "Contact administrator with error code: SESSION_STORE_UNAVAILABLE",
 		})
-		return
+		return "", fmt.Errorf("session store not initialized")
 	}
 
 	// Create Redis session (store full user data here, not in JWT)
-	// Use database user ID (not GitHub ID) for foreign key relationships
 	sess := &session.Session{
 		UserID:         userID, // Use database ID (portal.users.id)
 		GitHubUsername: user.Login,
@@ -1209,7 +1212,7 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":            "Try logging in again. If this persists, contact support.",
 			"technical_details": err.Error(),
 		})
-		return
+		return "", err
 	}
 
 	log.Printf("[OAUTH] Step 9: Session created successfully: %s", sessionID)
@@ -1233,10 +1236,40 @@ func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
 			"action":            "Try logging in again. If this persists, contact support.",
 			"technical_details": err.Error(),
 		})
-		return
+		return "", err
 	}
 
 	log.Println("[OAUTH] Step 10: JWT created, setting secure cookie")
+	return tokenString, nil
+}
+
+func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
+	log.Println("[OAUTH] Deprecated: Go OAuth callback (use /api/portal/auth/token instead)")
+	log.Println("[OAUTH] Step 3: Callback received from GitHub")
+
+	// Validate callback parameters
+	code, _, err := validateOAuthCallbackParams(c)
+	if err != nil {
+		return
+	}
+
+	// Exchange code and fetch user
+	user, accessToken, err := exchangeCodeAndFetchUser(c, code)
+	if err != nil {
+		return
+	}
+
+	// Persist user to database
+	userID, err := persistUserToDatabase(c, user, accessToken)
+	if err != nil {
+		return
+	}
+
+	// Create session and JWT
+	tokenString, err := createRedisSessionAndJWT(c, userID, user, accessToken)
+	if err != nil {
+		return
+	}
 
 	// Set httpOnly cookie for security
 	SetSecureJWTCookie(c, tokenString)
