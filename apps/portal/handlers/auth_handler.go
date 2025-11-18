@@ -1084,7 +1084,7 @@ func validateOAuthCallbackParams(c *gin.Context) (code, state string, err error)
 }
 
 // exchangeCodeAndFetchUser performs token exchange and user info retrieval
-func exchangeCodeAndFetchUser(c *gin.Context, code string) (*GitHubUser, string, error) {
+func exchangeCodeAndFetchUser(c *gin.Context, code string) (*UserInfo, string, error) {
 	// Validate OAuth configuration
 	if !ValidateOAuthConfig() {
 		log.Println("[ERROR] OAuth configuration validation failed")
@@ -1129,11 +1129,11 @@ func exchangeCodeAndFetchUser(c *gin.Context, code string) (*GitHubUser, string,
 	}
 
 	log.Printf("[OAUTH] Step 7: User authenticated: %s (GitHub ID: %d)", user.Login, user.ID)
-	return user, accessToken, nil
+	return &user, accessToken, nil
 }
 
 // persistUserToDatabase creates or updates user record in the database
-func persistUserToDatabase(c *gin.Context, user *GitHubUser, accessToken string) (int, error) {
+func persistUserToDatabase(c *gin.Context, user *UserInfo, accessToken string) (int, error) {
 	log.Println("[OAUTH] Step 7.5: Persisting user to database")
 	upsertQuery := `
 		INSERT INTO portal.users (github_id, username, email, avatar_url, github_access_token, created_at, updated_at)
@@ -1174,7 +1174,7 @@ func persistUserToDatabase(c *gin.Context, user *GitHubUser, accessToken string)
 }
 
 // createRedisSessionAndJWT creates session in Redis and generates JWT token
-func createRedisSessionAndJWT(c *gin.Context, userID int, user *GitHubUser, accessToken string) (string, error) {
+func createRedisSessionAndJWT(c *gin.Context, userID int, user *UserInfo, accessToken string) (string, error) {
 	// Validate session store availability
 	if sessionStore == nil {
 		log.Println("[ERROR] Session store not initialized")
