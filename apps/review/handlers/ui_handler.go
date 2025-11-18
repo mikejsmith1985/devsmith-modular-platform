@@ -77,7 +77,11 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 		if fileHeader, ferr := c.FormFile("pasted_code"); ferr == nil {
 			fh, openErr := fileHeader.Open()
 			if openErr == nil {
-				defer fh.Close()
+				defer func() {
+					if err := fh.Close(); err != nil {
+						h.logger.Error("Failed to close file handle", "error", err.Error())
+					}
+				}()
 				if data, readErr := io.ReadAll(fh); readErr == nil {
 					req.PastedCode = string(data)
 					// try to bind model separately (optional)
@@ -170,39 +174,7 @@ func looksLikeCode(s string) bool {
 }
 
 // marshalAndFormat converts analysis result to user-friendly HTML
-func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, bgColor string) {
-	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	c.Status(http.StatusOK)
 
-	// Render user-friendly HTML based on result type
-	switch v := result.(type) {
-	case *review_models.PreviewModeOutput:
-		h.renderPreviewHTML(c.Writer, v)
-	case *review_models.SkimModeOutput:
-		h.renderSkimHTML(c.Writer, v)
-	case *review_models.ScanModeOutput:
-		h.renderScanHTML(c.Writer, v)
-	case *review_models.DetailedModeOutput:
-		h.renderDetailedHTML(c.Writer, v)
-	case *review_models.CriticalModeOutput:
-		h.renderCriticalHTML(c.Writer, v)
-	default:
-		// Fallback to JSON for unknown types
-		resultJSON, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			h.logger.Error("Failed to marshal result", "error", err.Error())
-			h.renderError(c, err, "Failed to format analysis result")
-			return
-		}
-		html := fmt.Sprintf(`
-		<div class="p-4 rounded-lg %s">
-			<h4 class="font-semibold">%s</h4>
-			<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-		</div>
-		`, bgColor, title, string(resultJSON))
-		c.String(http.StatusOK, html)
-	}
-}
 
 func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_models.PreviewModeOutput) {
 	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900 rounded-lg border border-indigo-200 dark:border-indigo-700">
@@ -237,7 +209,9 @@ func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_mode
 	}
 
 	html += `</div>`
-	fmt.Fprint(w, html)
+	if _, err := fmt.Fprint(w, html); err != nil {
+		h.logger.Error("Failed to write preview response", "error", err.Error())
+	}
 }
 
 func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.SkimModeOutput) {
@@ -280,7 +254,9 @@ func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.
 	}
 
 	html += `</div>`
-	fmt.Fprint(w, html)
+	if _, err := fmt.Fprint(w, html); err != nil {
+		h.logger.Error("Failed to write skim response", "error", err.Error())
+	}
 }
 
 func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.ScanModeOutput) {
@@ -308,7 +284,9 @@ func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.
 	}
 
 	html += `</div>`
-	fmt.Fprint(w, html)
+	if _, err := fmt.Fprint(w, html); err != nil {
+		h.logger.Error("Failed to write scan response", "error", err.Error())
+	}
 }
 
 func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_models.DetailedModeOutput) {
@@ -343,7 +321,9 @@ func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_mod
 	}
 
 	html += `</div>`
-	fmt.Fprint(w, html)
+	if _, err := fmt.Fprint(w, html); err != nil {
+		h.logger.Error("Failed to write detailed response", "error", err.Error())
+	}
 }
 
 func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_models.CriticalModeOutput) {
@@ -412,7 +392,9 @@ func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_mod
 	}
 
 	html += `</div>`
-	fmt.Fprint(w, html)
+	if _, err := fmt.Fprint(w, html); err != nil {
+		h.logger.Error("Failed to write critical response", "error", err.Error())
+	}
 }
 
 // renderError classifies the error and renders appropriate HTMX-compatible error template
@@ -425,13 +407,21 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 	// Classify error and render appropriate template
 	errMsg := err.Error()
 	if strings.Contains(errMsg, "circuit breaker is open") || strings.Contains(errMsg, "ErrOpenState") {
-		templates.CircuitOpen().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.CircuitOpen().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render circuit open template", "error", renderErr.Error())
+		}
 	} else if strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout") {
-		templates.AITimeout().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AITimeout().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AI timeout template", "error", renderErr.Error())
+		}
 	} else if strings.Contains(errMsg, "ollama") && strings.Contains(errMsg, "unavailable") {
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AI service unavailable template", "error", renderErr.Error())
+		}
 	} else if strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host") {
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AI service unavailable template", "error", renderErr.Error())
+		}
 	} else if strings.Contains(errMsg, "ERR_AI_RESPONSE_INVALID") || strings.Contains(strings.ToLower(errMsg), "invalid response") {
 		// AI returned malformed JSON or couldn't be repaired. Show a helpful message
 		// including any excerpt available in the error string to aid troubleshooting.
@@ -458,7 +448,9 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 		if message == "" {
 			message = fmt.Sprintf("Analysis failed: %v", err)
 		}
-		templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render error display template", "error", renderErr.Error())
+		}
 	}
 }
 
@@ -585,13 +577,25 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		h.logger.Warn("Preview service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AI service unavailable template", "error", renderErr.Error())
+		}
 		return
 	}
 
 	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
-	sessionToken, _ := c.Get("session_token")
-	sessionTokenStr, _ := sessionToken.(string)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("Session token not found in context")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token missing"})
+		return
+	}
+	sessionTokenStr, ok := sessionToken.(string)
+	if !ok {
+		h.logger.Warn("Session token type assertion failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session token"})
+		return
+	}
 
 	// DEBUG: Log session token extraction
 	h.logger.Info("DEBUG HandlePreviewMode session token",
@@ -635,13 +639,26 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		h.logger.Warn("Skim service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AI service unavailable template", "error", renderErr.Error())
+		}
 		return
 	}
 
 	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
-	sessionToken, _ := c.Get("session_token")
-	sessionTokenStr, _ := sessionToken.(string)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("Session token not found in context for skim mode")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token missing"})
+		return
+	}
+
+	sessionTokenStr, ok := sessionToken.(string)
+	if !ok {
+		h.logger.Warn("Session token type assertion failed for skim mode")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session token"})
+		return
+	}
 
 	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -688,13 +705,25 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		h.logger.Warn("Scan service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AIServiceUnavailable template in scan", "error", renderErr.Error())
+		}
 		return
 	}
 
 	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
-	sessionToken, _ := c.Get("session_token")
-	sessionTokenStr, _ := sessionToken.(string)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("Session token not found in context for scan mode")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token missing"})
+		return
+	}
+	sessionTokenStr, ok := sessionToken.(string)
+	if !ok {
+		h.logger.Warn("Session token type assertion failed in scan mode")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session token"})
+		return
+	}
 
 	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -702,11 +731,6 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 	// Pass both model and session token to service via context
 	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
-
-	// If the pasted content doesn't look like source code, avoid calling the LLM-driven
-	// scan which may hallucinate code-like matches. Instead, perform a safe local
-	// substring search over the pasted text for the user's query and return those
-	// matches directly. If no query is provided, return a friendly note.
 	if !looksLikeCode(req.PastedCode) {
 		// If user provided a query, run a local text search (case-insensitive).
 		if strings.TrimSpace(query) != "" && query != "find issues and improvements" {
@@ -774,13 +798,26 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		h.logger.Warn("Detailed service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AIServiceUnavailable template in detailed", "error", renderErr.Error())
+		}
 		return
 	}
 
 	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
-	sessionToken, _ := c.Get("session_token")
-	sessionTokenStr, _ := sessionToken.(string)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("Session token not found in context for detailed mode")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token missing"})
+		return
+	}
+
+	sessionTokenStr, ok := sessionToken.(string)
+	if !ok {
+		h.logger.Warn("Session token type assertion failed for detailed mode")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session token"})
+		return
+	}
 
 	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -832,13 +869,26 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		h.logger.Warn("Critical service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		if renderErr := templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer); renderErr != nil {
+			h.logger.Error("Failed to render AIServiceUnavailable template in critical", "error", renderErr.Error())
+		}
 		return
 	}
 
 	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
-	sessionToken, _ := c.Get("session_token")
-	sessionTokenStr, _ := sessionToken.(string)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("Session token not found in context for critical mode")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token missing"})
+		return
+	}
+
+	sessionTokenStr, ok := sessionToken.(string)
+	if !ok {
+		h.logger.Warn("Session token type assertion failed for critical mode")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session token"})
+		return
+	}
 
 	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)

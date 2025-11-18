@@ -181,7 +181,9 @@ func HandleOAuthHealthCheck(c *gin.Context) {
 		} else {
 			checks["redis_writable"] = true
 			// Clean up test session
-			_ = sessionStore.Delete(ctx, testSessionID)
+			if err := sessionStore.Delete(ctx, testSessionID); err != nil {
+				log.Printf("[ERROR] Failed to delete test session: %v", err)
+			}
 		}
 	} else {
 		checks["redis_writable"] = false
@@ -338,7 +340,7 @@ func HandleTestLogin(c *gin.Context) {
 }
 
 // HandleGitHubOAuthLogin initiates GitHub OAuth flow with CSRF protection
-// DEPRECATED: This endpoint is deprecated in favor of frontend-initiated PKCE flow.
+// Deprecated: This endpoint is deprecated in favor of frontend-initiated PKCE flow.
 // The frontend now handles OAuth initiation with encrypted state.
 // This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthLogin(c *gin.Context) {
@@ -765,7 +767,7 @@ func validateOAuthConfig() error {
 
 // exchangeCodeForToken exchanges the authorization code for an access token
 // RFC 7636: For PKCE flow, code_verifier MUST be included
-func exchangeCodeForToken(code string, codeVerifier string) (string, error) {
+func exchangeCodeForToken(code, codeVerifier string) (string, error) {
 	log.Printf("[TOKEN_EXCHANGE] Step 1: Preparing token exchange request")
 
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
@@ -905,8 +907,12 @@ func FetchUserInfo(accessToken string) (UserInfo, error) {
 		log.Printf("[USER_INFO] ERROR: GitHub API returned non-OK status: %d", userResp.StatusCode)
 
 		// Try to read error body for more details
-		bodyBytes, _ := io.ReadAll(userResp.Body)
-		log.Printf("[USER_INFO] ERROR: Response body: %s", string(bodyBytes))
+		bodyBytes, readErr := io.ReadAll(userResp.Body)
+		if readErr != nil {
+			log.Printf("[USER_INFO] ERROR: Failed to read response body: %v", readErr)
+		} else {
+			log.Printf("[USER_INFO] ERROR: Response body: %s", string(bodyBytes))
+		}
 
 		if userResp.StatusCode == http.StatusUnauthorized {
 			return UserInfo{}, errors.New("invalid or expired access token")
@@ -1015,11 +1021,11 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 }
 
 // HandleGitHubOAuthCallbackWithSession processes GitHub OAuth callback with Redis session
-// DEPRECATED: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
+// Deprecated: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
 // The frontend now handles OAuth callbacks via /api/portal/auth/token endpoint.
 // This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthCallbackWithSession(c *gin.Context) {
-	log.Println("[OAUTH] DEPRECATED: Go OAuth callback (use /api/portal/auth/token instead)")
+	log.Println("[OAUTH] Deprecated: Go OAuth callback (use /api/portal/auth/token instead)")
 	log.Println("[OAUTH] Step 3: Callback received from GitHub")
 
 	// Extract parameters
