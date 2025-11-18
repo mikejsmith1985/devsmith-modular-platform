@@ -61,14 +61,12 @@ func RegisterGitHubRoutes(router *gin.Engine) {
 
 	// Create auth group with correct prefix
 	authGroup := router.Group("/api/portal/auth")
-	{
-		authGroup.GET("/github/login", HandleGitHubOAuthLogin)
-		authGroup.GET("/github/callback", HandleGitHubOAuthCallbackWithSession)
-		authGroup.GET("/login", HandleAuthLogin)
-		authGroup.GET("/github/dashboard", HandleGitHubDashboard)
-		authGroup.POST("/logout", HandleLogout)
-		authGroup.GET("/health", HandleOAuthHealthCheck) // NEW: OAuth health check
-	}
+	authGroup.GET("/github/login", HandleGitHubOAuthLogin)
+	authGroup.GET("/github/callback", HandleGitHubOAuthCallbackWithSession)
+	authGroup.GET("/login", HandleAuthLogin)
+	authGroup.GET("/github/dashboard", HandleGitHubDashboard)
+	authGroup.POST("/logout", HandleLogout)
+	authGroup.GET("/health", HandleOAuthHealthCheck) // NEW: OAuth health check
 
 	// NOTE: Legacy routes /auth/github/callback kept for OAuth redirect compatibility
 	// GitHub OAuth redirects to this URL (configured in REDIRECT_URI environment variable)
@@ -537,10 +535,8 @@ type TokenRequest struct {
 // RegisterTokenRoutes registers token-related routes
 func RegisterTokenRoutes(router *gin.Engine) {
 	authGroup := router.Group("/api/portal/auth")
-	{
-		authGroup.POST("/token", HandleTokenExchange)
-		authGroup.GET("/me", HandleGetCurrentUser)
-	}
+	authGroup.POST("/token", HandleTokenExchange)
+	authGroup.GET("/me", HandleGetCurrentUser)
 }
 
 // HandleTokenExchange handles PKCE token exchange
