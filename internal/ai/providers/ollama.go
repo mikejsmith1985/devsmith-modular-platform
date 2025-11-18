@@ -25,6 +25,7 @@ type ollamaRequest struct {
 	Model       string  `json:"model"`
 	Prompt      string  `json:"prompt"`
 	Stream      bool    `json:"stream"`
+	Format      string  `json:"format,omitempty"` // Set to "json" to force JSON-only output
 	Temperature float64 `json:"temperature,omitempty"`
 	NumPredict  int     `json:"num_predict,omitempty"`
 }
@@ -66,6 +67,7 @@ func (c *OllamaClient) Generate(ctx context.Context, req *ai.Request) (*ai.Respo
 		Model:       req.Model,
 		Prompt:      req.Prompt,
 		Stream:      false,
+		Format:      "json", // CRITICAL: Force JSON-only output mode
 		Temperature: req.Temperature,
 	}
 

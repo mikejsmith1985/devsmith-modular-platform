@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../utils/api';
+import { fetchOllamaModels } from '../utils/ollama';
 
 const PROVIDERS = [
   { value: 'anthropic', label: 'Anthropic (Claude)' },
@@ -24,14 +25,8 @@ const MODELS_BY_PROVIDER = {
     'gpt-3.5-turbo',
     'gpt-4-32k'
   ],
-  ollama: [
-    'llama3.1:70b',
-    'llama3.1:8b',
-    'deepseek-coder-v2:16b',
-    'deepseek-coder:6.7b',
-    'qwen2.5-coder:7b',
-    'codestral:22b'
-  ],
+  // Ollama models will be fetched dynamically
+  ollama: [],
   deepseek: [
     'deepseek-chat',
     'deepseek-coder'
@@ -80,6 +75,7 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
   });
 
   const [availableModels, setAvailableModels] = useState(MODELS_BY_PROVIDER.anthropic);
+  const [ollamaModels, setOllamaModels] = useState([]);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [errors, setErrors] = useState({});
@@ -87,6 +83,13 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
 
   // Populate form when editing
   useEffect(() => {
+    async function loadOllamaModels() {
+      const models = await fetchOllamaModels();
+      setOllamaModels(models);
+      if (formData.provider === 'ollama') {
+        setAvailableModels(models);
+      }
+    }
     if (editingConfig) {
       setFormData({
         name: editingConfig.name || '',
@@ -96,7 +99,11 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
         endpoint: editingConfig.endpoint || '',
         is_default: editingConfig.is_default || false
       });
-      setAvailableModels(MODELS_BY_PROVIDER[editingConfig.provider] || []);
+      if (editingConfig.provider === 'ollama') {
+        loadOllamaModels();
+      } else {
+        setAvailableModels(MODELS_BY_PROVIDER[editingConfig.provider] || []);
+      }
     } else {
       // Reset form for new config
       setFormData({
@@ -114,13 +121,18 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
   }, [editingConfig, isOpen]);
 
   // Update available models when provider changes
-  const handleProviderChange = (provider) => {
+  const handleProviderChange = async (provider) => {
     setFormData(prev => ({
       ...prev,
       provider: provider,
       model: '' // Reset model when provider changes
     }));
-    setAvailableModels(MODELS_BY_PROVIDER[provider] || []);
+    if (provider === 'ollama') {
+      const models = ollamaModels.length ? ollamaModels : await fetchOllamaModels();
+      setAvailableModels(models);
+    } else {
+      setAvailableModels(MODELS_BY_PROVIDER[provider] || []);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -169,8 +181,8 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
         body: JSON.stringify({
           provider: formData.provider,
           model: formData.model,
-          api_key: formData.api_key || undefined,
-          endpoint: formData.endpoint || undefined
+          api_key: formData.api_key || "",
+          endpoint: formData.endpoint || ""
         })
       });
 
@@ -348,10 +360,12 @@ function AddLLMConfigModal({ isOpen, onClose, onSave, editingConfig }) {
                   name="endpoint"
                   value={formData.endpoint}
                   onChange={handleInputChange}
-                  placeholder="https://api.example.com/v1"
+                  placeholder={formData.provider === 'ollama' ? 'http://localhost:11434' : 'https://api.example.com/v1'}
                 />
                 <small className="form-text text-muted">
-                  Override the default API endpoint
+                  {formData.provider === 'ollama' 
+                    ? 'Defaults to http://localhost:11434 if not specified'
+                    : 'Override the default API endpoint'}
                 </small>
               </div>
 

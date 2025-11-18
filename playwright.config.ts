@@ -104,7 +104,7 @@ export default defineConfig({
     },
     {
       name: 'full',
-      testMatch: '**/*.spec.ts',
+      testMatch: ['**/*.spec.ts', '**/*.spec.js'],
       use: { ...devices['Desktop Chrome'] },
       timeout: 30000,
     },

@@ -3,12 +3,61 @@ package portal_services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
 	portal_repositories "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/repositories"
 )
+
+// ListOllamaModels returns the list of installed Ollama models by calling the Ollama HTTP API
+func (s *LLMConfigService) ListOllamaModels(ctx context.Context) ([]string, error) {
+	// Use context for timeout (10s)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// Get Ollama endpoint from environment or use default
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://host.docker.internal:11434"
+	}
+
+	// Call Ollama HTTP API to list models
+	req, err := http.NewRequestWithContext(ctx, "GET", ollamaEndpoint+"/api/tags", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Ollama API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Ollama API returned status %d", resp.StatusCode)
+	}
+
+	// Parse response
+	var result struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse Ollama response: %w", err)
+	}
+
+	models := make([]string, len(result.Models))
+	for i, model := range result.Models {
+		models[i] = model.Name
+	}
+	return models, nil
+}
 
 // Error messages for configuration validation
 const (
@@ -221,12 +270,18 @@ func (s *LLMConfigService) GetEffectiveConfig(
 	}
 
 	// Priority 3: Return system default (Ollama with deepseek-coder:6.7b)
+	// Use OLLAMA_ENDPOINT environment variable for Docker compatibility
+	ollamaEndpoint := os.Getenv("OLLAMA_ENDPOINT")
+	if ollamaEndpoint == "" {
+		ollamaEndpoint = "http://host.docker.internal:11434" // Default for Docker
+	}
+
 	systemDefault := &portal_repositories.LLMConfig{
 		ID:              "system-default",
 		UserID:          userID,
 		Provider:        "ollama",
 		ModelName:       "deepseek-coder:6.7b",
-		APIEndpoint:     sql.NullString{String: "http://localhost:11434", Valid: true},
+		APIEndpoint:     sql.NullString{String: ollamaEndpoint, Valid: true},
 		APIKeyEncrypted: sql.NullString{Valid: false}, // NULL for Ollama
 		IsDefault:       false,
 		MaxTokens:       8192,
@@ -268,6 +323,35 @@ func (s *LLMConfigService) ListUserConfigs(
 		return nil, fmt.Errorf("%s: %w", errFailedToListConfigs, err)
 	}
 	return configs, nil
+}
+
+// GetConfigByID returns a single LLM configuration by ID (includes ownership check)
+// NOTE: API key is decrypted for use in connection testing
+func (s *LLMConfigService) GetConfigByID(
+	ctx context.Context,
+	userID int,
+	configID string,
+) (*portal_repositories.LLMConfig, error) {
+	config, err := s.repo.FindByID(ctx, configID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errFailedToFindConfig, err)
+	}
+
+	// Verify ownership
+	if config.UserID != userID {
+		return nil, fmt.Errorf(errPermissionDenied)
+	}
+
+	// Decrypt API key if present (needed for connection testing)
+	if config.APIKeyEncrypted.Valid && config.APIKeyEncrypted.String != "" {
+		decryptedKey, err := s.encryption.DecryptAPIKey(config.APIKeyEncrypted.String, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt API key: %w", err)
+		}
+		config.APIKeyEncrypted.String = decryptedKey // Replace encrypted with decrypted
+	}
+
+	return config, nil
 }
 
 // applyProviderUpdates applies provider and model updates to the config

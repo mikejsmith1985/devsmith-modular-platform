@@ -232,15 +232,25 @@ Add-Content .env "JWT_SECRET=$secret"
 # Start remaining services
 docker-compose up -d
 
-# Fix any missing database migrations (if needed)
-./scripts/fix-database.sh
+# Database migrations run automatically on service startup
+# No manual commands needed - services are idempotent
 ```
+
+**Note on Database Migrations:**
+All services automatically run database migrations on startup. The Portal service will create the following tables if they don't exist:
+- `portal.users` - User accounts
+- `portal.llm_configs` - AI model configurations
+- `portal.app_llm_preferences` - App-specific model preferences
+- `portal.llm_usage_logs` - Token usage tracking
+
+**You do NOT need to run manual migration commands.** Services are safe to restart multiple times - migrations are idempotent and will only create missing tables.
 
 This atomic deployment:
 - ✅ **Builds frontend inside Docker** (no local node_modules needed)
 - ✅ **Deploys frontend + backend together** (no version drift)
 - ✅ **Includes health checks** (automatic verification)
 - ✅ **Single command operation** (eliminates manual errors)
+- ✅ **Automatic database migrations** (creates tables on first startup)
 
 **Alternative: Traditional method (if atomic deployment fails):**
 ```bash
@@ -631,23 +641,39 @@ cat .env | grep GITHUB
 
 **Symptom:** Services crash with "relation does not exist" errors
 
+**Important:** As of 2025-11-16, all services run database migrations automatically on startup. If you see migration errors, it indicates a code issue, not a deployment issue.
+
 **Solutions:**
 
 1. **Check migration status:**
 ```bash
+docker-compose exec postgres psql -U devsmith -d devsmith -c "\dt portal.*"
+# Should show: portal.users, portal.llm_configs, portal.app_llm_preferences, portal.llm_usage_logs
+
 docker-compose exec postgres psql -U devsmith -d devsmith -c "\dt logs.*"
 # Should show: logs.entries, logs.projects, logs.ai_analysis, etc.
 ```
 
-2. **Manually run migrations:**
+2. **Check service logs for migration errors:**
 ```bash
-docker-compose exec logs /logs migrate
+docker-compose logs portal | grep migration
+# Should show: "Running database migrations..." and "Database migrations completed successfully"
+
+docker-compose logs logs | grep migration
+# Should show successful migration execution
 ```
 
-3. **Reset database (⚠️ destroys data):**
+3. **If migrations fail, restart the service:**
+```bash
+docker-compose restart portal
+docker-compose logs portal --tail=100
+```
+
+4. **Reset database (⚠️ destroys all data - last resort only):**
 ```bash
 docker-compose down -v
 docker-compose up -d
+# All services will automatically create tables on first startup
 ```
 
 ### Performance Issues
@@ -804,10 +830,7 @@ This script:
 docker-compose up -d --build <service>
 ```
 
-**Database Fixes (if migrations failed):**
-```bash
-./scripts/fix-database.sh
-```
+**Note:** Services automatically run database migrations on startup. No manual migration commands needed.
 
 ### ⚠️ Legacy: Manual Frontend Deployment (Deprecated)
 

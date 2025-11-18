@@ -246,10 +246,41 @@ func HandleTestLogin(c *gin.Context) {
 		return
 	}
 
-	// Create test session in Redis
+	// Create or update test user in database (CRITICAL: must exist before session references it)
+	log.Printf("[TEST_AUTH] Creating/updating test user in database: github_id=%s, username=%s", req.GitHubID, req.Username)
+	upsertQuery := `
+		INSERT INTO portal.users (github_id, username, email, avatar_url, github_access_token, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		ON CONFLICT (github_id) 
+		DO UPDATE SET 
+			username = EXCLUDED.username,
+			email = EXCLUDED.email,
+			avatar_url = EXCLUDED.avatar_url,
+			updated_at = NOW()
+		RETURNING id
+	`
+
+	var userID int
+	err = dbConn.QueryRowContext(c.Request.Context(), upsertQuery,
+		req.GitHubID,          // github_id (from test request, e.g., "99999")
+		req.Username,          // username (e.g., "playwright-test")
+		req.Email,             // email (e.g., "playwright@devsmith.local")
+		req.AvatarURL,         // avatar_url
+		"test-token-not-real", // github_access_token (dummy for tests)
+	).Scan(&userID)
+
+	if err != nil {
+		log.Printf("[ERROR] Failed to create test user in database: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create test user account"})
+		return
+	}
+
+	log.Printf("[TEST_AUTH] Test user persisted to database with ID: %d", userID)
+
+	// Create test session in Redis (use database user ID, not hardcoded 999999)
 	sess := &session.Session{
 		SessionID:      sessionID,
-		UserID:         999999, // Test user ID
+		UserID:         userID, // Use actual database user ID
 		GitHubUsername: req.Username,
 		GitHubToken:    "test-token-not-real",
 		CreatedAt:      time.Now(),

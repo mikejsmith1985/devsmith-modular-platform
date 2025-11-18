@@ -589,8 +589,28 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	// TODO: Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, _ := c.Get("session_token")
+	sessionTokenStr, _ := sessionToken.(string)
+
+	// DEBUG: Log session token extraction
+	h.logger.Info("DEBUG HandlePreviewMode session token",
+		"has_token", sessionToken != nil,
+		"token_length", len(sessionTokenStr),
+		"token_empty", sessionTokenStr == "")
+
+	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	// Pass both model and session token to service via context
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
+	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
+
+	// DEBUG: Verify context values
+	h.logger.Info("DEBUG HandlePreviewMode context values",
+		"model", req.Model,
+		"session_token_length", len(sessionTokenStr))
 
 	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
@@ -599,7 +619,8 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	h.marshalAndFormat(c, result, "👁️ Preview Mode Analysis", "bg-indigo-50 dark:bg-indigo-900 border border-indigo-200 dark:border-indigo-700")
+	// Return JSON response for frontend React app
+	c.JSON(http.StatusOK, result)
 }
 
 // HandleSkimMode handles POST /api/review/modes/skim (HTMX)
@@ -618,8 +639,17 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, _ := c.Get("session_token")
+	sessionTokenStr, _ := sessionToken.(string)
+
+	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	// Pass both model and session token to service via context
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
+	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
 
 	// If the pasted input doesn't look like source code, avoid calling Skim mode
 	// which expects actual source files (functions, interfaces, data models).
@@ -629,7 +659,7 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 			"Skim mode extracts functions, interfaces and data models from source files. " +
 			"If you want to search or summarize prose, use Scan mode or paste source code."
 		out := &review_models.SkimModeOutput{Summary: summary}
-		h.marshalAndFormat(c, out, "📚 Skim Mode - Not Code", "bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700")
+		c.JSON(http.StatusOK, out)
 		return
 	}
 
@@ -640,7 +670,8 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	h.marshalAndFormat(c, result, "📚 Skim Mode Analysis", "bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700")
+	// Return JSON response for frontend React app
+	c.JSON(http.StatusOK, result)
 }
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
@@ -661,8 +692,16 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, _ := c.Get("session_token")
+	sessionTokenStr, _ := sessionToken.(string)
+
+	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	// Pass both model and session token to service via context
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
+	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
 
 	// If the pasted content doesn't look like source code, avoid calling the LLM-driven
 	// scan which may hallucinate code-like matches. Instead, perform a safe local
@@ -698,7 +737,7 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 				}
 			}
 			out := &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
-			h.marshalAndFormat(c, out, "🔎 Scan Mode (Text)", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
+			c.JSON(http.StatusOK, out)
 			return
 		}
 
@@ -706,7 +745,7 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		summary := "The content you pasted looks like natural language text, not source code.\n" +
 			"Scan mode can search code for patterns (SQL, auth, queries). For prose, provide a search query or paste source code."
 		out := &review_models.ScanModeOutput{Summary: summary, Matches: nil}
-		h.marshalAndFormat(c, out, "🔎 Scan Mode - Not Code", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
+		c.JSON(http.StatusOK, out)
 		return
 	}
 
@@ -717,7 +756,8 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	h.marshalAndFormat(c, result, "🔎 Scan Mode Analysis", "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700")
+	// Return JSON response for frontend React app
+	c.JSON(http.StatusOK, result)
 }
 
 // HandleDetailedMode handles POST /api/review/modes/detailed (HTMX)
@@ -738,8 +778,16 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, _ := c.Get("session_token")
+	sessionTokenStr, _ := sessionToken.(string)
+
+	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	// Pass both model and session token to service via context
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
+	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
 
 	// If the content doesn't look like code, avoid running Detailed Mode (it expects source)
 	if !looksLikeCode(req.PastedCode) {
@@ -769,7 +817,7 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	h.marshalAndFormat(c, result, "📖 Detailed Mode Analysis", "bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700")
+	c.JSON(http.StatusOK, result)
 }
 
 // HandleCriticalMode handles POST /api/review/modes/critical (HTMX)
@@ -788,8 +836,16 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, _ := c.Get("session_token")
+	sessionTokenStr, _ := sessionToken.(string)
+
+	// Create context with 90-second timeout for LLM generation (overrides Gin's default ~12s timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	// Pass both model and session token to service via context
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
+	ctx = context.WithValue(ctx, reviewcontext.SessionTokenKey, sessionTokenStr)
 
 	// If pasted content doesn't look like source code, avoid running full Critical
 	// analysis which focuses on architecture/layering and code quality.
@@ -797,7 +853,7 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		summary := "The content you pasted appears to be natural language text rather than source code.\n" +
 			"Critical mode evaluates code quality, architecture and security. For prose, please use Scan mode or paste source code."
 		out := &review_models.CriticalModeOutput{Summary: summary, Issues: nil}
-		h.marshalAndFormat(c, out, "🚨 Critical Mode - Not Code", "bg-red-50 dark:bg-slate-800 border border-red-200 dark:border-slate-700")
+		c.JSON(http.StatusOK, out)
 		return
 	}
 
@@ -821,7 +877,7 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		result.OverallGrade = deterministic
 	}
 
-	h.marshalAndFormat(c, result, "🚨 Critical Mode Analysis", "bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700")
+	c.JSON(http.StatusOK, result)
 }
 
 // determineGradeFromIssues applies a simple deterministic rubric to compute an overall grade
