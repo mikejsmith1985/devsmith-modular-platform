@@ -15,7 +15,7 @@ const experienceLevels = ['beginner', 'intermediate', 'expert'];
 test.describe('Review Service - Form Submission (All Combinations)', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     // Navigate and wait for page to load
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     await page.waitForSelector('.analysis-mode-selector', { timeout: 15000 });
     await page.waitForSelector('.code-editor-container', { timeout: 15000 });
   });

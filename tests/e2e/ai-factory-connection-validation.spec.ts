@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('AI Factory Connection Validation', () => {
   test('should reject invalid Ollama endpoint with connection error', async ({ page }) => {
     // Navigate to AI Factory (will redirect to login if not authenticated)
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     
     // Click AI Factory card if on dashboard, or handle auth redirect
     const url = page.url();

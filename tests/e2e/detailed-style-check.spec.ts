@@ -5,10 +5,10 @@ test('Detailed style check for all services', async ({ page }) => {
   const results = {};
   
   const services = [
-    { name: 'portal', url: 'http://localhost:3000/' },
-    { name: 'review', url: 'http://localhost:3000/review' },
-    { name: 'logs', url: 'http://localhost:3000/logs' },
-    { name: 'analytics', url: 'http://localhost:3000/analytics' }
+    { name: 'portal', url: '/' },
+    { name: 'review', url: '/review' },
+    { name: 'logs', url: '/logs' },
+    { name: 'analytics', url: '/analytics' }
   ];
   
   for (const service of services) {

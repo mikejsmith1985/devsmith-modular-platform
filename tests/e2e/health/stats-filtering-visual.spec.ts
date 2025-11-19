@@ -216,7 +216,7 @@ test.describe('Health Page - Stats Card Filtering', () => {
 test.describe('Health Page - Stats Architecture Validation', () => {
   test('Stats endpoint returns database totals', async ({ authenticatedPage }) => {
     // Call stats endpoint directly
-    const response = await authenticatedPage.request.get('http://localhost:3000/api/logs/v1/stats');
+    const response = await authenticatedPage.request.get('/api/logs/v1/stats');
     
     expect(response.ok()).toBeTruthy();
     
@@ -240,11 +240,11 @@ test.describe('Health Page - Stats Architecture Validation', () => {
 
   test('Stats endpoint totals match sum of entries', async ({ authenticatedPage }) => {
     // Get stats
-    const statsResponse = await authenticatedPage.request.get('http://localhost:3000/api/logs/v1/stats');
+    const statsResponse = await authenticatedPage.request.get('/api/logs/v1/stats');
     const stats = await statsResponse.json();
     
     // Get logs (limited sample)
-    const logsResponse = await authenticatedPage.request.get('http://localhost:3000/api/logs?limit=1000');
+    const logsResponse = await authenticatedPage.request.get('/api/logs?limit=1000');
     const logsData = await logsResponse.json();
     
     console.log('Stats totals:', stats);

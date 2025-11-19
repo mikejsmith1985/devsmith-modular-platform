@@ -1,14 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/auth.fixture';
 
-test('Navigation button hover states work correctly', async ({ page }) => {
+test('Navigation button hover states work correctly', async ({ authenticatedPage }) => {
   console.log('=== NAVIGATION BUTTON HOVER VALIDATION ===\n');
 
-  // Test Logs service
-  await page.goto('http://localhost:3000/logs');
-  await page.waitForLoadState('networkidle');
+  // Test Logs service via authenticated portal dashboard path
+  await authenticatedPage.goto('/dashboard/logs');
+  await authenticatedPage.waitForLoadState('networkidle');
 
   // Find the dark mode toggle button
-  const darkModeButton = page.locator('button.btn-icon#dark-mode-toggle');
+  const darkModeButton = authenticatedPage.locator('button.btn-icon#dark-mode-toggle');
   await expect(darkModeButton).toBeVisible();
 
   // Get default state (should be transparent)
@@ -21,7 +21,7 @@ test('Navigation button hover states work correctly', async ({ page }) => {
 
   // Hover over button
   await darkModeButton.hover();
-  await page.waitForTimeout(300); // Wait for transition
+  await authenticatedPage.waitForTimeout(300); // Wait for transition
 
   // Get hover state (should have background)
   const hoverBg = await darkModeButton.evaluate((el) => {
@@ -37,14 +37,14 @@ test('Navigation button hover states work correctly', async ({ page }) => {
   expect(hoverBg).toMatch(/^rgb/); // Should be an RGB color
 
   // Test mobile menu button
-  const menuButton = page.locator('button.btn-icon[data-app-menu]');
+  const menuButton = authenticatedPage.locator('button.btn-icon[data-app-menu]');
   if (await menuButton.isVisible()) {
     const menuDefaultBg = await menuButton.evaluate((el) => 
       window.getComputedStyle(el).backgroundColor
     );
     
     await menuButton.hover();
-    await page.waitForTimeout(300);
+    await authenticatedPage.waitForTimeout(300);
     
     const menuHoverBg = await menuButton.evaluate((el) => 
       window.getComputedStyle(el).backgroundColor
@@ -60,10 +60,11 @@ test('Navigation button hover states work correctly', async ({ page }) => {
   }
 
   // Test Analytics service
-  await page.goto('http://localhost:3000/analytics');
-  await page.waitForLoadState('networkidle');
+  // Test Analytics service via portal SPA path
+  await authenticatedPage.goto('/analytics');
+  await authenticatedPage.waitForLoadState('networkidle');
 
-  const analyticsButton = page.locator('button.btn-icon#dark-mode-toggle');
+  const analyticsButton = authenticatedPage.locator('button.btn-icon#dark-mode-toggle');
   await expect(analyticsButton).toBeVisible();
 
   const analyticsDefaultBg = await analyticsButton.evaluate((el) => 
@@ -71,7 +72,7 @@ test('Navigation button hover states work correctly', async ({ page }) => {
   );
 
   await analyticsButton.hover();
-  await page.waitForTimeout(300);
+  await authenticatedPage.waitForTimeout(300);
 
   const analyticsHoverBg = await analyticsButton.evaluate((el) => 
     window.getComputedStyle(el).backgroundColor

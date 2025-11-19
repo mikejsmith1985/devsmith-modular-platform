@@ -3,12 +3,12 @@ import { test, expect } from '@playwright/test';
 test.describe('Issue #2: Prompt Details Button Fix', () => {
   test.beforeEach(async ({ page }) => {
     // Authenticate first (use your existing auth fixture or OAuth flow)
-    await page.goto('http://localhost:3000/auth/github/login');
+    await page.goto('/auth/github/login');
     await page.waitForURL('**/review**', { timeout: 30000 });
   });
 
   test('Quick Learn mode should load prompt successfully', async ({ page }) => {
-    await page.goto('http://localhost:3000/review');
+    await page.goto('/review');
     
     // Ensure Quick Learn is selected (default)
     await expect(page.locator('input[value="quick"]')).toBeChecked();
@@ -32,7 +32,7 @@ test.describe('Issue #2: Prompt Details Button Fix', () => {
   });
 
   test('Full Learn (detailed) mode should load prompt successfully', async ({ page }) => {
-    await page.goto('http://localhost:3000/review');
+    await page.goto('/review');
     
     // Select Full Learn mode
     await page.click('input[value="detailed"]');
@@ -60,7 +60,7 @@ test.describe('Issue #2: Prompt Details Button Fix', () => {
   });
 
   test('Scan mode with detailed output should load prompt successfully', async ({ page }) => {
-    await page.goto('http://localhost:3000/review');
+    await page.goto('/review');
     
     // Select Scan mode from dropdown
     await page.selectOption('select[name="mode"]', 'scan');

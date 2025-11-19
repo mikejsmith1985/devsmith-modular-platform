@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('SMOKE: Portal Loads', () => {
   test.beforeEach(async ({ page }) => {
     // Authenticate using test endpoint
-    const loginResponse = await page.request.post('http://localhost:3000/auth/test-login', {
+    const loginResponse = await page.request.post('/auth/test-login', {
       data: {
         username: 'testuser',
         email: 'test@example.com',
@@ -13,24 +13,24 @@ test.describe('SMOKE: Portal Loads', () => {
     
     if (loginResponse.ok()) {
       // Navigate to authenticated route
-      await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     }
   });
 
   test('Portal is accessible when authenticated', async ({ page }) => {
-    const response = await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
   });
 
   test('Navigation renders correctly', async ({ page }) => {
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     const nav = page.locator('nav');
     await expect(nav).toBeVisible();
     await expect(nav).toContainText('DevSmith');
   });
 
   test('Dark mode button is visible and functional', async ({ page }) => {
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
     // Check dark mode button (vanilla JS implementation with ID)
     const darkModeButton = page.locator('#dark-mode-toggle');

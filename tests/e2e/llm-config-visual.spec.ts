@@ -4,7 +4,7 @@ test.describe('LLM Config - Visual Verification', () => {
   test('authenticate and view LLM config page', async ({ page, context }) => {
     // Step 1: Get auth token via API request
     console.log('Step 1: Getting auth token...');
-    const authResponse = await context.request.post('http://localhost:3000/auth/test-login', {
+    const authResponse = await context.request.post('/auth/test-login', {
       data: {
         username: 'visual-test',
         email: 'visual@devsmith.local',
@@ -37,7 +37,7 @@ test.describe('LLM Config - Visual Verification', () => {
     
     // Step 2: Navigate to LLM config page
     console.log('Step 2: Navigating to /llm-config...');
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
     await page.waitForTimeout(2000); // Wait for page to fully load
     
     // Take screenshot
@@ -76,7 +76,7 @@ test.describe('LLM Config - Visual Verification', () => {
 
   test('create Ollama config via UI', async ({ page, context }) => {
     // Get auth token
-    const authResponse = await context.request.post('http://localhost:3000/auth/test-login', {
+    const authResponse = await context.request.post('/auth/test-login', {
       data: {
         username: 'ollama-test',
         email: 'ollama@devsmith.local',
@@ -98,7 +98,7 @@ test.describe('LLM Config - Visual Verification', () => {
     }]);
     
     // Navigate to page
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
     await page.waitForTimeout(1000);
     
     console.log('Looking for Add button...');

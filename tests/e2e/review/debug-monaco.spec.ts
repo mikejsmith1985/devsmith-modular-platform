@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/auth.fixture';
 
 test('Debug Monaco Editor Selectors', async ({ authenticatedPage: page }) => {
   // Navigate to Review page
-  await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+  await page.goto('/review', { waitUntil: 'networkidle' });
   
   // Wait for React app to load
   await page.waitForSelector('.analysis-mode-selector', { timeout: 15000 });

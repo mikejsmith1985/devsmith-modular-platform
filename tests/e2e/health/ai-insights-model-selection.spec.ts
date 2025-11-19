@@ -75,7 +75,7 @@ test.describe('AI Insights - Model Selection', () => {
 
   test('Portal LLM configs endpoint returns valid model data', async ({ authenticatedPage }) => {
     // Call Portal LLM configs directly
-    const response = await authenticatedPage.request.get('http://localhost:3000/api/portal/llm-configs');
+    const response = await authenticatedPage.request.get('/api/portal/llm-configs');
     
     expect(response.ok()).toBeTruthy();
     
@@ -143,7 +143,7 @@ test.describe('AI Insights - Model Selection', () => {
 
   test('Model names from Ollama match expected format', async ({ authenticatedPage }) => {
     // Get LLM configs
-    const response = await authenticatedPage.request.get('http://localhost:3000/api/portal/llm-configs');
+    const response = await authenticatedPage.request.get('/api/portal/llm-configs');
     const configs = await response.json();
     
     // Filter Ollama configs
@@ -240,7 +240,7 @@ test.describe('AI Insights - Integration Validation', () => {
     // This validates the backend API is ready
     const testLogId = 1;
     const insightsResponse = await authenticatedPage.request.get(
-      `http://localhost:3000/api/logs/${testLogId}/insights`,
+      `/api/logs/${testLogId}/insights`,
       { failOnStatusCode: false }
     );
     

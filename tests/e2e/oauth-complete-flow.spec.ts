@@ -4,7 +4,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
   test('should complete full OAuth flow without login loop', async ({ page, context }) => {
     // Step 1: Clear all storage to start fresh
     await context.clearCookies();
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
@@ -12,7 +12,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
     console.log('✓ Cleared all storage');
 
     // Step 2: Navigate to login
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     await page.waitForLoadState('networkidle');
     console.log('✓ Navigated to login page');
 
@@ -26,7 +26,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
     console.log('✓ Clicked login button');
 
     // Wait for GitHub OAuth page or callback
-    await page.waitForURL(/github\.com\/login\/oauth\/authorize|localhost:3000\/auth\/callback/, { 
+    await page.waitForURL(/github\.com\/login\/oauth\/authorize|\/auth\/callback/, { 
       timeout: 10000 
     });
     
@@ -65,7 +65,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
       }
 
       // Wait for redirect to dashboard
-      await page.waitForURL('http://localhost:3000/', { timeout: 5000 });
+      await page.waitForURL(/\/$/, { timeout: 5000 });
       console.log('✓ Redirected to dashboard');
 
       // Wait for auth validation to complete
@@ -73,7 +73,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
 
       // Verify we're on dashboard (not redirected back to login)
       const finalUrl = page.url();
-      expect(finalUrl).toBe('http://localhost:3000/');
+      expect(new URL(finalUrl).pathname).toBe('/');
       console.log('✓ Stayed on dashboard (no login loop!)');
 
       // Verify dashboard content loaded
@@ -98,7 +98,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
       await page.waitForTimeout(1000);
       
       const urlAfterReload = page.url();
-      expect(urlAfterReload).toBe('http://localhost:3000/');
+      expect(new URL(urlAfterReload).pathname).toBe('/');
       console.log('✓ Token persisted after reload (no redirect to login)');
     }
   });
@@ -132,7 +132,7 @@ test.describe('OAuth PKCE Complete Flow', () => {
     });
 
     // Go to app (if already logged in, this should trigger /me call)
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     await page.waitForTimeout(2000);
 
     // Check if /me was called

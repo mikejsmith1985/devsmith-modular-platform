@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Review Critical Mode', () => {
   test('Can submit code and receive AI analysis', async ({ page }) => {
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    await page.goto('/review', { waitUntil: 'domcontentloaded' });
     
     // Paste sample code
     const testCode = `package main\n\nimport "fmt"\n\nfunc main() {\n  fmt.Println("Hello, World!")\n}`;
@@ -20,7 +20,7 @@ test.describe('SMOKE: Review Critical Mode', () => {
   });
 
   test('Critical mode button triggers analysis', async ({ page }) => {
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    await page.goto('/review', { waitUntil: 'domcontentloaded' });
     
     const testCode = `package main\nfunc main() { x := 1; }`;
     await page.fill('textarea[name="pasted_code"]', testCode);
@@ -46,7 +46,7 @@ test.describe('SMOKE: Review Critical Mode', () => {
   });
 
   test('Mode results container receives analysis', async ({ page }) => {
-    await page.goto('http://localhost:3000/review', { waitUntil: 'domcontentloaded' });
+    await page.goto('/review', { waitUntil: 'domcontentloaded' });
     
     const testCode = `func broken() { return; return; }`;
     await page.fill('textarea[name="pasted_code"]', testCode);

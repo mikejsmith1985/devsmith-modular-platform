@@ -7,7 +7,7 @@ test.describe('OAuth PKCE Flow End-to-End', () => {
     
     // Step 1: Navigate to the login page
     console.log('Step 1: Navigating to login page...');
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     
     // Wait for React to load
     await page.waitForLoadState('networkidle');
@@ -88,7 +88,7 @@ test.describe('OAuth PKCE Flow End-to-End', () => {
     
     // Step 8: Test token exchange endpoint (with mock data)
     console.log('Step 8: Testing token exchange endpoint...');
-    const tokenResponse = await context.request.post('http://localhost:3000/api/portal/auth/token', {
+    const tokenResponse = await context.request.post('/api/portal/auth/token', {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -113,7 +113,7 @@ test.describe('OAuth PKCE Flow End-to-End', () => {
   });
   
   test('PKCE crypto utilities generate valid parameters', async ({ page }) => {
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
     
     // Test PKCE utilities in browser console

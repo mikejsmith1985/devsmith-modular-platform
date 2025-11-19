@@ -22,7 +22,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // TEST 1: Verify user is authenticated in Portal
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    await page.goto('http://localhost:3000/dashboard');
+      await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     
     // Verify user menu is visible (indicates authentication)
@@ -36,7 +36,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // TEST 2: Navigate to Review - should NOT redirect to login
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    await page.goto('http://localhost:3000/review');
+      await page.goto('/review');
     await page.waitForLoadState('networkidle');
     
     // Should NOT be on login page
@@ -54,7 +54,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // TEST 3: Navigate to Logs - should NOT redirect to login
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    await page.goto('http://localhost:3000/logs');
+      await page.goto('/logs');
     await page.waitForLoadState('networkidle');
     
     // Should NOT be on login page
@@ -72,7 +72,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // TEST 4: Navigate to Analytics - should NOT redirect to login
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    await page.goto('http://localhost:3000/analytics');
+      await page.goto('/analytics');
     await page.waitForLoadState('networkidle');
     
     // Should NOT be on login page
@@ -118,7 +118,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     // Get username from Portal
-    await page.goto('http://localhost:3000/dashboard');
+      await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     const portalUserMenu = page.locator('#user-menu, button[aria-label*="user menu"]');
     await portalUserMenu.click();
@@ -126,7 +126,7 @@ test.describe('Cross-Service Session Persistence', () => {
     const portalUsername = await page.locator('[data-username], .username').textContent();
     
     // Get username from Review
-    await page.goto('http://localhost:3000/review');
+      await page.goto('/review');
     await page.waitForLoadState('networkidle');
     const reviewUserMenuBtn = page.locator('#user-menu, button[aria-label*="user menu"]');
     await reviewUserMenuBtn.click();
@@ -158,19 +158,19 @@ test.describe('Cross-Service Session Persistence', () => {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
     // Try to access Portal - should redirect to login
-    await page.goto('http://localhost:3000/dashboard');
+      await page.goto('/dashboard');
     await page.waitForTimeout(1000);
     expect(page.url()).toContain('auth/github/login');
     console.log('✓ Portal requires re-authentication after logout');
     
     // Try to access Logs - should redirect to login
-    await page.goto('http://localhost:3000/logs');
+      await page.goto('/logs');
     await page.waitForTimeout(1000);
     expect(page.url()).toContain('auth/github/login');
     console.log('✓ Logs requires re-authentication after logout');
     
     // Try to access Analytics - should redirect to login
-    await page.goto('http://localhost:3000/analytics');
+      await page.goto('/analytics');
     await page.waitForTimeout(1000);
     expect(page.url()).toContain('auth/github/login');
     console.log('✓ Analytics requires re-authentication after logout');
@@ -187,7 +187,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // TEST: Simulate expired session (no valid cookie)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    await page.goto('http://localhost:3000/dashboard');
+      await page.goto('/dashboard');
     
     // Should redirect to login
     await page.waitForURL(/auth\/github\/login/, { timeout: 5000 });
@@ -199,7 +199,7 @@ test.describe('Cross-Service Session Persistence', () => {
     // Verify same behavior for all services
     const services = ['/review', '/logs', '/analytics'];
     for (const service of services) {
-      await page.goto(`http://localhost:3000${service}`);
+        await page.goto(service);
       await page.waitForTimeout(1000);
       expect(page.url()).toContain('auth/github/login');
       console.log(`✓ Expired session redirects to login for ${service}`);

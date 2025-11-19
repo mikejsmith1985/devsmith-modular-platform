@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Issue #2: Details Button Functionality', () => {
   test('Details button opens PromptEditorModal without 404', async ({ page }) => {
     // Go to review page
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     
     // Wait for page to load
     await page.waitForLoadState('networkidle');
@@ -93,7 +93,7 @@ test.describe('Issue #2: Details Button Functionality', () => {
   test('Prompt API endpoint returns valid response', async ({ page }) => {
     // Test the API endpoint directly
     const response = await page.request.get(
-      'http://localhost:3000/api/review/prompts?mode=preview&userLevel=intermediate&outputMode=html'
+      '/api/review/prompts?mode=preview&userLevel=intermediate&outputMode=html'
     );
     
     console.log('API Response Status:', response.status());

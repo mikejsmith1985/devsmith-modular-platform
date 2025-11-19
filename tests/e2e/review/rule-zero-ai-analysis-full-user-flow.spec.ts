@@ -43,7 +43,7 @@ test.describe('Rule Zero: AI Analysis Full User Flow', () => {
     console.log('=== STEP 1-3: Fresh browser session, navigate, hard refresh ===');
     
     // Navigate to dashboard (already authenticated via fixture)
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     await page.waitForTimeout(1000);
     
     // Percy snapshot: Landing page (should show dashboard since authenticated)
@@ -156,7 +156,7 @@ test.describe('Rule Zero: AI Analysis Full User Flow', () => {
       await dashboardLink.click();
     } else {
       // Just navigate directly if no link found
-      await page.goto('http://localhost:3000/');
+      await page.goto('/');
     }
     await page.waitForTimeout(2000);
     
@@ -252,7 +252,7 @@ test.describe('Rule Zero: AI Analysis Full User Flow', () => {
     console.log('=== STEP 15-17: Navigate to Health app ===');
     
     // Navigate back to dashboard
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await page.waitForTimeout(2000);
     
     await page.click('text=Health');

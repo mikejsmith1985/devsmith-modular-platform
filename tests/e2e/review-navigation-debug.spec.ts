@@ -10,14 +10,15 @@ test.describe('Review Navigation Flow - With Auth', () => {
     
     // Step 1: Navigate to root (should show login)
     console.log('\n=== Step 1: Navigate to root ===');
-    await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'networkidle' });
     console.log('Current URL:', page.url());
     
     // Step 2: Check if already logged in (by checking for dashboard redirect)
     const currentUrl = page.url();
-    if (currentUrl.includes('/dashboard')) {
+    const parsedUrl = new URL(currentUrl);
+    if (parsedUrl.pathname.includes('/dashboard')) {
       console.log('\n=== Already logged in, on dashboard ===');
-    } else if (currentUrl.includes('/login') || currentUrl === 'http://localhost:3000/') {
+    } else if (parsedUrl.pathname.includes('/login') || parsedUrl.pathname === '/') {
       console.log('\n=== Not logged in, need to authenticate ===');
       // For now, we'll set a mock JWT cookie to simulate being logged in
       // In real scenario, you'd go through OAuth flow
@@ -26,7 +27,7 @@ test.describe('Review Navigation Flow - With Auth', () => {
       await context.addCookies([{
         name: 'devsmith_token',
         value: mockJWT,
-        domain: 'localhost',
+        domain: parsedUrl.hostname,
         path: '/',
         httpOnly: false,
         secure: false,
@@ -35,7 +36,7 @@ test.describe('Review Navigation Flow - With Auth', () => {
       
       // Navigate to dashboard
       console.log('\n=== Step 3: Navigate to dashboard with auth cookie ===');
-      await page.goto('http://localhost:3000/dashboard', { waitUntil: 'networkidle' });
+      await page.goto('/dashboard', { waitUntil: 'networkidle' });
       console.log('Dashboard URL:', page.url());
     }
     

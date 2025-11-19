@@ -15,7 +15,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Review Mode Selection', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to review page
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     
     // Wait for page to load
     await expect(page).toHaveTitle(/DevSmith/);

@@ -92,7 +92,8 @@ export const test = base.extend<AuthFixtures>({
     await context.clearCookies();
     
     // Call test auth endpoint to create session - use context.request for proper cookie handling
-    const response = await context.request.post('http://localhost:3000/auth/test-login', {
+      // Use relative request to respect PLAYWRIGHT_BASE_URL (traefik container host in Docker)
+      const response = await context.request.post('/auth/test-login', {
       data: testUser,
       headers: {
         'Content-Type': 'application/json'
@@ -127,10 +128,12 @@ export const test = base.extend<AuthFixtures>({
     const tokenValue = cookieMatch[1];
 
     // Set cookie on page context for all subsequent requests
-    await context.addCookies([{
-      name: 'devsmith_token',
-      value: tokenValue,
-      domain: 'localhost',
+      const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+      const cookieDomain = new URL(baseUrl).hostname;
+      await context.addCookies([{
+        name: 'devsmith_token',
+        value: tokenValue,
+        domain: cookieDomain,
       path: '/',
       httpOnly: true,
       sameSite: 'Lax',  // Changed from Strict to Lax for better compatibility
@@ -146,7 +149,8 @@ export const test = base.extend<AuthFixtures>({
 
     // CRITICAL: Also set token in localStorage for React app
     // The frontend AuthContext checks localStorage, not cookies
-    await page.goto('http://localhost:3000');
+      // Use relative path so Playwright honors baseURL (http://traefik:3000 in Docker)
+      await page.goto('/');
     await page.evaluate((token) => {
       localStorage.setItem('devsmith_token', token);
     }, tokenValue);

@@ -16,7 +16,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 test.setTimeout(120000); // 2 minutes for AI analysis
 
-const REVIEW_URL = 'http://localhost:3000/review';
+const REVIEW_URL = '/review';
 
 const SAMPLE_GO_CODE = `package handlers
 

@@ -18,7 +18,7 @@ test.describe('Console Verification', () => {
     });
 
     // Navigate to homepage
-    await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'networkidle' });
     
     // Wait a bit for any deferred console messages
     await page.waitForTimeout(2000);
@@ -55,7 +55,7 @@ test.describe('Console Verification', () => {
       }
     });
 
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'networkidle' });
+    await page.goto('/dashboard', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     
     if (consoleErrors.length > 0) {
@@ -80,7 +80,7 @@ test.describe('Console Verification', () => {
       }
     });
 
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     await page.waitForTimeout(2000);
     
     if (consoleErrors.length > 0) {

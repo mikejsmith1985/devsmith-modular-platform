@@ -2,7 +2,6 @@ package review_handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -131,8 +130,7 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
-		}
+// refactor(phase2): extract helper functions to reduce cognitive complexity
 
 		h.logger.Warn("Failed to bind code request",
 			"error", err.Error(),
@@ -173,8 +171,7 @@ func looksLikeCode(s string) bool {
 }
 
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
-}
+// refactor(phase2): extract helper functions to reduce cognitive complexity
 
 // renderError returns a JSON error response with plain language error message
 func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage string) {
@@ -430,14 +427,39 @@ func (h *UIHandler) validateScanService(c *gin.Context) bool {
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+// refactor(phase2): extract helper functions to reduce cognitive complexity
 	}
 	return true
 }
 
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+// HandleScanMode handles POST /api/review/modes/scan (HTMX)
+func (h *UIHandler) HandleScanMode(c *gin.Context) {
+	req, ok := h.bindCodeRequest(c)
+	if !ok {
+		return
+	}
 
+	if h.scanService == nil {
+		h.logger.Warn("Scan service not initialized")
+		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusServiceUnavailable)
+		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		return
+	}
+
+	query := c.PostForm("scan_query")
+	if query == "" {
+		query = c.Query("q")
+	}
+
+	if h.shouldUseLocalSearch(req.PastedCode, query) {
+		out := h.performLocalTextSearch(req.PastedCode, query)
+		h.marshalAndFormat(c, out, "🔎 Scan Mode - Local", "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700")
+		return
+	}
+
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
 		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)

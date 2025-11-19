@@ -53,7 +53,7 @@ test.describe('Responsive Design - Mobile (iPhone 12 - 390x844)', () => {
   });
 
   authTest('Review service mobile layout', async ({ authenticatedPage }) => {
-    const response = await authenticatedPage.request.post('http://localhost:3000/auth/test-login');
+    const response = await authenticatedPage.request.post('/auth/test-login');
     const data = await response.json();
     await authenticatedPage.context().addCookies([{
       name: 'devsmith_token',
@@ -79,7 +79,7 @@ test.describe('Responsive Design - Mobile (iPhone 12 - 390x844)', () => {
 test.describe('Responsive Design - Tablet (iPad - 810x1080)', () => {
   authTest('Portal Dashboard tablet layout', async ({ authenticatedPage }) => {
     await authenticatedPage.setViewportSize({ width: 810, height: 1080 });
-    const response = await authenticatedPage.request.post('http://localhost:3000/auth/test-login');
+    const response = await authenticatedPage.request.post('/auth/test-login');
     const data = await response.json();
     await authenticatedPage.context().addCookies([{
       name: 'devsmith_token',
@@ -106,7 +106,7 @@ test.describe('Responsive Design - Tablet (iPad - 810x1080)', () => {
   });
 
   authTest('Logs service tablet layout', async ({ authenticatedPage }) => {
-    const response = await authenticatedPage.request.post('http://localhost:3000/auth/test-login');
+    const response = await authenticatedPage.request.post('/auth/test-login');
     const data = await response.json();
     await authenticatedPage.context().addCookies([{
       name: 'devsmith_token',
@@ -128,7 +128,7 @@ test.describe('Responsive Design - Tablet (iPad - 810x1080)', () => {
 test.describe('Responsive Design - Android (Galaxy S9+ - 412x846)', () => {
   authTest('Analytics Dashboard Android layout', async ({ authenticatedPage }) => {
     await authenticatedPage.setViewportSize({ width: 412, height: 846 });
-    const response = await authenticatedPage.request.post('http://localhost:3000/auth/test-login');
+    const response = await authenticatedPage.request.post('/auth/test-login');
     const data = await response.json();
     await authenticatedPage.context().addCookies([{
       name: 'devsmith_token',
@@ -155,7 +155,7 @@ test.describe('Responsive Navigation', () => {
   authTest('Mobile menu/hamburger functionality', async ({ authenticatedPage }) => {
     await authenticatedPage.setViewportSize({ width: 375, height: 667 }); // iPhone SE size
 
-    const response = await authenticatedPage.request.post('http://localhost:3000/auth/test-login');
+    const response = await authenticatedPage.request.post('/auth/test-login');
     const data = await response.json();
     await authenticatedPage.context().addCookies([{
       name: 'devsmith_token',

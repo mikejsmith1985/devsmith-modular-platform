@@ -22,7 +22,7 @@ test.describe('AI Factory - Fix Validation', () => {
   
   test('API accepts empty Ollama endpoint and provides helpful error', async ({ request }) => {
     // Test the actual API endpoint that was failing
-    const response = await request.post('http://localhost:3000/api/portal/llm-configs/test', {
+    const response = await request.post('/api/portal/llm-configs/test', {
       data: {
         provider: 'ollama',
         model: 'qwen2.5-coder:7b',
@@ -56,7 +56,7 @@ test.describe('AI Factory - Fix Validation', () => {
   });
   
   test('API accepts custom Ollama endpoint', async ({ request }) => {
-    const response = await request.post('http://localhost:3000/api/portal/llm-configs/test', {
+    const response = await request.post('/api/portal/llm-configs/test', {
       data: {
         provider: 'ollama',
         model: 'qwen2.5-coder:7b',
@@ -84,7 +84,7 @@ test.describe('AI Factory - Fix Validation', () => {
   
   test('Fix validation: Empty endpoint no longer causes HTTP 400 "endpoint required"', async ({ request }) => {
     // This is the exact scenario that was failing before the fix
-    const response = await request.post('http://localhost:3000/api/portal/llm-configs/test', {
+    const response = await request.post('/api/portal/llm-configs/test', {
       data: {
         provider: 'ollama',
         model: 'qwen2.5-coder:7b',

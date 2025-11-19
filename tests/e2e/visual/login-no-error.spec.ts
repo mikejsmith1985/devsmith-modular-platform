@@ -6,7 +6,7 @@ test.describe('Login Page - Visual Verification', () => {
     console.log('🧪 Testing login page loads cleanly...');
     
     // STEP 1: Navigate to login page
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     console.log('📍 Navigated to login page');
     
     // STEP 2: Wait for React to load
@@ -59,7 +59,7 @@ test.describe('Login Page - Visual Verification', () => {
   test('Login page shows proper error ONLY when login fails', async ({ page }) => {
     console.log('🧪 Testing login page shows errors appropriately...');
     
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     await page.waitForSelector('.card');
     
     // Initially NO errors
@@ -85,7 +85,7 @@ test.describe('Login Page - Visual Verification', () => {
   test('OAuth flow initiates without showing auth errors', async ({ page }) => {
     console.log('🧪 Testing OAuth initiation...');
     
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     await page.waitForSelector('.card');
     
     // No errors before clicking GitHub button

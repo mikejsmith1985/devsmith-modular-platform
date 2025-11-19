@@ -16,7 +16,7 @@ import percySnapshot from '@percy/playwright';
 test.describe('Logs Dashboard - Comprehensive Interaction & Visual Validation', () => {
   test('should interact with every element and validate visually', async ({ authenticatedPage: page }) => {
     // Navigate to Logs dashboard
-    await page.goto('http://localhost:3000/logs');
+    await page.goto('/logs');
     await page.waitForLoadState('networkidle');
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -197,7 +197,7 @@ test.describe('Logs Dashboard - Comprehensive Interaction & Visual Validation', 
     console.log('✓ Navigation to Review works');
     
     // Navigate back to Logs
-    await page.goto('http://localhost:3000/logs');
+    await page.goto('/logs');
     await page.waitForLoadState('networkidle');
     
     // Click Analytics nav link
@@ -207,7 +207,7 @@ test.describe('Logs Dashboard - Comprehensive Interaction & Visual Validation', 
     console.log('✓ Navigation to Analytics works');
     
     // Navigate back to Logs
-    await page.goto('http://localhost:3000/logs');
+    await page.goto('/logs');
     await page.waitForLoadState('networkidle');
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

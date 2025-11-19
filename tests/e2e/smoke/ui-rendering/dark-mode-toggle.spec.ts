@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('SMOKE: Dark Mode Toggle', () => {
   test.beforeEach(async ({ page }) => {
     // Authenticate using test endpoint
-    const loginResponse = await page.request.post('http://localhost:3000/auth/test-login', {
+    const loginResponse = await page.request.post('/auth/test-login', {
       data: {
         username: 'testuser',
         email: 'test@example.com',
@@ -13,12 +13,12 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
     
     if (loginResponse.ok()) {
       // Navigate to authenticated route
-      await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     }
   });
 
   test('Dark mode button is clickable', async ({ page }) => {
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
     // Find dark mode button by ID
     const darkModeButton = page.locator('#dark-mode-toggle');
@@ -27,7 +27,7 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
   });
 
   test('Clicking dark mode toggle changes DOM class', async ({ page }) => {
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
     const darkModeButton = page.locator('#dark-mode-toggle');
     
@@ -49,7 +49,7 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
   });
 
   test('Dark mode preference persists in localStorage', async ({ page }) => {
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
     const darkModeButton = page.locator('#dark-mode-toggle');
     
@@ -63,7 +63,7 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
   });
 
   test('Dark mode persists across page navigation', async ({ page }) => {
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
     // Enable dark mode
     const darkModeButton = page.locator('#dark-mode-toggle');
@@ -71,7 +71,7 @@ test.describe('SMOKE: Dark Mode Toggle', () => {
     await page.waitForTimeout(300);
     
     // Navigate to dashboard again
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     
     // Dark mode should still be active
     const htmlElement = page.locator('html');

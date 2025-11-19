@@ -21,7 +21,7 @@ test.describe('Phase 0: Health App Rename', () => {
     
     // Navigate to dashboard with cache-busting parameter
     const timestamp = Date.now();
-    await authenticatedPage.goto(`http://localhost:3000?cb=${timestamp}`);
+    await authenticatedPage.goto(`/?cb=${timestamp}`);
     
     // Wait for dashboard to load
     await authenticatedPage.waitForLoadState('networkidle');
@@ -66,7 +66,7 @@ test.describe('Phase 0: Health App Rename', () => {
 
   test('Health page has correct title', async ({ authenticatedPage }) => {
     // GIVEN: User navigates to Health app
-    await authenticatedPage.goto('http://localhost:3000/health');
+    await authenticatedPage.goto('/health');
     await authenticatedPage.waitForLoadState('networkidle');
     
     // WHEN: Looking at page title
@@ -79,7 +79,7 @@ test.describe('Phase 0: Health App Rename', () => {
 
   test('Navigation shows "Health" link', async ({ authenticatedPage }) => {
     // GIVEN: User is on any page
-    await authenticatedPage.goto('http://localhost:3000/health');
+    await authenticatedPage.goto('/health');
     
     // WHEN: Looking at navigation
     const nav = authenticatedPage.locator('nav');

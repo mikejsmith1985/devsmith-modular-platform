@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('LLM Configuration UI', () => {
   test.beforeEach(async ({ page }) => {
     // Authenticate by calling test-login endpoint
-    const authResponse = await page.request.post('http://localhost:3000/auth/test-login', {
+    const authResponse = await page.request.post('/auth/test-login', {
       data: {
         username: 'playwright-test',
         email: 'playwright@devsmith.local',
@@ -37,7 +37,7 @@ test.describe('LLM Configuration UI', () => {
     }
     
     // Navigate to a page to set localStorage (React app needs token in localStorage)
-    await page.goto('http://localhost:3000/portal');
+    await page.goto('/portal');
     
     // Inject JWT token into localStorage for React auth context
     if (jwtToken) {
@@ -49,7 +49,7 @@ test.describe('LLM Configuration UI', () => {
 
   test('should load LLM config page and display existing configs', async ({ page }) => {
     // Navigate to LLM config page
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
     
     // Wait for page to load
   await page.waitForSelector('text=AI Factory', { timeout: 10000 });
@@ -64,7 +64,7 @@ test.describe('LLM Configuration UI', () => {
   });
 
   test('should open Add AI Model modal', async ({ page }) => {
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
   await page.waitForSelector('text=AI Factory', { timeout: 10000 });
     
     // Click Add Model button (actual button text on page)
@@ -85,7 +85,7 @@ test.describe('LLM Configuration UI', () => {
   });
 
   test('should create Ollama configuration successfully', async ({ page }) => {
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
     await page.waitForSelector('text=AI Factory', { timeout: 10000 });
     
     // Clean up any existing Ollama config from previous test runs
@@ -183,7 +183,7 @@ test.describe('LLM Configuration UI', () => {
   
   console.log('✓ Ollama configuration created successfully');
 });  test('should create Claude configuration with API key', async ({ page }) => {
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
   await page.waitForSelector('text=AI Factory', { timeout: 10000 });
     
     // Open modal
@@ -227,7 +227,7 @@ test.describe('LLM Configuration UI', () => {
   });
 
   test('should expand Advanced Settings dropdown', async ({ page }) => {
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
   await page.waitForSelector('text=AI Factory', { timeout: 10000 });
     
     // Open modal
@@ -250,7 +250,7 @@ test.describe('LLM Configuration UI', () => {
   });
 
   test('should show validation errors for missing required fields', async ({ page }) => {
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
   await page.waitForSelector('text=AI Factory', { timeout: 10000 });
     
     // Open modal

@@ -983,19 +983,14 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 	)
 }
 
-// HandleGitHubOAuthCallbackWithSession processes GitHub OAuth callback with Redis session
-// DEPRECATED: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
-// The frontend now handles OAuth callbacks via /api/portal/auth/token endpoint.
-// This endpoint is kept for backward compatibility only.
-
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+// validateOAuthCallbackParams extracts and validates GitHub OAuth callback parameters
+// returns code, state and error (nil when valid). Sends JSON error responses on failure.
+func validateOAuthCallbackParams(c *gin.Context) (string, string, error) {
 	errorParam := c.Query("error")
 	errorDesc := c.Query("error_description")
+	code := c.Query("code")
+	state := c.Query("state")
 
-	log.Printf("[OAUTH] Callback params: state=%s, error=%s, code_present=%v",
-		state, errorParam, code != "")
-
-	// Check for GitHub OAuth errors
 	if errorParam != "" {
 		log.Printf("[ERROR] GitHub OAuth error: %s - %s", errorParam, errorDesc)
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -1006,8 +1001,6 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 		})
 		return "", "", fmt.Errorf("github oauth error: %s", errorParam)
 	}
-
-	// Validate code parameter
 	if code == "" {
 		log.Println("[ERROR] Missing authorization code in callback")
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1017,8 +1010,6 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 		})
 		return "", "", fmt.Errorf("missing authorization code")
 	}
-
-	// Validate state parameter (CSRF protection)
 	if state == "" {
 		log.Println("[ERROR] Missing state parameter in callback")
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1028,7 +1019,6 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 		})
 		return "", "", fmt.Errorf("missing state parameter")
 	}
-
 	if !validateOAuthState(state) {
 		log.Printf("[WARN] OAuth state validation failed: received=%s", state)
 		log.Println("[INFO] State validation failed - this may be from a cached GitHub authorization.")
@@ -1043,10 +1033,12 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 		})
 		return "", "", fmt.Errorf("invalid state parameter")
 	}
-
-	log.Println("[OAUTH] Step 4: State validated successfully")
 	return code, state, nil
 }
+
+// HandleGitHubOAuthCallbackWithSession: Deprecated callback handling logic has been
+// refactored and consolidated into the active implementation below (HandleGitHubOAuthCallbackWithSession).
+// The previous duplicate implementation was removed to avoid top-level statements.
 
 // exchangeCodeAndFetchUser performs token exchange and user info retrieval
 func exchangeCodeAndFetchUser(c *gin.Context, code string) (*UserInfo, string, error) {
