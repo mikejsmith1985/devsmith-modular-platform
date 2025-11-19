@@ -280,15 +280,17 @@ func main() {
 	// Home/landing page - REQUIRES authentication via Redis session (SSO with Portal)
 	// Handles both / (legacy direct access) and /review (Traefik gateway access)
 	router.GET("/", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
+	router.HEAD("/", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
 	router.GET("/review", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
+	router.HEAD("/review", middleware.RedisSessionAuthMiddleware(sessionStore), uiHandler.HomeHandler)
 
 	// Protected endpoints group (require JWT authentication with Redis session validation)
 	protected := router.Group("/")
 	protected.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
 	{
 		// Workspace access (requires auth to track user sessions)
-		// Traefik strips /review, so browser /review/workspace/123 becomes /workspace/123 here
-		protected.GET("/workspace/:session_id", uiHandler.ShowWorkspace)
+		// Browser accesses /review/workspace/123 and Traefik passes it as-is (no prefix stripping)
+		protected.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace)
 
 		// Analysis endpoints (require auth for usage tracking and rate limiting)
 		protected.GET("/analysis", uiHandler.AnalysisResultHandler)

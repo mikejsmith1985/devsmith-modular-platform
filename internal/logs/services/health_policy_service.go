@@ -48,6 +48,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		RepairStrategy:    RepairStrategyRestart,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
+		PolicyJSON:        "{}",
 	},
 	"review": {
 		ServiceName:       "review",
@@ -56,6 +57,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		RepairStrategy:    RepairStrategyRestart,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
+		PolicyJSON:        "{}",
 	},
 	"logs": {
 		ServiceName:       "logs",
@@ -64,6 +66,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		RepairStrategy:    RepairStrategyNone,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
+		PolicyJSON:        "{}",
 	},
 	"analytics": {
 		ServiceName:       "analytics",
@@ -72,6 +75,7 @@ var DefaultPolicies = map[string]HealthPolicy{
 		RepairStrategy:    RepairStrategyRestart,
 		AlertOnWarn:       false,
 		AlertOnFail:       true,
+		PolicyJSON:        "{}",
 	},
 }
 

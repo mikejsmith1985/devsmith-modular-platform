@@ -9,7 +9,7 @@
 
 You are **GitHub Copilot**, the primary code implementation agent for the DevSmith Modular Platform. Your role is to write production-ready code that passes ALL quality gates BEFORE requesting human review.
 
-**Core Principle**: Mike should only review work that is **100% complete, tested, and validated with screenshots**.
+**Core Principle**: Mike should only review work that is **100% complete, tested, and validated with automated Playwright + Percy visual evidence**.
 
 ---
 
@@ -158,15 +158,18 @@ git commit -m "refactor(logs): improve AI analyzer error handling"
 
 **No exceptions**. If you write implementation before tests, your PR will be rejected immediately.
 
-### Rule 3: USER EXPERIENCE TESTING MUST INCLUDE SCREENSHOTS
+### Rule 3: USER EXPERIENCE TESTING MUST BE AUTOMATED WITH PLAYWRIGHT + PERCY
 
 **Before requesting review, you MUST:**
 
 1. Start services: `docker-compose up -d`
 2. Run regression tests: `bash scripts/regression-test.sh`
-3. **Manually verify each user workflow with screenshots**
-4. **Visually inspect screenshots** - does the UI match expectations?
-5. Document results with embedded screenshots
+3. **Run Playwright tests covering all user workflows**
+4. **Integrate Percy for automated screenshot capture and visual diffing**
+5. **Execute Playwright + Percy runs in the background and actively monitor results**
+6. **Autonomously act on test results (fix failures, re-run, update docs) without waiting for user prompt**
+7. **Embed Percy build links and Playwright test results in VERIFICATION.md**
+8. **CI and pre-push hook must block merges if Playwright or Percy checks fail**
 
 **Example**:
 ```bash
@@ -174,36 +177,15 @@ git commit -m "refactor(logs): improve AI analyzer error handling"
 docker-compose up -d --build review
 bash scripts/regression-test.sh
 
-# Manually test and capture screenshots
-open http://localhost:3000
-# Click through workflow, capture screenshots at each step
-# Save to test-results/manual-verification-YYYYMMDD/
-
-# Create verification document
-cat > test-results/manual-verification-$(date +%Y%m%d)/VERIFICATION.md << EOF
-# Manual Verification - Review Feature
-
-## Test 1: Code Analysis
-1. Navigated to http://localhost:3000
-2. Clicked "Review" card
-3. Pasted test code
-4. Selected "Preview" mode
-5. Clicked "Analyze"
-
-**Result**: ✅ PASS - Analysis completed, results displayed correctly
-
-**Screenshots**:
-- ![Step 1](01-dashboard.png)
-- ![Step 2](02-review-paste.png)
-- ![Step 3](03-analysis-result.png)
-
-...
-EOF
+# Run Playwright tests with Percy integration in background
+npx percy exec -- npx playwright test &
+# Monitor test run, collect results, and act on failures automatically
+# Percy build link and Playwright results go in verification doc
 ```
 
-**❌ DO NOT** request review without visual verification.  
+**❌ DO NOT** request review without Playwright and Percy visual validation.  
 **❌ DO NOT** assume tests passing means UI works.  
-**❌ DO NOT** skip screenshots to save time.
+**❌ DO NOT** skip automated visual checks to save time.
 
 ### Rule 4: ALL Errors MUST Be Logged to ERROR_LOG.md
 
@@ -379,13 +361,12 @@ Use this checklist for EVERY feature:
 - [ ] ALL tests must PASS (no exceptions)
 - [ ] Fix any failures and re-run
 
-### Phase 7: Manual Verification with Screenshots (15-20 minutes) ⭐ CRITICAL
-- [ ] Navigate to http://localhost:3000
-- [ ] Test complete user workflow for your feature
-- [ ] Capture screenshot at EACH step
-- [ ] Verify screenshots show expected UI (no loading spinners, no errors)
-- [ ] Document test steps and results in VERIFICATION.md
-- [ ] Embed screenshots in verification document
+### Phase 7: Automated Visual Verification (Playwright + Percy) ⭐ CRITICAL
+- [ ] Run Playwright E2E tests covering all user workflows
+- [ ] Integrate Percy for automated screenshot capture and visual diffing
+- [ ] Monitor Playwright + Percy runs in the background and act on results
+- [ ] Percy build link and Playwright results go in verification doc
+- [ ] Verification document created with embedded Percy build links and Playwright results
 
 ### Phase 8: Documentation (10 minutes)
 - [ ] Update implementation plan documents (e.g., MULTI_LLM_IMPLEMENTATION_PLAN.md)
@@ -411,6 +392,20 @@ Use this checklist for EVERY feature:
 ---
 
 ## 🏗️ Architecture Standards (Quick Reference)
+### Automated Visual Validation Loop (Playwright + Percy)
+**MANDATORY:** When running Playwright + Percy tests for UI/visual validation, you MUST:
+- Remain in the fix/test loop until ALL tests pass and Percy visual snapshots match expected UI
+- **NEVER** stop to suggest next steps, ask for review, or wait for user input
+- **NEVER** declare work complete or move on until tests pass and visual evidence is captured
+- **ALWAYS** monitor background test runs and act on failures autonomously
+- **ALWAYS** update documentation to reflect this continuous loop requirement
+- **If tests fail:**
+  - Fix the failure immediately
+  - Re-run Playwright + Percy
+  - Repeat until all tests pass and Percy build is green
+  - Only then proceed to next task or declare completion
+
+**This rule applies to ALL automated UI validation workflows.**
 
 ### File Naming
 - React Component: `PascalCase.jsx` (LoginForm.jsx)
@@ -631,9 +626,8 @@ docker-compose logs --tail=100
 # 2. Check for port conflicts
 lsof -i :3000 -i :8080 -i :8081 -i :8082 -i :8083
 
-# 3. Full restart with volume wipe
-docker-compose down -v
-docker-compose up -d --build
+# 3. Full restart with volume wipe (NUCLEAR OPTION)
+bash scripts/nuclear-complete-rebuild-enhanced.sh
 
 # 4. Check database migrations
 docker-compose exec -T postgres psql -U devsmith -d devsmith -c "\d logs.entries"
@@ -672,6 +666,53 @@ bash scripts/hooks/pre-push
 # 4. Only use --no-verify if absolutely necessary (e.g., emergency hotfix)
 ```
 
+### Nuclear Rebuild (Complete Platform Reset)
+
+When to use:
+- Services won't start after multiple attempts
+- Database corruption suspected
+- Major architectural changes deployed
+- Testing complex multi-service interactions
+
+**Enhanced Script** (Recommended):
+```bash
+# Default: skips manual verification (good for rebuild)
+bash scripts/nuclear-complete-rebuild-enhanced.sh
+
+# With full validation (after AI model setup and testing):
+SKIP_MANUAL_VERIFICATION=false bash scripts/nuclear-complete-rebuild-enhanced.sh
+```
+
+**Original Script**:
+```bash
+# Simpler but fails on missing verification artifacts
+bash scripts/nuclear-complete-rebuild.sh
+```
+
+**What it does**:
+1. **Teardown**: `docker-compose down -v` (DELETES ALL DATA)
+2. **Build**: Rebuilds all images from scratch
+3. **Health Checks**: Waits for Traefik and port 3000
+4. **Migrations**: Runs database migrations
+5. **Regression Tests**: Runs test suite (may fail if not configured)
+6. **Service Validation**: Checks individual service health
+7. **Endpoint Validation**: Curls each service's health endpoint
+
+**After rebuild**:
+1. Setup AI model: http://localhost:3000/ai-factory
+   - Provider: Ollama (Local)
+   - Endpoint: http://host.docker.internal:11434
+   - Model: qwen2.5-coder:7b or deepseek-coder:6.7b
+2. Test Review: http://localhost:3000/review
+3. Run Playwright: `npx playwright test`
+4. Create VERIFICATION.md with screenshots
+
+**Common Issues**:
+- **"Manual verification missing"**: Use enhanced script or set `SKIP_MANUAL_VERIFICATION=true`
+- **Services healthy but script fails**: Enhanced script fixes this
+- **Regression tests fail**: Normal after rebuild, tests need configuration
+- **Can't login**: Database wiped, need to re-authenticate via GitHub OAuth
+
 ---
 
 ## 🔄 Version History
@@ -684,7 +725,9 @@ bash scripts/hooks/pre-push
 | 1.3 | 2025-10-20 | Major TDD update with RED-GREEN-REFACTOR |
 | 1.4 | 2025-10-21 | Added mock implementation guidelines |
 | **2.0** | **2025-11-04** | **Complete rewrite**: Concise, clear rules with screenshots requirement, error logging mandate, quality gates, complete checklist, emergency procedures |
+| **2.1** | **2025-11-17** | Added nuclear rebuild guidelines, enhanced script documentation |
 
 ---
 
-**Remember**: Mike should only see work that is **100% complete, tested, and verified with screenshots**. If you're not sure it's ready, it's not ready.
+**Remember**: Mike should only see work that is **100% complete, tested, and verified with automated Playwright + Percy visual evidence**. If you're not sure it's ready, it's not ready.
+

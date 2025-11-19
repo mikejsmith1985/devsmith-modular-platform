@@ -7,8 +7,10 @@ package templates
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
+import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+)
 
 // SkimModeFunctionList displays a list of functions in Skim mode
 func SkimModeFunctionList(functions []string) templ.Component {
@@ -44,7 +46,7 @@ func SkimModeFunctionList(functions []string) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs("/api/review/sessions/function/" + f)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/skim_mode.templ`, Line: 11, Col: 125}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `skim_mode.templ`, Line: 11, Col: 125}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -57,7 +59,7 @@ func SkimModeFunctionList(functions []string) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(f)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `apps/review/templates/skim_mode.templ`, Line: 12, Col: 9}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `skim_mode.templ`, Line: 12, Col: 9}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {

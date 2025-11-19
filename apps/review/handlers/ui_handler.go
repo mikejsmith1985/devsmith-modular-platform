@@ -65,58 +65,73 @@ type CodeRequest struct {
 	OutputMode string `form:"output_mode" json:"output_mode"` // quick, full
 }
 
+// tryBindUploadedFile attempts to extract code from an uploaded file
+func (h *UIHandler) tryBindUploadedFile(c *gin.Context) (*CodeRequest, bool) {
+	fileHeader, err := c.FormFile("pasted_code")
+	if err != nil {
+		return nil, false
+	}
+
+	fh, err := fileHeader.Open()
+	if err != nil {
+		return nil, false
+	}
+
+	defer func() {
+		if closeErr := fh.Close(); closeErr != nil {
+			h.logger.Error("Failed to close file handle", "error", closeErr.Error())
+		}
+	}()
+
+	data, err := io.ReadAll(fh)
+	if err != nil {
+		return nil, false
+	}
+
+	req := &CodeRequest{PastedCode: string(data)}
+
+	// Bind optional fields from form
+	if m := c.PostForm("model"); m != "" {
+		req.Model = m
+	}
+	if um := c.PostForm("user_mode"); um != "" {
+		req.UserMode = um
+	}
+	if om := c.PostForm("output_mode"); om != "" {
+		req.OutputMode = om
+	}
+
+	h.logger.Info("Code request bound from uploaded file",
+		"code_length", len(req.PastedCode),
+		"filename", fileHeader.Filename,
+		"content-type", c.GetHeader("Content-Type"),
+		"user_mode", req.UserMode,
+		"output_mode", req.OutputMode)
+
+	return req, true
+}
+
+// applyDefaults sets default values for optional fields
+func (h *UIHandler) applyDefaults(req *CodeRequest) {
+	if req.Model == "" {
+		req.Model = "mistral:7b-instruct"
+	}
+	if req.UserMode == "" {
+		req.UserMode = "intermediate"
+	}
+	if req.OutputMode == "" {
+		req.OutputMode = "quick"
+	}
+}
+
 // bindCodeRequest binds code from JSON or form data using Gin's binding
 func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 	var req CodeRequest
 
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
-		// If binding failed, attempt to accept a file upload fallback
-		// Some clients may POST a file part (e.g. curl -F '@-') instead of a plain form field.
-		// Try to read an uploaded file named 'pasted_code' and use its contents.
-		if fileHeader, ferr := c.FormFile("pasted_code"); ferr == nil {
-			fh, openErr := fileHeader.Open()
-			if openErr == nil {
-				defer fh.Close()
-				if data, readErr := io.ReadAll(fh); readErr == nil {
-					req.PastedCode = string(data)
-					// try to bind model separately (optional)
-					if m := c.PostForm("model"); m != "" {
-						req.Model = m
-					}
-					// try to bind user_mode (optional)
-					if um := c.PostForm("user_mode"); um != "" {
-						req.UserMode = um
-					}
-					// try to bind output_mode (optional)
-					if om := c.PostForm("output_mode"); om != "" {
-						req.OutputMode = om
-					}
-					h.logger.Info("Code request bound from uploaded file",
-						"code_length", len(req.PastedCode),
-						"filename", fileHeader.Filename,
-						"content-type", c.GetHeader("Content-Type"),
-						"user_mode", req.UserMode,
-						"output_mode", req.OutputMode)
 
-					// Default model if not provided
-					if req.Model == "" {
-						req.Model = "mistral:7b-instruct"
-					}
-
-					// Default user_mode if not provided
-					if req.UserMode == "" {
-						req.UserMode = "intermediate"
-					}
-
-					// Default output_mode if not provided
-					if req.OutputMode == "" {
-						req.OutputMode = "quick"
-					}
-
-					return &req, true
-				}
-			}
+(refactor(phase2): extract helper functions to reduce cognitive complexity)
 		}
 
 		h.logger.Warn("Failed to bind code request",
@@ -126,20 +141,8 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 		return nil, false
 	}
 
-	// Default model if not provided
-	if req.Model == "" {
-		req.Model = "mistral:7b-instruct"
-	}
-
-	// Default user_mode if not provided (defaults to intermediate)
-	if req.UserMode == "" {
-		req.UserMode = "intermediate"
-	}
-
-	// Default output_mode if not provided (defaults to quick)
-	if req.OutputMode == "" {
-		req.OutputMode = "quick"
-	}
+	// Apply defaults to form-bound request
+	h.applyDefaults(&req)
 
 	h.logger.Info("Code request bound successfully",
 		"code_length", len(req.PastedCode),
@@ -169,250 +172,8 @@ func looksLikeCode(s string) bool {
 	return score >= 1
 }
 
-// marshalAndFormat converts analysis result to user-friendly HTML
-func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title, bgColor string) {
-	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	c.Status(http.StatusOK)
 
-	// Render user-friendly HTML based on result type
-	switch v := result.(type) {
-	case *review_models.PreviewModeOutput:
-		h.renderPreviewHTML(c.Writer, v)
-	case *review_models.SkimModeOutput:
-		h.renderSkimHTML(c.Writer, v)
-	case *review_models.ScanModeOutput:
-		h.renderScanHTML(c.Writer, v)
-	case *review_models.DetailedModeOutput:
-		h.renderDetailedHTML(c.Writer, v)
-	case *review_models.CriticalModeOutput:
-		h.renderCriticalHTML(c.Writer, v)
-	default:
-		// Fallback to JSON for unknown types
-		resultJSON, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			h.logger.Error("Failed to marshal result", "error", err.Error())
-			h.renderError(c, err, "Failed to format analysis result")
-			return
-		}
-		html := fmt.Sprintf(`
-		<div class="p-4 rounded-lg %s">
-			<h4 class="font-semibold">%s</h4>
-			<pre class="mt-2 p-2 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-300 overflow-auto">%s</pre>
-		</div>
-		`, bgColor, title, string(resultJSON))
-		c.String(http.StatusOK, html)
-	}
-}
-
-func (h *UIHandler) renderPreviewHTML(w http.ResponseWriter, result *review_models.PreviewModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-indigo-50 dark:bg-indigo-900 rounded-lg border border-indigo-200 dark:border-indigo-700">
-		<div class="flex items-center gap-3 border-b border-indigo-200 dark:border-gray-700 pb-4">
-			<span class="text-3xl">👁️</span>
-			<div><h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-50">Quick Preview</h3>
-			<p class="text-sm text-indigo-700 dark:text-indigo-200">High-level structure and overview</p></div>
-		</div>`
-
-	if result.Summary != "" {
-		html += fmt.Sprintf(`<div class="prose prose-sm dark:prose-invert max-w-none">
-			<h4 class="text-lg font-semibold text-indigo-900 dark:text-indigo-50 mb-2">📋 Summary</h4>
-			<p class="text-gray-700 dark:text-indigo-100 leading-relaxed">%s</p>
-		</div>`, result.Summary)
-	}
-
-	if len(result.BoundedContexts) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-gray-100 mb-3">🎯 Key Areas</h4><div class="grid gap-2">`
-		for _, ctx := range result.BoundedContexts {
-			html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-indigo-800 rounded-lg border border-indigo-100 dark:border-indigo-700">
-				<span class="font-medium text-indigo-700 dark:text-indigo-50">%s</span></div>`, ctx)
-		}
-		html += `</div></div>`
-	}
-
-	if len(result.TechStack) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-indigo-900 dark:text-gray-100 mb-3">🔧 Technologies Used</h4><div class="flex flex-wrap gap-2">`
-		for _, tech := range result.TechStack {
-			html += fmt.Sprintf(`<span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-100 rounded-full text-sm font-medium">%s</span>`, tech)
-		}
-		html += `</div></div>`
-	}
-
-	html += `</div>`
-	fmt.Fprint(w, html)
-}
-
-func (h *UIHandler) renderSkimHTML(w http.ResponseWriter, result *review_models.SkimModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-blue-50 dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-700">
-		<div class="flex items-center gap-3 border-b border-blue-200 dark:border-slate-700 pb-4">
-			<span class="text-3xl">📚</span>
-			<div><h3 class="text-xl font-bold text-blue-900 dark:text-slate-50">Skim Analysis</h3>
-			<p class="text-sm text-blue-700 dark:text-slate-200">Key components and abstractions</p></div>
-		</div>`
-
-	// If the service returned a summary (used when input wasn't code), show it prominently
-	if result.Summary != "" {
-		html += fmt.Sprintf(`<div class="p-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-100 dark:border-slate-700">
-			<h4 class="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-2">ℹ️ Note</h4>
-			<p class="text-sm text-gray-700 dark:text-slate-200">%s</p>
-		</div>`, result.Summary)
-	}
-
-	if len(result.Functions) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-gray-100 mb-3">⚡ Functions & Methods</h4><div class="space-y-3">`
-		for _, fn := range result.Functions {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
-				<div class="font-mono text-sm text-blue-700 dark:text-blue-100 font-semibold mb-2">%s</div>
-				<div class="font-mono text-xs text-gray-600 dark:text-blue-200 mb-2 pl-4">%s</div>
-				<p class="text-sm text-gray-700 dark:text-blue-100 leading-relaxed">%s</p>
-			</div>`, fn.Name, fn.Signature, fn.Description)
-		}
-		html += `</div></div>`
-	}
-
-	if len(result.Interfaces) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-blue-900 dark:text-gray-100 mb-3">🔌 Interfaces</h4><div class="space-y-3">`
-		for _, iface := range result.Interfaces {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-blue-800 rounded-lg border border-blue-100 dark:border-blue-700">
-				<div class="font-mono text-sm text-blue-700 dark:text-blue-100 font-semibold mb-2">%s</div>
-				<p class="text-sm text-gray-700 dark:text-blue-100 leading-relaxed">%s</p>
-			</div>`, iface.Name, iface.Description)
-		}
-		html += `</div></div>`
-	}
-
-	html += `</div>`
-	fmt.Fprint(w, html)
-}
-
-func (h *UIHandler) renderScanHTML(w http.ResponseWriter, result *review_models.ScanModeOutput) {
-	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-green-50 dark:bg-green-900 rounded-lg border border-green-200 dark:border-green-700">
-		<div class="flex items-center gap-3 border-b border-green-200 dark:border-green-700 pb-4">
-			<span class="text-3xl">🔎</span>
-			<div><h3 class="text-xl font-bold text-green-900 dark:text-green-50">Search Results</h3>
-			<p class="text-sm text-green-700 dark:text-green-200">Found %d matches</p></div>
-		</div>`, len(result.Matches))
-
-	if len(result.Matches) > 0 {
-		html += `<div class="space-y-4">`
-		for i, match := range result.Matches {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-green-800 rounded-lg border border-green-100 dark:border-green-700">
-				<div class="flex items-center justify-between mb-3">
-					<span class="text-sm font-semibold text-green-700 dark:text-green-300">Match %d</span>
-					<span class="text-xs font-mono text-gray-600 dark:text-gray-400">%s</span>
-				</div>
-				<div class="p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 font-mono text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap overflow-x-auto">%s</div>
-			</div>`, i+1, match.FilePath, match.CodeSnippet)
-		}
-		html += `</div>`
-	} else {
-		html += `<div class="text-center py-8"><p class="text-gray-600 dark:text-gray-400">No matches found.</p></div>`
-	}
-
-	html += `</div>`
-	fmt.Fprint(w, html)
-}
-
-func (h *UIHandler) renderDetailedHTML(w http.ResponseWriter, result *review_models.DetailedModeOutput) {
-	html := `<div class="space-y-6 p-6 bg-yellow-50 dark:bg-yellow-900 rounded-lg border border-yellow-200 dark:border-yellow-700">
-		<div class="flex items-center gap-3 border-b border-yellow-200 dark:border-yellow-700 pb-4">
-			<span class="text-3xl">📖</span>
-			<div><h3 class="text-xl font-bold text-yellow-900 dark:text-yellow-50">Detailed Analysis</h3>
-			<p class="text-sm text-yellow-700 dark:text-yellow-200">Line-by-line explanation</p></div>
-		</div>`
-
-	if result.AlgorithmSummary != "" {
-		html += fmt.Sprintf(`<div class="p-4 bg-yellow-100 dark:bg-yellow-800 rounded-lg border border-yellow-200 dark:border-yellow-700">
-			<h4 class="text-sm font-semibold text-yellow-900 dark:text-yellow-50 mb-2">🧠 Algorithm Overview</h4>
-			<p class="text-sm text-yellow-800 dark:text-yellow-100 leading-relaxed">%s</p>
-		</div>`, result.AlgorithmSummary)
-	}
-
-	if len(result.LineExplanations) > 0 {
-		html += `<div><h4 class="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">📝 Line-by-Line Walkthrough</h4><div class="space-y-3">`
-		for _, line := range result.LineExplanations {
-			html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-yellow-900/10 rounded-lg border border-yellow-100 dark:border-yellow-700">
-				<div class="flex items-start gap-3 mb-2">
-					<span class="flex-shrink-0 w-12 text-right font-mono text-xs text-yellow-600 dark:text-yellow-300 font-semibold">L%d</span>
-					<div class="flex-1">
-						<div class="font-mono text-sm text-gray-700 dark:text-yellow-100 mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded">%s</div>
-						<p class="text-sm text-gray-700 dark:text-yellow-100 leading-relaxed">%s</p>
-					</div>
-				</div>
-			</div>`, line.LineNumber, line.Code, line.Explanation)
-		}
-		html += `</div></div>`
-	}
-
-	html += `</div>`
-	fmt.Fprint(w, html)
-}
-
-func (h *UIHandler) renderCriticalHTML(w http.ResponseWriter, result *review_models.CriticalModeOutput) {
-	html := fmt.Sprintf(`<div class="space-y-6 p-6 bg-red-50 dark:bg-red-900 rounded-lg border border-red-200 dark:border-red-700">
-		<div class="flex items-center gap-3 border-b border-red-200 dark:border-red-700 pb-4">
-			<span class="text-3xl">🚨</span>
-			<div><h3 class="text-xl font-bold text-red-900 dark:text-red-50">Critical Review</h3>
-			<p class="text-sm text-red-700 dark:text-red-200">Found %d issues</p></div>
-		</div>`, len(result.Issues))
-
-	if result.OverallGrade != "" {
-		html += fmt.Sprintf(`<div class="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
-			<div class="text-3xl font-bold text-red-600 dark:text-red-400">%s</div>
-			<div class="text-sm text-gray-600 dark:text-gray-400">Overall Grade</div>
-		</div>`, result.OverallGrade)
-	}
-
-	if len(result.Issues) > 0 {
-		// Group by severity
-		critical, high, medium, low := []review_models.CodeIssue{}, []review_models.CodeIssue{}, []review_models.CodeIssue{}, []review_models.CodeIssue{}
-		for _, issue := range result.Issues {
-			switch issue.Severity {
-			case "critical":
-				critical = append(critical, issue)
-			case "high":
-				high = append(high, issue)
-			case "medium":
-				medium = append(medium, issue)
-			default:
-				low = append(low, issue)
-			}
-		}
-
-		// Critical
-		if len(critical) > 0 {
-			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-red-900 dark:text-red-50 mb-3">🔴 Critical Issues (%d)</h4><div class="space-y-3">`, len(critical))
-			for _, issue := range critical {
-				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-red-900/5 rounded-lg border border-red-200 dark:border-red-700">
-					<div class="text-sm font-semibold text-red-700 mb-2">%s <span class="text-xs text-gray-600 dark:text-gray-300">%s:%d</span></div>
-					<p class="text-sm text-gray-700 dark:text-gray-300 mb-2">%s</p>
-					<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-200">
-						<div class="text-xs font-semibold text-green-700 mb-1">💡 Fix:</div>
-						<p class="text-sm text-green-800 dark:text-green-200">%s</p>
-					</div>
-				</div>`, issue.Category, issue.File, issue.Line, issue.Description, issue.FixSuggestion)
-			}
-			html += `</div></div>`
-		}
-
-		// High
-		if len(high) > 0 {
-			html += fmt.Sprintf(`<div><h4 class="text-lg font-semibold text-orange-900 mb-3">🟠 High Priority (%d)</h4><div class="space-y-3">`, len(high))
-			for _, issue := range high {
-				html += fmt.Sprintf(`<div class="p-4 bg-white dark:bg-gray-800 rounded-lg border border-orange-200">
-					<div class="text-sm font-semibold text-orange-700 mb-2">%s</div>
-					<p class="text-sm text-gray-700 dark:text-gray-300">%s</p>
-				</div>`, issue.Category, issue.Description)
-			}
-			html += `</div></div>`
-		}
-	} else {
-		html += `<div class="text-center py-8">
-			<span class="text-5xl mb-4 block">✅</span>
-			<p class="text-lg font-semibold text-green-700">No critical issues found!</p>
-		</div>`
-	}
-
-	html += `</div>`
-	fmt.Fprint(w, html)
+(refactor(phase2): extract helper functions to reduce cognitive complexity)
 }
 
 // renderError classifies the error and renders appropriate HTMX-compatible error template
@@ -422,44 +183,8 @@ func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage strin
 	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	c.Status(http.StatusInternalServerError)
 
-	// Classify error and render appropriate template
-	errMsg := err.Error()
-	if strings.Contains(errMsg, "circuit breaker is open") || strings.Contains(errMsg, "ErrOpenState") {
-		templates.CircuitOpen().Render(c.Request.Context(), c.Writer)
-	} else if strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout") {
-		templates.AITimeout().Render(c.Request.Context(), c.Writer)
-	} else if strings.Contains(errMsg, "ollama") && strings.Contains(errMsg, "unavailable") {
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
-	} else if strings.Contains(errMsg, "connection refused") || strings.Contains(errMsg, "no such host") {
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
-	} else if strings.Contains(errMsg, "ERR_AI_RESPONSE_INVALID") || strings.Contains(strings.ToLower(errMsg), "invalid response") {
-		// AI returned malformed JSON or couldn't be repaired. Show a helpful message
-		// including any excerpt available in the error string to aid troubleshooting.
-		excerpt := errMsg
-		// attempt to extract a raw response excerpt marker if present
-		if idx := strings.Index(errMsg, "Raw response excerpt:"); idx != -1 {
-			excerpt = errMsg[idx:]
-		} else if idx := strings.Index(errMsg, "Excerpt:"); idx != -1 {
-			excerpt = errMsg[idx:]
-		}
-		if len(excerpt) > 1200 {
-			excerpt = excerpt[:1200] + "..."
-		}
-		html := fmt.Sprintf(`<div class="p-6 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700">
-			<h3 class="text-lg font-semibold text-yellow-900 dark:text-yellow-50">Analysis could not be parsed</h3>
-			<p class="mt-2 text-sm text-gray-700 dark:text-yellow-100">The AI returned an unexpected response format and automatic repair failed. We've captured a short excerpt below to help debugging.</p>
-			<pre class="mt-3 p-3 bg-white dark:bg-gray-800 rounded text-sm text-gray-700 dark:text-gray-200 overflow-auto">%s</pre>
-			<p class="mt-3 text-sm text-gray-600 dark:text-gray-300">We saved the full AI output for 14 days for troubleshooting. Try again or choose a different model.</p>
-		</div>`, templateEscape(excerpt))
-		c.String(http.StatusOK, html)
-	} else {
-		// Generic error
-		message := fallbackMessage
-		if message == "" {
-			message = fmt.Sprintf("Analysis failed: %v", err)
-		}
-		templates.ErrorDisplay("error", "Analysis Failed", message, true, "/api/review/retry").Render(c.Request.Context(), c.Writer)
-	}
+
+(refactor(phase2): extract helper functions to reduce cognitive complexity)
 }
 
 // templateEscape performs a minimal HTML escape for safe insertion into templates
@@ -645,70 +370,57 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
 // nolint:dupl // Similar structure across handlers is acceptable; each mode has distinct service and context
-func (h *UIHandler) HandleScanMode(c *gin.Context) {
-	req, ok := h.bindCodeRequest(c)
-	if !ok {
-		return
+// performLocalTextSearch executes a case-insensitive text search on pasted content
+func (h *UIHandler) performLocalTextSearch(code string, query string) *review_models.ScanModeOutput {
+	lines := strings.Split(code, "\n")
+	matches := make([]review_models.CodeMatch, 0)
+	qLower := strings.ToLower(query)
+	for i, line := range lines {
+		if !strings.Contains(strings.ToLower(line), qLower) {
+			continue
+		}
+		ctxBefore := ""
+		if i-2 >= 0 {
+			ctxBefore = lines[i-2] + "\n"
+		}
+		if i-1 >= 0 {
+			ctxBefore += lines[i-1]
+		}
+		ctxAfter := ""
+		if i+1 < len(lines) {
+			ctxAfter = "\n" + lines[i+1]
+		}
+		match := review_models.CodeMatch{
+			FilePath:    "pasted_input",
+			CodeSnippet: strings.TrimSpace(line),
+			Context:     strings.TrimSpace(ctxBefore + "\n" + line + ctxAfter),
+			Relevance:   1.0,
+			Line:        i + 1,
+		}
+		matches = append(matches, match)
 	}
+	return &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
+}
 
-	query := c.DefaultQuery("query", "find issues and improvements")
+// shouldUseLocalSearch determines if a local text search should be performed instead of AI analysis
+func (h *UIHandler) shouldUseLocalSearch(code string, query string) bool {
+	return !looksLikeCode(code) && strings.TrimSpace(query) != "" && query != "find issues and improvements"
+}
 
+// validateScanService ensures the scan service is initialized and accessible
+func (h *UIHandler) validateScanService(c *gin.Context) bool {
 	if h.scanService == nil {
 		h.logger.Warn("Scan service not initialized")
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
-		return
+
+(refactor(phase2): extract helper functions to reduce cognitive complexity)
 	}
+	return true
+}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
 
-	// If the pasted content doesn't look like source code, avoid calling the LLM-driven
-	// scan which may hallucinate code-like matches. Instead, perform a safe local
-	// substring search over the pasted text for the user's query and return those
-	// matches directly. If no query is provided, return a friendly note.
-	if !looksLikeCode(req.PastedCode) {
-		// If user provided a query, run a local text search (case-insensitive).
-		if strings.TrimSpace(query) != "" && query != "find issues and improvements" {
-			lines := strings.Split(req.PastedCode, "\n")
-			matches := make([]review_models.CodeMatch, 0)
-			qLower := strings.ToLower(query)
-			for i, line := range lines {
-				if strings.Contains(strings.ToLower(line), qLower) {
-					ctxBefore := ""
-					if i-2 >= 0 {
-						ctxBefore = lines[i-2] + "\n"
-					}
-					if i-1 >= 0 {
-						ctxBefore += lines[i-1]
-					}
-					ctxAfter := ""
-					if i+1 < len(lines) {
-						ctxAfter = "\n" + lines[i+1]
-					}
-					match := review_models.CodeMatch{
-						FilePath:    "pasted_input",
-						CodeSnippet: strings.TrimSpace(line),
-						Context:     strings.TrimSpace(ctxBefore + "\n" + line + ctxAfter),
-						Relevance:   1.0,
-						Line:        i + 1,
-					}
-					matches = append(matches, match)
-				}
-			}
-			out := &review_models.ScanModeOutput{Summary: "Local text search results for pasted prose", Matches: matches}
-			h.marshalAndFormat(c, out, "🔎 Scan Mode (Text)", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
-			return
-		}
-
-		// No meaningful query supplied - return a note guiding the user
-		summary := "The content you pasted looks like natural language text, not source code.\n" +
-			"Scan mode can search code for patterns (SQL, auth, queries). For prose, provide a search query or paste source code."
-		out := &review_models.ScanModeOutput{Summary: summary, Matches: nil}
-		h.marshalAndFormat(c, out, "🔎 Scan Mode - Not Code", "bg-green-50 dark:bg-slate-800 border border-green-200 dark:border-slate-700")
-		return
-	}
+(refactor(phase2): extract helper functions to reduce cognitive complexity)
 
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {

@@ -93,6 +93,7 @@ services:
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - ENCRYPTION_MASTER_KEY=${ENCRYPTION_MASTER_KEY:-dev-encryption-key-32-chars-min}
+      - OLLAMA_ENDPOINT=http://host.docker.internal:11434
       - REDIRECT_URI=http://localhost:3000/oauth/pkce-callback
       - ENABLE_TEST_AUTH=true
       - LOGS_SERVICE_URL=http://logs:8082/api/logs
@@ -185,14 +186,8 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      # Review UI - serve React SPA for /review paths
-      # Review UI - handle /review route (embedded UI)
-      - "traefik.http.routers.review-ui.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/review`) && !PathPrefix(`/api/review`)"
-      - "traefik.http.routers.review-ui.entrypoints=web"
-      - "traefik.http.routers.review-ui.priority=150"
-      - "traefik.http.routers.review-ui.service=review"
-      - "traefik.http.routers.review-ui.middlewares=html-nocache@docker"
-      # Review API - handle /api/review/* routes
+      # Review API - handle /api/review/* routes ONLY
+      # NOTE: /review UI route is handled by Portal's React SPA (via NoRoute fallback)
       - "traefik.http.routers.review.rule=(Host(`localhost`) || Host(`127.0.0.1`)) && PathPrefix(`/api/review`)"
       - "traefik.http.routers.review.entrypoints=web"
       - "traefik.http.routers.review.priority=100"

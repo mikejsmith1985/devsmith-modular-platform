@@ -51,7 +51,7 @@ func TestJWTTokenCreation_Uses24HourExpiry(t *testing.T) {
 	// Set JWT_SECRET for the test
 	os.Setenv("JWT_SECRET", "test-secret-key")
 	defer os.Unsetenv("JWT_SECRET")
-	
+
 	// GIVEN: CreateJWTForUser creates tokens with claims
 	// WHEN: Token is created
 	// THEN: Token should be valid for 24 hours (set in SetSecureJWTCookie)

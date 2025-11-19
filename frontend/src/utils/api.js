@@ -17,9 +17,14 @@ export async function apiRequest(endpoint, options = {}) {
   // Extract timeout from options (default: no timeout)
   const { timeout, ...fetchOptions } = options;
   
+  // Get token from localStorage for Authorization header
+  const token = localStorage.getItem('devsmith_token');
+  
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
+      // Include Authorization header if token exists
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     },
     credentials: 'include', // Include cookies for session auth
   };

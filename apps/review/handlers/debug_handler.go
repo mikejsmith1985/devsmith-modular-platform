@@ -71,8 +71,6 @@ func RegisterDebugRoutes(router *gin.Engine) {
 	handler := NewDebugHandler()
 
 	debug := router.Group("/debug")
-	{
-		debug.GET("/trace", handler.HandleTraceTest)
-		debug.POST("/trace", handler.HandleTraceTest)
-	}
+	debug.GET("/trace", handler.HandleTraceTest)
+	debug.POST("/trace", handler.HandleTraceTest)
 }

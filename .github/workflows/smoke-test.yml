@@ -109,9 +109,14 @@ jobs:
 
       - name: Apply Phase 1 database migrations
         run: |
-          echo "Applying Phase 1 migrations for AI Factory..."
-          bash scripts/apply-phase1-migrations.sh || (echo "WARN: Phase 1 migrations failed (may be expected if already applied)" && true)
-          echo "✓ Phase 1 migrations applied"
+          echo "Checking for Phase 1 migrations script..."
+          if [ -f "scripts/apply-phase1-migrations.sh" ]; then
+            echo "Applying Phase 1 migrations for AI Factory..."
+            bash scripts/apply-phase1-migrations.sh || (echo "WARN: Phase 1 migrations failed (may be expected if already applied)" && true)
+            echo "✓ Phase 1 migrations applied"
+          else
+            echo "ℹ️  Phase 1 migrations script not found (optional - skipping)"
+          fi
 
       - name: Wait for Traefik to discover routes and perform health checks
         run: |

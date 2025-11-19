@@ -2,7 +2,6 @@ package portal_handlers
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"log"
 	"net/http"
@@ -10,44 +9,10 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/session"
 	"github.com/stretchr/testify/assert"
 )
-
-// Mock session store for testing
-type mockSessionStore struct{}
-
-func (m *mockSessionStore) Create(ctx context.Context, sess *session.Session) (string, error) {
-	// Generate a mock session ID
-	return "mock-session-id-12345", nil
-}
-
-func (m *mockSessionStore) Get(ctx context.Context, sessionID string) (*session.Session, error) {
-	return &session.Session{
-		SessionID:      sessionID,
-		UserID:         12345,
-		GitHubUsername: "testuser",
-		GitHubToken:    "test-token",
-		CreatedAt:      time.Now(),
-		LastAccessedAt: time.Now(),
-		Metadata:       map[string]interface{}{},
-	}, nil
-}
-
-func (m *mockSessionStore) Update(ctx context.Context, sess *session.Session) error {
-	return nil
-}
-
-func (m *mockSessionStore) Delete(ctx context.Context, sessionID string) error {
-	return nil
-}
-
-func (m *mockSessionStore) DeleteExpired(ctx context.Context) error {
-	return nil
-}
 
 func TestLoginFlow_RedirectsToGitHub(t *testing.T) {
 	// Arrange
@@ -388,22 +353,24 @@ func TestHandleGitHubOAuthCallback_EdgeCases(t *testing.T) {
 				log.Printf("[TEST] Mock HTTP request: %s", urlStr)
 
 				// Token exchange endpoint
-				if strings.Contains(urlStr, "github.com/login/oauth/access_token") {
-					if strings.Contains(urlStr, "code=fail") {
+				switch {
+				case strings.Contains(urlStr, "github.com/login/oauth/access_token"):
+					switch {
+					case strings.Contains(urlStr, "code=fail"):
 						// Failed token exchange
 						return &http.Response{
 							StatusCode: 400,
 							Body:       io.NopCloser(strings.NewReader(`{"error":"bad_code","error_description":"The code is invalid"}`)),
 							Header:     http.Header{"Content-Type": []string{"application/json"}},
 						}, nil
-					} else if strings.Contains(urlStr, "code=valid-but-userinfo-fails") {
+					case strings.Contains(urlStr, "code=valid-but-userinfo-fails"):
 						// Successful token exchange (will fail later at user info)
 						return &http.Response{
 							StatusCode: 200,
 							Body:       io.NopCloser(strings.NewReader(`{"access_token":"invalid-user-token","token_type":"Bearer"}`)),
 							Header:     http.Header{"Content-Type": []string{"application/json"}},
 						}, nil
-					} else if strings.Contains(urlStr, "code=valid-but-jwt-fails") {
+					case strings.Contains(urlStr, "code=valid-but-jwt-fails"):
 						// Successful token exchange (will fail later at JWT signing)
 						return &http.Response{
 							StatusCode: 200,
@@ -411,10 +378,7 @@ func TestHandleGitHubOAuthCallback_EdgeCases(t *testing.T) {
 							Header:     http.Header{"Content-Type": []string{"application/json"}},
 						}, nil
 					}
-				}
-
-				// User info endpoint
-				if strings.Contains(urlStr, "api.github.com/user") {
+				case strings.Contains(urlStr, "api.github.com/user"):
 					authHeader := req.Header.Get("Authorization")
 					if strings.Contains(authHeader, "invalid-user-token") {
 						// Failed user info fetch
@@ -451,7 +415,7 @@ func TestHandleGitHubOAuthCallback_EdgeCases(t *testing.T) {
 
 	// Helper to perform request with cookies
 	doRequest := func(query string, cookies []*http.Cookie) *httptest.ResponseRecorder {
-		req := httptest.NewRequest("GET", "/auth/github/callback"+query, nil)
+		req := httptest.NewRequest("GET", "/auth/github/callback"+query, http.NoBody)
 		for _, c := range cookies {
 			req.AddCookie(c)
 		}

@@ -59,7 +59,7 @@ func (c *PortalClient) GetEffectiveConfigForApp(ctx context.Context, sessionToke
 
 	// Add session cookie for authentication
 	req.AddCookie(&http.Cookie{
-		Name:  "session_token",
+		Name:  "devsmith_token",
 		Value: sessionToken,
 	})
 

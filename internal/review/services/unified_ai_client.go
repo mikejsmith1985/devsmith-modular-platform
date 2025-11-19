@@ -34,8 +34,16 @@ func (c *UnifiedAIClient) Generate(ctx context.Context, prompt string) (string, 
 	// Get session token from context
 	// The token is set by RedisSessionAuthMiddleware as "session_token" in Gin context
 	// Handlers should pass it through to context using reviewcontext.SessionTokenKey
+
+	// DEBUG: Check what we got from context
+	rawSessionToken := ctx.Value(reviewcontext.SessionTokenKey)
+	fmt.Printf("DEBUG UnifiedAIClient: raw_value_nil=%v, raw_value_type=%T\n", rawSessionToken == nil, rawSessionToken)
+
 	sessionToken, ok := ctx.Value(reviewcontext.SessionTokenKey).(string)
+	fmt.Printf("DEBUG UnifiedAIClient: cast_ok=%v, token_empty=%v, token_length=%d\n", ok, sessionToken == "", len(sessionToken))
+
 	if !ok || sessionToken == "" {
+		fmt.Printf("DEBUG UnifiedAIClient FAILED: cast_ok=%v, token_empty=%v, raw_was_nil=%v\n", ok, sessionToken == "", rawSessionToken == nil)
 		return "", fmt.Errorf("no session token in context - user must be authenticated. Please ensure RedisSessionAuthMiddleware is active and session token is passed to context")
 	}
 

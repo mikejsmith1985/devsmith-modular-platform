@@ -404,9 +404,9 @@ func TestGetEffectiveConfig_SystemDefault(t *testing.T) {
 	assert.Equal(t, "ollama", config.Provider)
 	assert.Equal(t, "deepseek-coder:6.7b", config.ModelName)
 	assert.False(t, config.APIKeyEncrypted.Valid) // NULL for Ollama
-	// Verify system default endpoint
+	// Verify system default endpoint (Docker environment uses host.docker.internal)
 	if config.APIEndpoint.Valid {
-		assert.Equal(t, "http://localhost:11434", config.APIEndpoint.String)
+		assert.Equal(t, "http://host.docker.internal:11434", config.APIEndpoint.String)
 	}
 }
 

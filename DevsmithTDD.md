@@ -2039,6 +2039,7 @@ Located in `tests/mocks/ollama_responses.json`:
 |---------|------|--------|---------|
 | 1.0 | 2025-10-18 | Claude | Initial TDD document (React/Node stack) |
 | 2.0 | 2025-10-18 | Claude | Complete rewrite for Go+Templ+HTMX, mental models, 5 reading modes centerpiece |
+| 2.1 | 2025-11-16 | Copilot | Updated to reflect template improvements and review routing fixes. See commit ef3b0c4. |
 
 ---
 

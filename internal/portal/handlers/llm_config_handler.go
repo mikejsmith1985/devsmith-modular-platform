@@ -9,6 +9,24 @@ import (
 	portal_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/portal/services"
 )
 
+// ListOllamaModels handles GET /api/portal/llm-configs/ollama-models
+// Returns the list of installed Ollama models on the host
+func (h *LLMConfigHandler) ListOllamaModels(c *gin.Context) {
+	// Require authentication
+	_, exists := getUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	models, err := h.service.ListOllamaModels(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list Ollama models", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"models": models})
+}
+
 // LLMConfigHandler handles HTTP requests for LLM configuration management
 type LLMConfigHandler struct {
 	service *portal_services.LLMConfigService
@@ -126,7 +144,26 @@ func (h *LLMConfigHandler) CreateLLMConfig(c *gin.Context) {
 		return
 	}
 
-	// Create config via service
+	// CRITICAL: Test connection BEFORE saving config
+	// This prevents saving invalid configurations that will cause 500 errors later
+	tester := portal_services.NewLLMConnectionTester()
+	testResult := tester.TestConnection(c.Request.Context(), portal_services.TestConnectionRequest{
+		Provider: strings.ToLower(req.Provider),
+		Model:    req.Model,
+		APIKey:   req.APIKey,
+		Endpoint: req.Endpoint,
+	})
+
+	if !testResult.Success {
+		// Connection test failed - reject the config
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Connection test failed: " + testResult.Message,
+			"details": testResult.Details,
+		})
+		return
+	}
+
+	// Connection validated successfully - now safe to save
 	config, err := h.service.CreateConfig(
 		c.Request.Context(),
 		userID,
@@ -208,7 +245,60 @@ func (h *LLMConfigHandler) UpdateLLMConfig(c *gin.Context) {
 		updates["is_default"] = *req.IsDefault
 	}
 
-	// Update via service
+	// CRITICAL: If provider/model/key/endpoint are being updated, validate connection first
+	// This prevents saving invalid updates that will break Review service
+	if req.Provider != nil || req.Model != nil || req.APIKey != nil || req.Endpoint != nil {
+		// Get current config to fill in unchanged values
+		currentConfig, err := h.service.GetConfigByID(c.Request.Context(), userID, configID)
+		if err != nil {
+			if strings.Contains(err.Error(), "permission denied") {
+				c.JSON(http.StatusForbidden, gin.H{"error": "You don't have permission to view this configuration"})
+				return
+			}
+			c.JSON(http.StatusNotFound, gin.H{"error": "Configuration not found"})
+			return
+		}
+
+		// Build test request with merged values (new overrides old)
+		testReq := portal_services.TestConnectionRequest{
+			Provider: currentConfig.Provider,
+			Model:    currentConfig.ModelName,
+			APIKey:   "", // Will be set below
+			Endpoint: currentConfig.APIEndpoint.String,
+		}
+
+		if req.Provider != nil {
+			testReq.Provider = *req.Provider
+		}
+		if req.Model != nil {
+			testReq.Model = *req.Model
+		}
+		if req.Endpoint != nil {
+			testReq.Endpoint = *req.Endpoint
+		}
+		// APIKey needs special handling - it's encrypted in DB
+		if req.APIKey != nil {
+			testReq.APIKey = *req.APIKey
+		} else if currentConfig.APIKeyEncrypted.Valid {
+			// Use existing key (already decrypted by service)
+			testReq.APIKey = currentConfig.APIKeyEncrypted.String
+		}
+
+		// Test connection with merged config
+		tester := portal_services.NewLLMConnectionTester()
+		testResult := tester.TestConnection(c.Request.Context(), testReq)
+
+		if !testResult.Success {
+			// Connection test failed - reject the update
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Connection test failed: " + testResult.Message,
+				"details": testResult.Details,
+			})
+			return
+		}
+	}
+
+	// Connection validated (or no connection-related fields changed) - safe to update
 	if err := h.service.UpdateConfig(c.Request.Context(), userID, configID, updates); err != nil {
 		// Check for specific errors
 		if strings.Contains(err.Error(), "not found") {
@@ -290,18 +380,25 @@ func (h *LLMConfigHandler) TestLLMConnection(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement actual connection test using AI factory
-	// For now, return a mock success response
-	// This will be implemented in a follow-up task
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Connection test successful (mock implementation - to be completed)",
+	// Test the connection using LLMConnectionTester
+	tester := portal_services.NewLLMConnectionTester()
+	result := tester.TestConnection(c.Request.Context(), portal_services.TestConnectionRequest{
+		Provider: strings.ToLower(req.Provider),
+		Model:    req.Model,
+		APIKey:   req.APIKey,
+		Endpoint: req.Endpoint,
 	})
+
+	if result.Success {
+		c.JSON(http.StatusOK, result)
+	} else {
+		c.JSON(http.StatusBadRequest, result)
+	}
 }
 
 // GetAppPreferences handles GET /api/portal/app-llm-preferences
-// Returns the LLM configuration preferences for each app
+// Returns the FULL LLM configuration preferences for each app (including api_endpoint, max_tokens, temperature)
+// This is consumed by Review/Logs/Analytics services to create AI providers
 func (h *LLMConfigHandler) GetAppPreferences(c *gin.Context) {
 	// Extract user ID
 	userID, exists := getUserIDFromContext(c)
@@ -321,10 +418,34 @@ func (h *LLMConfigHandler) GetAppPreferences(c *gin.Context) {
 			// If error getting config, set to null
 			preferences[app] = nil
 		} else {
+			// Return FULL config (not just summary) so Review service can create AI providers
+			// Must include api_endpoint for Ollama, api_key for cloud providers
+
+			// Decrypt API key if present (for cloud providers like OpenAI, Anthropic)
+			apiKey := ""
+			if config.APIKeyEncrypted.Valid && config.APIKeyEncrypted.String != "" {
+				// API key needs decryption
+				// For now, pass encrypted string - Review service will need to handle decryption
+				// TODO: Add decryption service call here
+				apiKey = config.APIKeyEncrypted.String
+			}
+
+			// Get API endpoint (empty string for cloud providers that use default)
+			apiEndpoint := ""
+			if config.APIEndpoint.Valid {
+				apiEndpoint = config.APIEndpoint.String
+			}
+
 			preferences[app] = gin.H{
-				"config_id": config.ID,
-				"provider":  config.Provider,
-				"model":     config.ModelName,
+				"id":           config.ID,
+				"user_id":      config.UserID,
+				"provider":     config.Provider,
+				"model_name":   config.ModelName,
+				"api_endpoint": apiEndpoint, // Required for Ollama (e.g., http://host.docker.internal:11434)
+				"api_key":      apiKey,      // Required for cloud providers (encrypted for now)
+				"is_default":   config.IsDefault,
+				"max_tokens":   config.MaxTokens,
+				"temperature":  config.Temperature,
 			}
 		}
 	}
@@ -483,4 +604,5 @@ func RegisterLLMConfigRoutes(routerGroup *gin.RouterGroup, service *portal_servi
 	routerGroup.GET("/app-llm-preferences", handler.GetAppPreferences)
 	routerGroup.PUT("/app-llm-preferences/:app", handler.SetAppPreference)
 	routerGroup.GET("/llm-usage/summary", handler.GetUsageSummary)
+	routerGroup.GET("/llm-configs/ollama-models", handler.ListOllamaModels)
 }

@@ -1,0 +1,63 @@
+# GitGuardian Configuration for DevSmith Modular Platform
+# Excludes test secrets, development credentials, and false positives
+
+# Version of the configuration
+version: 2
+
+# Path-based exclusions
+paths-ignore:
+  # Test data and fixtures
+  - tests/**/*
+  - test-results/**/*
+  - playwright-report/**/*
+  - copilot-chat-docs/**/*
+  
+  # Development and local files
+  - "*.local"
+  - .env.example
+  - .env.*.example
+  
+  # CI/CD configuration (may contain example tokens)
+  - .github/workflows/**/*
+  
+  # Documentation
+  - "**/*.md"
+  - docs/**/*
+  
+  # Third-party dependencies
+  - node_modules/**/*
+  - vendor/**/*
+
+# Pattern-based exclusions for common false positives
+matches-ignore:
+  # Development JWT secrets (clearly marked as dev/example)
+  - name: JWT development secret
+    match: JWT_SECRET.*dev-secret-key-change-in-production
+  
+  # Example GitHub client IDs (not real credentials)
+  - name: Example GitHub OAuth
+    match: "GITHUB_CLIENT_ID.*example"
+  
+  # Test database passwords
+  - name: Test database credentials
+    match: "POSTGRES_PASSWORD.*(test|devsmith|password)"
+  
+  # Redis development passwords
+  - name: Redis development password
+    match: "REDIS_PASSWORD.*(devsmith|password)"
+  
+  # Localhost URLs (not secrets)
+  - name: Localhost endpoints
+    match: "http://localhost:\\d+"
+  
+  # Docker internal networking
+  - name: Docker internal URLs
+    match: "http://[a-z0-9-]+:\\d+"
+
+# Specific secret types to ignore
+ignored-detectors:
+  # Generic high entropy strings (often false positives in code)
+  - Generic High Entropy Secret
+  
+  # Database connection strings for local development
+  - PostgreSQL Connection String

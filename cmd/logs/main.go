@@ -550,11 +550,12 @@ func main() {
 	log.Printf("Starting logs service on port %s", port)
 
 	// Create an HTTP server with timeouts
+	// WriteTimeout increased to 60s for AI generation endpoints (can take 10-20s for complex logs)
 	server := &http.Server{
 		Addr:              ":" + port,
 		Handler:           router,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		WriteTimeout:      60 * time.Second, // Increased from 10s for AI generation
 		IdleTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
