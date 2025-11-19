@@ -140,10 +140,16 @@ export default function LLMConfigPage() {
       {/* Navigation Bar */}
       <nav className={`navbar navbar-expand-lg mb-4 frosted-card ${isDarkMode ? 'navbar-dark bg-dark border-secondary' : 'navbar-light'}`}>
         <div className="container-fluid">
-          <span className="navbar-brand fw-bold" style={{ fontSize: '1.5rem', color: isDarkMode ? '#e0e7ff' : '#1e293b' }}>
-            <i className="bi bi-code-square me-2"></i>
-            DevSmith Platform
-          </span>
+          <div className="d-flex align-items-center gap-3">
+            <Link to="/portal" className={`btn btn-sm ${isDarkMode ? 'btn-outline-light' : 'btn-outline-secondary'}`}>
+              <i className="bi bi-arrow-left me-1"></i>
+              Back to Dashboard
+            </Link>
+            <span className="navbar-brand fw-bold mb-0" style={{ fontSize: '1.5rem', color: isDarkMode ? '#e0e7ff' : '#1e293b' }}>
+              <i className="bi bi-code-square me-2"></i>
+              DevSmith Platform
+            </span>
+          </div>
           <div className="d-flex align-items-center gap-3">
             <button
               onClick={toggleTheme}
@@ -152,10 +158,6 @@ export default function LLMConfigPage() {
             >
               <i className={`bi bi-${isDarkMode ? 'sun' : 'moon'}-fill`}></i>
             </button>
-            <Link to="/portal" className={`btn btn-sm ${isDarkMode ? 'btn-outline-light' : 'btn-outline-secondary'}`}>
-              <i className="bi bi-arrow-left me-1"></i>
-              Back to Dashboard
-            </Link>
           </div>
         </div>
       </nav>

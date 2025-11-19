@@ -136,7 +136,31 @@ func (c *AnthropicClient) Generate(ctx context.Context, req *ai.Request) (*ai.Re
 		if readErr != nil {
 			bodyBytes = []byte("(unable to read error body)")
 		}
-		return nil, fmt.Errorf("HTTP %d from Anthropic: %s", httpResp.StatusCode, string(bodyBytes))
+
+		// Parse error response for better messaging
+		var anthropicErr struct {
+			Type  string `json:"type"`
+			Error struct {
+				Type    string `json:"type"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+
+		errorMsg := string(bodyBytes)
+		if json.Unmarshal(bodyBytes, &anthropicErr) == nil && anthropicErr.Error.Message != "" {
+			// Check for common error patterns and provide helpful messages
+			if anthropicErr.Error.Type == "not_found_error" && strings.Contains(anthropicErr.Error.Message, "model:") {
+				// Extract model name from error message
+				modelName := strings.TrimPrefix(anthropicErr.Error.Message, "model: ")
+				errorMsg = fmt.Sprintf("Model '%s' not found. Please verify the model name is correct.\n\nValid Claude 3.5 Sonnet models:\n• claude-3-5-sonnet-20241022 (latest)\n• claude-3-5-sonnet-20240620\n\nVisit https://docs.anthropic.com/en/docs/about-claude/models for the full list of available models.", modelName)
+			} else if anthropicErr.Error.Type == "invalid_request_error" {
+				errorMsg = fmt.Sprintf("Invalid request: %s", anthropicErr.Error.Message)
+			} else {
+				errorMsg = anthropicErr.Error.Message
+			}
+		}
+
+		return nil, fmt.Errorf("HTTP %d from Anthropic: %s", httpResp.StatusCode, errorMsg)
 	}
 
 	bodyBytes, err := io.ReadAll(httpResp.Body)

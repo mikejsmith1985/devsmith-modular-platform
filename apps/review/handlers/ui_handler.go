@@ -176,21 +176,37 @@ func looksLikeCode(s string) bool {
 (refactor(phase2): extract helper functions to reduce cognitive complexity)
 }
 
-// renderError classifies the error and renders appropriate HTMX-compatible error template
+// renderError returns a JSON error response with plain language error message
 func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage string) {
 	h.logger.Error("Request error", "error", err.Error(), "path", c.Request.URL.Path)
 
-	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	c.Status(http.StatusInternalServerError)
+	// Extract user-friendly error message from error
+	errorMsg := err.Error()
+	if errorMsg == "" {
+		errorMsg = fallbackMessage
+	}
 
-
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+	// Return clean JSON error for frontend consumption
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error": errorMsg,
+	})
 }
 
 // templateEscape performs a minimal HTML escape for safe insertion into templates
 func templateEscape(s string) string {
 	replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
 	return replacer.Replace(s)
+}
+
+// marshalAndFormat returns clean JSON response with analysis results
+// The title and classes parameters are preserved for potential future HTML rendering but not used in JSON mode
+func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title string, classes string) {
+	// Return clean JSON analysis result for frontend consumption
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"analysis": result,
+		"mode": title,
+	})
 }
 
 // HomeHandler serves the main Review UI - creates new authenticated session
