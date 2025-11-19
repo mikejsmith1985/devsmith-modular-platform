@@ -61,12 +61,14 @@ func RegisterGitHubRoutes(router *gin.Engine) {
 
 	// Create auth group with correct prefix
 	authGroup := router.Group("/api/portal/auth")
-	authGroup.GET("/github/login", HandleGitHubOAuthLogin)
-	authGroup.GET("/github/callback", HandleGitHubOAuthCallbackWithSession)
-	authGroup.GET("/login", HandleAuthLogin)
-	authGroup.GET("/github/dashboard", HandleGitHubDashboard)
-	authGroup.POST("/logout", HandleLogout)
-	authGroup.GET("/health", HandleOAuthHealthCheck) // NEW: OAuth health check
+	{
+		authGroup.GET("/github/login", HandleGitHubOAuthLogin)
+		authGroup.GET("/github/callback", HandleGitHubOAuthCallbackWithSession)
+		authGroup.GET("/login", HandleAuthLogin)
+		authGroup.GET("/github/dashboard", HandleGitHubDashboard)
+		authGroup.POST("/logout", HandleLogout)
+		authGroup.GET("/health", HandleOAuthHealthCheck) // NEW: OAuth health check
+	}
 
 	// NOTE: Legacy routes /auth/github/callback kept for OAuth redirect compatibility
 	// GitHub OAuth redirects to this URL (configured in REDIRECT_URI environment variable)
@@ -179,9 +181,7 @@ func HandleOAuthHealthCheck(c *gin.Context) {
 		} else {
 			checks["redis_writable"] = true
 			// Clean up test session
-			if err := sessionStore.Delete(ctx, testSessionID); err != nil {
-				log.Printf("[ERROR] Failed to delete test session: %v", err)
-			}
+			_ = sessionStore.Delete(ctx, testSessionID)
 		}
 	} else {
 		checks["redis_writable"] = false
@@ -246,41 +246,10 @@ func HandleTestLogin(c *gin.Context) {
 		return
 	}
 
-	// Create or update test user in database (CRITICAL: must exist before session references it)
-	log.Printf("[TEST_AUTH] Creating/updating test user in database: github_id=%s, username=%s", req.GitHubID, req.Username)
-	upsertQuery := `
-		INSERT INTO portal.users (github_id, username, email, avatar_url, github_access_token, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-		ON CONFLICT (github_id) 
-		DO UPDATE SET 
-			username = EXCLUDED.username,
-			email = EXCLUDED.email,
-			avatar_url = EXCLUDED.avatar_url,
-			updated_at = NOW()
-		RETURNING id
-	`
-
-	var userID int
-	err = dbConn.QueryRowContext(c.Request.Context(), upsertQuery,
-		req.GitHubID,          // github_id (from test request, e.g., "99999")
-		req.Username,          // username (e.g., "playwright-test")
-		req.Email,             // email (e.g., "playwright@devsmith.local")
-		req.AvatarURL,         // avatar_url
-		"test-token-not-real", // github_access_token (dummy for tests)
-	).Scan(&userID)
-
-	if err != nil {
-		log.Printf("[ERROR] Failed to create test user in database: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create test user account"})
-		return
-	}
-
-	log.Printf("[TEST_AUTH] Test user persisted to database with ID: %d", userID)
-
-	// Create test session in Redis (use database user ID, not hardcoded 999999)
+	// Create test session in Redis
 	sess := &session.Session{
 		SessionID:      sessionID,
-		UserID:         userID, // Use actual database user ID
+		UserID:         999999, // Test user ID
 		GitHubUsername: req.Username,
 		GitHubToken:    "test-token-not-real",
 		CreatedAt:      time.Now(),
@@ -338,7 +307,7 @@ func HandleTestLogin(c *gin.Context) {
 }
 
 // HandleGitHubOAuthLogin initiates GitHub OAuth flow with CSRF protection
-// Deprecated: This endpoint is deprecated in favor of frontend-initiated PKCE flow.
+// DEPRECATED: This endpoint is deprecated in favor of frontend-initiated PKCE flow.
 // The frontend now handles OAuth initiation with encrypted state.
 // This endpoint is kept for backward compatibility only.
 func HandleGitHubOAuthLogin(c *gin.Context) {
@@ -535,8 +504,10 @@ type TokenRequest struct {
 // RegisterTokenRoutes registers token-related routes
 func RegisterTokenRoutes(router *gin.Engine) {
 	authGroup := router.Group("/api/portal/auth")
-	authGroup.POST("/token", HandleTokenExchange)
-	authGroup.GET("/me", HandleGetCurrentUser)
+	{
+		authGroup.POST("/token", HandleTokenExchange)
+		authGroup.GET("/me", HandleGetCurrentUser)
+	}
 }
 
 // HandleTokenExchange handles PKCE token exchange
@@ -763,7 +734,7 @@ func validateOAuthConfig() error {
 
 // exchangeCodeForToken exchanges the authorization code for an access token
 // RFC 7636: For PKCE flow, code_verifier MUST be included
-func exchangeCodeForToken(code, codeVerifier string) (string, error) {
+func exchangeCodeForToken(code string, codeVerifier string) (string, error) {
 	log.Printf("[TOKEN_EXCHANGE] Step 1: Preparing token exchange request")
 
 	clientID := os.Getenv("GITHUB_CLIENT_ID")
@@ -903,12 +874,8 @@ func FetchUserInfo(accessToken string) (UserInfo, error) {
 		log.Printf("[USER_INFO] ERROR: GitHub API returned non-OK status: %d", userResp.StatusCode)
 
 		// Try to read error body for more details
-		bodyBytes, readErr := io.ReadAll(userResp.Body)
-		if readErr != nil {
-			log.Printf("[USER_INFO] ERROR: Failed to read response body: %v", readErr)
-		} else {
-			log.Printf("[USER_INFO] ERROR: Response body: %s", string(bodyBytes))
-		}
+		bodyBytes, _ := io.ReadAll(userResp.Body)
+		log.Printf("[USER_INFO] ERROR: Response body: %s", string(bodyBytes))
 
 		if userResp.StatusCode == http.StatusUnauthorized {
 			return UserInfo{}, errors.New("invalid or expired access token")
@@ -1017,13 +984,11 @@ func SetSecureJWTCookie(c *gin.Context, tokenString string) {
 }
 
 // HandleGitHubOAuthCallbackWithSession processes GitHub OAuth callback with Redis session
-// Deprecated: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
+// DEPRECATED: This endpoint is deprecated in favor of frontend PKCE flow with encrypted state.
 // The frontend now handles OAuth callbacks via /api/portal/auth/token endpoint.
 // This endpoint is kept for backward compatibility only.
-// validateOAuthCallbackParams checks GitHub callback parameters for errors and missing values
-func validateOAuthCallbackParams(c *gin.Context) (code, state string, err error) {
-	code = c.Query("code")
-	state = c.Query("state")
+
+(refactor(phase2): extract helper functions to reduce cognitive complexity)
 	errorParam := c.Query("error")
 	errorDesc := c.Query("error_description")
 
