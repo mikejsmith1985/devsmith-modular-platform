@@ -56,8 +56,12 @@ matches-ignore:
     match: "http://[a-z0-9-]+:\\d+"
   
   # Redacted tokens in error logs (documentation only)
+  - name: Redacted GitHub tokens in backticks
+    match: "`gho_\\*{3}REDACTED\\*{3}`"
   - name: Redacted GitHub tokens
-    match: "gho_\\*\\*\\*REDACTED\\*\\*\\*"
+    match: "gho_\\*{3}REDACTED\\*{3}"
+  - name: Any redacted secrets in documentation
+    match: "\\*{3}REDACTED\\*{3}"
 
 # Specific secret types to ignore
 ignored-detectors:
