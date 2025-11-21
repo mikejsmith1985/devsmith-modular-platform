@@ -23,6 +23,7 @@ paths-ignore:
   # Documentation
   - "**/*.md"
   - docs/**/*
+  - .docs/**/*
   
   # Third-party dependencies
   - node_modules/**/*
@@ -53,6 +54,10 @@ matches-ignore:
   # Docker internal networking
   - name: Docker internal URLs
     match: "http://[a-z0-9-]+:\\d+"
+  
+  # Redacted tokens in error logs (documentation only)
+  - name: Redacted GitHub tokens
+    match: "gho_\\*\\*\\*REDACTED\\*\\*\\*"
 
 # Specific secret types to ignore
 ignored-detectors:
