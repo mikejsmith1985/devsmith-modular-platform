@@ -1431,7 +1431,7 @@ PostgreSQL Database: devsmith_platform
   "user_id": 123,
   "github_id": 456789,
   "github_username": "user",
-  "github_access_token": "gho_xxx",
+  "github_access_token": "gh*_xxx",
   "exp": 1234567890
 }
 ```

@@ -200,7 +200,7 @@ The E2E tests in commit 46d12af were reorganized but **did not include SSO flow 
   "SessionID": "uuid-v4-string",
   "UserID": 123,
   "GitHubUsername": "mikejsmith1985",
-  "GitHubToken": "gho_***",
+  "GitHubToken": "gh*_***",
   "CreatedAt": "2025-11-05T00:00:00Z",
   "LastAccessedAt": "2025-11-05T15:00:00Z",
   "Metadata": {}
