@@ -44,7 +44,6 @@ WORKDIR /home/appuser
 COPY --from=builder /app/bin/portal ./portal
 RUN chown -R appuser:appuser /home/appuser
 USER appuser
-COPY apps/portal/templates/ ./templates/
 # Static files are now built and copied from builder stage (atomic deployment)
 COPY --from=builder --chown=appuser:appuser /app/apps/portal/static/ ./static/
 # Inject build timestamp for cache-busting (prevents stale frontend builds)

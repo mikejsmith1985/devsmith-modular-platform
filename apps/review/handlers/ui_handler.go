@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 	reviewcontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/context"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
@@ -320,9 +318,10 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 
 	if h.previewService == nil {
 		h.logger.Warn("Preview service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
@@ -358,9 +357,10 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 
 	if h.skimService == nil {
 		h.logger.Warn("Skim service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
@@ -458,9 +458,10 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 
 	if h.scanService == nil {
 		h.logger.Warn("Scan service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
@@ -508,9 +509,10 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 
 	if h.detailedService == nil {
 		h.logger.Warn("Detailed service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
@@ -567,9 +569,10 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 
 	if h.criticalService == nil {
 		h.logger.Warn("Critical service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
@@ -1059,107 +1062,4 @@ func generateAnalysisID() string {
 // GenerateAnalysisID creates a unique ID for analysis sessions.
 func GenerateAnalysisID() string {
 	return uuid.New().String()
-}
-
-// ShowWorkspace renders the two-pane workspace for code review with mode selection
-// GET /review/workspace/:session_id
-//
-// Path Parameters:
-//   - session_id: Session ID (integer)
-//
-// Response: HTML page with two-pane layout (code left, analysis right)
-func (h *UIHandler) ShowWorkspace(c *gin.Context) {
-	// Extract session ID from URL
-	sessionIDStr := c.Param("session_id")
-
-	// Extract authenticated user info from Redis session context
-	userID, _ := c.Get("user_id")
-	username, _ := c.Get("github_username")
-
-	var sessionID int
-	var props templates.WorkspaceProps
-
-	// Handle special "demo" session for quick access (legacy)
-	if sessionIDStr == "demo" {
-		h.logger.Info("showing demo workspace (legacy)", "user_id", userID)
-		props = templates.WorkspaceProps{
-			SessionID:      0,
-			Title:          fmt.Sprintf("DevSmith Review - Workspace (User: %v)", username),
-			Code:           sampleCodeForWorkspace(),
-			CurrentMode:    "preview",
-			AnalysisResult: "",
-		}
-	} else {
-		// Parse numeric session ID
-		var err error
-		sessionID, err = strconv.Atoi(sessionIDStr)
-		if err != nil {
-			h.logger.Warn("invalid session_id", "session_id", sessionIDStr, "error", err)
-			c.String(http.StatusBadRequest, "Invalid session ID")
-			return
-		}
-
-		h.logger.Info("showing workspace", "session_id", sessionID, "user_id", userID, "username", username)
-
-		// For now, use sample data with user context
-		// TODO: Fetch actual session data from ReviewRepository by session_id and user_id
-		props = templates.WorkspaceProps{
-			SessionID:      sessionID,
-			Title:          fmt.Sprintf("Code Review Session #%d (User: %v)", sessionID, username),
-			Code:           sampleCodeForWorkspace(),
-			CurrentMode:    "preview",
-			AnalysisResult: "",
-		}
-	}
-
-	// Render workspace template
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.Status(http.StatusOK)
-
-	if err := templates.Workspace(props).Render(c.Request.Context(), c.Writer); err != nil {
-		h.logger.Error("failed to render workspace template", "error", err.Error())
-		h.renderError(c, err, "Failed to render workspace")
-	}
-}
-
-// sampleCodeForWorkspace provides sample Go code for workspace demo
-func sampleCodeForWorkspace() string {
-	return `package handlers
-
-import (
-	"net/http"
-	"github.com/gin-gonic/gin"
-)
-
-// GetUser retrieves a user by ID from the database.
-// This function demonstrates common patterns in Go web handlers.
-func GetUser(c *gin.Context) {
-	// Extract user ID from URL parameter
-	userID := c.Param("id")
-	
-	// Potential SQL injection vulnerability (Critical issue)
-	query := "SELECT * FROM users WHERE id = " + userID
-	
-	// Missing error handling (Quality issue)
-	rows, _ := db.Query(query)
-	
-	// Handler calling database directly (Architecture issue - layer violation)
-	// Should call a service layer instead
-	
-	c.JSON(http.StatusOK, gin.H{"user": rows})
-}
-
-// CreateUser adds a new user to the database.
-func CreateUser(c *gin.Context) {
-	var user User
-	
-	// Missing input validation (Security issue)
-	c.BindJSON(&user)
-	
-	// Global variable usage (Scope issue)
-	db.Exec("INSERT INTO users ...")
-	
-	c.JSON(http.StatusCreated, user)
-}
-`
 }
