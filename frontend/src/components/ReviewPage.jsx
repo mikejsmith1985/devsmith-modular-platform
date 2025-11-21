@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
@@ -418,26 +419,37 @@ export default function ReviewPage() {
   };
 
   const handleAnalyze = async () => {
+    console.log('[DEBUG] handleAnalyze called, code:', !!code.trim(), 'selectedModel:', selectedModel);
+    
     if (!code.trim()) {
+      console.log('[DEBUG] Early return: no code');
       setError('Please enter some code to analyze');
       return;
     }
 
     if (!selectedModel) {
+      console.log('[DEBUG] Early return: no model selected');
       setError('Please select an AI model');
       return;
     }
 
     // Validate scan query for Scan mode
     if (selectedMode === 'scan' && !scanQuery.trim()) {
+      console.log('[DEBUG] Early return: scan mode but no query');
       setError('Please enter a search query for Scan mode');
       return;
     }
 
-    try {
+    console.log('[DEBUG] Starting analysis, setting loading=true');
+    
+    // Force immediate render of loading state before async operations
+    flushSync(() => {
       setLoading(true);
       setError(null);
       setAnalysisResult(null);
+    });
+
+    try {
 
       let result;
       switch (selectedMode) {

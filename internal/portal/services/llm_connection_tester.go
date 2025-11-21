@@ -35,8 +35,9 @@ type TestConnectionResponse struct {
 
 // TestConnection tests the connection to an LLM provider
 func (t *LLMConnectionTester) TestConnection(ctx context.Context, req TestConnectionRequest) TestConnectionResponse {
-	// Create context with timeout
-	testCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// Create context with timeout - increased to 90s for large Ollama models
+	// Large models (16b+) can take 60-90 seconds to load on first use
+	testCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 
 	// Create provider based on type
@@ -114,11 +115,15 @@ func (t *LLMConnectionTester) TestConnection(ctx context.Context, req TestConnec
 
 	_, err = provider.Generate(testCtx, testReq)
 	if err != nil {
-		// Provide more helpful error messages based on error type
-		details := fmt.Sprintf("Failed to connect to %s: %v", req.Provider, err)
+		// Check if this was a timeout error
+		isTimeout := false
+		if err == context.DeadlineExceeded || testCtx.Err() == context.DeadlineExceeded {
+			isTimeout = true
+		}
 
-		// Add helpful suggestions based on provider
-		if req.Provider == "ollama" {
+		// For Ollama timeouts on large models, provide specific guidance
+		if req.Provider == "ollama" && isTimeout {
+			// Large models may need pre-warming - provide clear instructions
 			endpoint := req.Endpoint
 			if endpoint == "" {
 				endpoint = os.Getenv("OLLAMA_ENDPOINT")
@@ -126,7 +131,28 @@ func (t *LLMConnectionTester) TestConnection(ctx context.Context, req TestConnec
 					endpoint = "http://host.docker.internal:11434"
 				}
 			}
-			details += fmt.Sprintf("\n\nTroubleshooting:\n• Ensure Ollama is running at %s\n• Try running: curl %s/api/generate -d '{\"model\":\"%s\",\"prompt\":\"test\"}'", endpoint, endpoint, req.Model)
+
+			return TestConnectionResponse{
+				Success: false,
+				Message: "Connection timed out",
+				Details: fmt.Sprintf("Connection to Ollama timed out after 90 seconds.\n\nThis usually happens when testing large models (16b+) that need to be loaded into memory for the first time.\n\nTo fix this:\n1. Pre-load the model: ollama run %s 'test'\n2. Or test with a smaller model first (e.g., deepseek-coder:6.7b)\n3. Wait a few minutes for the model to fully load, then try again\n\nTroubleshooting:\n• Check Ollama is responding: curl %s/api/version\n• Verify model exists: ollama list | grep %s\n• Check Ollama logs for loading progress", req.Model, endpoint, req.Model),
+			}
+		}
+
+		// Provide more helpful error messages based on error type
+		details := fmt.Sprintf("Failed to connect to %s: %v", req.Provider, err)
+
+		// Add helpful suggestions based on provider and error type
+		if req.Provider == "ollama" && !isTimeout {
+			// Non-timeout errors get standard troubleshooting
+			endpoint := req.Endpoint
+			if endpoint == "" {
+				endpoint = os.Getenv("OLLAMA_ENDPOINT")
+				if endpoint == "" {
+					endpoint = "http://host.docker.internal:11434"
+				}
+			}
+			details += fmt.Sprintf("\n\nTroubleshooting:\n• Ensure Ollama is running at %s\n• Verify model '%s' exists: ollama list | grep %s\n• Test connection: curl %s/api/generate -d '{\"model\":\"%s\",\"prompt\":\"test\"}'", endpoint, req.Model, req.Model, endpoint, req.Model)
 		}
 
 		return TestConnectionResponse{

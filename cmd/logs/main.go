@@ -267,7 +267,7 @@ func main() {
 	// not startup time. This allows AI Factory to be configured after service starts.
 	portalURL := os.Getenv("PORTAL_URL")
 	if portalURL == "" {
-		portalURL = "http://portal:8080" // Default for Docker Compose
+		portalURL = "http://portal:3001" // Default for Docker Compose - Portal service runs on 3001
 	}
 
 	dynamicAIClient := logs_services.NewDynamicAIClient(portalURL)
@@ -278,9 +278,11 @@ func main() {
 
 	log.Println("AI insights service initialized with dynamic client - will fetch LLM config from AI Factory at request time")
 
-	// AI insights endpoints - always available now
-	router.POST("/api/logs/:id/insights", aiInsightsHandler.GenerateInsights)
-	router.GET("/api/logs/:id/insights", aiInsightsHandler.GetInsights)
+	// AI insights endpoints - require authentication for session token propagation
+	aiInsightsRoutes := router.Group("/api/logs/:id/insights")
+	aiInsightsRoutes.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
+	aiInsightsRoutes.POST("", aiInsightsHandler.GenerateInsights)
+	aiInsightsRoutes.GET("", aiInsightsHandler.GetInsights)
 
 	// Phase 3: Smart Tagging System - Initialize tag management
 	tagsHandler := internal_logs_handlers.NewTagsHandler(logRepo)

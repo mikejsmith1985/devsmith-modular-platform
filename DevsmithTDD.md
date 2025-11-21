@@ -289,8 +289,8 @@ git commit -m "refactor(review): improve ScanService error handling and docs"
 - **HTTP Tests**: `httptest` for handler testing
 - **Coverage**: `go test -cover` (target: 70%+ unit, 90%+ critical path)
 
-### Frontend (Templ + HTMX)
-- **Template Tests**: Templ compile-time validation
+### Frontend (React + TypeScript)
+- **Component Tests**: React Testing Library with TypeScript type checking
 - **Integration Tests**: Playwright for browser automation
 - **Visual Regression**: Percy or Chromatic (Phase 2)
 - **Accessibility**: axe-core automated checks
@@ -2038,8 +2038,8 @@ Located in `tests/mocks/ollama_responses.json`:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-18 | Claude | Initial TDD document (React/Node stack) |
-| 2.0 | 2025-10-18 | Claude | Complete rewrite for Go+Templ+HTMX, mental models, 5 reading modes centerpiece |
-| 2.1 | 2025-11-16 | Copilot | Updated to reflect template improvements and review routing fixes. See commit ef3b0c4. |
+| 2.0 | 2025-10-18 | Claude | Complete rewrite for Go+Templ+HTMX, mental models, 5 reading modes centerpiece *(Note: Platform has since migrated to React+TypeScript frontend)* |
+| 2.1 | 2025-11-16 | Copilot | Updated to reflect template improvements and review routing fixes. See commit ef3b0c4. *(Note: Final Templ-based iteration before React migration)* |
 
 ---
 

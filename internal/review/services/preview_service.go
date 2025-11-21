@@ -73,15 +73,7 @@ func (s *PreviewService) AnalyzePreview(ctx context.Context, code, userMode, out
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, aiErr
 	}
-	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
-
-	// DEBUG: Log raw AI output
-	s.logger.Info("DEBUG PreviewService raw AI output", "correlation_id", correlationID, "output_length", len(rawOutput), "first_100_chars", func() string {
-		if len(rawOutput) > 100 {
-			return rawOutput[:100]
-		}
-		return rawOutput
-	}())
+	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
 
 	// Extract JSON from response (handles cases where AI adds extra text)
 	jsonStr, extractErr := ExtractJSON(rawOutput)

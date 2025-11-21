@@ -130,7 +130,7 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
 
-// refactor(phase2): extract helper functions to reduce cognitive complexity
+		// refactor(phase2): extract helper functions to reduce cognitive complexity
 
 		h.logger.Warn("Failed to bind code request",
 			"error", err.Error(),
@@ -170,7 +170,6 @@ func looksLikeCode(s string) bool {
 	return score >= 1
 }
 
-
 // refactor(phase2): extract helper functions to reduce cognitive complexity
 
 // renderError returns a JSON error response with plain language error message
@@ -200,9 +199,9 @@ func templateEscape(s string) string {
 func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title string, classes string) {
 	// Return clean JSON analysis result for frontend consumption
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
+		"success":  true,
 		"analysis": result,
-		"mode": title,
+		"mode":     title,
 	})
 }
 
@@ -327,8 +326,17 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 		return
 	}
 
-	// TODO: Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
@@ -356,8 +364,17 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	// If the pasted input doesn't look like source code, avoid calling Skim mode
 	// which expects actual source files (functions, interfaces, data models).
@@ -427,11 +444,10 @@ func (h *UIHandler) validateScanService(c *gin.Context) bool {
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
 
-// refactor(phase2): extract helper functions to reduce cognitive complexity
+		// refactor(phase2): extract helper functions to reduce cognitive complexity
 	}
 	return true
 }
-
 
 // HandleScanMode handles POST /api/review/modes/scan (HTMX)
 func (h *UIHandler) HandleScanMode(c *gin.Context) {
@@ -459,7 +475,17 @@ func (h *UIHandler) HandleScanMode(c *gin.Context) {
 		return
 	}
 
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
 		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)
@@ -488,8 +514,17 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	// If the content doesn't look like code, avoid running Detailed Mode (it expects source)
 	if !looksLikeCode(req.PastedCode) {
@@ -538,8 +573,17 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	// If pasted content doesn't look like source code, avoid running full Critical
 	// analysis which focuses on architecture/layering and code quality.
@@ -924,7 +968,10 @@ func (h *UIHandler) SessionProgressSSE(c *gin.Context) {
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
 		h.logger.Error("SSE unsupported by writer")
-		c.Status(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "SSE not supported by server",
+			"details": "Server-Sent Events require HTTP/1.1 with streaming support",
+		})
 		return
 	}
 

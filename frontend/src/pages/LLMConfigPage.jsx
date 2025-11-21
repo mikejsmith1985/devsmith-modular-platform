@@ -127,11 +127,16 @@ export default function LLMConfigPage() {
 
   const handleSaveConfig = async (configData) => {
     try {
+      // Save the configuration to backend
+      await apiClient.post('/api/portal/llm-configs', configData);
+      
+      // Refresh the config list
       await loadConfigs();
       setShowAddModal(false);
       setEditingConfig(null);
     } catch (err) {
-      console.error('Error refreshing configs:', err);
+      console.error('Error saving config:', err);
+      setError(err.message || 'Failed to save configuration');
     }
   };
 

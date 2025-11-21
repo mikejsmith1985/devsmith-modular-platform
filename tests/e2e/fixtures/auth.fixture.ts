@@ -108,9 +108,9 @@ export const test = base.extend<AuthFixtures>({
 
     const data = await response.json();
     
-    // Verify we got a token
-    if (!data.token || !data.token.Claims || !data.token.Claims.session_id) {
-      throw new Error('Test auth endpoint did not return valid token with session_id');
+    // Verify we got a token (now returns string instead of object)
+    if (!data.token || typeof data.token !== 'string') {
+      throw new Error('Test auth endpoint did not return valid token string');
     }
 
     // Extract JWT from Set-Cookie header

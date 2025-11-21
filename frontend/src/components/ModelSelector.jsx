@@ -39,16 +39,25 @@ export default function ModelSelector({ selectedModel, onModelSelect, disabled =
         setModels(modelList);
         console.log('Models loaded from Portal:', modelList);
         
-        // Auto-select default model from Portal
-        if (!selectedModel && modelList.length > 0) {
-          const defaultModel = modelList.find(m => m.isDefault);
-          if (defaultModel) {
-            console.log('Setting default model:', defaultModel.name);
-            onModelSelect(defaultModel.name);
+        // Auto-select model
+        if (!selectedModel) {
+          if (modelList.length > 0) {
+            // Use Portal LLM config if available
+            const defaultModel = modelList.find(m => m.isDefault);
+            if (defaultModel) {
+              console.log('Setting default model:', defaultModel.name);
+              onModelSelect(defaultModel.name);
+            } else {
+              // Fallback to first model if no default
+              console.log('No default model found, using first:', modelList[0].name);
+              onModelSelect(modelList[0].name);
+            }
           } else {
-            // Fallback to first model if no default
-            console.log('No default model found, using first:', modelList[0].name);
-            onModelSelect(modelList[0].name);
+            // No LLM configs in AI Factory - use system default
+            // This matches the backend system default in ai_factory.go
+            const systemDefault = 'deepseek-coder:6.7b';
+            console.log('No LLM configs found, using system default:', systemDefault);
+            onModelSelect(systemDefault);
           }
         }
       } catch (err) {

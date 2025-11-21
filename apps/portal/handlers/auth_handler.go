@@ -296,7 +296,7 @@ func HandleTestLogin(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "success",
-		"token":   token,
+		"token":   tokenString,
 		"user": map[string]interface{}{
 			"username":   req.Username,
 			"email":      req.Email,

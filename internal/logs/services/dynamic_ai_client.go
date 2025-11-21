@@ -10,6 +10,7 @@ import (
 
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/ai/providers"
+	logscontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/context"
 )
 
 // DynamicAIClient implements AIProvider by dynamically fetching LLM configuration
@@ -29,7 +30,7 @@ func NewDynamicAIClient(portalURL string) *DynamicAIClient {
 // Generate implements AIProvider interface
 func (c *DynamicAIClient) Generate(ctx context.Context, request *AIRequest) (*AIResponse, error) {
 	// Fetch LLM configuration from Portal's AI Factory
-	config, err := c.fetchLLMConfig()
+	config, err := c.fetchLLMConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch LLM configuration: %w. Please configure an AI model in AI Factory (/llm-config)", err)
 	}
@@ -84,13 +85,20 @@ type LLMConfig struct {
 }
 
 // fetchLLMConfig queries Portal's AI Factory for default LLM configuration
-func (c *DynamicAIClient) fetchLLMConfig() (*LLMConfig, error) {
+func (c *DynamicAIClient) fetchLLMConfig(ctx context.Context) (*LLMConfig, error) {
 	// Query Portal's AI Factory API for logs app preference or default config
 	url := fmt.Sprintf("%s/api/portal/app-llm-preferences", c.portalURL)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Extract session token from context and add to request for authentication
+	sessionToken, ok := ctx.Value(logscontext.SessionTokenKey).(string)
+	if ok && sessionToken != "" {
+		// Portal expects cookie in format: devsmith_token=<jwt_value>
+		req.Header.Set("Cookie", fmt.Sprintf("devsmith_token=%s", sessionToken))
 	}
 
 	client := &http.Client{}
