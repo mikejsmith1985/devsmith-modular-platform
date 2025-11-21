@@ -17,7 +17,7 @@ test.describe('LLM Configuration UI Debug', () => {
 
     // Authenticate first
     console.log('Step 1: Authenticating...');
-    const authResponse = await page.request.post('http://localhost:3000/auth/test-login', {
+    const authResponse = await page.request.post('/auth/test-login', {
       data: {
         username: 'playwright-test',
         email: 'playwright@devsmith.local',
@@ -49,7 +49,7 @@ test.describe('LLM Configuration UI Debug', () => {
 
     // Navigate to page
     console.log('Step 2: Navigating to /llm-config...');
-    const response = await page.goto('http://localhost:3000/llm-config', {
+    const response = await page.goto('/llm-config', {
       waitUntil: 'networkidle',
       timeout: 30000
     });

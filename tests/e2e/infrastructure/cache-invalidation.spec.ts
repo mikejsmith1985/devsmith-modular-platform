@@ -18,7 +18,7 @@ test.describe('Cache Invalidation Infrastructure', () => {
   
   test('HTML responses have aggressive no-cache headers from Traefik', async ({ authenticatedPage }) => {
     // GIVEN: User requests the frontend HTML
-    const response = await authenticatedPage.goto('http://localhost:3000/', {
+    const response = await authenticatedPage.goto('/', {
       waitUntil: 'networkidle'
     });
     
@@ -44,7 +44,7 @@ test.describe('Cache Invalidation Infrastructure', () => {
 
   test('HTML contains cache-control meta tags', async ({ authenticatedPage }) => {
     // GIVEN: User loads the frontend
-    await authenticatedPage.goto('http://localhost:3000/', {
+    await authenticatedPage.goto('/', {
       waitUntil: 'networkidle'
     });
     
@@ -74,7 +74,7 @@ test.describe('Cache Invalidation Infrastructure', () => {
 
   test('JavaScript bundle loads successfully after rebuild', async ({ authenticatedPage }) => {
     // GIVEN: User loads the application
-    const response = await authenticatedPage.goto('http://localhost:3000/', {
+    const response = await authenticatedPage.goto('/', {
       waitUntil: 'networkidle'
     });
     
@@ -94,7 +94,7 @@ test.describe('Cache Invalidation Infrastructure', () => {
     // GIVEN: A fresh browser context (from fixture)
     
     // Navigate to page first (localStorage requires a document)
-    await page.goto('http://localhost:3000/', {
+    await page.goto('/', {
       waitUntil: 'domcontentloaded'
     });
     
@@ -108,7 +108,7 @@ test.describe('Cache Invalidation Infrastructure', () => {
 
   test('Multiple page loads get fresh HTML (no stale cache)', async ({ authenticatedPage }) => {
     // GIVEN: User loads page first time
-    await authenticatedPage.goto('http://localhost:3000/', {
+    await authenticatedPage.goto('/', {
       waitUntil: 'networkidle'
     });
     

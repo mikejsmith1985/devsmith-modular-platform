@@ -4,10 +4,10 @@
 The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-modular-platform](https://github.com/mikejsmith1985/devsmith-modular-platform), is a modular, AI-driven platform for learning, debugging, and building code. This document defines the roles of the **hybrid AI development team**, adhering to the DevSmith Coding Standards and Test-Driven Development (TDD) principles. The goal is to maintain a clean, recoverable repo with high-quality code and robust testing.
 
 ## System Architecture
-- **Tech Stack**: Go 1.21+ with Templ templates, HTMX for interactivity, TailwindCSS + DaisyUI
+- **Tech Stack**: React 18 + TypeScript frontend with Vite, Go 1.21+ microservices backend, devsmith-theme.css styling
 - **Database**: PostgreSQL 15+ with pgx driver, schema isolation per app
-- **Infrastructure**: Docker + Docker Compose, Nginx gateway, GitHub Actions CI/CD
-- **AI Integration**: Claude Haiku for documentation cleanup and workflow creation & planning), Cursor/Copilot (implementation)
+- **Infrastructure**: Docker + Docker Compose, Traefik v2.10+ gateway (port 3000), GitHub Actions CI/CD
+- **AI Integration**: Claude Code for architecture/planning, Cursor/Copilot for implementation
 
 ## Roles and Responsibilities
 
@@ -89,11 +89,12 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
   - **Generate code** based on specs from Claude.
   - Follow DevSmith Coding Standards:
     - **File Organization** (Go service structure):
-      - `apps/{service}/{main.go, handlers/, models/, templates/, static/, services/, db/, middleware/, utils/, config/, tests/}`.
-      - Templates: Templ files (`.templ`) for server-side rendering.
-      - Static assets: CSS (TailwindCSS), minimal JS (HTMX, Alpine.js), images.
+      - `apps/{service}/{main.go, handlers/, models/, services/, db/, middleware/, utils/, config/, tests/}`.
+      - Frontend: Separate React app in `frontend/` directory with package.json.
+      - Static assets: devsmith-theme.css, Bootstrap Icons.
     - **Naming Conventions** (Go conventions):
-      - Files: `snake_case.go` for source files, `snake_case.templ` for templates, `*_test.go` for tests.
+      - Files: `snake_case.go` for source files, `*_test.go` for tests.
+      - React: `PascalCase.jsx` for components, `camelCase.js` for utilities.
       - Code: `camelCase` for unexported, `PascalCase` for exported, `UPPER_SNAKE` for constants.
       - Acronyms: Keep uppercase (`HTTPServer`, `JSONData`, `URLPath`).
     - **Go Handler Pattern**:
@@ -113,22 +114,28 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
         c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
       }
       ```
-    - **Templ Template Pattern**:
-      ```go
-      templ FeaturePage(data FeatureData) {
-        @Layout("Feature") {
-          <div class="container mx-auto p-4">
-            <h1 class="text-2xl font-bold">{data.Title}</h1>
-            if len(data.Items) == 0 {
-              <p>No items found</p>
-            } else {
-              for _, item := range data.Items {
-                @ItemCard(item)
-              }
-            }
-          </div>
-        }
+    - **React Component Pattern**:
+      ```jsx
+      // FeaturePage.jsx
+      import React from 'react';
+      import Layout from '../components/Layout';
+      import ItemCard from '../components/ItemCard';
+
+      function FeaturePage({ data }) {
+        return (
+          <Layout title="Feature">
+            <div className="container mx-auto p-4">
+              <h1 className="text-2xl font-bold">{data.title}</h1>
+              {data.items.length === 0 ? (
+                <p>No items found</p>
+              ) : (
+                data.items.map(item => <ItemCard key={item.id} item={item} />)
+              )}
+            </div>
+          </Layout>
+        );
       }
+      export default FeaturePage;
       ```
     - **Error Handling**: Provide user-friendly messages, explicit error checking (`if err != nil`), structured logging.
   - Suggest TDD-compliant test implementations targeting 70%+ unit test coverage and 90%+ critical path coverage.
@@ -155,7 +162,7 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
 - **Strengths**:
   - **Real-time assistance** - instant suggestions as Mike types.
   - **Context-aware** - understands current file and surrounding code.
-  - **Multi-language** - excellent with Go, Templ, HTMX, SQL.
+  - **Multi-language** - excellent with Go, React/JSX, TypeScript, SQL.
   - **Chat interface** - can explain code, suggest improvements, write tests.
   - **Fast** - no latency, no rate limits.
 - **Limitations**:
@@ -175,7 +182,7 @@ The DevSmith Modular Platform, hosted at [github.com/mikejsmith1985/devsmith-mod
    - Mike triggers Claude Code session.
    - Claude designs high-level architecture.
    - Claude creates **detailed implementation plan** with:
-     - File structure (which Go files, templates, handlers).
+     - File structure (which Go files, React components, handlers).
      - Function signatures and interfaces.
      - Database schema changes (if any).
      - Test requirements (unit, integration).
@@ -307,7 +314,7 @@ When Mike makes small changes without architecture planning:
 - **Unit tests** for utilities and services (70%+ coverage).
 - **Handler tests** for HTTP endpoints.
 - **Integration tests** for critical paths (e.g., login → portal → app launch).
-- **Template tests** for Templ components (compile-time validation).
+- **Component tests** for React components (React Testing Library).
 
 **Commands**:
 ```bash
@@ -330,14 +337,14 @@ go tool cover -html=coverage.out
 
 ### Manual Testing Checklist (Mike)
 
-- [ ] Feature works in browser through nginx gateway (`http://localhost:3000`).
+- [ ] Feature works in browser through Traefik gateway (`http://localhost:3000`).
 - [ ] No JavaScript errors in browser console.
 - [ ] Regression check for related features.
-- [ ] Light/dark mode compatibility (via DaisyUI themes).
-- [ ] Responsive design for mobile/tablet (TailwindCSS breakpoints).
-- [ ] HTMX interactions work correctly (partial updates, form submissions).
+- [ ] Light/dark mode compatibility (Alpine.js theme toggle).
+- [ ] Responsive design for mobile/tablet (devsmith-theme.css breakpoints).
+- [ ] React components render correctly (state management, props, hooks).
 - [ ] WebSocket connections stable (for real-time features).
-- [ ] Hot reload works with Air (Go file changes trigger rebuild).
+- [ ] Hot reload works with Vite HMR (frontend) and Air (backend).
 
 ### CI Pipeline (GitHub Actions)
 

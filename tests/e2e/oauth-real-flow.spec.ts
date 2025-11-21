@@ -36,7 +36,7 @@ test.describe('OAuth Real User Flow', () => {
 
     // Step 1: Visit login page
     console.log('[TEST] Step 1: Navigating to login page');
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     await page.waitForLoadState('networkidle');
     await page.screenshot({ path: path.join(screenshotDir, '01-login-page.png'), fullPage: true });
     console.log('[TEST] ✅ Screenshot 1: Login page captured');
@@ -154,7 +154,7 @@ test.describe('OAuth Real User Flow', () => {
   test('Verify React app serves at root', async ({ page }) => {
     console.log('[TEST] Verifying React app serves at root');
     
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.screenshot({ path: path.join(screenshotDir, '04-root-page.png'), fullPage: true });
     
@@ -169,7 +169,7 @@ test.describe('OAuth Real User Flow', () => {
     console.log('[TEST] Verifying OAuth callback returns React app (not 401)');
     
     // Visit callback URL with fake params
-    await page.goto('http://localhost:3000/auth/github/callback?code=test&state=test');
+    await page.goto('/auth/github/callback?code=test&state=test');
     await page.waitForLoadState('networkidle');
     await page.screenshot({ path: path.join(screenshotDir, '05-callback-direct.png'), fullPage: true });
     

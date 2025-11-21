@@ -1,8 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
+import { test } from '../fixtures/auth.fixture';
 
 test.describe('SMOKE: Logs Dashboard - HTMX Filters', () => {
-  test('Logs dashboard loads and has filter controls', async ({ page }) => {
-    const response = await page.goto('http://localhost:8082', { waitUntil: 'domcontentloaded' });
+  test('Logs dashboard loads and has filter controls', async ({ authenticatedPage }) => {
+    const response = await authenticatedPage.goto('/dashboard/logs', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
     
     // Check for filter controls - use ID selectors from actual template
@@ -17,8 +18,8 @@ test.describe('SMOKE: Logs Dashboard - HTMX Filters', () => {
     console.log('✅ Logs dashboard has filter controls');
   });
   
-  test('Dark mode toggle is visible on logs dashboard', async ({ page }) => {
-    await page.goto('http://localhost:8082', { waitUntil: 'domcontentloaded' });
+  test('Dark mode toggle is visible on logs dashboard', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/dashboard/logs', { waitUntil: 'domcontentloaded' });
     
     const darkModeButton = page.locator('#dark-mode-toggle');
     await expect(darkModeButton).toBeVisible();
@@ -26,8 +27,8 @@ test.describe('SMOKE: Logs Dashboard - HTMX Filters', () => {
     console.log('✅ Dark mode button visible on logs dashboard');
   });
   
-  test('Logs output container is present', async ({ page }) => {
-    await page.goto('http://localhost:8082', { waitUntil: 'domcontentloaded' });
+  test('Logs output container is present', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/dashboard/logs', { waitUntil: 'domcontentloaded' });
     
     const logsOutput = page.locator('#logs-output, .logs-output, [class*="logs"]');
     expect(await logsOutput.count()).toBeGreaterThan(0);

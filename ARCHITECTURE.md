@@ -40,10 +40,14 @@ The DevSmith Modular Platform is a comprehensive learning and development platfo
 - **Production-Ready**: Gateway architecture, proper auth, comprehensive logging
 
 ### Current Status
-- **Phase:** Initial Planning
-- **Branch:** feature/initial-setup
-- **Implementation:** Not started
-- **Documentation:** Complete (Requirements, Roles, TDD, Lessons Learned)
+- **Phase:** Active Development - Production Ready
+- **Branch:** BREAK-FIX1 (main development)
+- **Implementation:** Core platform operational with 4/4 E2E tests passing (100%)
+- **Documentation:** Complete and actively maintained
+- **Frontend:** React 18 + Vite (migrated from Go templ)
+- **Backend:** Go microservices with session-based authentication
+- **Gateway:** Traefik reverse proxy (port 3000)
+- **Test Status:** All user scenarios validated with Playwright
 
 ---
 
@@ -53,10 +57,12 @@ The DevSmith Modular Platform is a comprehensive learning and development platfo
 **Rationale:** Learned from previous platform that adding gateway as afterthought breaks everything.
 
 **Implementation:**
-- All services accessible through nginx reverse proxy on port 3000
+- All services accessible through **Traefik reverse proxy** on port 3000
 - No direct port access in application code
 - Gateway configured before any app development
 - Single origin for shared authentication
+- Traefik labels in docker-compose.yml define routing rules
+- Middleware chain handles CORS, authentication, rate limiting
 
 ### 2. True Modularity
 **Rationale:** Apps must function independently or platform isn't truly modular.
@@ -116,7 +122,8 @@ The unavoidable difficulty inherent in a task itself.
 
 **Our Strategy:**
 - Use Go's explicit error handling (clearer than exceptions)
-- Templ's compile-time checks (catch errors early)
+- React's component-based architecture (modular UI)
+- TypeScript/JSX type checking (catch errors early)
 - Clear naming conventions
 - Modular services (tackle one problem at a time)
 
@@ -198,10 +205,17 @@ Always ask: "Which bounded context am I in?" The answer changes what entities me
 
 ```
 ┌─────────────────────────────────────┐
-│   CONTROLLER LAYER (handlers/)     │  ← User interaction
-│   - HTTP handlers                  │  ← Request/response
-│   - Templ templates                │  ← UI rendering
-│   - Input validation               │
+│   FRONTEND LAYER (React)           │  ← User interaction
+│   - React components               │  ← UI rendering
+│   - API calls via fetch            │  ← Client-server communication
+│   - Form validation                │  ← Input validation
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│   CONTROLLER LAYER (handlers/)     │  ← HTTP API endpoints
+│   - Gin HTTP handlers              │  ← Request/response
+│   - JSON serialization             │  ← Data format
+│   - Input validation               │  ← Server-side validation
 └─────────────────────────────────────┘
               ↓
 ┌─────────────────────────────────────┐
@@ -523,9 +537,9 @@ React Frontend   Go Backend APIs
 ### **Architecture Decision: Hybrid React Frontend + Go Backend APIs**
 
 **Date:** 2025-11-06  
-**Decision:** Migrate from Go+Templ microservices with separate UIs to single React frontend with Go backend APIs.
+**Decision:** ✅ **Migration Complete (2025-11-XX)** - Migrated from Go+Templ microservices with separate UIs to single React frontend with Go backend APIs.
 
-**Rationale:**
+**Rationale:****
 - **Styling Consistency:** Single React app with Bootstrap 5 imported once = automatic styling consistency across all pages (learned from devsmith-platform monolith)
 - **User Experience:** Seamless SPA navigation between Portal/Review/Logs/Analytics
 - **Component Reusability:** Shared React components (StatCards, Navbar, Card, Button) used everywhere
@@ -593,10 +607,10 @@ React Frontend   Go Backend APIs
 
 ### Infrastructure
 - **Containerization:** Docker + Docker Compose
-- **Base Images:** golang:1.21-alpine (build), alpine:latest (runtime)
-- **Reverse Proxy:** Nginx
-- **CI/CD:** GitHub Actions
-- **Monitoring:** (To be determined - options: Prometheus + Grafana)
+- **Base Images:** golang:1.23-alpine (build), alpine:latest (runtime), node:18-alpine (frontend build)
+- **Reverse Proxy:** Traefik v2.10+ with automatic service discovery
+- **CI/CD:** GitHub Actions with Playwright E2E tests
+- **Monitoring:** Built-in health checks + logs service + analytics service
 
 **Container Strategy:**
 - Multi-stage Docker builds (compile in golang image, run in alpine)
@@ -652,7 +666,7 @@ React Frontend   Go Backend APIs
   - Full function/struct generation from comments
   - Test generation assistance
   - Refactoring suggestions
-  - Multi-language support (Go, Templ, SQL, HTMX)
+  - Multi-language support (Go, React/JSX, TypeScript, SQL)
   - Chat interface for explanations and guidance
 - **Workflow:**
   - Developer implements features following Claude's plans
@@ -1417,7 +1431,7 @@ PostgreSQL Database: devsmith_platform
   "user_id": 123,
   "github_id": 456789,
   "github_username": "user",
-  "github_access_token": "gho_xxx",
+  "github_access_token": "gh*_xxx",
   "exp": 1234567890
 }
 ```
@@ -1589,17 +1603,14 @@ ws.onclose = () => console.log('Disconnected');
 
 ### Development Environment
 ```yaml
-# docker-compose.yml structure (to be implemented)
+# docker-compose.yml structure (implemented)
 services:
-  nginx-gateway:     # Port 3000
-  portal-frontend:   # Internal only
-  portal-backend:    # Internal only
-  review-frontend:   # Internal only
-  review-backend:    # Internal only
-  logs-frontend:     # Internal only
-  logs-backend:      # Internal only
-  analytics-frontend: # Internal only
-  analytics-backend:  # Internal only
+  traefik-gateway:   # Port 3000
+  frontend:          # React dev server (port 5173, proxied)
+  portal:            # Port 8080 (internal)
+  review:            # Port 8081 (internal)
+  logs:              # Port 8082 (internal)
+  analytics:         # Port 8083 (internal)
   postgres:          # Port 5432
   redis:             # Port 6379
 ```
@@ -1623,7 +1634,7 @@ services:
 - ✅ **Safer Rollbacks:** Single image to rollback, no frontend/backend drift
 
 **Legacy Architecture (Deprecated):**
-- ❌ **Old:** Separate frontend Dockerfile (nginx-based)
+- ❌ **Old:** Separate frontend Dockerfile (served via static file server)
 - ❌ **Old:** Manual frontend build and copy steps
 - ❌ **Old:** Version drift between frontend and backend
 
@@ -1634,19 +1645,22 @@ services:
 
 ### Health Checks
 - All services expose `/health` endpoint
-- Nginx checks before routing
+- Traefik checks before routing
 - Docker health checks configured
 - Startup dependencies via `depends_on`
 
 ### Environment Configuration
 ```bash
-# .env.example structure (to be created)
+# .env.example structure (active)
 # Gateway
-NGINX_PORT=3000
+TRAEFIK_PORT=3000
+
+# Frontend (React)
+VITE_API_URL=http://localhost:3000
+VITE_WS_URL=ws://localhost:3000
 
 # Portal
-PORTAL_FRONTEND_PORT=5173
-PORTAL_BACKEND_PORT=8000
+PORTAL_PORT=8080
 GITHUB_CLIENT_ID=xxx
 GITHUB_CLIENT_SECRET=xxx
 JWT_SECRET=xxx
@@ -1698,7 +1712,7 @@ Modern frontend frameworks (React, Vue, etc.) use hash-based cache busting for J
 4. Result: Blank screen (React doesn't mount), failed tests, user frustration
 
 **Why Traditional Solutions Fail:**
-- nginx cache-control headers: Prevent NEW caching, don't purge EXISTING cache
+- gateway cache-control headers: Prevent NEW caching, don't purge EXISTING cache
 - Rebuild cycles: Create new hash, but browsers keep old cached HTML
 - Manual workarounds: Hard refresh works but not sustainable for development or production
 - Vite's hash-based cache busting is client-side dependent
@@ -1725,7 +1739,7 @@ services:
 
 **Why This Works:**
 - Applied at gateway level (like Traefik priority pattern from MULTI_LLM_IMPLEMENTATION_PLAN.md)
-- Strips any conflicting cache headers from nginx
+- Strips any conflicting cache headers from upstream
 - Forces aggressive no-cache on ALL HTML responses
 - Works for all requests through gateway
 - Global, automatic, permanent solution
@@ -1757,9 +1771,9 @@ services:
 # frontend/Dockerfile
 ARG BUILD_TIMESTAMP
 RUN if [ -n "$BUILD_TIMESTAMP" ]; then \
-      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/${BUILD_TIMESTAMP}/" /usr/share/nginx/html/index.html; \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/${BUILD_TIMESTAMP}/" /app/dist/index.html; \
     else \
-      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/$(date +%s)/" /usr/share/nginx/html/index.html; \
+      sed -i "s/BUILD_TIMESTAMP_PLACEHOLDER/$(date +%s)/" /app/dist/index.html; \
     fi
 ```
 
@@ -2085,25 +2099,28 @@ Documented precedence:
 
 ### File Organization
 
-#### Go Service Structure
+#### ⚠️ DEPRECATED: Go Service Structure (Pre-React Migration)
+
+**Note**: This section describes the OLD architecture before the React migration (completed 2025-11-XX). It is preserved for historical context only. See "Current Architecture" sections above for the production architecture.
+
 ```
 apps/{service}/
 ├── main.go              # Application entry point
 ├── handlers/            # HTTP request handlers
 │   ├── auth.go         # Authentication handlers
-│   ├── api.go          # API endpoints
+│   ├── api.go          # API endpoints (now JSON APIs)
 │   └── health.go       # Health check endpoint
 ├── models/              # Data structures and database models
 │   ├── user.go
 │   └── session.go
-├── templates/           # Templ template files
-│   ├── layout.templ    # Base layout
-│   ├── home.templ      # Home page
-│   └── components/     # Reusable template components
-├── static/              # Static assets (CSS, minimal JS, images)
-│   ├── css/
-│   ├── js/             # HTMX, Alpine.js, custom JS
-│   └── images/
+├── ❌ templates/        # REMOVED - Was Templ template files (migrated to React)
+│   ├── layout.templ    # REMOVED
+│   ├── home.templ      # REMOVED
+│   └── components/     # REMOVED
+├── ❌ static/           # REMOVED - Assets now in frontend/ directory
+│   ├── css/            # REMOVED
+│   ├── js/             # REMOVED
+│   └── images/         # REMOVED
 ├── services/            # Business logic layer
 │   ├── auth_service.go
 │   └── user_service.go
@@ -2130,12 +2147,11 @@ apps/{service}/
 └── README.md
 ```
 
-**Key Differences from React/Python:**
-- Single service combines frontend and backend (no separate -frontend/-backend)
-- Templates directory instead of React components
-- Static directory for CSS/minimal JS instead of node_modules
-- go.mod instead of package.json/requirements.txt
-- Much simpler structure (fewer directories)
+**Current Architecture (Post-Migration):**
+- ✅ Frontend: Separate React app (`frontend/` directory with package.json)
+- ✅ Backend: Go services provide JSON APIs only (no templates)
+- ✅ Gateway: Traefik routes frontend + backend through single port (3000)
+- ✅ Deployment: Atomic - single Docker image per service with embedded frontend
 
 ---
 
@@ -2145,7 +2161,7 @@ apps/{service}/
 | Type | Convention | Examples |
 |------|------------|----------|
 | Go Source Files | `snake_case.go` | `auth_handler.go`, `user_service.go`, `jwt_utils.go` |
-| Templ Templates | `snake_case.templ` | `home.templ`, `login_form.templ`, `app_nav.templ` |
+| ❌ Templ Templates (DEPRECATED) | `snake_case.templ` | `home.templ` - **REMOVED IN REACT MIGRATION** |
 | Test Files | `_test.go` suffix | `auth_handler_test.go`, `user_service_test.go` |
 | SQL Migrations | Timestamped | `20250118120000_create_users_table.sql` |
 
@@ -2169,11 +2185,13 @@ apps/{service}/
 
 ---
 
-### Templ Template Structure
+### ⚠️ DEPRECATED: Templ Template Structure (Pre-React Migration)
 
-**Standard Template:**
+**Note**: This section is preserved for historical context only. All Templ templates were removed during the React migration (2025-11-XX).
+
+**Old Standard Template (REMOVED):**
 ```go
-// templates/home.templ
+// templates/home.templ (FILE REMOVED)
 package templates
 
 import "github.com/mikejsmith1985/devsmith-platform/apps/portal/models"
@@ -2227,8 +2245,8 @@ templ AppCard(app models.App) {
 - HTMX integration: `hx-*` attributes for interactivity
 - TailwindCSS + DaisyUI: Utility-first styling
 
-**Templ vs React:**
-| Feature | React | Templ |
+**Historical Comparison - Templ vs React (Migration Rationale):**
+| Feature | React (CURRENT) | Templ (DEPRECATED) |
 |---------|-------|-------|
 | Language | JSX (JavaScript) | Go |
 | Type Safety | TypeScript (optional) | Built-in (Go) |
@@ -2239,9 +2257,11 @@ templ AppCard(app models.App) {
 
 ---
 
-### HTMX Patterns
+### ⚠️ DEPRECATED: HTMX Patterns (Pre-React Migration)
 
-**HTMX handles interactivity without JavaScript frameworks:**
+**Note**: HTMX was used with Templ templates and has been replaced by React + fetch API. This section is preserved for historical context.
+
+**Old HTMX patterns (NO LONGER USED):**
 
 ```html
 <!-- Load more data -->
@@ -2565,7 +2585,7 @@ Complete BEFORE creating PR:
 - [ ] All related features still work (regression check)
 - [ ] Works in both light and dark mode (if applicable)
 - [ ] Responsive design works on mobile/tablet (if applicable)
-- [ ] Works through nginx gateway (http://localhost:3000)
+- [ ] Works through Traefik gateway (http://localhost:3000)
 - [ ] Authentication persists across apps
 - [ ] WebSocket connections work (for real-time features)
 - [ ] Hot module reload (HMR) works during development
@@ -2597,7 +2617,7 @@ cd apps/platform-backend && pytest --cov=. --cov-report=term-missing
 
 #### Gateway/Proxy Testing
 When working with multiple services:
-- [ ] Test through nginx gateway (http://localhost:3000)
+- [ ] Test through Traefik gateway (http://localhost:3000)
 - [ ] Verify direct access works (if supported)
 - [ ] Check authentication persists across apps
 - [ ] Verify WebSocket connections through gateway

@@ -11,8 +11,8 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
   
   test('User clicks login button and initiates OAuth with state stored in Redis', async ({ page }) => {
     // STEP 1: User visits login page
-    await page.goto('http://localhost:3000/login');
-    await expect(page).toHaveURL('http://localhost:3000/login');
+    await page.goto('/login');
+    await expect(page).toHaveURL(/\/login$/);
     
     // STEP 2: User clicks "Login with GitHub" button
     const loginButton = page.locator('a.btn-primary:has-text("Login with GitHub")');
@@ -59,7 +59,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
     console.log('✅ State stored in Redis:', redisCheck);
     
     // STEP 8: Simulate OAuth callback (like GitHub would redirect back)
-    await page.goto(`http://localhost:3000/auth/github/callback?code=test_fake_code&state=${state}`);
+    await page.goto(`/auth/github/callback?code=test_fake_code&state=${state}`);
     
     // STEP 9: Should NOT get 401 Unauthorized - should get token exchange error
     const responseText = await page.textContent('body');
@@ -73,7 +73,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
   
   test('Old /auth/login endpoint should NOT be used (deprecated)', async ({ page }) => {
     // This endpoint exists but doesn't store state - it's the bug!
-    const response = await page.goto('http://localhost:3000/auth/login');
+    const response = await page.goto('/auth/login');
     
     // Should redirect to GitHub
     await page.waitForURL(/github\.com/);
@@ -111,7 +111,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
     const states: string[] = [];
     
     // Attempt 1
-    await page.goto('http://localhost:3000/auth/github/login');
+    await page.goto('/auth/github/login');
     await page.waitForURL(/github\.com/);
     const url1 = new URL(page.url());
     const state1 = url1.searchParams.get('state');
@@ -119,7 +119,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
     states.push(state1!);
     
     // Attempt 2
-    await page.goto('http://localhost:3000/auth/github/login');
+    await page.goto('/auth/github/login');
     await page.waitForURL(/github\.com/);
     const url2 = new URL(page.url());
     const state2 = url2.searchParams.get('state');
@@ -127,7 +127,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
     states.push(state2!);
     
     // Attempt 3
-    await page.goto('http://localhost:3000/auth/github/login');
+    await page.goto('/auth/github/login');
     await page.waitForURL(/github\.com/);
     const url3 = new URL(page.url());
     const state3 = url3.searchParams.get('state');
@@ -158,7 +158,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
   
   test('State should expire after 10 minutes', async ({ page }) => {
     // Generate a state
-    await page.goto('http://localhost:3000/auth/github/login');
+    await page.goto('/auth/github/login');
     await page.waitForURL(/github\.com/);
     const url = new URL(page.url());
     const state = url.searchParams.get('state');
@@ -184,7 +184,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
   
   test('Used state should be deleted from Redis (single-use)', async ({ page }) => {
     // Generate a state
-    await page.goto('http://localhost:3000/auth/github/login');
+    await page.goto('/auth/github/login');
     await page.waitForURL(/github\.com/);
     const url = new URL(page.url());
     const state = url.searchParams.get('state');
@@ -204,7 +204,7 @@ test.describe('OAuth Production Flow - Real User Experience', () => {
     expect(redisCheck).toBe('"valid"');
     
     // Use the state in callback
-    await page.goto(`http://localhost:3000/auth/github/callback?code=test&state=${state}`);
+    await page.goto(`/auth/github/callback?code=test&state=${state}`);
     
     // Wait for callback to process
     await page.waitForLoadState('load');

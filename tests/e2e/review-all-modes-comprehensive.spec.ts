@@ -12,17 +12,8 @@
  * Review service returns JSON (not HTML) for all mode combinations.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-// Use the existing auth fixture pattern
-const authTest = test.extend<{ authenticatedPage: Page }>({
-  authenticatedPage: async ({ page }, use) => {
-    // Authenticate using existing pattern from auth.fixture
-    await page.goto('http://localhost:3000/auth/github/login');
-    await page.waitForURL('**/review**', { timeout: 30000 });
-    await use(page);
-  }
-});
+import { test, expect } from './fixtures/auth.fixture';
+import type { Page } from '@playwright/test';
 
 const TEST_CODE = `package main
 
@@ -60,11 +51,11 @@ test.describe('Review App - Comprehensive Mode Testing', () => {
     for (const outputMode of OUTPUT_MODES) {
       for (const readingMode of READING_MODES) {
         
-        authTest(`${readingMode.name} mode with ${userMode}/${outputMode}`, async ({ authenticatedPage }) => {
+        test(`${readingMode.name} mode with ${userMode}/${outputMode}`, async ({ authenticatedPage }) => {
           const page = authenticatedPage;
           
           // Navigate to Review app
-          await page.goto('http://localhost:3000/review', { 
+          await page.goto('/review', { 
             waitUntil: 'networkidle',
             timeout: 60000 
           });
@@ -145,10 +136,10 @@ test.describe('Review App - Comprehensive Mode Testing', () => {
   }
   
   // Additional error handling tests
-  authTest('Should handle empty code gracefully', async ({ authenticatedPage }) => {
+  test('Should handle empty code gracefully', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-testid="code-input"], textarea');
     
     // Try to analyze without code
@@ -158,10 +149,10 @@ test.describe('Review App - Comprehensive Mode Testing', () => {
     await expect(page.locator('text=Code is required, text=Please enter code')).toBeVisible({ timeout: 5000 });
   });
   
-  authTest('Should handle Ollama unavailable gracefully', async ({ authenticatedPage }) => {
+  test('Should handle Ollama unavailable gracefully', async ({ authenticatedPage }) => {
     const page = authenticatedPage;
     
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-testid="code-input"], textarea');
     
     // Fill code

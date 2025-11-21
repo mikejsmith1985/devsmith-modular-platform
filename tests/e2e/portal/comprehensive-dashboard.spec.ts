@@ -16,7 +16,7 @@ import percySnapshot from '@percy/playwright';
 test.describe('Portal Dashboard - Comprehensive Interaction & Visual Validation', () => {
   test('should validate all elements and styling with Percy snapshots', async ({ authenticatedPage: page }) => {
     // Navigate to Portal dashboard
-    await page.goto('http://localhost:3000/dashboard');
+    await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -71,7 +71,7 @@ test.describe('Portal Dashboard - Comprehensive Interaction & Visual Validation'
     console.log('✓ Navigation to Review works from Portal card');
     
     // Navigate back to dashboard
-    await page.goto('http://localhost:3000/dashboard');
+    await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     
     // Click Development Logs card
@@ -82,7 +82,7 @@ test.describe('Portal Dashboard - Comprehensive Interaction & Visual Validation'
     console.log('✓ Navigation to Logs works from Portal card');
     
     // Navigate back to dashboard
-    await page.goto('http://localhost:3000/dashboard');
+    await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     
     // Click Log Analytics card
@@ -93,7 +93,7 @@ test.describe('Portal Dashboard - Comprehensive Interaction & Visual Validation'
     console.log('✓ Navigation to Analytics works from Portal card');
     
     // Navigate back to dashboard
-    await page.goto('http://localhost:3000/dashboard');
+    await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

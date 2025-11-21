@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('OAuth Flow', () => {
   test('should generate state, store in Redis, and validate callback', async ({ page, request }) => {
     // Step 1: Initiate OAuth login and capture redirect URL
-    const loginResponse = await request.get('http://localhost:3000/auth/github/login', {
+    const loginResponse = await request.get('/auth/github/login', {
       maxRedirects: 0,
     });
     
@@ -32,7 +32,7 @@ test.describe('OAuth Flow', () => {
     // Step 2: Simulate GitHub callback with the encoded state
     // GitHub will send the state URL-encoded, Gin will decode it
     const callbackResponse = await request.get(
-      `http://localhost:3000/auth/github/callback?code=fake_code_for_testing&state=${stateEncoded}`
+      `/auth/github/callback?code=fake_code_for_testing&state=${stateEncoded}`
     );
     
     const callbackBody = await callbackResponse.json();
@@ -51,7 +51,7 @@ test.describe('OAuth Flow', () => {
   test('should reject callback with invalid state', async ({ request }) => {
     // Test with completely fake state that doesn't exist in Redis
     const callbackResponse = await request.get(
-      'http://localhost:3000/auth/github/callback?code=fake_code&state=invalid_state_12345'
+      '/auth/github/callback?code=fake_code&state=invalid_state_12345'
     );
     
     const callbackBody = await callbackResponse.json();
@@ -65,7 +65,7 @@ test.describe('OAuth Flow', () => {
   test('should reject callback with missing state', async ({ request }) => {
     // Test with no state parameter
     const callbackResponse = await request.get(
-      'http://localhost:3000/auth/github/callback?code=fake_code'
+      '/auth/github/callback?code=fake_code'
     );
     
     const callbackBody = await callbackResponse.json();
@@ -78,7 +78,7 @@ test.describe('OAuth Flow', () => {
   
   test('should reject reused state (one-time use CSRF protection)', async ({ request }) => {
     // Step 1: Generate fresh state
-    const loginResponse = await request.get('http://localhost:3000/auth/github/login', {
+    const loginResponse = await request.get('/auth/github/login', {
       maxRedirects: 0,
     });
     
@@ -88,7 +88,7 @@ test.describe('OAuth Flow', () => {
     
     // Step 2: Use state once (should succeed with token exchange error)
     const firstCallback = await request.get(
-      `http://localhost:3000/auth/github/callback?code=fake_code&state=${stateEncoded}`
+      `/auth/github/callback?code=fake_code&state=${stateEncoded}`
     );
     
     const firstBody = await firstCallback.json();
@@ -96,7 +96,7 @@ test.describe('OAuth Flow', () => {
     
     // Step 3: Try to reuse same state (should fail - state deleted after first use)
     const secondCallback = await request.get(
-      `http://localhost:3000/auth/github/callback?code=fake_code&state=${stateEncoded}`
+      `/auth/github/callback?code=fake_code&state=${stateEncoded}`
     );
     
     const secondBody = await secondCallback.json();

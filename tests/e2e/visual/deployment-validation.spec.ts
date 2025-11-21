@@ -4,7 +4,7 @@ test.describe('Deployment Validation - All Recent Changes', () => {
   
   test('AI Factory - Dark mode and branding', async ({ page }) => {
     // Navigate to AI Factory
-    await page.goto('http://localhost:3000/llm-config', { waitUntil: 'networkidle' });
+    await page.goto('/llm-config', { waitUntil: 'networkidle' });
     
     // Wait for React app to render
     await page.waitForSelector('.navbar-brand', { timeout: 15000 });
@@ -40,7 +40,7 @@ test.describe('Deployment Validation - All Recent Changes', () => {
   
   test('Review Page - Import button position', async ({ page }) => {
     // Navigate to Review page
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     
     // Wait for page to load
     await page.waitForSelector('button', { timeout: 15000 });
@@ -68,7 +68,7 @@ test.describe('Deployment Validation - All Recent Changes', () => {
   
   test('Review Page - Model Selector uses AI Factory', async ({ page }) => {
     // Navigate to Review page
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     
     // Wait for model selector to load
     await page.waitForSelector('select#model-select', { timeout: 15000 });
@@ -95,7 +95,7 @@ test.describe('Deployment Validation - All Recent Changes', () => {
   
   test('Prompt Editor Modal - Dark mode', async ({ page }) => {
     // Navigate to Review page
-    await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+    await page.goto('/review', { waitUntil: 'networkidle' });
     
     // Wait for page to load
     await page.waitForSelector('button', { timeout: 15000 });

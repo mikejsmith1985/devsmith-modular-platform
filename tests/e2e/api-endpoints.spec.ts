@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+const PLAYWRIGHT_BASE = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+const ORIGIN = new URL(PLAYWRIGHT_BASE).origin;
+
 test.describe('API Endpoints - Logs Service', () => {
   test('GET /api/logs/v1/stats should return log statistics', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/logs/v1/stats');
+    const response = await request.get('/api/logs/v1/stats');
     
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('application/json');
@@ -23,7 +26,7 @@ test.describe('API Endpoints - Logs Service', () => {
   });
 
   test('GET /api/logs/health should return healthy status', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/logs/health');
+    const response = await request.get('/api/logs/health');
     
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -33,7 +36,7 @@ test.describe('API Endpoints - Logs Service', () => {
 
   test('Stats endpoint should respond quickly (< 5 seconds)', async ({ request }) => {
     const start = Date.now();
-    const response = await request.get('http://localhost:3000/api/logs/v1/stats');
+    const response = await request.get('/api/logs/v1/stats');
     const duration = Date.now() - start;
     
     expect(response.status()).toBe(200);
@@ -43,7 +46,7 @@ test.describe('API Endpoints - Logs Service', () => {
 
 test.describe('API Endpoints - Portal Service', () => {
   test('GET /api/portal/health should return healthy status', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/portal/health');
+    const response = await request.get('/api/portal/health');
     
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -54,7 +57,7 @@ test.describe('API Endpoints - Portal Service', () => {
 
 test.describe('API Endpoints - Review Service', () => {
   test('GET /api/review/health should return healthy status', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/review/health');
+    const response = await request.get('/api/review/health');
     
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -65,7 +68,7 @@ test.describe('API Endpoints - Review Service', () => {
 
 test.describe('API Endpoints - Analytics Service', () => {
   test('GET /api/analytics/health should return healthy status', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/analytics/health');
+    const response = await request.get('/api/analytics/health');
     
     expect(response.status()).toBe(200);
     const data = await response.json();
@@ -77,16 +80,16 @@ test.describe('API Endpoints - Analytics Service', () => {
 test.describe('API Endpoints - Traefik Routing', () => {
   test('API routes should have higher priority than frontend', async ({ request }) => {
     // API route should return JSON
-    const apiResponse = await request.get('http://localhost:3000/api/logs/health');
+    const apiResponse = await request.get('/api/logs/health');
     expect(apiResponse.headers()['content-type']).toContain('application/json');
     
     // Frontend route should return HTML
-    const frontendResponse = await request.get('http://localhost:3000/');
+    const frontendResponse = await request.get('/');
     expect(frontendResponse.headers()['content-type']).toContain('text/html');
   });
 
   test('Unknown API routes should return 404 (not frontend HTML)', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/nonexistent');
+    const response = await request.get('/api/nonexistent');
     
     // Should return 404 from Traefik, not 200 from frontend
     expect(response.status()).toBe(404);
@@ -95,9 +98,9 @@ test.describe('API Endpoints - Traefik Routing', () => {
 
 test.describe('API Endpoints - CORS and Headers', () => {
   test('API endpoints should have proper CORS headers', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/logs/health', {
+    const response = await request.get('/api/logs/health', {
       headers: {
-        'Origin': 'http://localhost:3000'
+        'Origin': ORIGIN
       }
     });
     
@@ -106,7 +109,7 @@ test.describe('API Endpoints - CORS and Headers', () => {
   });
 
   test('API endpoints should accept JSON content type', async ({ request }) => {
-    const response = await request.post('http://localhost:3000/api/logs', {
+    const response = await request.post('/api/logs', {
       data: {
         level: 'info',
         message: 'Test log entry',

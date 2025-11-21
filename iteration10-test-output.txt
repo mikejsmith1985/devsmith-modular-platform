@@ -1,0 +1,31 @@
+
+Running 4 tests using 2 workers
+
+[[95mpercy[39m] Percy is not running, disabling snapshots
+⚠️ No LLM configs found - Test 1 must run first to create default config
+Attempting to use the form to check if model field exists...
+❌ No model configuration available - skipping test
+Run Test 1 first to create a default Ollama configuration
+  -  2 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:155:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model
+Endpoint value: 
+⚠️ No default model - test may fail
+[[95mpercy[39m] Percy is not running, disabling snapshots
+✅ Test 3: Health dashboard loaded successfully
+✅ Dashboard UI verified
+  ✓  3 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:279:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 3: Health App - Generate Insights for Log (9.7s)
+✅ Navbar layout validated
+  ✓  4 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:347:7 › BREAK-FIX1: Navbar Layout Validation › AI Factory navbar has correct layout (239ms)
+Test Connection Response: {
+  status: [33m200[39m,
+  body: {
+    success: [33mtrue[39m,
+    message: [32m'Successfully connected to ollama with model deepseek-coder-v2:16b-lite-instruct-q4_K_M'[39m
+  }
+}
+✅ Connection test succeeded
+Saving configuration for future tests...
+⚠️ Configuration save returned status: [33m500[39m
+  ✓  1 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:23:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 1: AI Factory - Ollama Connection Test (41.3s)
+
+  1 skipped
+  3 passed (42.0s)

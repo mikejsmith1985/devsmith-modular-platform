@@ -5,9 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/logs/templates"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/config"
-	"github.com/mikejsmith1985/devsmith-modular-platform/internal/healthcheck"
 	services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
 	"github.com/sirupsen/logrus"
 )
@@ -26,15 +23,6 @@ func NewUIHandler(logger *logrus.Logger, policyService *services.HealthPolicySer
 	}
 }
 
-// DashboardHandler serves the main Logs dashboard.
-func (h *UIHandler) DashboardHandler(c *gin.Context) {
-	component := templates.Dashboard()
-	if err := component.Render(c.Request.Context(), c.Writer); err != nil {
-		h.logger.WithError(err).Error("Failed to render dashboard template")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to render dashboard"})
-	}
-}
-
 // HealthHandler serves health check in JSON format.
 func (h *UIHandler) HealthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
@@ -43,105 +31,10 @@ func (h *UIHandler) HealthHandler(c *gin.Context) {
 	})
 }
 
-// HealthCheckDashboardHandler serves the system health check dashboard UI.
-func (h *UIHandler) HealthCheckDashboardHandler(c *gin.Context) {
-	// Get policies for the dashboard
-	policies, err := h.policyService.GetAllPolicies(c.Request.Context())
-	if err != nil {
-		h.logger.WithError(err).Warn("Failed to fetch health policies, using empty list")
-		policies = []services.HealthPolicy{}
-	}
-
-	// Build and run health check
-	runner := healthcheck.NewRunner()
-
-	// Add all Phase 1 checks
-	runner.AddChecker(&healthcheck.DockerChecker{
-		ProjectName: "devsmith-modular-platform",
-		Services:    []string{"nginx", "portal", "review", "logs", "analytics", "postgres"},
-	})
-
-	services := map[string]string{
-		"gateway": config.GetServiceHealthURL("gateway"),
-		"portal":  config.GetServiceHealthURL("portal"),
-		"review":  config.GetServiceHealthURL("review"),
-		"logs":    config.GetServiceHealthURL("logs"),
-	}
-
-	for name, url := range services {
-		runner.AddChecker(&healthcheck.HTTPChecker{
-			CheckName: "http_" + name,
-			URL:       url,
-		})
-	}
-
-	runner.AddChecker(&healthcheck.DatabaseChecker{
-		CheckName:     "database",
-		ConnectionURL: c.GetString("DATABASE_URL"),
-	})
-
-	// Add Phase 2 checks
-	runner.AddChecker(&healthcheck.GatewayChecker{
-		CheckName:  "gateway_routing",
-		ConfigPath: "docker/nginx/nginx.conf",
-		GatewayURL: config.GetGatewayURL(),
-	})
-
-	runner.AddChecker(&healthcheck.MetricsChecker{
-		CheckName: "performance_metrics",
-		Endpoints: []healthcheck.MetricEndpoint{
-			{Name: "portal", URL: config.GetServiceHealthURL("portal")},
-			{Name: "review", URL: config.GetServiceHealthURL("review")},
-			{Name: "logs", URL: config.GetServiceHealthURL("logs")},
-			{Name: "gateway", URL: config.GetServiceHealthURL("gateway")},
-		},
-	})
-
-	runner.AddChecker(&healthcheck.DependencyChecker{
-		CheckName: "service_dependencies",
-		Dependencies: map[string][]string{
-			"portal":    {},
-			"review":    {"portal", "logs"},
-			"logs":      {},
-			"analytics": {"logs"},
-		},
-		HealthChecks: map[string]string{
-			"portal":    config.GetServiceHealthURL("portal"),
-			"review":    config.GetServiceHealthURL("review"),
-			"logs":      config.GetServiceHealthURL("logs"),
-			"analytics": config.GetServiceHealthURL("analytics"),
-		},
-	})
-
-	// Add Phase 3: Trivy security scanning
-	runner.AddChecker(&healthcheck.TrivyChecker{
-		CheckName: "security_scan",
-		ScanType:  "image",
-		Targets:   []string{"devsmith/portal:latest", "devsmith/review:latest", "devsmith/logs:latest"},
-		TrivyPath: "scripts/trivy-scan.sh",
-	})
-
-	// Run all checks
-	report := runner.Run()
-
-	// Render dashboard with policies
-	component := templates.HealthCheckDashboard(report, policies)
-	if err := component.Render(c.Request.Context(), c.Writer); err != nil {
-		h.logger.WithError(err).Error("Failed to render health check dashboard")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to render health check dashboard"})
-	}
-}
-
 // RegisterUIRoutes registers the UI routes for the logs handler.
+// Note: Dashboard UI and health check dashboard now handled by React frontend.
+// REST API health check available at /api/logs/healthcheck (see cmd/logs/handlers/healthcheck_handler.go)
 func RegisterUIRoutes(router *gin.Engine, uiHandler *UIHandler) {
-	// Dashboard UI route
-	router.GET("/", uiHandler.DashboardHandler)
-	router.GET("/dashboard", uiHandler.DashboardHandler)
-	router.GET("/logs", uiHandler.DashboardHandler) // Route from nginx proxy /logs
-
-	// Health check dashboard UI
-	router.GET("/healthcheck", uiHandler.HealthCheckDashboardHandler)
-
 	// Health check route (simple JSON)
 	router.GET("/health", uiHandler.HealthHandler)
 }

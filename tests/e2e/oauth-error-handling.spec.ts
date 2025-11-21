@@ -32,7 +32,7 @@ test.describe('OAuth Error Handling', () => {
 
   test('should show error for missing authorization code', async ({ page }) => {
     // Navigate directly to callback without code parameter
-    await page.goto('http://localhost:3000/auth/github/callback?state=test-state');
+    await page.goto('/auth/github/callback?state=test-state');
     
     // Wait for error message to appear
     await page.waitForLoadState('networkidle');
@@ -54,7 +54,7 @@ test.describe('OAuth Error Handling', () => {
 
   test('should show error for invalid OAuth state parameter', async ({ page }) => {
     // Navigate to callback with code but invalid state
-    await page.goto('http://localhost:3000/auth/github/callback?code=test-code&state=invalid-state-not-in-redis');
+    await page.goto('/auth/github/callback?code=test-code&state=invalid-state-not-in-redis');
     
     // Wait for error message
     await page.waitForLoadState('networkidle');
@@ -77,7 +77,7 @@ test.describe('OAuth Error Handling', () => {
 
   test('should show error for missing state parameter', async ({ page }) => {
     // Navigate to callback with code but no state at all
-    await page.goto('http://localhost:3000/auth/github/callback?code=test-code');
+    await page.goto('/auth/github/callback?code=test-code');
     
     // Wait for error message
     await page.waitForLoadState('networkidle');
@@ -127,7 +127,7 @@ test.describe('OAuth Error Handling', () => {
 
   test('successful OAuth flow shows no errors', async ({ page }) => {
     // Start OAuth flow
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     
     // Find login button
     const loginButton = page.locator('button:has-text("Login with GitHub"), a:has-text("Login with GitHub")').first();
@@ -157,17 +157,17 @@ test.describe('OAuth Error Handling', () => {
     // Test multiple error scenarios to verify consistent message structure
     const errorScenarios = [
       {
-        url: 'http://localhost:3000/auth/github/callback?state=test',
+        url: '/auth/github/callback?state=test',
         expectedError: 'Missing authorization code',
         expectedCode: 'OAUTH_CODE_MISSING'
       },
       {
-        url: 'http://localhost:3000/auth/github/callback?code=test',
+        url: '/auth/github/callback?code=test',
         expectedError: 'Missing state parameter',
         expectedCode: 'OAUTH_STATE_MISSING'
       },
       {
-        url: 'http://localhost:3000/auth/github/callback?code=test&state=invalid',
+        url: '/auth/github/callback?code=test&state=invalid',
         expectedError: 'Invalid OAuth state parameter',
         expectedCode: 'OAUTH_STATE_INVALID'
       }
@@ -204,7 +204,7 @@ test.describe('OAuth Error Handling', () => {
     });
 
     // Navigate to callback with missing code (should be 400)
-    await page.goto('http://localhost:3000/auth/github/callback?state=test');
+    await page.goto('/auth/github/callback?state=test');
     await page.waitForLoadState('networkidle');
     
     // Verify 400 Bad Request status
@@ -215,7 +215,7 @@ test.describe('OAuth Error Handling', () => {
     callbackStatus = undefined;
 
     // Navigate to callback with invalid state (should be 400 or 401)
-    await page.goto('http://localhost:3000/auth/github/callback?code=test&state=invalid');
+    await page.goto('/auth/github/callback?code=test&state=invalid');
     await page.waitForLoadState('networkidle');
     
     // Verify 400 Bad Request or 401 Unauthorized status (both are acceptable for invalid state)
@@ -226,7 +226,7 @@ test.describe('OAuth Error Handling', () => {
 
   test('error messages are accessible (screen reader friendly)', async ({ page }) => {
     // Navigate to error scenario
-    await page.goto('http://localhost:3000/auth/github/callback?state=test');
+    await page.goto('/auth/github/callback?state=test');
     await page.waitForLoadState('networkidle');
     
     // Check for ARIA attributes
@@ -247,12 +247,12 @@ test.describe('OAuth Security Validation', () => {
   
   test('CSRF protection: state parameter required', async ({ page, context }) => {
     // Clear storage (navigate to localhost first to access localStorage)
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await context.clearCookies();
     await page.evaluate(() => localStorage.clear());
     
     // Attempt callback without state
-    await page.goto('http://localhost:3000/auth/github/callback?code=test-code');
+    await page.goto('/auth/github/callback?code=test-code');
     await page.waitForLoadState('networkidle');
     
     // Should reject with missing state error
@@ -264,12 +264,12 @@ test.describe('OAuth Security Validation', () => {
 
   test('CSRF protection: invalid state rejected', async ({ page, context }) => {
     // Clear storage (navigate to localhost first to access localStorage)
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await context.clearCookies();
     await page.evaluate(() => localStorage.clear());
     
     // Attempt callback with invalid state
-    await page.goto('http://localhost:3000/auth/github/callback?code=test-code&state=attacker-injected-state');
+    await page.goto('/auth/github/callback?code=test-code&state=attacker-injected-state');
     await page.waitForLoadState('networkidle');
     
     // Should reject with invalid state error
@@ -281,7 +281,7 @@ test.describe('OAuth Security Validation', () => {
 
   test('PKCE protection: code_challenge required in OAuth URL', async ({ page }) => {
     // Start OAuth flow
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     
     // Click login button
     const loginButton = page.locator('button:has-text("Login with GitHub"), a:has-text("Login with GitHub")').first();
@@ -306,12 +306,12 @@ test.describe('OAuth Error Recovery', () => {
   
   test('user can retry login after error', async ({ page, context }) => {
     // Clear storage (navigate to localhost first to access localStorage)
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await context.clearCookies();
     await page.evaluate(() => localStorage.clear());
     
     // Trigger error (missing code)
-    await page.goto('http://localhost:3000/auth/github/callback?state=test');
+    await page.goto('/auth/github/callback?state=test');
     await page.waitForLoadState('networkidle');
     
     // Verify error displayed
@@ -339,7 +339,7 @@ test.describe('OAuth Error Recovery', () => {
 
   test('error messages do not leak sensitive information', async ({ page }) => {
     // Navigate to callback with invalid parameters
-    await page.goto('http://localhost:3000/auth/github/callback?code=secret-code&state=secret-state');
+    await page.goto('/auth/github/callback?code=secret-code&state=secret-state');
     await page.waitForLoadState('networkidle');
     
     const errorText = await page.textContent('body');

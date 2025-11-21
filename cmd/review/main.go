@@ -288,10 +288,6 @@ func main() {
 	protected := router.Group("/")
 	protected.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
 	{
-		// Workspace access (requires auth to track user sessions)
-		// Browser accesses /review/workspace/123 and Traefik passes it as-is (no prefix stripping)
-		protected.GET("/review/workspace/:session_id", uiHandler.ShowWorkspace)
-
 		// Analysis endpoints (require auth for usage tracking and rate limiting)
 		protected.GET("/analysis", uiHandler.AnalysisResultHandler)
 		protected.POST("/api/review/sessions", uiHandler.CreateSessionHandler)

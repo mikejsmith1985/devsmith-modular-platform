@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('LLM Config - Button Capture', () => {
   test.beforeEach(async ({ page }) => {
     // Authenticate by calling test-login endpoint
-    const authResponse = await page.request.post('http://localhost:3000/auth/test-login', {
+    const authResponse = await page.request.post('/auth/test-login', {
       data: {
         username: 'playwright-test',
         email: 'playwright@devsmith.local',
@@ -37,7 +37,7 @@ test.describe('LLM Config - Button Capture', () => {
     }
     
     // Navigate to a page to set localStorage (React app needs token in localStorage)
-    await page.goto('http://localhost:3000/portal');
+    await page.goto('/portal');
     
     // Inject JWT token into localStorage for React auth context
     if (jwtToken) {
@@ -49,7 +49,7 @@ test.describe('LLM Config - Button Capture', () => {
 
   test('should capture all buttons on LLM config page', async ({ page }) => {
     // Navigate to LLM config page
-    await page.goto('http://localhost:3000/llm-config');
+    await page.goto('/llm-config');
     
     // Wait for page to load
     await page.waitForTimeout(2000);

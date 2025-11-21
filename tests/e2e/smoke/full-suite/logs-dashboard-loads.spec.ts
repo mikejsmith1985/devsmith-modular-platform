@@ -2,12 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Logs Dashboard Loads', () => {
   test('Logs dashboard is accessible', async ({ page }) => {
-    const response = await page.goto('http://localhost:3000/logs', { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('/logs', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
   });
 
   test('Dashboard renders with main controls', async ({ page }) => {
-    await page.goto('http://localhost:3000/logs', { waitUntil: 'domcontentloaded' });
+    await page.goto('/logs', { waitUntil: 'domcontentloaded' });
     
     // Check for main heading (use more specific selector to avoid strict mode)
     await expect(page.locator('.logs-header h1')).toContainText('Logs');
@@ -18,7 +18,7 @@ test.describe('SMOKE: Logs Dashboard Loads', () => {
   });
 
   test('Log cards render with Tailwind styling', async ({ page }) => {
-    await page.goto('http://localhost:3000/logs', { waitUntil: 'domcontentloaded' });
+    await page.goto('/logs', { waitUntil: 'domcontentloaded' });
     
     // Check for log output container exists
     const logsContainer = page.locator('#logs-output');
@@ -33,7 +33,7 @@ test.describe('SMOKE: Logs Dashboard Loads', () => {
   });
 
   test('Filter controls are present', async ({ page }) => {
-    await page.goto('http://localhost:3000/logs', { waitUntil: 'domcontentloaded' });
+    await page.goto('/logs', { waitUntil: 'domcontentloaded' });
     
     // Check for level filter
     await expect(page.locator('select#level-filter')).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('SMOKE: Logs Dashboard Loads', () => {
   });
 
   test('WebSocket connection status indicator is present', async ({ page }) => {
-    await page.goto('http://localhost:3000/logs', { waitUntil: 'domcontentloaded' });
+    await page.goto('/logs', { waitUntil: 'domcontentloaded' });
     
     // Check for connection status span
     const statusIndicator = page.locator('#connection-status');

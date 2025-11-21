@@ -1,0 +1,86 @@
+
+Running 4 tests using 2 workers
+
+[[95mpercy[39m] Percy is not running, disabling snapshots
+⚠️ No LLM configs found - Test 1 must run first to create default config
+Attempting to use the form to check if model field exists...
+❌ No model configuration available - skipping test
+Run Test 1 first to create a default Ollama configuration
+  -  2 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:155:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model
+Endpoint value: 
+⚠️ No default model - test may fail
+[[95mpercy[39m] Percy is not running, disabling snapshots
+  ✘  3 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:279:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 3: Health App - Generate Insights for Log (12.3s)
+[[95mpercy[39m] Percy is not running, disabling snapshots
+✅ Navbar layout validated
+  ✓  4 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:350:7 › BREAK-FIX1: Navbar Layout Validation › AI Factory navbar has correct layout (420ms)
+Test Connection Response: {
+  status: [33m400[39m,
+  body: {
+    success: [33mfalse[39m,
+    message: [32m'Connection failed'[39m,
+    details: [32m'Failed to connect to ollama: failed to send request to Ollama: Post "http://host.docker.internal:11434/api/generate": context deadline exceeded\n'[39m +
+      [32m'\n'[39m +
+      [32m'Connection timed out after 60 seconds. This usually indicates:\n'[39m +
+      [32m'• Ollama service is not running\n'[39m +
+      [32m"• The model 'deepseek-coder-v2:16b-lite-instruct-q4_K_M' is not installed or needs to be downloaded\n"[39m +
+      [32m'• The endpoint http://host.docker.internal:11434 is not reachable\n'[39m +
+      [32m'\n'[39m +
+      [32m'Troubleshooting:\n'[39m +
+      [32m'• Check Ollama status: curl http://host.docker.internal:11434/api/version\n'[39m +
+      [32m'• Verify model exists: ollama list | grep deepseek-coder-v2:16b-lite-instruct-q4_K_M\n'[39m +
+      [32m'• Pull model if needed: ollama pull deepseek-coder-v2:16b-lite-instruct-q4_K_M\n'[39m +
+      [32m`• Test direct connection: curl http://host.docker.internal:11434/api/generate -d '{"model":"deepseek-coder-v2:16b-lite-instruct-q4_K_M","prompt":"test"}'`[39m
+  }
+}
+⚠️ Connection failed (expected if Ollama not running)
+Error details: Failed to connect to ollama: failed to send request to Ollama: Post "http://host.docker.internal:11434/api/generate": context deadline exceeded
+
+Connection timed out after 60 seconds. This usually indicates:
+• Ollama service is not running
+• The model 'deepseek-coder-v2:16b-lite-instruct-q4_K_M' is not installed or needs to be downloaded
+• The endpoint http://host.docker.internal:11434 is not reachable
+
+Troubleshooting:
+• Check Ollama status: curl http://host.docker.internal:11434/api/version
+• Verify model exists: ollama list | grep deepseek-coder-v2:16b-lite-instruct-q4_K_M
+• Pull model if needed: ollama pull deepseek-coder-v2:16b-lite-instruct-q4_K_M
+• Test direct connection: curl http://host.docker.internal:11434/api/generate -d '{"model":"deepseek-coder-v2:16b-lite-instruct-q4_K_M","prompt":"test"}'
+✅ Timeout error detected - confirms 60s timeout applied
+Skipping config save due to connection failure
+  ✓  1 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:23:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 1: AI Factory - Ollama Connection Test (1.1m)
+
+
+  1) [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:279:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 3: Health App - Generate Insights for Log 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('a[href="/logs"]').first()
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('a[href="/logs"]').first()[22m
+
+
+      302 |     // Step 4: Click "Logs" card (UI route, not /health JSON endpoint)
+      303 |     const logsCard = authenticatedPage.locator('a[href="/logs"]').first();
+    > 304 |     await expect(logsCard).toBeVisible({ timeout: 10000 });
+          |                            ^
+      305 |     await logsCard.click();
+      306 |     
+      307 |     // Wait for Logs dashboard page to load
+        at /home/mikej/projects/DevSmith-Modular-Platform/tests/e2e/break-fix1-user-scenarios.spec.ts:304:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../../../tmp/playwright-results/break-fix1-user-scenarios--cadd8---Generate-Insights-for-Log-full/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../../../tmp/playwright-results/break-fix1-user-scenarios--cadd8---Generate-Insights-for-Log-full/error-context.md
+
+  1 failed
+    [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:279:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 3: Health App - Generate Insights for Log 
+  1 skipped
+  2 passed (1.1m)

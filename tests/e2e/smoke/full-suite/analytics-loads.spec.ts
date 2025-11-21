@@ -2,19 +2,19 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SMOKE: Analytics Dashboard Loads', () => {
   test('Analytics dashboard is accessible', async ({ page }) => {
-    const response = await page.goto('http://localhost:3000/analytics', { waitUntil: 'domcontentloaded' });
+    const response = await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
   });
 
   test('Dashboard renders with heading', async ({ page }) => {
-    await page.goto('http://localhost:3000/analytics', { waitUntil: 'domcontentloaded' });
+    await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
     
     // Check for main heading (use more specific selector)
     await expect(page.locator('main h1')).toContainText('Analytics');
   });
 
   test('Chart.js is loaded', async ({ page }) => {
-    await page.goto('http://localhost:3000/analytics', { waitUntil: 'domcontentloaded' });
+    await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
     
     // Check for chart.js in page
     const html = await page.content();
@@ -22,7 +22,8 @@ test.describe('SMOKE: Analytics Dashboard Loads', () => {
   });
 
   test('HTMX filters are present', async ({ page }) => {
-    await page.goto('http://localhost:3000/analytics', { waitUntil: 'domcontentloaded' });
+    // Use relative path so Playwright baseURL is honored (supports docker network via PLAYWRIGHT_BASE_URL)
+    await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
     
     // Check for time range filter - look by ID since template may use IDs
     const timeRangeSelect = page.locator('select#time_range, select[name="time_range"]');
@@ -31,15 +32,16 @@ test.describe('SMOKE: Analytics Dashboard Loads', () => {
   });
 
   test('Dashboard content container exists', async ({ page }) => {
-    await page.goto('http://localhost:3000/analytics', { waitUntil: 'domcontentloaded' });
+    await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
     
     // Check for analytics content div that HTMX will populate
     const contentContainer = page.locator('#analytics-content');
     expect(await contentContainer.count()).toBeGreaterThan(0);
   });
 
-  test('Alpine.js and Tailwind are loaded', async ({ page }) => {
-    await page.goto('http://localhost:3000/analytics', { waitUntil: 'domcontentloaded' });
+  test('Alpine.js and Tailwind are loaded', async ({ page, context }) => {
+    // Ensure we are hitting the gateway with the same host header Playwright uses
+    await page.goto('/analytics', { waitUntil: 'domcontentloaded' });
     
     // Check for Alpine.js
     const html = await page.content();

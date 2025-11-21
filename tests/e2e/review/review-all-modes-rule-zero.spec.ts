@@ -25,7 +25,7 @@ func main() {
 
 // Helper: Navigate to Review app and ensure authenticated
 async function navigateToReview(page: any) {
-  await page.goto('http://localhost:3000/review');
+  await page.goto('/review');
   
   // Wait for either Review workspace OR login redirect
   await Promise.race([
@@ -44,7 +44,7 @@ async function navigateToReview(page: any) {
     
     // In real environment, user would click "Authorize"
     // In test environment, we simulate successful OAuth callback
-    await page.goto('http://localhost:3000/auth/github/callback?code=test_code&state=test_state');
+    await page.goto('/auth/github/callback?code=test_code&state=test_state');
     
     // Wait for redirect back to Review
     await page.waitForURL('**/review**', { timeout: 10000 });

@@ -1,0 +1,100 @@
+
+Running 4 tests using 2 workers
+
+
+🔧 SETUP: Auto-configuring Ollama LLM for Test 2...
+
+🔧 Auto-configuring Ollama model...
+✅ Selected Ollama model: deepseek-coder:6.7b
+   (from 5 available models)
+📤 Creating LLM config via API...
+   Payload: {
+  "name": "test-auto-1763655878024",
+  "provider": "ollama",
+  "model": "deepseek-coder:6.7b",
+  "endpoint": "http://host.docker.internal:11434",
+  "api_key": "",
+  "is_default": true,
+  "max_tokens": 8192,
+  "temperature": 0.7
+}
+[[95mpercy[39m] Percy is not running, disabling snapshots
+✅ Navbar layout validated
+  ✓  2 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:441:7 › BREAK-FIX1: Navbar Layout Validation › AI Factory navbar has correct layout (335ms)
+
+🔧 SETUP: Auto-configuring Ollama LLM for Test 2...
+
+🔧 Auto-configuring Ollama model...
+✅ Selected Ollama model: deepseek-coder:6.7b
+   (from 5 available models)
+📤 Creating LLM config via API...
+   Payload: {
+  "name": "test-auto-1763655878299",
+  "provider": "ollama",
+  "model": "deepseek-coder:6.7b",
+  "endpoint": "http://host.docker.internal:11434",
+  "api_key": "",
+  "is_default": true,
+  "max_tokens": 8192,
+  "temperature": 0.7
+}
+   Response status: 500
+❌ Failed to create config: {"error":"Failed to create configuration: failed to save config: failed to create LLM config for user 999999, provider ollama: ERROR: insert or update on table \"llm_configs\" violates foreign key constraint \"llm_configs_user_id_fkey\" (SQLSTATE 23503)"}
+
+⚠️ SETUP FAILED: Could not auto-configure LLM: Config creation failed with status 500
+Test 2 may skip if no config exists
+
+   Response status: 500
+❌ Failed to create config: {"error":"Failed to create configuration: failed to save config: failed to create LLM config for user 999999, provider ollama: ERROR: insert or update on table \"llm_configs\" violates foreign key constraint \"llm_configs_user_id_fkey\" (SQLSTATE 23503)"}
+
+⚠️ SETUP FAILED: Could not auto-configure LLM: Config creation failed with status 500
+Test 2 may skip if no config exists
+
+⚠️ No default model - test may fail
+[[95mpercy[39m] Percy is not running, disabling snapshots
+Endpoint value: 
+✅ Test 3: Health dashboard loaded successfully
+✅ Dashboard UI verified
+  ✓  3 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:373:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 3: Health App - Generate Insights for Log (9.4s)
+Test Connection Response: {
+  status: [33m200[39m,
+  body: {
+    success: [33mtrue[39m,
+    message: [32m'Successfully connected to ollama with model deepseek-coder-v2:16b-lite-instruct-q4_K_M'[39m
+  }
+}
+✅ Connection test succeeded
+Saving configuration for future tests...
+⚠️ Configuration save returned status: [33m500[39m
+  ✓  1 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:108:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 1: AI Factory - Ollama Connection Test (47.9s)
+✅ Found 0 LLM config(s)
+  ✘  4 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:264:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model (2.3s)
+
+
+  1) [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:264:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model 
+
+    Error: locator.isVisible: Unexpected token "=" while parsing css selector ".badge:has-text("default"), .badge:has-text("Default"), text=/default/i". Did you mean to CSS.escape it?
+    Call log:
+    [2m    - checking visibility of .badge:has-text("default"), .badge:has-text("Default"), text=/default/i >> nth=0[22m
+
+
+      283 |     // Step 3: Ensure default model is set
+      284 |     const defaultBadge = authenticatedPage.locator('.badge:has-text("default"), .badge:has-text("Default"), text=/default/i').first();
+    > 285 |     if (await defaultBadge.isVisible({ timeout: 2000 })) {
+          |                            ^
+      286 |       console.log('✅ Default model is configured');
+      287 |     } else {
+      288 |       console.log('⚠️ No default model - test may fail');
+        at /home/mikej/projects/DevSmith-Modular-Platform/tests/e2e/break-fix1-user-scenarios.spec.ts:285:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../../../tmp/playwright-results/break-fix1-user-scenarios--f9aed-Analysis-with-Default-Model-full/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../../../tmp/playwright-results/break-fix1-user-scenarios--f9aed-Analysis-with-Default-Model-full/error-context.md
+
+  1 failed
+    [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:264:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model 
+  3 passed (57.1s)
+
+[36m  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.[39m

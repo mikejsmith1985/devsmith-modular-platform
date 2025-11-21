@@ -2,17 +2,14 @@ package review_handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/review/templates"
 	"github.com/mikejsmith1985/devsmith-modular-platform/internal/logging"
 	reviewcontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/context"
 	review_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/review/models"
@@ -131,8 +128,7 @@ func (h *UIHandler) bindCodeRequest(c *gin.Context) (*CodeRequest, bool) {
 	// Try binding as form first, then JSON
 	if err := c.ShouldBind(&req); err != nil {
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
-		}
+		// refactor(phase2): extract helper functions to reduce cognitive complexity
 
 		h.logger.Warn("Failed to bind code request",
 			"error", err.Error(),
@@ -172,25 +168,39 @@ func looksLikeCode(s string) bool {
 	return score >= 1
 }
 
+// refactor(phase2): extract helper functions to reduce cognitive complexity
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
-}
-
-// renderError classifies the error and renders appropriate HTMX-compatible error template
+// renderError returns a JSON error response with plain language error message
 func (h *UIHandler) renderError(c *gin.Context, err error, fallbackMessage string) {
 	h.logger.Error("Request error", "error", err.Error(), "path", c.Request.URL.Path)
 
-	c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	c.Status(http.StatusInternalServerError)
+	// Extract user-friendly error message from error
+	errorMsg := err.Error()
+	if errorMsg == "" {
+		errorMsg = fallbackMessage
+	}
 
-
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+	// Return clean JSON error for frontend consumption
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error": errorMsg,
+	})
 }
 
 // templateEscape performs a minimal HTML escape for safe insertion into templates
 func templateEscape(s string) string {
 	replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
 	return replacer.Replace(s)
+}
+
+// marshalAndFormat returns clean JSON response with analysis results
+// The title and classes parameters are preserved for potential future HTML rendering but not used in JSON mode
+func (h *UIHandler) marshalAndFormat(c *gin.Context, result interface{}, title string, classes string) {
+	// Return clean JSON analysis result for frontend consumption
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"analysis": result,
+		"mode":     title,
+	})
 }
 
 // HomeHandler serves the main Review UI - creates new authenticated session
@@ -308,14 +318,24 @@ func (h *UIHandler) HandlePreviewMode(c *gin.Context) {
 
 	if h.previewService == nil {
 		h.logger.Warn("Preview service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
-	// TODO: Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	result, err := h.previewService.AnalyzePreview(ctx, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
@@ -337,14 +357,24 @@ func (h *UIHandler) HandleSkimMode(c *gin.Context) {
 
 	if h.skimService == nil {
 		h.logger.Warn("Skim service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	// If the pasted input doesn't look like source code, avoid calling Skim mode
 	// which expects actual source files (functions, interfaces, data models).
@@ -414,14 +444,49 @@ func (h *UIHandler) validateScanService(c *gin.Context) bool {
 		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusServiceUnavailable)
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+		// refactor(phase2): extract helper functions to reduce cognitive complexity
 	}
 	return true
 }
 
+// HandleScanMode handles POST /api/review/modes/scan (HTMX)
+func (h *UIHandler) HandleScanMode(c *gin.Context) {
+	req, ok := h.bindCodeRequest(c)
+	if !ok {
+		return
+	}
 
-(refactor(phase2): extract helper functions to reduce cognitive complexity)
+	if h.scanService == nil {
+		h.logger.Warn("Scan service not initialized")
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
+		return
+	}
 
+	query := c.PostForm("scan_query")
+	if query == "" {
+		query = c.Query("q")
+	}
+
+	if h.shouldUseLocalSearch(req.PastedCode, query) {
+		out := h.performLocalTextSearch(req.PastedCode, query)
+		h.marshalAndFormat(c, out, "🔎 Scan Mode - Local", "bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700")
+		return
+	}
+
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 	result, err := h.scanService.AnalyzeScan(ctx, query, req.PastedCode, req.UserMode, req.OutputMode)
 	if err != nil {
 		h.logger.Error("Scan analysis failed", "error", err.Error(), "model", req.Model, "user_mode", req.UserMode, "output_mode", req.OutputMode)
@@ -444,14 +509,24 @@ func (h *UIHandler) HandleDetailedMode(c *gin.Context) {
 
 	if h.detailedService == nil {
 		h.logger.Warn("Detailed service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	// If the content doesn't look like code, avoid running Detailed Mode (it expects source)
 	if !looksLikeCode(req.PastedCode) {
@@ -494,14 +569,24 @@ func (h *UIHandler) HandleCriticalMode(c *gin.Context) {
 
 	if h.criticalService == nil {
 		h.logger.Warn("Critical service not initialized")
-		c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-		c.Status(http.StatusServiceUnavailable)
-		templates.AIServiceUnavailable().Render(c.Request.Context(), c.Writer)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":   "AI service unavailable",
+			"message": "The AI analysis service is not currently available. Please try again later.",
+		})
 		return
 	}
 
-	// Pass model to service via context for Ollama override
-	ctx := context.WithValue(c.Request.Context(), reviewcontext.ModelContextKey, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	sessionToken, exists := c.Get("session_token")
+	if !exists {
+		h.logger.Warn("No session token in Gin context - user must be authenticated")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required. Please log in."})
+		return
+	}
+
+	// Pass both session token and model to service via context
+	ctx := context.WithValue(c.Request.Context(), reviewcontext.SessionTokenKey, sessionToken.(string))
+	ctx = context.WithValue(ctx, reviewcontext.ModelContextKey, req.Model)
 
 	// If pasted content doesn't look like source code, avoid running full Critical
 	// analysis which focuses on architecture/layering and code quality.
@@ -886,7 +971,10 @@ func (h *UIHandler) SessionProgressSSE(c *gin.Context) {
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
 		h.logger.Error("SSE unsupported by writer")
-		c.Status(http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "SSE not supported by server",
+			"details": "Server-Sent Events require HTTP/1.1 with streaming support",
+		})
 		return
 	}
 
@@ -974,107 +1062,4 @@ func generateAnalysisID() string {
 // GenerateAnalysisID creates a unique ID for analysis sessions.
 func GenerateAnalysisID() string {
 	return uuid.New().String()
-}
-
-// ShowWorkspace renders the two-pane workspace for code review with mode selection
-// GET /review/workspace/:session_id
-//
-// Path Parameters:
-//   - session_id: Session ID (integer)
-//
-// Response: HTML page with two-pane layout (code left, analysis right)
-func (h *UIHandler) ShowWorkspace(c *gin.Context) {
-	// Extract session ID from URL
-	sessionIDStr := c.Param("session_id")
-
-	// Extract authenticated user info from Redis session context
-	userID, _ := c.Get("user_id")
-	username, _ := c.Get("github_username")
-
-	var sessionID int
-	var props templates.WorkspaceProps
-
-	// Handle special "demo" session for quick access (legacy)
-	if sessionIDStr == "demo" {
-		h.logger.Info("showing demo workspace (legacy)", "user_id", userID)
-		props = templates.WorkspaceProps{
-			SessionID:      0,
-			Title:          fmt.Sprintf("DevSmith Review - Workspace (User: %v)", username),
-			Code:           sampleCodeForWorkspace(),
-			CurrentMode:    "preview",
-			AnalysisResult: "",
-		}
-	} else {
-		// Parse numeric session ID
-		var err error
-		sessionID, err = strconv.Atoi(sessionIDStr)
-		if err != nil {
-			h.logger.Warn("invalid session_id", "session_id", sessionIDStr, "error", err)
-			c.String(http.StatusBadRequest, "Invalid session ID")
-			return
-		}
-
-		h.logger.Info("showing workspace", "session_id", sessionID, "user_id", userID, "username", username)
-
-		// For now, use sample data with user context
-		// TODO: Fetch actual session data from ReviewRepository by session_id and user_id
-		props = templates.WorkspaceProps{
-			SessionID:      sessionID,
-			Title:          fmt.Sprintf("Code Review Session #%d (User: %v)", sessionID, username),
-			Code:           sampleCodeForWorkspace(),
-			CurrentMode:    "preview",
-			AnalysisResult: "",
-		}
-	}
-
-	// Render workspace template
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.Status(http.StatusOK)
-
-	if err := templates.Workspace(props).Render(c.Request.Context(), c.Writer); err != nil {
-		h.logger.Error("failed to render workspace template", "error", err.Error())
-		h.renderError(c, err, "Failed to render workspace")
-	}
-}
-
-// sampleCodeForWorkspace provides sample Go code for workspace demo
-func sampleCodeForWorkspace() string {
-	return `package handlers
-
-import (
-	"net/http"
-	"github.com/gin-gonic/gin"
-)
-
-// GetUser retrieves a user by ID from the database.
-// This function demonstrates common patterns in Go web handlers.
-func GetUser(c *gin.Context) {
-	// Extract user ID from URL parameter
-	userID := c.Param("id")
-	
-	// Potential SQL injection vulnerability (Critical issue)
-	query := "SELECT * FROM users WHERE id = " + userID
-	
-	// Missing error handling (Quality issue)
-	rows, _ := db.Query(query)
-	
-	// Handler calling database directly (Architecture issue - layer violation)
-	// Should call a service layer instead
-	
-	c.JSON(http.StatusOK, gin.H{"user": rows})
-}
-
-// CreateUser adds a new user to the database.
-func CreateUser(c *gin.Context) {
-	var user User
-	
-	// Missing input validation (Security issue)
-	c.BindJSON(&user)
-	
-	// Global variable usage (Scope issue)
-	db.Exec("INSERT INTO users ...")
-	
-	c.JSON(http.StatusCreated, user)
-}
-`
 }

@@ -73,7 +73,7 @@ func (s *PreviewService) AnalyzePreview(ctx context.Context, code, userMode, out
 		span.SetAttributes(attribute.Bool("error", true))
 		return nil, aiErr
 	}
-	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds())
+	s.logger.Info("PreviewService: AI call succeeded", "correlation_id", correlationID, "duration_ms", duration.Milliseconds(), "output_length", len(rawOutput))
 
 	// DEBUG: Log raw AI output
 	s.logger.Info("DEBUG PreviewService raw AI output", "correlation_id", correlationID, "output_length", len(rawOutput), "first_100_chars", func() string {

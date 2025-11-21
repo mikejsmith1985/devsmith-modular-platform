@@ -140,8 +140,6 @@ func main() {
 	// Register dashboard routes (use RedisSessionAuth for SSO)
 	authenticated := router.Group("/")
 	authenticated.Use(middleware.RedisSessionAuthMiddleware(sessionStore))
-	authenticated.GET("/dashboard", handlers.DashboardHandler)
-	authenticated.GET("/dashboard/logs", handlers.LogsDashboardHandler)
 	authenticated.GET("/api/v1/dashboard/user", handlers.GetUserInfoHandler)
 
 	// Register LLM configuration routes (requires authentication)

@@ -21,7 +21,7 @@ import { test, expect } from '@playwright/test';
 test.describe('SSO Validation', () => {
   test('User logs in once and can access all services without re-authentication', async ({ page }) => {
     // GIVEN: User navigates to Portal
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
 
     // WHEN: User initiates GitHub OAuth login
     await page.click('text=Login with GitHub');
@@ -48,7 +48,7 @@ test.describe('SSO Validation', () => {
     // WHEN: User clicks Review card from dashboard
     await page.click('text=Review', { timeout: 5000 }).catch(async () => {
       // Fallback: navigate directly if button not found
-      await page.goto('http://localhost:3000/review');
+      await page.goto('/review');
     });
 
     // THEN: Review app loads WITHOUT redirect to login
@@ -69,7 +69,7 @@ test.describe('SSO Validation', () => {
     // ==========================================
     
     // WHEN: User navigates to Logs service
-    await page.goto('http://localhost:3000/logs');
+    await page.goto('/logs');
 
     // THEN: Logs dashboard loads WITHOUT redirect to login
     await page.waitForURL('**/logs**', { timeout: 10000 });
@@ -88,7 +88,7 @@ test.describe('SSO Validation', () => {
     // ==========================================
     
     // WHEN: User navigates to Analytics service
-    await page.goto('http://localhost:3000/analytics');
+    await page.goto('/analytics');
 
     // THEN: Analytics dashboard loads WITHOUT redirect to login
     await page.waitForURL('**/analytics**', { timeout: 10000 });
@@ -107,7 +107,7 @@ test.describe('SSO Validation', () => {
     // ==========================================
     
     // Navigate back to Portal to verify session still active
-    await page.goto('http://localhost:3000/dashboard');
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/dashboard/);
     await expect(page.locator('.welcome-message, h1, h2')).toBeVisible();
 
@@ -118,7 +118,7 @@ test.describe('SSO Validation', () => {
     // GIVEN: User has no valid session (new browser context)
 
     // WHEN: User tries to access Review directly
-    await page.goto('http://localhost:3000/review');
+    await page.goto('/review');
 
     // THEN: Redirected to GitHub OAuth login
     await page.waitForURL(/.*\/auth\/github\/login.*/);
@@ -129,14 +129,14 @@ test.describe('SSO Validation', () => {
 
   test('Session expires after logout and requires re-authentication', async ({ page }) => {
     // GIVEN: User is authenticated
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     await page.click('text=Login with GitHub');
     await page.waitForURL('**/dashboard', { timeout: 10000 });
 
     // WHEN: User logs out
     await page.click('text=Logout', { timeout: 5000 }).catch(async () => {
       // Fallback: navigate to logout endpoint
-      await page.goto('http://localhost:3000/auth/logout');
+      await page.goto('/auth/logout');
     });
 
     // THEN: Session is cleared
@@ -145,7 +145,7 @@ test.describe('SSO Validation', () => {
     });
 
     // WHEN: User tries to access Review after logout
-    await page.goto('http://localhost:3000/review');
+    await page.goto('/review');
 
     // THEN: Redirected to login (session no longer valid)
     await page.waitForURL(/.*\/auth\/github\/login.*/);

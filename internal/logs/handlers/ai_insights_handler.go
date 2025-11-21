@@ -1,6 +1,7 @@
 package internal_logs_handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	logscontext "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/context"
 	logs_db "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/db"
 	logs_models "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/models"
 	logs_services "github.com/mikejsmith1985/devsmith-modular-platform/internal/logs/services"
@@ -61,8 +63,28 @@ func (h *AIInsightsHandler) GenerateInsights(c *gin.Context) {
 		return
 	}
 
-	// Generate insights
-	insight, err := h.service.GenerateInsights(c.Request.Context(), logID, req.Model)
+	// Extract session token from Gin context (set by RedisSessionAuthMiddleware)
+	// This is required for DynamicAIClient to authenticate with Portal API
+	sessionTokenRaw, exists := c.Get("session_token")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Session token required for AI insights"})
+		return
+	}
+
+	sessionToken, ok := sessionTokenRaw.(string)
+	if !ok || sessionToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session token"})
+		return
+	}
+
+	// Add session token to context for DynamicAIClient
+	ctx := context.WithValue(c.Request.Context(), logscontext.SessionTokenKey, sessionToken)
+
+	// Add model override to context
+	ctx = context.WithValue(ctx, logscontext.ModelContextKey, req.Model)
+
+	// Generate insights with authenticated context
+	insight, err := h.service.GenerateInsights(ctx, logID, req.Model)
 	if err != nil {
 		// Log the AI Insights failure to the logs system
 		h.logger.WithFields(logrus.Fields{

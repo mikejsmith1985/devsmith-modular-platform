@@ -16,35 +16,35 @@ test.describe('DevSmith Platform - Complete User Flow', () => {
     
      // Test Portal landing and health
      test('Portal service is accessible via nginx proxy', async ({ page }) => {
-       await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded' });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
        
        // Should see Portal login page or dashboard
-       const response = await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded' });
+      const response = await page.goto('/', { waitUntil: 'domcontentloaded' });
        expect([200, 304]).toContain(response?.status());
      });
 
      test('Platform health check endpoint responds', async ({ page }) => {
-       const response = await page.goto('http://localhost:3000/health', { waitUntil: 'domcontentloaded' });
+      const response = await page.goto('/health', { waitUntil: 'domcontentloaded' });
        expect([200, 304]).toContain(response?.status());
      });
 
      // Test error handling
      test('Handles navigation to non-existent pages gracefully', async ({ page }) => {
-       const response = await page.goto('http://localhost:3000/nonexistent', { waitUntil: 'domcontentloaded' });
+      const response = await page.goto('/nonexistent', { waitUntil: 'domcontentloaded' });
        expect([404, 301, 302, 307, 308]).toContain(response?.status());
      });
 
      // Service health tests
      test('All services respond to health checks', async ({ page }) => {
        // All services route through same health endpoint
-       const response = await page.goto('http://localhost:3000/health', { waitUntil: 'domcontentloaded' });
+      const response = await page.goto('/health', { waitUntil: 'domcontentloaded' });
        expect([200, 304]).toContain(response?.status());
      });
 
      // Performance tests
      test('Portal loads quickly', async ({ page }) => {
        const startTime = Date.now();
-       await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded' });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
        const loadTime = Date.now() - startTime;
        
        // Should load within 5 seconds
@@ -59,9 +59,9 @@ test.describe('DevSmith Platform - Complete User Flow', () => {
 
        try {
          // All pages can access the health endpoint simultaneously
-         const resp1 = await page1.goto('http://localhost:3000/health', { waitUntil: 'domcontentloaded' });
-         const resp2 = await page2.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded' });
-         const resp3 = await page3.goto('http://localhost:3000/health', { waitUntil: 'domcontentloaded' });
+         const resp1 = await page1.goto('/health', { waitUntil: 'domcontentloaded' });
+         const resp2 = await page2.goto('/', { waitUntil: 'domcontentloaded' });
+         const resp3 = await page3.goto('/health', { waitUntil: 'domcontentloaded' });
 
          // All requests should succeed
          expect([200, 304]).toContain(resp1?.status());

@@ -18,7 +18,7 @@ test.describe('AI Factory - Ollama Configuration', () => {
   
   test('UI shows default Ollama endpoint in placeholder', async ({ page }) => {
     // Navigate to Portal (assuming we're already logged in)
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     
     // Wait for React app to load
     await page.waitForSelector('[data-testid="dashboard"], .container', { timeout: 10000 });

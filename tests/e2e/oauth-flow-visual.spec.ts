@@ -4,14 +4,14 @@ test.describe('OAuth Flow - Visual Validation', () => {
   test.beforeEach(async ({ page }) => {
     // Clear any existing auth
     await page.context().clearCookies();
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
   });
 
   test('OAuth flow redirects correctly (no loop)', async ({ page }) => {
     console.log('🧪 Starting OAuth flow test...');
 
     // STEP 1: Initial load should redirect to login
-    await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'networkidle' });
     
     console.log(`📍 Current URL after initial navigation: ${page.url()}`);
     
@@ -85,7 +85,7 @@ test.describe('OAuth Flow - Visual Validation', () => {
     console.log('🧪 Testing OAuth callback route...');
 
     // STEP 1: Navigate to callback route without token (simulates error case)
-    await page.goto('http://localhost:3000/auth/callback', { waitUntil: 'networkidle' });
+    await page.goto('/auth/callback', { waitUntil: 'networkidle' });
     
     console.log(`📍 Current URL: ${page.url()}`);
     
@@ -124,7 +124,7 @@ test.describe('OAuth Flow - Visual Validation', () => {
     
     // STEP 1: Navigate to callback with token parameter
     // We expect the component to store token and redirect
-    const response = await page.goto(`http://localhost:3000/auth/callback?token=${testToken}`);
+    const response = await page.goto(`/auth/callback?token=${testToken}`);
     
     console.log(`📍 Navigated to callback with token, status: ${response?.status()}`);
     
@@ -197,7 +197,7 @@ test.describe('OAuth Flow - Visual Validation', () => {
     });
 
     // Start navigation
-    await page.goto('http://localhost:3000/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'networkidle' });
     
     // Wait a bit to see if loop occurs
     await page.waitForTimeout(3000);
@@ -228,7 +228,7 @@ test.describe('OAuth Flow - Visual Validation', () => {
     // NOTE: Route is at /auth/github/callback (NO /api/portal prefix)
     // NOTE: With test_code, GitHub OAuth will reject it, so we expect an error response
     const response = await page.request.get(
-      'http://localhost:3000/auth/github/callback?code=test_code',
+      '/auth/github/callback?code=test_code',
       { maxRedirects: 0 }
     );
     

@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * Tests all 5 reading modes using actual UI selectors and HTMX workflow
  * 
  * Prerequisites:
- * - Review service running at http://localhost:3000/review
+ * - Review service running at /review
  * - Ollama running at http://localhost:11434
  * - Model available: mistral:7b-instruct
  * 
@@ -19,7 +19,7 @@ import { test, expect } from '@playwright/test';
 
 test.setTimeout(120000); // 2 minutes for AI analysis
 
-const REVIEW_URL = 'http://localhost:3000/review';
+const REVIEW_URL = '/review';
 
 const SAMPLE_GO_CODE = `package handlers
 

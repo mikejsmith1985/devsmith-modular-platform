@@ -13,7 +13,7 @@ test('Visual CSS inspection', async ({ page }) => {
     }
   });
   
-  await page.goto('http://localhost:3000/dashboard');
+  await page.goto('/dashboard');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2000);
   
@@ -54,14 +54,7 @@ test('Visual CSS inspection', async ({ page }) => {
   
   fs.writeFileSync('test-results/css-inspection.json', JSON.stringify(report, null, 2));
   
-  console.log('\n=== CSS FILES LOADED ===');
-  cssRequests.forEach(req => console.log(`${req.status}: ${req.url}`));
-  
-  console.log('\n=== COMPUTED STYLES ===');
-  console.log('Header BG:', headerBg);
-  console.log('Card BG:', cardBg);
-  console.log('Body BG:', bodyBg);
-  
-  console.log('\n=== STYLESHEETS ===');
-  stylesheets.forEach(s => console.log(s.href));
+  // Verify CSS was loaded successfully
+  expect(cssRequests.length).toBeGreaterThan(0);
+  expect(cssRequests.every(req => req.status === 200)).toBeTruthy();
 });

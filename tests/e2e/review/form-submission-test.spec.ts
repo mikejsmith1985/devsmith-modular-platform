@@ -8,7 +8,7 @@ test('Review Page - Form Submission Test', async ({ authenticatedPage: page }) =
   console.log('=== Starting Review Page Form Submission Test ===');
   
   // Navigate to Review page
-  await page.goto('http://localhost:3000/review', { waitUntil: 'networkidle' });
+  await page.goto('/review', { waitUntil: 'networkidle' });
   await page.waitForSelector('.analysis-mode-selector', { timeout: 15000 });
   await page.waitForSelector('.code-editor-container', { timeout: 15000 });
   console.log('✓ Review page loaded');

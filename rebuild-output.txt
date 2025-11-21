@@ -1,0 +1,161 @@
+[1/6] Teardown: docker-compose down -v
+[2/6] Build: docker-compose up -d --build traefik portal review logs analytics postgres redis
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.87kB done
+#1 DONE 0.0s
+
+#2 [review internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.57kB done
+#2 DONE 0.0s
+
+#3 [logs internal] load build definition from Dockerfile
+#3 transferring dockerfile: 978B done
+#3 DONE 0.0s
+
+#4 [portal internal] load build definition from Dockerfile
+#4 transferring dockerfile: 2.22kB done
+#4 DONE 0.0s
+
+#5 [analytics internal] load build definition from Dockerfile
+#5 transferring dockerfile: 947B done
+#5 DONE 0.0s
+
+#6 [postgres internal] load build definition from Dockerfile
+#6 transferring dockerfile: 281B done
+#6 DONE 0.0s
+
+#7 [portal internal] load metadata for docker.io/library/alpine:latest
+#7 DONE 0.1s
+
+#8 [analytics internal] load metadata for docker.io/library/golang:1.24-alpine
+#8 ...
+
+#9 [auth] library/node:pull token for registry-1.docker.io
+#9 DONE 0.0s
+
+#10 [auth] library/golang:pull token for registry-1.docker.io
+#10 DONE 0.0s
+
+#11 [auth] library/postgres:pull token for registry-1.docker.io
+#11 DONE 0.0s
+
+#8 [portal internal] load metadata for docker.io/library/golang:1.24-alpine
+#8 DONE 0.5s
+
+#12 [portal internal] load .dockerignore
+#12 transferring context: 2B done
+#12 DONE 0.0s
+
+#13 [portal internal] load metadata for docker.io/library/node:18-alpine
+#13 DONE 0.5s
+
+#14 [portal builder 1/8] FROM docker.io/library/golang:1.24-alpine@sha256:12c199a889439928e36df7b4c5031c18bfdad0d33cdeae5dd35b2de369b5fbf5
+#14 resolve docker.io/library/golang:1.24-alpine@sha256:12c199a889439928e36df7b4c5031c18bfdad0d33cdeae5dd35b2de369b5fbf5 0.0s done
+#14 DONE 0.0s
+
+#15 [portal stage-1 1/7] FROM docker.io/library/alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
+#15 resolve docker.io/library/alpine:latest@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412 0.0s done
+#15 DONE 0.0s
+
+#16 [analytics stage-1 2/7] RUN apk --no-cache add ca-certificates tzdata wget curl
+#16 CACHED
+
+#17 [analytics stage-1 3/7] RUN addgroup -g 1000 appuser && 	adduser -D -u 1000 -G appuser appuser
+#17 CACHED
+
+#18 [portal frontend-builder 1/6] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#18 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#18 DONE 0.0s
+
+#19 [analytics stage-1 4/7] WORKDIR /home/appuser
+#19 CACHED
+
+#20 [postgres internal] load metadata for docker.io/library/postgres:15-alpine
+#20 DONE 0.6s
+
+#21 [postgres internal] load .dockerignore
+#21 transferring context: 2B done
+#21 DONE 0.0s
+
+#22 [portal internal] load build context
+#22 ...
+
+#23 [postgres 1/2] FROM docker.io/library/postgres:15-alpine@sha256:aa7b1ef595e165f0b780162e3a41edd0a7ed3ea672eb8a0f81615ba725e62bc5
+#23 resolve docker.io/library/postgres:15-alpine@sha256:aa7b1ef595e165f0b780162e3a41edd0a7ed3ea672eb8a0f81615ba725e62bc5 0.0s done
+#23 DONE 0.0s
+
+#24 [postgres 2/2] RUN rm -f /etc/ssl/private/ssl-cert-snakeoil.key || true
+#24 CACHED
+
+#25 [postgres] exporting to image
+#25 exporting layers done
+#25 exporting manifest sha256:a91002fe8d4d6dd833a39fc1ff4390ec82b474ab375baf34780032ae29944881 done
+#25 exporting config sha256:82c543402251c0669b0632efc7aff97c066b51f4ef54b22d9441f5c1c183e9cd done
+#25 exporting attestation manifest sha256:330d431210155763bcd5ded9ba675e5768b535f53baf020defabb5f798945d71 0.0s done
+#25 exporting manifest list sha256:b70d34dbd20ef38a7eedf7c399673548c5880c0c923314ee481be50a98e539b4 0.0s done
+#25 naming to docker.io/library/devsmith-modular-platform-postgres:latest done
+#25 unpacking to docker.io/library/devsmith-modular-platform-postgres:latest done
+#25 DONE 0.1s
+
+#22 [portal internal] load build context
+#22 ...
+
+#26 [postgres] resolving provenance for metadata file
+#26 DONE 0.0s
+
+#22 [portal internal] load build context
+#22 transferring context: 2.28MB 0.8s done
+#22 DONE 0.9s
+
+#27 [review builder 2/8] RUN echo "Build timestamp: 0"
+#27 CACHED
+
+#28 [review builder 3/8] RUN apk add --no-cache git ca-certificates tzdata
+#28 CACHED
+
+#29 [review builder 4/8] WORKDIR /app
+#29 CACHED
+
+#30 [review builder 5/8] COPY go.mod go.sum ./
+#30 DONE 0.0s
+
+#27 [analytics builder 2/8] RUN echo "Build timestamp: 0"
+#27 CACHED
+
+#28 [analytics builder 3/8] RUN apk add --no-cache git ca-certificates tzdata
+#28 CACHED
+
+#29 [analytics builder 4/8] WORKDIR /app
+#29 CACHED
+
+#31 [portal builder 2/9] RUN echo "Build timestamp: 0"
+#31 CACHED
+
+#32 [portal builder 3/9] RUN apk add --no-cache git ca-certificates tzdata
+#32 CACHED
+
+#33 [portal frontend-builder 3/6] COPY frontend/package*.json ./
+#33 CACHED
+
+#34 [portal frontend-builder 2/6] WORKDIR /app/frontend
+#34 CACHED
+
+#35 [portal frontend-builder 5/6] COPY frontend/ ./
+#35 CACHED
+
+#36 [portal frontend-builder 4/6] RUN npm install
+#36 CACHED
+
+#37 [portal builder 4/9] WORKDIR /app
+#37 CACHED
+
+#38 [portal frontend-builder 6/6] RUN npm run build
+#38 CACHED
+
+#39 [portal builder 5/9] COPY go.mod go.sum ./
+#39 DONE 0.0s
+
+#40 [analytics builder 6/8] RUN go mod download
+#40 ...
+
+#41 [portal builder 6/9] RUN go mod download

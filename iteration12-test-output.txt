@@ -1,0 +1,153 @@
+
+Running 4 tests using 2 workers
+
+
+🔧 SETUP: Auto-configuring Ollama LLM for Test 2...
+
+🔧 Auto-configuring Ollama model...
+✅ Selected Ollama model: deepseek-coder:6.7b
+   (from 5 available models)
+📤 Creating LLM config via API...
+   Payload: {
+  "name": "test-auto-1763655637679",
+  "provider": "ollama",
+  "model": "deepseek-coder:6.7b",
+  "endpoint": "http://host.docker.internal:11434",
+  "api_key": "",
+  "is_default": true,
+  "max_tokens": 8192,
+  "temperature": 0.7
+}
+[[95mpercy[39m] Percy is not running, disabling snapshots
+✅ Navbar layout validated
+  ✓  2 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:440:7 › BREAK-FIX1: Navbar Layout Validation › AI Factory navbar has correct layout (1.4s)
+
+🔧 SETUP: Auto-configuring Ollama LLM for Test 2...
+
+🔧 Auto-configuring Ollama model...
+✅ Selected Ollama model: deepseek-coder:6.7b
+   (from 5 available models)
+📤 Creating LLM config via API...
+   Payload: {
+  "name": "test-auto-1763655638178",
+  "provider": "ollama",
+  "model": "deepseek-coder:6.7b",
+  "endpoint": "http://host.docker.internal:11434",
+  "api_key": "",
+  "is_default": true,
+  "max_tokens": 8192,
+  "temperature": 0.7
+}
+
+⚠️ SETUP FAILED: Could not auto-configure LLM: apiRequestContext.post: Timeout 10000ms exceeded.
+Call log:
+[2m  - → POST http://localhost:3000/api/portal/llm-configs[22m
+[2m    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Safari/537.36[22m
+[2m    - accept: */*[22m
+[2m    - accept-encoding: gzip,deflate,br[22m
+[2m    - Cache-Control: no-cache, no-store, must-revalidate[22m
+[2m    - Pragma: no-cache[22m
+[2m    - Expires: 0[22m
+[2m    - Content-Type: application/json[22m
+[2m    - content-length: 198[22m
+[2m    - cookie: devsmith_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjQyNjA0MzcsImlhdCI6MTc2MzY1NTYzNywic2Vzc2lvbl9pZCI6Ijc4ZTNhYWI4Yjc1OGUzYzE1MTUwMmQyOGY5MGJmMmQzNjZiYTEwNWRhOTBmMzcyNDc2NDllNThjYjVkMmY1MDAifQ.iUgY1d4DBI_VtK6zB7N8JZfDnCRJwMZO5kiuf_xUNOc[22m
+
+Test 2 may skip if no config exists
+
+
+⚠️ SETUP FAILED: Could not auto-configure LLM: apiRequestContext.post: Timeout 10000ms exceeded.
+Call log:
+[2m  - → POST http://localhost:3000/api/portal/llm-configs[22m
+[2m    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Safari/537.36[22m
+[2m    - accept: */*[22m
+[2m    - accept-encoding: gzip,deflate,br[22m
+[2m    - Cache-Control: no-cache, no-store, must-revalidate[22m
+[2m    - Pragma: no-cache[22m
+[2m    - Expires: 0[22m
+[2m    - Content-Type: application/json[22m
+[2m    - content-length: 198[22m
+[2m    - cookie: devsmith_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjQyNjA0MzgsImlhdCI6MTc2MzY1NTYzOCwic2Vzc2lvbl9pZCI6IjRjOTc0ZTAyMTRiMmVhOTc3ZjBkZTgxM2MyNjUwY2EwZDE5OWRlZTJhY2EwMDEzNGUwMmU4NTgwNmMxZWU1ZDMifQ.0f8GFjL5HDZHbxaq1Oum8DSQ18N_WNquz4pCe-gKFsE[22m
+
+Test 2 may skip if no config exists
+
+[[95mpercy[39m] Percy is not running, disabling snapshots
+⚠️ No default model - test may fail
+Endpoint value: 
+✅ Test 3: Health dashboard loaded successfully
+✅ Dashboard UI verified
+  ✓  3 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:372:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 3: Health App - Generate Insights for Log (9.4s)
+Test Connection Response: {
+  status: [33m400[39m,
+  body: {
+    success: [33mfalse[39m,
+    message: [32m'Connection failed'[39m,
+    details: [32m'Failed to connect to ollama: failed to send request to Ollama: Post "http://host.docker.internal:11434/api/generate": context deadline exceeded\n'[39m +
+      [32m'\n'[39m +
+      [32m'Connection timed out after 60 seconds. This usually indicates:\n'[39m +
+      [32m'• Ollama service is not running\n'[39m +
+      [32m"• The model 'deepseek-coder-v2:16b-lite-instruct-q4_K_M' is not installed or needs to be downloaded\n"[39m +
+      [32m'• The endpoint http://host.docker.internal:11434 is not reachable\n'[39m +
+      [32m'\n'[39m +
+      [32m'Troubleshooting:\n'[39m +
+      [32m'• Check Ollama status: curl http://host.docker.internal:11434/api/version\n'[39m +
+      [32m'• Verify model exists: ollama list | grep deepseek-coder-v2:16b-lite-instruct-q4_K_M\n'[39m +
+      [32m'• Pull model if needed: ollama pull deepseek-coder-v2:16b-lite-instruct-q4_K_M\n'[39m +
+      [32m`• Test direct connection: curl http://host.docker.internal:11434/api/generate -d '{"model":"deepseek-coder-v2:16b-lite-instruct-q4_K_M","prompt":"test"}'`[39m
+  }
+}
+⚠️ Connection failed (expected if Ollama not running)
+Error details: Failed to connect to ollama: failed to send request to Ollama: Post "http://host.docker.internal:11434/api/generate": context deadline exceeded
+
+Connection timed out after 60 seconds. This usually indicates:
+• Ollama service is not running
+• The model 'deepseek-coder-v2:16b-lite-instruct-q4_K_M' is not installed or needs to be downloaded
+• The endpoint http://host.docker.internal:11434 is not reachable
+
+Troubleshooting:
+• Check Ollama status: curl http://host.docker.internal:11434/api/version
+• Verify model exists: ollama list | grep deepseek-coder-v2:16b-lite-instruct-q4_K_M
+• Pull model if needed: ollama pull deepseek-coder-v2:16b-lite-instruct-q4_K_M
+• Test direct connection: curl http://host.docker.internal:11434/api/generate -d '{"model":"deepseek-coder-v2:16b-lite-instruct-q4_K_M","prompt":"test"}'
+✅ Timeout error detected - confirms 60s timeout applied
+Skipping config save due to connection failure
+  ✓  1 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:107:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 1: AI Factory - Ollama Connection Test (1.0m)
+✅ Found 0 LLM config(s)
+  ✘  4 [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:263:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model (2.2s)
+
+
+  1) [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:263:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model 
+
+    Error: locator.isVisible: SyntaxError: Invalid flags supplied to RegExp constructor 'i, .badge:has-text("default")'
+        at new RegExp (<anonymous>)
+        at createTextMatcher (<anonymous>:7786:16)
+        at Object.queryAll (<anonymous>:6691:33)
+        at InjectedScript._queryEngineAll (<anonymous>:6664:49)
+        at InjectedScript.querySelectorAll (<anonymous>:6651:30)
+        at InjectedScript.querySelector (<anonymous>:6576:25)
+        at eval (eval at evaluate (:290:30), <anonymous>:2:34)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+    Call log:
+    [2m    - checking visibility of locator('text=/default/i, .badge:has-text("default")').first()[22m
+
+        at createTextMatcher (<anonymous>:7786:16)
+        at Object.queryAll (<anonymous>:6691:33)
+        at InjectedScript._queryEngineAll (<anonymous>:6664:49)
+        at InjectedScript.querySelectorAll (<anonymous>:6651:30)
+        at InjectedScript.querySelector (<anonymous>:6576:25)
+        at eval (eval at evaluate (:290:30), <anonymous>:2:34)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at /home/mikej/projects/DevSmith-Modular-Platform/tests/e2e/break-fix1-user-scenarios.spec.ts:284:28
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../../../tmp/playwright-results/break-fix1-user-scenarios--f9aed-Analysis-with-Default-Model-full/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../../../tmp/playwright-results/break-fix1-user-scenarios--f9aed-Analysis-with-Default-Model-full/error-context.md
+
+  1 failed
+    [full] › tests/e2e/break-fix1-user-scenarios.spec.ts:263:7 › BREAK-FIX1: User Manual Test Scenarios › Scenario 2: Code Review - Analysis with Default Model 
+  3 passed (1.3m)
+
+[36m  Serving HTML report at http://localhost:9323. Press Ctrl+C to quit.[39m

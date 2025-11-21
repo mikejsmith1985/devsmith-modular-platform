@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Review Authentication Flow', () => {
   test('clicking Review card on dashboard navigates to Review app', async ({ page }) => {
     // GIVEN: User visits Dashboard (unauthenticated is fine - we just want to test navigation)
-    await page.goto('http://localhost:3000/dashboard', { waitUntil: 'networkidle' });
+    await page.goto('/dashboard', { waitUntil: 'networkidle' });
     
     // THEN: Dashboard loads
     await expect(page.locator('text=Code Review')).toBeVisible({ timeout: 10000 });
@@ -41,7 +41,7 @@ test.describe('Review Authentication Flow', () => {
     // GIVEN: No authentication
     
     // WHEN: Directly accessing Review endpoint (follow redirects: false)
-    const response = await page.request.get('http://localhost:3000/review', {
+    const response = await page.request.get('/review', {
       maxRedirects: 0
     });
     
@@ -57,7 +57,7 @@ test.describe('Review Authentication Flow', () => {
     // GIVEN: No authentication
     
     // WHEN: Directly accessing Review endpoint
-    const response = await page.request.get('http://localhost:3000/review', {
+    const response = await page.request.get('/review', {
       maxRedirects: 0
     });
     

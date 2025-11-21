@@ -2,7 +2,7 @@ import { test, expect } from './fixtures/auth.fixture';
 
 test.describe('React Frontend - Core Functionality', () => {
   test('should render login page with GitHub OAuth button', async ({ page }) => {
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     
     // Should redirect to /login if not authenticated
     await page.waitForURL(/\/login/);
@@ -26,7 +26,7 @@ test.describe('React Frontend - Core Functionality', () => {
 
   test('should have proper SPA routing (no page reloads)', async ({ authenticatedPage }) => {
     // Use authenticated page fixture
-    await authenticatedPage.goto('http://localhost:3000/');
+    await authenticatedPage.goto('/');
     
     // Wait for dashboard to load
     await authenticatedPage.waitForURL(/\/(dashboard)?$/);
@@ -47,7 +47,7 @@ test.describe('React Frontend - Core Functionality', () => {
 test.describe('React Frontend - API Integration', () => {
   test('should fetch and display log statistics', async ({ authenticatedPage }) => {
     // Navigate to logs page (already authenticated)
-    await authenticatedPage.goto('http://localhost:3000/logs');
+    await authenticatedPage.goto('/logs');
     
     // Wait for API call to complete
     const response = await authenticatedPage.waitForResponse(
@@ -67,7 +67,7 @@ test.describe('React Frontend - API Integration', () => {
   });
 
   test('StatCards should render with real data', async ({ authenticatedPage }) => {
-    await authenticatedPage.goto('http://localhost:3000/logs');
+    await authenticatedPage.goto('/logs');
     
     // Wait for StatCards to load
     await authenticatedPage.waitForSelector('.stat-card', { timeout: 5000 });
@@ -85,13 +85,13 @@ test.describe('React Frontend - API Integration', () => {
 test.describe('React Frontend - Authentication Flow', () => {
   test('should redirect unauthenticated users to login', async ({ page }) => {
     // Clear any existing auth
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     await page.evaluate(() => {
       localStorage.removeItem('devsmith_token');
     });
     
     // Try to access protected route
-    await page.goto('http://localhost:3000/dashboard');
+    await page.goto('/dashboard');
     
     // Should redirect to login
     await page.waitForURL(/\/login/);
@@ -99,7 +99,7 @@ test.describe('React Frontend - Authentication Flow', () => {
   });
 
   test('should store JWT token on successful login', async ({ page }) => {
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
     
     // Mock successful OAuth callback
     await page.evaluate(() => {
@@ -118,7 +118,7 @@ test.describe('React Frontend - Authentication Flow', () => {
 test.describe('React Frontend - Responsive Design', () => {
   test('should render properly on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     
     // Check if Bootstrap grid adapts
     const container = await page.locator('.container').first();
@@ -127,7 +127,7 @@ test.describe('React Frontend - Responsive Design', () => {
 
   test('should render properly on tablet', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 }); // iPad
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     
     const container = await page.locator('.container').first();
     await expect(container).toBeVisible();
@@ -135,7 +135,7 @@ test.describe('React Frontend - Responsive Design', () => {
 
   test('should render properly on desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 }); // Desktop
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
     
     const container = await page.locator('.container').first();
     await expect(container).toBeVisible();

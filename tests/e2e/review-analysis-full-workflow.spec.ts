@@ -38,7 +38,7 @@ func main() {
 test.describe('Review Analysis Full Workflow', () => {
   test('should complete Preview mode analysis successfully', async ({ authenticatedPage }) => {
     // Step 1: Navigate to Review app (React frontend at /review)
-    await authenticatedPage.goto('http://localhost:3000/review');
+    await authenticatedPage.goto('/review');
     await authenticatedPage.waitForLoadState('networkidle');
 
     // Wait for workspace page to load
@@ -114,11 +114,11 @@ test.describe('Review Analysis Full Workflow', () => {
 
   test('should load Ollama config from Portal API', async ({ authenticatedPage, request }) => {
     // Step 1: Navigate to Review (ensures authenticated)
-    await authenticatedPage.goto('http://localhost:3000/review/workspace/demo');
+    await authenticatedPage.goto('/review/workspace/demo');
     
     // Step 2: Verify Portal API returns full LLM config
     const cookies = await authenticatedPage.context().cookies();
-    const response = await request.get('http://localhost:3000/api/portal/app-llm-preferences', {
+    const response = await request.get('/api/portal/app-llm-preferences', {
       headers: {
         'Cookie': cookies.map(c => `${c.name}=${c.value}`).join('; ')
       }
@@ -145,7 +145,7 @@ test.describe('Review Analysis Full Workflow', () => {
       console.log(`Testing ${mode} mode...`);
 
       // Navigate to Review app (React frontend at /review) for each mode
-      await authenticatedPage.goto('http://localhost:3000/review');
+      await authenticatedPage.goto('/review');
       await authenticatedPage.waitForLoadState('networkidle');
       
       // Wait for workspace page to load
@@ -196,7 +196,7 @@ test.describe('Review Analysis Full Workflow', () => {
 
   test('should persist model selection across analyses', async ({ authenticatedPage }) => {
     // Navigate to Review app (React frontend at /review)
-    await authenticatedPage.goto('http://localhost:3000/review');
+    await authenticatedPage.goto('/review');
     await authenticatedPage.waitForLoadState('networkidle');
     
     // Wait for React app to render and Monaco Editor to be ready
@@ -232,7 +232,7 @@ test.describe('Review Analysis Full Workflow', () => {
 
 test.describe('Review Analysis Error Scenarios', () => {
   test('should show user-friendly error for invalid code', async ({ authenticatedPage }) => {
-    await authenticatedPage.goto('http://localhost:3000/review');
+    await authenticatedPage.goto('/review');
     await authenticatedPage.waitForLoadState('networkidle');
     
     // Wait for workspace page to load

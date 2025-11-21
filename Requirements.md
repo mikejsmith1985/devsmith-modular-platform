@@ -59,14 +59,15 @@ All code interaction happens through one of five modes:
   - Fast compilation and execution
   - Strong concurrency primitives
 
-### Frontend
-- **Templates**: Templ (type-safe, compile-time checked)
-- **Interactivity**: HTMX (no heavy JavaScript frameworks)
-- **Styling**: TailwindCSS + DaisyUI
-- **Rationale**:
-  - Server-side rendering (simple deployment)
-  - Minimal client-side JavaScript (reduce complexity)
-  - Progressive enhancement (works without JS)
+### Frontend (Single React App)
+- **Language:** JavaScript/JSX
+- **Framework:** React 18 with Vite
+- **Routing:** React Router v6 (SPA navigation)
+- **Styling:** Bootstrap 5 + Bootstrap Icons
+- **State Management:** React Context API (AuthContext, ThemeContext)
+- **HTTP Client:** Fetch API with custom apiClient utility
+- **Build Tool:** Vite (fast HMR, optimized builds)
+- **Testing:** Vitest + React Testing Library
 
 ### Database
 - **Primary**: PostgreSQL 15+
@@ -81,9 +82,9 @@ All code interaction happens through one of five modes:
 **No cross-schema foreign keys** - services communicate via APIs, not direct DB coupling.
 
 ### Infrastructure
-- **Gateway**: Nginx (reverse proxy, single entry point)
+- **Gateway**: Traefik v2.10+ (reverse proxy, middleware chain)
 - **Containerization**: Docker + Docker Compose
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions with Playwright E2E tests
 - **Deployment**: Single-command setup via Docker Compose
 
 ### AI Integration
@@ -174,7 +175,7 @@ The platform supports multiple DeepSeek-Coder models with different resource req
 - Recent activity feed
 - Quick navigation to other services
 
-**Tech Stack**: Go + Gin + Templ + HTMX
+**Tech Stack**: Go + Gin (backend APIs), React + TypeScript + Vite (frontend)
 
 ---
 
@@ -200,7 +201,7 @@ This is the primary value proposition of the platform. The Review service implem
   - Tree view with expandable folders
   - Color coding by layer (controller=blue, service=green, data=orange)
   - AI summary panel: "This is a Go microservice using Gin and PostgreSQL..."
-  - Filter by file type (.go, .templ, .sql)
+  - Filter by file type (.go, .tsx/.jsx, .sql)
 - **Use Cases**:
   - Evaluating GitHub repo before cloning
   - Quick assessment of OpenHands output
@@ -681,7 +682,7 @@ cd devsmith-modular-platform
 ### Docker Compose Architecture
 ```yaml
 services:
-  nginx:        # Gateway, port 3000
+  traefik-gateway:   # Reverse proxy, port 3000
   postgres:     # Database
   redis:        # WebSocket pub/sub, caching
   portal:       # Port 3001 (internal)
@@ -691,7 +692,7 @@ services:
   # build:      # Port 3005 (Phase 2)
 ```
 
-All services behind Nginx gateway - users only access `localhost:3000`.
+All services behind Traefik gateway - users only access `localhost:3000`.
 
 ---
 
@@ -749,11 +750,11 @@ All services behind Nginx gateway - users only access `localhost:3000`.
 - Run before release to `main`
 
 ### Manual Testing Checklist
-- [ ] Feature works through nginx gateway
+- [ ] Feature works through Traefik gateway (`http://localhost:3000`)
 - [ ] No browser console errors
 - [ ] Responsive design (mobile/desktop)
 - [ ] Light/dark mode compatible
-- [ ] HTMX interactions work
+- [ ] React component interactions work
 - [ ] WebSocket connections stable
 
 ---

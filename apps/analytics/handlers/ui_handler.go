@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	templates "github.com/mikejsmith1985/devsmith-modular-platform/apps/analytics/templates"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,15 +17,6 @@ type UIHandler struct {
 func NewUIHandler(logger *logrus.Logger) *UIHandler {
 	return &UIHandler{
 		logger: logger,
-	}
-}
-
-// DashboardHandler serves the main Analytics dashboard.
-func (h *UIHandler) DashboardHandler(c *gin.Context) {
-	component := templates.Dashboard()
-	if err := component.Render(c.Request.Context(), c.Writer); err != nil {
-		h.logger.WithError(err).Error("Failed to render dashboard template")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to render dashboard"})
 	}
 }
 
@@ -109,10 +99,7 @@ func (h *UIHandler) IssuesHandler(c *gin.Context) {
 func RegisterUIRoutes(router *gin.Engine, logger *logrus.Logger) {
 	uiHandler := NewUIHandler(logger)
 
-	// Dashboard UI route
-	router.GET("/", uiHandler.DashboardHandler)
-	router.GET("/dashboard", uiHandler.DashboardHandler)
-	router.GET("/analytics", uiHandler.DashboardHandler) // Route from nginx proxy /analytics
+	// Note: Dashboard UI now handled by React frontend at /analytics route
 
 	// Health check route
 	router.GET("/health", uiHandler.HealthHandler)
