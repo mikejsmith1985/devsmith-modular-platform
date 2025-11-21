@@ -1056,7 +1056,7 @@ Flow that failed:
 2. ✅ Redirects to GitHub OAuth
 3. ✅ User authorizes
 4. ✅ GitHub redirects to /auth/github/callback with code
-5. ✅ Portal exchanges code for access token (got: `gho_***REDACTED***`)
+5. ✅ Portal exchanges code for access token (got: `gh*_***REDACTED***`)
 6. ✅ Portal fetches user info from GitHub API (got: mikejsmith1985, id: 157150032)
 7. ❌ **PANIC** when trying to create JWT token because JWT_SECRET not set
 
