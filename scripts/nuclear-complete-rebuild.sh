@@ -85,4 +85,7 @@ else
   echo "WARN: AI Factory endpoint returned non-200 (maybe requires auth or not configured)."
 fi
 
+# Update atomic rebuild marker for pre-push hook validation
+touch .nuclear_rebuild_marker
+
 echo "Nuclear rebuild and validation complete."
